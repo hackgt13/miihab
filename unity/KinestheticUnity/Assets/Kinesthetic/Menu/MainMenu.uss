@@ -206,7 +206,7 @@ Button.activity-card:active { border-color: #3D7CD4; background-color: #D8E8FE; 
 
 .friends-body { flex-direction: row; flex-grow: 1; margin-top: 18px; }
 
-.friends-list-pane { width: 268px; margin-right: 22px; }
+.friends-list-pane { width: 360px; margin-right: 22px; }
 .friends-list { flex-grow: 1; }
 
 .friend-row {
@@ -229,8 +229,9 @@ Button.activity-card:active { border-color: #3D7CD4; background-color: #D8E8FE; 
 
 .follow-pill {
     flex-shrink: 0;
-    min-width: 76px;
+    min-width: 68px;
     height: 26px;
+    padding: 0 12px;
     font-size: 14px;
     border-radius: 13px;
     border-width: 1px;
@@ -243,6 +244,7 @@ Button.activity-card:active { border-color: #3D7CD4; background-color: #D8E8FE; 
 .invite-block { margin-top: 12px; }
 .ghost-button {
     height: 32px;
+    padding: 0 16px;
     font-size: 15px;
     border-radius: 16px;
     border-width: 1px;
@@ -308,6 +310,7 @@ Button.activity-card:active { border-color: #3D7CD4; background-color: #D8E8FE; 
     min-width: 84px;
     height: 36px;
     margin-left: 6px;
+    padding: 0 18px;
     border-radius: 18px;
     background-color: #29335C;
     color: #FDFBF6;
@@ -353,9 +356,10 @@ Button.activity-card:active { border-color: #3D7CD4; background-color: #D8E8FE; 
 /* A per-row Message button, so sending is never hidden behind selection. */
 .message-pill {
     flex-shrink: 0;
-    min-width: 74px;
+    min-width: 64px;
     height: 26px;
     margin-left: 6px;
+    padding: 0 12px;
     font-size: 14px;
     border-radius: 13px;
     border-width: 0;
