@@ -8,6 +8,7 @@ Shader "Kinesthetic/HeadFade"
         _Color ("Color", Color) = (0, 0, 0, 1)
         _Cover ("Cover", Range(0, 1)) = 0
         _Tunnel ("Tunnel", Range(0, 1)) = 0
+        _Extent ("Extent", Float) = 0.2
     }
     SubShader
     {
@@ -44,6 +45,7 @@ Shader "Kinesthetic/HeadFade"
             half4 _Color;
             half _Cover;
             half _Tunnel;
+            half _Extent;
             CBUFFER_END
 
             Varyings Vert(Attributes input)
@@ -59,9 +61,9 @@ Shader "Kinesthetic/HeadFade"
             half4 Frag(Varyings input) : SV_Target
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-                // 0 at the centre of the view, 1 halfway to the quad's edge. HeadFade sizes the quad so the
-                // edge of the view falls around 0.7, so a tunnel of 0.7 leaves a clear centre and dark edges.
-                float r = length(input.uv - 0.5) * 2;
+                // 0 at the centre of the view, 1 at the edge of what the camera can see: the quad itself is
+                // far larger than any view, and HeadFade sets _Extent to the fraction of it the view reaches.
+                float r = length(input.uv - 0.5) * 2 / max(_Extent, 0.01);
                 float inner = lerp(1.0, 0.12, _Tunnel);
                 half tunnel = _Tunnel > 0 ? smoothstep(inner, inner + 0.3, r) : 0;
                 return half4(_Color.rgb, max(_Cover, tunnel));

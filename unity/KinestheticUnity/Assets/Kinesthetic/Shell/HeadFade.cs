@@ -17,8 +17,11 @@ namespace Kinesthetic.Shell
     public sealed class HeadFade : MonoBehaviour
     {
         const string ShaderPath = "Shell/HeadFade";
-        const float Distance = 1f, Margin = 1.6f;
-        static readonly int CoverId = Shader.PropertyToID("_Cover"), TunnelId = Shader.PropertyToID("_Tunnel"), ColorId = Shader.PropertyToID("_Color");
+        // A metre ahead and twelve metres across: wider than any view — 80 degrees to each side — so cover
+        // never depends on knowing the camera's field of view or aspect, which a camera that has not rendered
+        // yet reports wrongly. The tunnel is scaled to the view through _Extent instead.
+        const float Distance = 1f, HalfSide = 6f;
+        static readonly int CoverId = Shader.PropertyToID("_Cover"), TunnelId = Shader.PropertyToID("_Tunnel"), ColorId = Shader.PropertyToID("_Color"), ExtentId = Shader.PropertyToID("_Extent");
 
         static HeadFade instance;
 
@@ -66,6 +69,7 @@ namespace Kinesthetic.Shell
             render.receiveShadows = false;
             render.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
             render.enabled = false;
+            transform.localScale = new Vector3(HalfSide * 2, HalfSide * 2, 1);
         }
 
         // A unit quad in the camera's XY plane. Cull is off in the shader, so which way it faces is moot.
@@ -99,6 +103,10 @@ namespace Kinesthetic.Shell
             }
             var eye = attached.transform;
             transform.SetPositionAndRotation(eye.position + eye.rotation * new Vector3(0, 0, Distance), eye.rotation);
+            // How far across the quad the edge of the view reaches, re-read every frame: a camera's aspect is
+            // only right once it has rendered, and a wrong value here only mis-scales the tunnel for a frame.
+            float reach = Mathf.Tan(attached.fieldOfView * .5f * Mathf.Deg2Rad) * Distance * Mathf.Max(attached.aspect, 1f);
+            if (material) material.SetFloat(ExtentId, reach / HalfSide);
         }
 
         void Attach(Camera cam)
@@ -106,9 +114,6 @@ namespace Kinesthetic.Shell
             attached = cam;
             if (!cam) return;   // stays where it was, still drawn: whatever renders next is covered
             fov = cam.fieldOfView; aspect = cam.aspect;
-            // Wide enough that the view's corners stay inside it with room to spare, on any camera.
-            float side = 2 * Mathf.Tan(fov * .5f * Mathf.Deg2Rad) * Distance * Mathf.Max(aspect, 1) * Margin;
-            transform.localScale = new Vector3(side, side, 1);
             Push();
         }
 
