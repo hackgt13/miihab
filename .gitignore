@@ -53,8 +53,7 @@ artifacts/pose-tests/
 artifacts/*.png
 artifacts/docs-trusted-read-20260925/
 
-# Downloaded voice weights and archived evaluation checkout
-coach/models/
+# Editable art sources and archived evaluation checkout
 art/mii/
 art/course-reference/
 third_party/cbush201-golf-original/FirstTest/Assets/ImportedAssets/
