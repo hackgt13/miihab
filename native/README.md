@@ -1,4 +1,16 @@
-# Kinesthetic Club Motion
+# Kinesthetic motion apps
+
+`zsh native/build.sh` builds two separate Mac apps from the shared sensor reader:
+
+- **Kinesthetic Club Motion** sends `club.motion` on `/golf` for the golf club.
+- **Kinesthetic Bowling Motion** sends `bowling.motion` on `/bowling-motion` for a wrist-mounted AirPod.
+
+Starting either app pauses sensor capture in the other app. Each opens as a normal foreground window.
+Bowling starts with `zsh scripts/start_bowling_session.sh`; it does not request the camera. Hold still facing
+the pins to calibrate, then swing back and forward. Aim and power are game estimates from relative
+orientation and angular speed. The native bridge has no simulated input mode.
+
+## Golf
 
 Native macOS AirPod sensor host for the adaptive golf scene. Uses the actual CMHeadphoneMotionManager acquisition pattern reviewed in `/Users/tazeemmahashin/Downloads/Aircade-main/Sources/Aircade/MotionModel.swift`, including sensorLocation, finite values and increasing hardware timestamps. It has no simulated input mode.
 

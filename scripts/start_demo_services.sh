@@ -36,5 +36,9 @@ for attempt in {1..30}; do
   sleep 0.1
 done
 
-app="$repo/native/build/Kinesthetic Club Motion.app"
-if [[ -d "$app" ]] && golf_ready; then /usr/bin/open -gj -a "$app"; fi
+case "${1:-club}" in
+  club) app="$repo/native/build/Kinesthetic Club Motion.app" ;;
+  bowling) app="$repo/native/build/Kinesthetic Bowling Motion.app" ;;
+  *) print -u2 'Motion activity must be club or bowling.'; exit 1 ;;
+esac
+if [[ -d "$app" ]] && golf_ready; then /usr/bin/open -a "$app"; fi
