@@ -18,9 +18,9 @@ const motions=new Map([['/golf',motionChannel('club',golfDir)],['/bowling-motion
 const golfMotion=motions.get('/golf')!,bowlingMotion=motions.get('/bowling-motion')!;
 const viewerOrigins=new Set(['http://127.0.0.1:8766','http://localhost:8766']);
 const loopback=(address?:string)=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(address??'');
-const channels=new Map(['/state','/bowling-state'].map(path=>[path,{
+const channels=new Map(['/state','/bowling-state','/rehab-state'].map(path=>[path,{
   host:null as WebSocket|null,clients:new Set<WebSocket>(),last:null as string|null,
-  type:path==='/state'?'golf':'bowling'
+  type:({'/state':'golf','/bowling-state':'bowling','/rehab-state':'rehab'} as Record<string,string>)[path]
 }]));
 const golfState=channels.get('/state')!;
 const server=createServer((req,res)=>{

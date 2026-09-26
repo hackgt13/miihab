@@ -66,3 +66,21 @@ test('wrist motion and club motion cannot cross activity channels', {timeout:400
     assert.equal(golf.messages.length,1,'bowling disconnect must not stop golf');
   } finally {for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true});}
 });
+
+test('the rehab studio has its own state channel for a headset', {timeout:10000}, async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'rehab-state-'));
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18784',KINESTHETIC_GOLF_RECORDINGS:dir}});
+  const clients:WebSocket[]=[];
+  try {
+    await once(proc.stdout,'data');
+    const open=async(path:string,role:string)=>{const ws=new WebSocket(`ws://127.0.0.1:18784/${path}?role=${role}`);clients.push(ws);await once(ws,'open');return ws;};
+    const host=await open('rehab-state','host'), quest=await open('rehab-state','client'), bowlingQuest=await open('bowling-state','client');
+    const got=once(quest,'message');host.send(JSON.stringify({type:'rehab.state',seq:3,valid:2}));
+    assert.equal(JSON.parse((await got)[0].toString()).valid,2);
+    await new Promise(r=>setTimeout(r,50));
+    let crossed=false;bowlingQuest.on('message',()=>crossed=true);await new Promise(r=>setTimeout(r,50));
+    assert.equal(crossed,false,'rehab state never reaches another activity');
+    const closed=once(host,'close');host.send('{"type":"golf.state"}');assert.equal((await closed)[0],1008,'only rehab.state on this channel');
+  } finally { for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true}); }
+});

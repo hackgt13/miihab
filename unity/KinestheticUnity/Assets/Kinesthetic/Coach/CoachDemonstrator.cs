@@ -336,7 +336,8 @@ namespace Kinesthetic.Coach
         }
         static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (scene.name != "Rehab" || FindAnyObjectByType<CoachDemonstrator>()) return;
+            // The headset's QuestRehab gets the coach too; RehabStateClient then drives it from the Mac's pose.
+            if (scene.name is not ("Rehab" or "QuestRehab") || FindAnyObjectByType<CoachDemonstrator>()) return;
             var prefab = Resources.Load<GameObject>("Coach/TrainerCoach"); if (!prefab) return;
             var patient = FindAnyObjectByType<PoseRig>();
             var cam = Camera.main;

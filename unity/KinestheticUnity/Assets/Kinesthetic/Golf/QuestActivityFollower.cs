@@ -4,14 +4,17 @@ using UnityEngine.SceneManagement;
 
 namespace Kinesthetic.Golf
 {
-    // Headset only: one Quest app holds both games and follows the Mac. Whichever game the Mac is hosting
-    // (golf publishes golf.state, bowling publishes bowling.state) is the scene the headset shows; when the
-    // Mac switches, the headset switches. With no host live, the headset stays where it is.
+    // Headset only: one Quest app holds every activity and follows the Mac. Whichever the Mac is hosting
+    // (golf.state, bowling.state or rehab.state) is the scene the headset shows; when the Mac switches, the
+    // headset switches. With no host live, the headset stays where it is.
     public sealed class QuestActivityFollower : MonoBehaviour
     {
-        public const string GolfScene = "QuestGolf", BowlingScene = "QuestBowling";
-        LatestSocket golf, bowling;
-        float golfAt = -99, bowlingAt = -99;
+        public const string GolfScene = "QuestGolf", BowlingScene = "QuestBowling", RehabScene = "QuestRehab";
+        // Channel, the state type its host publishes, and the headset scene that renders it.
+        static readonly (string path, string type, string scene)[] Activities =
+            { ("/state", "golf.state", GolfScene), ("/bowling-state", "bowling.state", BowlingScene), ("/rehab-state", "rehab.state", RehabScene) };
+        LatestSocket[] sockets;
+        float[] liveAt;
         AsyncOperation loading;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -28,21 +31,25 @@ namespace Kinesthetic.Golf
             var config = Resources.Load<QuestHostConfig>(QuestHostConfig.ResourcePath);
             if (!config || string.IsNullOrEmpty(config.token)) { enabled = false; return; }
             string Url(string path) => $"ws://{config.host}:{config.port}{path}?role=client&token={Uri.EscapeDataString(config.token)}";
-            golf = new LatestSocket(Url("/state"));
-            bowling = new LatestSocket(Url("/bowling-state"));
+            sockets = Array.ConvertAll(Activities, a => new LatestSocket(Url(a.path)));
+            liveAt = new float[Activities.Length];
+            for (int i = 0; i < liveAt.Length; i++) liveAt[i] = -99;
         }
 
         void Update()
         {
             float now = Time.unscaledTime;
-            if (golf.Take(out var g) && g.Contains("\"golf.state\"")) golfAt = now;
-            if (bowling.Take(out var b) && b.Contains("\"bowling.state\"")) bowlingAt = now;
-            bool golfLive = now - golfAt < 2, bowlingLive = now - bowlingAt < 2;
-            string want = bowlingLive && (!golfLive || bowlingAt > golfAt) ? BowlingScene : golfLive ? GolfScene : null;
-            if (want == null || loading is { isDone: false } || SceneManager.GetActiveScene().name == want) return;
-            loading = SceneManager.LoadSceneAsync(want);
+            // Whichever host published most recently is what the Mac is running now.
+            int newest = -1;
+            for (int i = 0; i < Activities.Length; i++)
+            {
+                if (sockets[i].Take(out var text) && text.Contains($"\"{Activities[i].type}\"")) liveAt[i] = now;
+                if (now - liveAt[i] < 2 && (newest < 0 || liveAt[i] > liveAt[newest])) newest = i;
+            }
+            if (newest < 0 || loading is { isDone: false } || SceneManager.GetActiveScene().name == Activities[newest].scene) return;
+            loading = SceneManager.LoadSceneAsync(Activities[newest].scene);
         }
 
-        void OnDestroy() { golf?.Dispose(); bowling?.Dispose(); }
+        void OnDestroy() { if (sockets != null) foreach (var s in sockets) s?.Dispose(); }
     }
 }
