@@ -154,14 +154,17 @@ namespace Kinesthetic.Menu
     /// the panel is the state, and this writes into it.
     public static class MenuDashboard
     {
-        // The app's palette is teal, but a contribution grid only reads as one if it is green, so the
-        // scale is green tuned warm enough to sit beside the teal rather than fight it.
-        static readonly Color Empty = new(.60f, .72f, .78f, .38f);
-        static readonly Color[] Levels =
-        {
-            new(.78f, .90f, .81f), new(.56f, .82f, .63f), new(.33f, .72f, .47f), new(.16f, .58f, .34f),
-        };
-        static readonly Color Accent = new(.11f, .56f, .77f);
+        // Taken from Palette.cs by role, not by hex, so retuning the system moves these with it.
+        // The calendar ramp is the ice scale rather than a green one: the palette is five hues, and a
+        // sixth would buy nothing that darkness is not already saying.
+        static readonly Color Ink = Palette.Ink;
+        static readonly Color Progress = Palette.Progress;     // a measured value
+        static readonly Color Reference = Palette.Reference;   // the plan it is drawn against
+        static readonly Color Attention = Palette.Attention;   // must be noticed
+        static readonly Color Panel = Palette.Panel;
+        static readonly Color Empty = Palette.Line.At(.45f);
+        static readonly Color[] Levels = { Palette.Ice20, Palette.Ice30, Palette.Ice40, Palette.Ice50 };
+        static readonly Color Accent = Palette.Progress;
 
         // Rotates on the hour of day rather than at random, so the board is not a different greeting
         // every time someone glances at it.
@@ -175,12 +178,13 @@ namespace Kinesthetic.Menu
             Text(root, "splash-sub", $"{now:dddd d MMMM} · Day {model.programDay} of {model.programTotalDays}");
 
             Text(root, "streak-number", model.streakDays.ToString());
-            Text(root, "streak-caption", $"best so far {model.bestStreakDays}");
-            Text(root, "week-count", $"{model.weekSessionsDone} of {model.weekSessionsGoal} this week");
+            Text(root, "streak-caption", model.streakDays >= model.bestStreakDays
+                ? "your best run yet" : $"{model.bestStreakDays - model.streakDays} to beat your best");
+            Text(root, "week-count", $"{model.weekSessionsDone} of {model.weekSessionsGoal} done this week");
             Text(root, "goal-copy", $"Working toward “{model.goal}”");
 
             Text(root, "ring-number", model.DaysRemaining.ToString());
-            Text(root, "ring-caption", "days left");
+            Text(root, "ring-caption", "days to go");
             Text(root, "ring-note", $"{Mathf.RoundToInt(model.ProgramFraction * 100)}% of your program");
 
             Text(root, "calendar-note", $"{model.RecentActiveDays} of the last 28 days");
@@ -208,12 +212,16 @@ namespace Kinesthetic.Menu
             float delta = reach - first;
             Text(root, "reach-now", $"{Mathf.RoundToInt(reach)}°");
             Text(root, "reach-delta", model.history.Length > 1
-                ? $"{(delta >= 0 ? "+" : "")}{Mathf.RoundToInt(delta)}° since {model.history[0].label}"
+                ? $"{(delta >= 0 ? "+" : "")}{Mathf.RoundToInt(delta)}° further than week one"
                 : "First session — no trend yet");
-            Text(root, "reach-best", $"Best {Mathf.RoundToInt(model.BestReachDeg)}° · target {Mathf.RoundToInt(model.targetDeg)}°");
+            Text(root, "reach-best", $"median peak · target {Mathf.RoundToInt(model.targetDeg)}°");
+            Text(root, "reach-cheer", reach >= model.targetDeg
+                ? $"Past your target by {Mathf.RoundToInt(reach - model.targetDeg)}° \u2014 nice."
+                : $"{Mathf.RoundToInt(model.targetDeg - reach)}° to reach your target");
             Text(root, "data-note", model.measured ? "From your measured sessions" : "Demo data · not measured");
 
-            Paint(root, "progress-chart", (ctx, r) => DrawHero(ctx, r, model));
+            Paint(root, "range-fan", (ctx, r) => DrawRangeFan(ctx, r, model));
+            Paint(root, "reach-spark", (ctx, r) => DrawSparkline(ctx, r, model.history));
             Paint(root, "calendar-grid", (ctx, r) => DrawCalendar(ctx, r, model.RecentDays(28)));
             Paint(root, "browse-glyph", DrawBrowseGlyph);
             Paint(root, "program-ring", (ctx, r) => DrawRing(ctx, r, model.ProgramFraction));
@@ -257,74 +265,102 @@ namespace Kinesthetic.Menu
 
         // ------------------------------------------------------------------ hero
 
-        /// Reach over time, as the board's headline. The axis starts below the lowest reading rather
-        /// than at zero because the point is the slope, and the prescribed target is drawn as a line
-        /// so a rising curve can be read against what it is rising towards.
-        static void DrawHero(MeshGenerationContext ctx, Rect r, MenuDashboardModel model)
+        /// The reach, drawn as the movement instead of as a chart.
+        ///
+        /// A line graph of shoulder degrees is generic — it could be plotting anything, and "93°" does
+        /// not feel like a distance until you see the arm sweep it. So this is a fan pivoting at the
+        /// shoulder: a pale wedge for where week one reached, a bright band for everything gained
+        /// since, and a tick at the clinician's target. The gain is the band, which is the one thing
+        /// worth looking at.
+        static void DrawRangeFan(MeshGenerationContext ctx, Rect r, MenuDashboardModel model)
         {
-            var points = model.history;
-            if (r.width < 8 || r.height < 8 || points.Length == 0) return;
+            if (r.width < 24 || r.height < 24 || model.history.Length == 0) return;
             var p = ctx.painter2D;
-            float w = r.width, h = r.height;
+            float now = model.history[^1].medianPeakDeg;
+            float start = model.history[0].medianPeakDeg;
+            float target = model.targetDeg;
 
-            float lo = points.Min(x => x.medianPeakDeg), hi = points.Max(x => x.medianPeakDeg);
-            hi = Mathf.Max(hi, model.targetDeg);
-            float pad = Mathf.Max(5, (hi - lo) * .3f);
-            lo -= pad; hi += pad;
-            float X(int i) => points.Length == 1 ? w * .5f : w * i / (points.Length - 1f);
-            float Y(float v) => h - (v - lo) / Mathf.Max(.001f, hi - lo) * h;
+            // Arm at the side points down; raising it sweeps towards horizontal. Painter2D measures
+            // from +X clockwise, so straight down is 90 and an elevation of E sits at 90 - E.
+            var pivot = new Vector2(r.width * .10f, r.height * .11f);
+            float radius = Mathf.Min(r.width * .88f, r.height * .90f);
+            float Ang(float elevation) => 90 - elevation;
 
-            p.strokeColor = new Color(.44f, .68f, .79f, .14f);
-            p.lineWidth = 1;
-            for (int i = 1; i < 4; i++)
+            void Wedge(float from, float to, Color fill)
             {
-                float y = h * i / 4f;
-                p.BeginPath(); p.MoveTo(new(0, y)); p.LineTo(new(w, y)); p.Stroke();
-            }
-
-            // Target line, dashed by hand because Painter2D has no dash pattern.
-            float ty = Y(model.targetDeg);
-            p.strokeColor = new Color(.96f, .58f, .24f, .75f);
-            p.lineWidth = 2;
-            for (float x = 0; x < w; x += 16)
-            {
-                p.BeginPath(); p.MoveTo(new(x, ty)); p.LineTo(new(Mathf.Min(x + 9, w), ty)); p.Stroke();
-            }
-
-            if (points.Length > 1)
-            {
-                p.fillColor = new Color(.16f, .62f, .84f, .17f);
+                p.fillColor = fill;
                 p.BeginPath();
-                p.MoveTo(new(X(0), h));
-                for (int i = 0; i < points.Length; i++) p.LineTo(new(X(i), Y(points[i].medianPeakDeg)));
-                p.LineTo(new(X(points.Length - 1), h));
-                p.ClosePath(); p.Fill();
-
-                p.strokeColor = Accent;
-                p.lineWidth = 5; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
+                p.MoveTo(pivot);
+                p.Arc(pivot, radius, Angle.Degrees(Ang(to)), Angle.Degrees(Ang(from)));
+                p.ClosePath();
+                p.Fill();
+            }
+            void Spoke(float elevation, float inner, float outer, Color colour, float width)
+            {
+                float a = Ang(elevation) * Mathf.Deg2Rad;
+                var dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
+                p.strokeColor = colour; p.lineWidth = width; p.lineCap = LineCap.Round;
                 p.BeginPath();
-                p.MoveTo(new(X(0), Y(points[0].medianPeakDeg)));
-                for (int i = 1; i < points.Length; i++) p.LineTo(new(X(i), Y(points[i].medianPeakDeg)));
+                p.MoveTo(pivot + dir * (radius * inner));
+                p.LineTo(pivot + dir * (radius * outer));
                 p.Stroke();
             }
 
-            float best = model.BestReachDeg;
-            for (int i = 0; i < points.Length; i++)
-            {
-                var at = new Vector2(X(i), Y(points[i].medianPeakDeg));
-                bool last = i == points.Length - 1;
-                bool isBest = Mathf.Approximately(points[i].medianPeakDeg, best);
-                if (last)
-                {
-                    p.fillColor = new Color(.16f, .62f, .84f, .18f);
-                    p.BeginPath(); p.Arc(at, 15, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
-                }
-                p.fillColor = Color.white;
-                p.strokeColor = isBest ? new Color(.17f, .68f, .40f) : Accent;
-                p.lineWidth = last ? 5 : 3;
-                p.BeginPath(); p.Arc(at, last ? 9 : 6, Angle.Degrees(0), Angle.Degrees(360));
-                p.Fill(); p.Stroke();
-            }
+            // Faint guides every 30°, so the fan reads as a measurement and not just a shape.
+            for (int deg = 30; deg <= 150; deg += 30)
+                Spoke(deg, .22f, 1.02f, Reference.At(.20f), 1.5f);
+
+            Wedge(0, start, Reference.At(.24f));
+            Wedge(start, now, Progress.At(.62f));
+
+            // The target tick sits outside the fan when it has been passed, which is the point.
+            Spoke(target, .86f, 1.16f, Attention, 4);
+
+            // The arm itself, ending in the hand.
+            float armA = Ang(now) * Mathf.Deg2Rad;
+            var armDir = new Vector2(Mathf.Cos(armA), Mathf.Sin(armA));
+            p.strokeColor = Ink;
+            p.lineWidth = 7; p.lineCap = LineCap.Round;
+            p.BeginPath(); p.MoveTo(pivot); p.LineTo(pivot + armDir * radius); p.Stroke();
+
+            p.fillColor = Ink;
+            p.BeginPath(); p.Arc(pivot, 9, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
+            p.fillColor = Panel;
+            p.strokeColor = Ink; p.lineWidth = 5;
+            p.BeginPath(); p.Arc(pivot + armDir * radius, 11, Angle.Degrees(0), Angle.Degrees(360));
+            p.Fill(); p.Stroke();
+
+            // Where week one stopped, so the band has a visible near edge.
+            float oldA = Ang(start) * Mathf.Deg2Rad;
+            var oldDir = new Vector2(Mathf.Cos(oldA), Mathf.Sin(oldA));
+            p.strokeColor = Reference;
+            p.lineWidth = 3;
+            p.BeginPath(); p.MoveTo(pivot + oldDir * (radius * .12f)); p.LineTo(pivot + oldDir * radius); p.Stroke();
+        }
+
+        /// The week-by-week trend, small. The fan says how far; this says it kept going that way.
+        static void DrawSparkline(MeshGenerationContext ctx, Rect r, MenuDashboardModel.WeekPoint[] points)
+        {
+            if (r.width < 8 || r.height < 6 || points.Length < 2) return;
+            var p = ctx.painter2D;
+            float lo = points.Min(x => x.medianPeakDeg), hi = points.Max(x => x.medianPeakDeg);
+            float span = Mathf.Max(1, hi - lo);
+            float X(int i) => r.width * i / (points.Length - 1f);
+            float Y(float v) => r.height - 5 - (v - lo) / span * (r.height - 10);
+
+            p.fillColor = Progress.At(.16f);
+            p.BeginPath(); p.MoveTo(new(X(0), r.height));
+            for (int i = 0; i < points.Length; i++) p.LineTo(new(X(i), Y(points[i].medianPeakDeg)));
+            p.LineTo(new(X(points.Length - 1), r.height)); p.ClosePath(); p.Fill();
+
+            p.strokeColor = Accent; p.lineWidth = 3; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
+            p.BeginPath(); p.MoveTo(new(X(0), Y(points[0].medianPeakDeg)));
+            for (int i = 1; i < points.Length; i++) p.LineTo(new(X(i), Y(points[i].medianPeakDeg)));
+            p.Stroke();
+
+            p.fillColor = Panel; p.strokeColor = Accent; p.lineWidth = 3;
+            p.BeginPath(); p.Arc(new(X(points.Length - 1), Y(points[^1].medianPeakDeg)), 5, Angle.Degrees(0), Angle.Degrees(360));
+            p.Fill(); p.Stroke();
         }
 
         // ------------------------------------------------------------------ consistency
@@ -356,7 +392,7 @@ namespace Kinesthetic.Menu
                 // Today gets a ring rather than a different fill, so "where am I" and "did I train"
                 // stay two separate readings instead of one ambiguous colour.
                 if (cells[i].date != today) continue;
-                p.strokeColor = new Color(.96f, .55f, .20f);
+                p.strokeColor = Attention;
                 p.lineWidth = 3;
                 p.BeginPath();
                 p.Arc(new Vector2(x + cell * .5f, y + cell * .5f), cell * .62f, Angle.Degrees(0), Angle.Degrees(360));
@@ -373,7 +409,7 @@ namespace Kinesthetic.Menu
             float size = Mathf.Min(r.width, r.height), gap = size * .16f;
             float cell = (size - gap) * .5f;
             float ox = (r.width - size) * .5f, oy = (r.height - size) * .5f;
-            p.fillColor = new Color(.55f, .78f, .88f);
+            p.fillColor = Palette.Ice40;
             for (int i = 0; i < 4; i++)
                 RoundedSquare(p, ox + (i % 2) * (cell + gap), oy + (i / 2) * (cell + gap), cell, cell * .3f);
         }
@@ -411,7 +447,7 @@ namespace Kinesthetic.Menu
 
             p.lineWidth = thickness;
             p.lineCap = LineCap.Butt;
-            p.strokeColor = new Color(.47f, .66f, .74f, .22f);
+            p.strokeColor = Reference.At(.28f);
             p.BeginPath(); p.Arc(centre, radius, Angle.Degrees(0), Angle.Degrees(360)); p.Stroke();
 
             if (fraction <= 0) return;
@@ -431,7 +467,7 @@ namespace Kinesthetic.Menu
             float gap = 7, cell = (r.width - gap * (goal - 1)) / goal, h = Mathf.Min(r.height, 15);
             for (int i = 0; i < goal; i++)
             {
-                p.fillColor = i < done ? Accent : new Color(.62f, .78f, .86f, .32f);
+                p.fillColor = i < done ? Accent : Empty;
                 RoundedSquare(p, i * (cell + gap), 0, cell, h * .5f, h);
             }
         }

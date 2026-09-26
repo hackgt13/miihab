@@ -17,7 +17,7 @@ Label { margin: 0; padding: 0; }
 .splash-row { flex-direction: row; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
 .splash-copy { flex-grow: 1; flex-shrink: 1; }
 .splash-greeting { font-size: 58px; color: #29335C; letter-spacing: -1px; text-shadow: 0 2px 12px rgba(253,251,246,.95); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.splash-sub { font-size: 25px; color: #5A749F; margin-top: 6px; text-shadow: 0 1px 8px rgba(253,251,246,.95); }
+.splash-sub { font-size: 25px; color: #485F88; margin-top: 6px; text-shadow: 0 1px 8px rgba(253,251,246,.95); }
 .utility-cluster { flex-direction: row; flex-shrink: 0; margin-top: 8px; }
 
 Button { -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #29335C; border-color: rgba(253,251,246,.8); border-width: 2px; border-radius: 22px; background-color: rgba(253,251,246,.88); padding: 10px 22px; margin: 0; }
@@ -74,7 +74,7 @@ Button:disabled { opacity: .55; }
 .tile-progress { flex-shrink: 0; }
 .progress-split { flex-direction: row; align-items: center; }
 .ring-wrap { width: 132px; height: 132px; flex-shrink: 0; align-items: center; justify-content: center; }
-.program-ring { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.program-ring { position: absolute; width: 132px; height: 132px; }
 .ring-centre { align-items: center; max-width: 96px; }
 .ring-number { font-size: 40px; color: #29335C; letter-spacing: -1px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 .streak-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; margin-left: 20px; }
