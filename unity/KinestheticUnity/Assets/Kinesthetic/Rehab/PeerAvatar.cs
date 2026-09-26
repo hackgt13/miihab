@@ -108,36 +108,56 @@ namespace Kinesthetic.Rehab
         BodyModel Body => ActivityCatalog.MovementFor(view.ExerciseKind)?.Body
             ?? ActivityCatalog.ById("movement.arm-raise")?.Body;
 
+        // What is being shown: worked out here on the Mac, handed over by RehabStateClient on a headset.
+        public bool Remote { get; private set; }
+        public bool Showing { get; private set; }
+        public string ShownName { get; private set; } = "";
+        public string ShownState { get; private set; } = "";
+        public int ShownMii { get; private set; }
+        /// The partner's rig once it is built, for publishing its bones (Mac) or posing it from them (headset).
+        public PoseRig Rig => copy ? rig : null;
+
+        /// Headset: show this person, whose bones the caller poses. Nothing is read or computed here.
+        public void Present(bool showing, string name, string state, int mii)
+        {
+            Remote = true; Showing = showing; ShownName = name ?? ""; ShownState = state ?? ""; ShownMii = mii;
+        }
+
         void LateUpdate()
         {
             if (!copy || view == null) return;
+            if (!Remote) Decide();
+            if (copy.gameObject.activeSelf != Showing) copy.gameObject.SetActive(Showing);
+            if (!Showing) return;
+            if (ShownMii != tinted) { Tint(ShownMii); tinted = ShownMii; }
+            nameLabel.text = ShownName;
+            stateLabel.text = ShownState;
+            label.position = rig.Hip.position + Vector3.up * 1.32f;
+            var cam = Camera.main;
+            if (cam) label.rotation = Quaternion.LookRotation(Flat(label.position - cam.transform.position).normalized, Vector3.up);
+        }
+
+        /// Mac: who is there, how they are moving, and the pose that follows from it.
+        void Decide()
+        {
             motion.Read();
             var partner = GroupPanel.Instance?.Partner;
             // The second Mac streaming with nobody else in the room is still someone: a guest with no name yet.
-            bool show = partner != null || motion.Live;
-            if (copy.gameObject.activeSelf != show) copy.gameObject.SetActive(show);
-            if (!show) return;
-
-            int mii = partner?.Mii ?? 1;
-            if (mii != tinted) { Tint(mii); tinted = mii; }
+            Showing = partner != null || motion.Live;
+            if (!Showing) return;
+            ShownMii = partner?.Mii ?? 1;
+            ShownName = partner?.Name ?? "Guest";
+            ShownState = motion.Calibrating ? "Hold still a moment…"
+                : motion.Live ? "LIVE"
+                : partner?.Sample == true ? "SAMPLE" : "Not streaming";
 
             // Live beats fake; a fake is only ever a sample person's.
             float? target = motion.LiveAngle;
             if (target == null && !motion.Live && partner?.Sample == true)
-                target = PeerMotion.FakeAngle(view.TargetDeg, mii, Time.time);
+                target = PeerMotion.FakeAngle(view.TargetDeg, ShownMii, Time.time);
             shown = Mathf.Lerp(shown, target ?? 0, 1 - Mathf.Exp(-12 * Time.deltaTime));
-
             rig.Apply(null);
             rig.ApplyMovement(Body, view.Side == "left", shown);
-
-            nameLabel.text = partner?.Name ?? "Guest";
-            stateLabel.text = motion.Calibrating ? "Hold still a moment…"
-                : motion.Live ? "LIVE"
-                : partner?.Sample == true ? "SAMPLE" : "Not streaming";
-            var head = rig.Hip.position + Vector3.up * 1.32f;
-            label.position = head;
-            var cam = Camera.main;
-            if (cam) label.rotation = Quaternion.LookRotation(Flat(label.position - cam.transform.position).normalized, Vector3.up);
         }
 
         /// Their skin, hair and shirt, from the same palette their face in the member list is drawn with.

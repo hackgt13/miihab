@@ -6,14 +6,15 @@ using UnityEngine;
 
 namespace Kinesthetic.Rehab
 {
-    /// Mac host: publishes the rehab studio as it is being rendered — the patient's and the coach's bone poses,
+    /// Mac host: publishes the rehab studio as it is being rendered — the patient's, the coach's and a group partner's bone poses,
     /// the band, reps and cue — about 30 times a second on the relay's /rehab-state channel. A headset renders
     /// exactly this and computes nothing (RehabStateClient). Added at runtime by RehabSession.
     public sealed class RehabStatePublisher : MonoBehaviour
     {
         public string url = "ws://127.0.0.1:8767/rehab-state?role=host";
         public RehabSession session;
-        LatestSocket socket; List<Transform> patientBones, coachBones;
+        LatestSocket socket; List<Transform> patientBones, coachBones, partnerBones;
+        PoseRig partnerRig;
         Kinesthetic.Coach.CoachDemonstrator coach;
         long seq; float next;
 
@@ -51,8 +52,28 @@ namespace Kinesthetic.Rehab
                 b.Append(",\"r\":"); GolfStateFormat.Quat(b, coach.transform.rotation);
                 b.Append(",\"pose\":"); Pose(b, coachBones); b.Append('}');
             }
+            Partner(b);
             b.Append('}');
             socket.Send(b.ToString());
+        }
+
+        /// The group partner, while the patient is in a group (PeerAvatar stands in for the mirror): who, their
+        /// state line, their Mii, and their bones as drawn here. Absent on your own, which is how a headset knows
+        /// to keep its mirror. The headset seats them from its own patient, as it does the coach.
+        void Partner(StringBuilder b)
+        {
+            var partner = session.GetComponent<PeerAvatar>();
+            if (!partner) return;
+            b.Append(",\"partner\":{\"showing\":").Append(partner.Showing ? "true" : "false");
+            if (partner.Showing && partner.Rig)
+            {
+                if (partnerRig != partner.Rig) { partnerRig = partner.Rig; partnerBones = GolfStateFormat.Bones(partnerRig); }
+                b.Append(",\"name\":").Append(Newtonsoft.Json.JsonConvert.ToString(partner.ShownName))
+                 .Append(",\"state\":").Append(Newtonsoft.Json.JsonConvert.ToString(partner.ShownState))
+                 .Append(",\"mii\":").Append(partner.ShownMii)
+                 .Append(",\"pose\":"); Pose(b, partnerBones);
+            }
+            b.Append('}');
         }
 
         /// The rep as the mechanics feel it, so a headset's ball tips and pacer moves exactly as the Mac's do.

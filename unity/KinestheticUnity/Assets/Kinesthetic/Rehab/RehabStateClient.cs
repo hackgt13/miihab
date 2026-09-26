@@ -7,17 +7,19 @@ using UnityEngine;
 
 namespace Kinesthetic.Rehab
 {
-    /// Headset: renders the rehab studio the Mac is running (RehabStatePublisher). Poses the patient and the
-    /// coach from the published bones and feeds the mirror window. Reps, the cue and every button are the
-    /// Mac's boards, mirrored by UI/Remote onto the same world-space boards this scene carries — so this
-    /// draws no text of its own. It measures nothing and decides nothing.
+    /// Headset: renders the rehab studio the Mac is running (RehabStatePublisher). Poses the patient, the coach
+    /// and a group partner from the published bones, and feeds the mirror window when there is no partner. Reps,
+    /// the cue and every button are the Mac's boards, mirrored by UI/Remote onto the same world-space boards this
+    /// scene carries; the one text it draws is the partner's name tag, which is theirs. It measures nothing and
+    /// decides nothing.
     public sealed class RehabStateClient : MonoBehaviour, IRehabView
     {
         public PoseRig rig;
         [Tooltip("Where the coach sits: seated from this scene's patient (CoachDemonstrator.SeatPose), so the Mac's world position is not trusted across two scenes.")]
         public Transform coachSeat;
         public string url = "ws://127.0.0.1:8767/rehab-state?role=client";
-        LatestSocket socket; List<Transform> patientBones, coachBones; Kinesthetic.Coach.CoachDemonstrator coach;
+        LatestSocket socket; List<Transform> patientBones, coachBones, partnerBones; Kinesthetic.Coach.CoachDemonstrator coach;
+        PeerAvatar partner; PoseRig partnerRig;
         float lastStateAt = -99;
         string side = "right", kind = "arm-elevation.v1"; float target = 80, band = 15; float? angle; bool handoff;
         RepFeel feel;
@@ -30,6 +32,13 @@ namespace Kinesthetic.Rehab
         public string ExerciseKind => kind;
         public float? ShownAngle => Time.unscaledTime - lastStateAt < 1 ? angle : null;
         public bool CoachHandingOff => handoff;
+
+        // The scene's mirror is given this view by QuestRehabSetup, but an interface field is not serialised, so
+        // on its own it wakes with none and switches itself off. Hand it over before any Start runs.
+        void Awake()
+        {
+            if (GetComponent<MirrorPanel>() is MirrorPanel mirror && mirror.view == null) mirror.view = this;
+        }
 
         void Start()
         {
@@ -68,6 +77,7 @@ namespace Kinesthetic.Rehab
                     Valid = (int?)f["valid"] ?? 0, Prescribed = (int?)f["prescribed"] ?? 0,
                 };
             Pose(s["patient"], patientBones);
+            Partner(s["partner"] as JObject);
             if (s["coach"] is JObject c)
             {
                 if (!coach && (coach = FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>()))
@@ -82,6 +92,28 @@ namespace Kinesthetic.Rehab
                     Pose(c["pose"], coachBones);
                 }
             }
+        }
+
+        /// The group partner where the mirror stands, exactly as the Mac draws them; the mirror when the Mac has
+        /// none. Seated from this scene's patient (PeerAvatar), so the Mac's world position is not trusted here.
+        void Partner(JObject p)
+        {
+            if (p == null)
+            {
+                if (partner) { Destroy(partner); partner = null; partnerBones = null; partnerRig = null; }
+                if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
+                return;
+            }
+            if (!partner)
+            {
+                if (GetComponent<MirrorPanel>() is MirrorPanel mirror) Destroy(mirror);
+                partner = gameObject.AddComponent<PeerAvatar>(); partner.view = this;
+            }
+            bool showing = (bool?)p["showing"] ?? false;
+            partner.Present(showing, (string)p["name"], (string)p["state"], (int?)p["mii"] ?? 0);
+            if (!showing || !partner.Rig) return;   // its copy is built on its first frame
+            if (partnerRig != partner.Rig) { partnerRig = partner.Rig; partnerBones = GolfStateFormat.Bones(partnerRig); }
+            Pose(p["pose"], partnerBones);
         }
 
         static void Pose(JToken pose, List<Transform> bones)
