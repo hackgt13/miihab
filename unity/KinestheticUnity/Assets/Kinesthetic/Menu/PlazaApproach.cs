@@ -23,8 +23,9 @@ namespace Kinesthetic.Menu
         /// The point along the walk where the fade begins to rise: by then the doorway fills the view.
         public const float CoverFrom = .62f;
 
-        /// Seconds to turn through 90 degrees on a flat view, and the shortest and longest turn allowed.
-        public const float TurnSecondsPerQuarter = .45f, MinTurnSeconds = .25f, MaxTurnSeconds = .9f;
+        /// The turn on a flat view runs at one angular speed, so its length is its angle: half a second per
+        /// quarter turn, and a turn too small to see still takes a beat rather than snapping.
+        public const float TurnSecondsPerQuarter = .5f, MinTurnSeconds = .2f;
 
         /// Carries `mover` through `portal` and leaves the view covered. `hide` is what should vanish as
         /// the walk starts — the ring of panes, which would otherwise sweep through the person's head.
@@ -46,7 +47,7 @@ namespace Kinesthetic.Menu
             var flat = to - from; flat.y = 0;
             var toRotation = flat.sqrMagnitude > .0001f ? Quaternion.LookRotation(flat.normalized, Vector3.up) : fromRotation;
             float turnSeconds = turnToward
-                ? Mathf.Clamp(Quaternion.Angle(fromRotation, toRotation) / 90f * TurnSecondsPerQuarter, MinTurnSeconds, MaxTurnSeconds)
+                ? Mathf.Max(MinTurnSeconds, Quaternion.Angle(fromRotation, toRotation) / 90f * TurnSecondsPerQuarter)
                 : 0;
             float beat = Mathf.Max(BeatSeconds, turnSeconds + .15f);
 
