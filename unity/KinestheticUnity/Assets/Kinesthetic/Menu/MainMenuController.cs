@@ -25,7 +25,8 @@ namespace Kinesthetic.Menu
         // it, but the gaze ray is resolved from element rects alone and would happily commit a tile the
         // person cannot even see. So the menu decides what counts as reachable, per open layer.
         static readonly string[] BaseScope = { "start-activity", "choose-activity", "friends", "music", "help", "edit-name" };
-        static readonly string[] ActivityScope = { "golf-card", "studio-card", "activity-close" };
+        static readonly string[] ActivityScope = { "golf-card", "studio-card", "bowling-card", "activity-close" };
+        static readonly string[] ActivityScenes = { ActivityNavigation.GolfScene, ActivityNavigation.StudioScene, ActivityNavigation.BowlingScene };
         static readonly string[] HelpScope = { "help-close" };
         static readonly string[] NameScope = { "name-save", "name-cancel" };
         string[] scope = BaseScope;
@@ -44,7 +45,7 @@ namespace Kinesthetic.Menu
             helpOverlay = root.Q("help-overlay");
             nameOverlay = root.Q("name-overlay");
             nameField = root.Q<TextField>("name-field");
-            cards = new[] { root.Q<Button>("golf-card"), root.Q<Button>("studio-card") };
+            cards = new[] { root.Q<Button>("golf-card"), root.Q<Button>("studio-card"), root.Q<Button>("bowling-card") };
             caption = root.Q<Label>("selection-caption");
             music = root.Q<Button>("music");
 
@@ -53,7 +54,7 @@ namespace Kinesthetic.Menu
                 int index = i;
                 cards[i].RegisterCallback<PointerEnterEvent>(_ => Select(index, true));
                 cards[i].RegisterCallback<FocusInEvent>(_ => Select(index, true));
-                Act(cards[i], () => Launch(index == 0 ? ActivityNavigation.GolfScene : ActivityNavigation.StudioScene));
+                Act(cards[i], () => Launch(ActivityScenes[index]));
             }
 
             Act(root.Q<Button>("start-activity"), StartFirst);
@@ -85,7 +86,8 @@ namespace Kinesthetic.Menu
             {
                 if (!Showing(activityOverlay)) return;
                 if (e.direction != NavigationMoveEvent.Direction.Left && e.direction != NavigationMoveEvent.Direction.Right) return;
-                Select(e.direction == NavigationMoveEvent.Direction.Left ? 0 : 1, false);
+                int step = e.direction == NavigationMoveEvent.Direction.Left ? -1 : 1;
+                Select((selected + step + cards.Length) % cards.Length, false);
                 cards[selected].Focus(); e.StopPropagation();
             });
 
@@ -94,6 +96,7 @@ namespace Kinesthetic.Menu
 
             root.Q("golf-icon").generateVisualContent += c => DrawIcon(c, false);
             root.Q("studio-icon").generateVisualContent += c => DrawIcon(c, true);
+            root.Q("bowling-icon").generateVisualContent += DrawBowlingIcon;
 
             // Added at runtime so the generated menu scene needs no change.
             var friends = GetComponent<FriendsPanel>() ?? gameObject.AddComponent<FriendsPanel>();
@@ -178,12 +181,37 @@ namespace Kinesthetic.Menu
             bool changed = index != selected; selected = index;
             for (int i = 0; i < cards.Length; i++) cards[i]?.EnableInClassList("selected", i == selected);
             if (caption != null)
-                caption.text = selected == 0 ? "Take a swing with a friend." : "Make a little time for yourself.";
+                caption.text = selected switch
+                {
+                    0 => "Take a swing with a friend.",
+                    1 => "Make a little time for yourself.",
+                    _ => "Aim down the lane. Swing gently to roll."
+                };
             if (sound && changed) navigation.PlayHover();
         }
 
         void MusicChanged(bool enabled) { if (music != null) music.text = enabled ? "Music: On" : "Music: Off"; }
         void OnDestroy() { if (navigation) navigation.MusicChanged -= MusicChanged; }
+
+        static void DrawBowlingIcon(MeshGenerationContext ctx)
+        {
+            var p = ctx.painter2D;
+            p.strokeColor = Palette.Indigo60; p.lineWidth = 2.5f; p.lineJoin = LineJoin.Round;
+            p.fillColor = Palette.Sand00;
+            p.BeginPath(); p.MoveTo(new(35, 12));
+            p.BezierCurveTo(new(32, 4), new(47, 4), new(44, 12));
+            p.BezierCurveTo(new(39, 21), new(52, 28), new(49, 44));
+            p.LineTo(new(31, 44));
+            p.BezierCurveTo(new(27, 28), new(39, 21), new(35, 12));
+            p.ClosePath(); p.Fill(); p.Stroke();
+            p.strokeColor = Palette.Glaucous50;
+            p.BeginPath(); p.MoveTo(new(35, 19)); p.LineTo(new(44, 19)); p.Stroke();
+            p.fillColor = Palette.Indigo60;
+            p.BeginPath(); p.Arc(new(23, 39), 13, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
+            p.fillColor = Palette.Sand00;
+            foreach (var point in new[] { new Vector2(21, 33), new Vector2(27, 34), new Vector2(23, 39) })
+            { p.BeginPath(); p.Arc(point, 1.7f, Angle.Degrees(0), Angle.Degrees(360)); p.Fill(); }
+        }
 
         static void DrawIcon(MeshGenerationContext ctx, bool studio)
         {

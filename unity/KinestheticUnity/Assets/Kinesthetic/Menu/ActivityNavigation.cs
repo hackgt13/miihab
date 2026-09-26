@@ -10,7 +10,7 @@ namespace Kinesthetic.Menu
 {
     public sealed class ActivityNavigation : MonoBehaviour
     {
-        public const string MenuScene = "MainMenu", GolfScene = "AdaptiveGolf", StudioScene = "Rehab";
+        public const string MenuScene = "MainMenu", GolfScene = "AdaptiveGolf", StudioScene = "Rehab", BowlingScene = "Bowling";
         const string MusicPreference = "RehabMii.MenuMusic";
         public AudioClip menuMusic, hoverSound, selectSound, backSound;
         public static ActivityNavigation Instance { get; private set; }
@@ -124,7 +124,7 @@ namespace Kinesthetic.Menu
         public void PlayBack() { if (backSound) effects.PlayOneShot(backSound); }
         public void LoadActivity(string scene)
         {
-            if (Busy || (scene != GolfScene && scene != StudioScene)) return;
+            if (Busy || (scene != GolfScene && scene != StudioScene && scene != BowlingScene)) return;
             if (!Application.CanStreamedLevelBeLoaded(scene)) { ShowUnavailable(); return; }
             PlaySelect(); StartCoroutine(Load(scene));
         }
@@ -175,7 +175,7 @@ namespace Kinesthetic.Menu
         {
             Busy = true; showMusic = false;
             curtain.RemoveFromClassList("hidden");
-            loading.text = scene == GolfScene ? "Heading to the course…" : scene == StudioScene ? "Opening the studio…" : "Back to your activities…";
+            loading.text = scene == GolfScene ? "Heading to the course…" : scene == StudioScene ? "Opening the studio…" : scene == BowlingScene ? "Heading to the lanes…" : "Back to your activities…";
             yield return new WaitForSecondsRealtime(.22f);
             var load = SceneManager.LoadSceneAsync(scene);
             while (!load.isDone) yield return null;
