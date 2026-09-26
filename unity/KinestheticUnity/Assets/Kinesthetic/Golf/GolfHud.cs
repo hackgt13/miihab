@@ -36,7 +36,7 @@ namespace Kinesthetic.Golf
             var cameraObject=new GameObject("Course map camera");cameraObject.transform.SetParent(mapWorld.transform);
             mapCamera=cameraObject.AddComponent<Camera>();
             mapCamera.orthographic=true;mapCamera.clearFlags=CameraClearFlags.SolidColor;
-            mapCamera.backgroundColor=Palette.Indigo70;mapCamera.cullingMask=1<<31;
+            mapCamera.backgroundColor=Palette.Prussian70;mapCamera.cullingMask=1<<31;
             mapCamera.nearClipPlane=.1f;mapCamera.farClipPlane=600;
             mapCamera.allowHDR=false;mapCamera.allowMSAA=false;mapCamera.depth=-20;
             Vector3 forward=game.cup.position-game.tee.position;forward.y=0;forward.Normalize();
@@ -105,18 +105,18 @@ namespace Kinesthetic.Golf
             }
             int other=1-game.activePlayer;
             var friend=Project(game.GetLie(other));
-            Dot(p,friend,5,Palette.Indigo70);Dot(p,friend,3,other==0?Palette.Sand00:Palette.Coral40);
+            Dot(p,friend,5,Palette.Prussian70);Dot(p,friend,3,other==0?Palette.Sand00:Palette.Coral40);
             Line(p,flag+new Vector2(0,1),flag+new Vector2(0,-19),Palette.Sand00,2);
             p.fillColor=Palette.Coral40;p.BeginPath();p.MoveTo(flag+new Vector2(0,-20));p.LineTo(flag+new Vector2(14,-15));p.LineTo(flag+new Vector2(0,-10));p.ClosePath();p.Fill();
-            Dot(p,b,7,Palette.Indigo70);Dot(p,b,4.5f,game.activePlayer==0?Palette.Sand00:Palette.Coral40);
+            Dot(p,b,7,Palette.Prussian70);Dot(p,b,4.5f,game.activePlayer==0?Palette.Sand00:Palette.Coral40);
         }
         void DrawPower(MeshGenerationContext ctx)
         {
             var p=ctx.painter2D;float h=meter.contentRect.height-8;
-            Rect(p,17,2,24,h+4,Palette.Indigo70);Rect(p,19,4,20,h,Palette.Sand30);
-            Rect(p,22,7,14,h-6,Palette.Indigo80);
+            Rect(p,17,2,24,h+4,Palette.Prussian70);Rect(p,19,4,20,h,Palette.Sand30);
+            Rect(p,22,7,14,h-6,Palette.Prussian80);
             float fill=(h-6)*game.HudPower;
-            Rect(p,22,h+1-fill,14,fill,game.HudPower>.9f?Palette.Coral40:Palette.Ice40);
+            Rect(p,22,h+1-fill,14,fill,game.HudPower>.9f?Palette.Coral40:Palette.Cerulean40);
             for(int i=0;i<=4;i++){float y=7+(h-6)*i/4;Line(p,new(13,y),new(20,y),Palette.Sand30,2);Line(p,new(39,y),new(44,y),Palette.Sand30,2);}
             var yPower=h+1-fill;Line(p,new(6,yPower),new(16,yPower),Palette.Sand00,4);
         }

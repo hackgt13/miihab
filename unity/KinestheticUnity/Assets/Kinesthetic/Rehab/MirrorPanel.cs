@@ -27,7 +27,6 @@ namespace Kinesthetic.Rehab
         LineRenderer targetGhost, targetGhostForearm, ceilingGhost, ceilingGhostForearm, band;
         Transform targetHand, ceilingHand;   // a ghost hand at the end of each ghost arm
         float nextMaterialSync;
-        static readonly Color InBand = new(.35f, .95f, .5f);
 
         void Start()
         {
@@ -52,7 +51,7 @@ namespace Kinesthetic.Rehab
             window.SetPositionAndRotation(centre, Quaternion.LookRotation(facing.sqrMagnitude > 1e-4f ? facing.normalized : -left));
 
             // Frame: a shallow box, so the reflection sits inside it rather than on a flat sheet.
-            frameMaterial = Lit(Palette.Glaucous30); var backMaterial = Lit(Palette.Ice10);
+            frameMaterial = Lit(Palette.Slate30); var backMaterial = Lit(Palette.Sand10);
             const float t = .05f;
             Box(window, "Frame top", new Vector3(0, height * .5f + t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, depth), frameMaterial);
             Box(window, "Frame bottom", new Vector3(0, -height * .5f - t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, depth), frameMaterial);
@@ -113,7 +112,7 @@ namespace Kinesthetic.Rehab
             // When the coach hands over, the frame pulses to draw the patient's eye here.
             coach ??= FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>();
             float pulse = coach && coach.HandingOff ? .5f + .5f * Mathf.Sin(Time.time * 7) : 0;
-            frameMaterial.color = Color.Lerp(Palette.Glaucous30, Palette.Ice50, pulse);
+            frameMaterial.color = Color.Lerp(Palette.Slate30, Palette.Cerulean40, pulse);
         }
 
         // Ghost arms and the band are drawn on the real patient's geometry, then carried through the reflection,
@@ -152,10 +151,10 @@ namespace Kinesthetic.Rehab
                 Arc(n => Reflect(shoulder + rig.ImuArmDirection(left, Mathf.Lerp(target, ceiling, n)) * reach * 1.2f));
             }
 
-            // Below the target it is still climbing; inside the band it is right; over the ceiling it is too high.
+            // Palette roles: cerulean is the measured arm still climbing, jungle is in the band (good), coral is over the ceiling.
             var angle = session.ShownAngle;
-            Color bandColor = angle is not float a ? Fade(Palette.Ice30, .7f)
-                : a > ceiling ? Palette.Coral40 : a >= target ? InBand : Palette.Ice40;
+            Color bandColor = angle is not float a ? Fade(Palette.Cerulean20, .7f)
+                : a > ceiling ? Palette.Coral40 : a >= target ? Palette.Jungle40 : Palette.Cerulean40;
             band.startColor = band.endColor = bandColor;
             var ghost = Fade(Color.white, .42f);
             var ceilingGhostColor = Fade(Palette.Coral40, angle is float over && over > ceiling ? .85f : .38f);

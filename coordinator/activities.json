@@ -1,0 +1,110 @@
+{
+  "schema": "kinesthetic.activities.v1",
+  "note": "The activity catalog: one source of truth for both halves of the app. The coordinator reads this file directly; Unity reads a generated copy under Resources. Adding an activity is an entry here, not a code change.",
+  "activities": [
+    {
+      "id": "rehab.studio",
+      "displayName": "Movement Studio",
+      "tagline": "Gentle raises. Personal progress.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "shoulder-raise.v1",
+        "trunk-rotation.v1",
+        "arm-elevation.v1",
+        "elbow-flexion.v1"
+      ],
+      "requires": [
+        "pose"
+      ],
+      "subjects": 1,
+      "prescribable": true,
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice shoulder raises.",
+        "steps": [
+          {
+            "step": "Sit comfortably",
+            "copy": "Keep your shoulders and hips in view. Press Start session."
+          },
+          {
+            "step": "Raise your arm",
+            "copy": "Reach the glowing target. Hold gently."
+          },
+          {
+            "step": "Lower slowly",
+            "copy": "Repeat at your pace. Finish set stops early. This guide does not pause your set."
+          }
+        ]
+      }
+    },
+    {
+      "id": "golf.adaptive",
+      "displayName": "Golf",
+      "tagline": "Fresh air. Friendly competition.",
+      "category": "play",
+      "scene": "AdaptiveGolf",
+      "venue": "resort-course",
+      "exerciseKinds": [],
+      "requires": [
+        "pose",
+        "imu"
+      ],
+      "subjects": 2,
+      "prescribable": true,
+      "loadingMessage": "Heading to the course\u2026",
+      "music": "GolfAudio/QuietFairway",
+      "help": {
+        "title": "Today we will practice golf.",
+        "steps": [
+          {
+            "step": "Get in view",
+            "copy": "Camera and AirPods connect automatically. Keep both hands in view."
+          },
+          {
+            "step": "Hold still",
+            "copy": "Rest the club at the mat. Wait for Ready."
+          },
+          {
+            "step": "Swing gently",
+            "copy": "Aim with the arrows. Swing. Then your friend takes a turn."
+          }
+        ]
+      }
+    },
+    {
+      "id": "bowling.adaptive",
+      "displayName": "Bowling",
+      "tagline": "Take your turn. Knock them down.",
+      "category": "play",
+      "scene": "Bowling",
+      "venue": "bowling-alley",
+      "exerciseKinds": [],
+      "requires": [
+        "pose",
+        "imu"
+      ],
+      "subjects": 2,
+      "prescribable": false,
+      "loadingMessage": "Heading to the lanes\u2026",
+      "help": {
+        "title": "Today we will practice bowling.",
+        "steps": [
+          {
+            "step": "Get in view",
+            "copy": "Camera and AirPods connect automatically. Keep both hands in view."
+          },
+          {
+            "step": "Line up",
+            "copy": "Face the lane and hold still until Ready appears."
+          },
+          {
+            "step": "Swing forward",
+            "copy": "Swing gently to roll. Then your friend takes a turn."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../Palette.uss" />
     <ui:Style src="MainMenu.uss" />
     <ui:VisualElement name="menu-screen" class="menu-screen">
         <ui:VisualElement class="menu-content">
@@ -36,32 +37,43 @@
 
                     <ui:VisualElement class="tile tile-hero">
                         <ui:VisualElement class="tile-head" picking-mode="Ignore">
-                            <ui:Label text="SHOULDER REACH" class="tile-label" />
+                            <ui:Label text="HOW FAR YOU REACH" class="tile-label" />
                             <ui:Label name="data-note" text="" class="tile-note" />
                         </ui:VisualElement>
                         <ui:VisualElement class="hero-body" picking-mode="Ignore">
                             <ui:VisualElement class="hero-readout" picking-mode="Ignore">
-                                <ui:Label name="reach-now" text="—" class="stat-number" />
-                                <ui:Label text="median peak" class="stat-caption" />
                                 <ui:Label name="reach-delta" text="" class="reach-delta" />
+                                <ui:Label name="reach-now" text="—" class="stat-number" />
                                 <ui:Label name="reach-best" text="" class="reach-best" />
+                                <ui:Label name="reach-cheer" text="" class="reach-cheer" />
                             </ui:VisualElement>
-                            <ui:VisualElement name="progress-chart" class="hero-chart" picking-mode="Ignore" />
+                            <ui:VisualElement name="range-fan" class="range-fan" picking-mode="Ignore" />
                         </ui:VisualElement>
                     </ui:VisualElement>
 
-                    <ui:VisualElement class="tile tile-calendar">
-                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
-                            <ui:Label text="CONSISTENCY" class="tile-label" />
-                            <ui:Label name="calendar-note" text="" class="tile-note accent" />
+                    <ui:VisualElement class="tile tile-progress">
+                        <ui:VisualElement class="progress-split" picking-mode="Ignore">
+                            <ui:VisualElement class="progress-cell" picking-mode="Ignore">
+                                <ui:VisualElement class="ring-wrap" picking-mode="Ignore">
+                                    <ui:VisualElement name="program-ring" class="program-ring" picking-mode="Ignore" />
+                                    <ui:VisualElement class="ring-centre" picking-mode="Ignore">
+                                        <ui:Label name="ring-number" text="0" class="ring-number" />
+                                        <ui:Label name="ring-caption" text="" class="ring-caption" />
+                                    </ui:VisualElement>
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                            <ui:VisualElement class="progress-rule" picking-mode="Ignore" />
+                            <ui:VisualElement class="progress-cell" picking-mode="Ignore">
+                                <ui:Label name="streak-number" text="0" class="streak-number" />
+                                <ui:Label text="DAY STREAK" class="tile-label" />
+                                <ui:Label name="streak-caption" text="" class="stat-caption" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="progress-rule" picking-mode="Ignore" />
+                            <ui:VisualElement class="progress-cell goal-cell" picking-mode="Ignore">
+                                <ui:Label text="WORKING TOWARD" class="tile-label" />
+                                <ui:Label name="goal-copy" text="" class="goal-copy" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:VisualElement class="calendar-days" picking-mode="Ignore">
-                            <ui:Label text="M" class="day-letter" /><ui:Label text="T" class="day-letter" />
-                            <ui:Label text="W" class="day-letter" /><ui:Label text="T" class="day-letter" />
-                            <ui:Label text="F" class="day-letter" /><ui:Label text="S" class="day-letter" />
-                            <ui:Label text="S" class="day-letter" />
-                        </ui:VisualElement>
-                        <ui:VisualElement name="calendar-grid" class="calendar-grid" picking-mode="Ignore" />
                     </ui:VisualElement>
 
                     <ui:Button name="start-activity" class="cta">
@@ -76,27 +88,18 @@
 
                 <ui:VisualElement class="bento-side">
 
-                    <ui:VisualElement class="tile tile-ring">
-                        <ui:Label text="PROGRAM" class="tile-label" />
-                        <ui:VisualElement class="ring-wrap" picking-mode="Ignore">
-                            <ui:VisualElement name="program-ring" class="program-ring" picking-mode="Ignore" />
-                            <ui:VisualElement class="ring-centre" picking-mode="Ignore">
-                                <ui:Label name="ring-number" text="0" class="ring-number" />
-                                <ui:Label name="ring-caption" text="days left" class="stat-caption" />
-                            </ui:VisualElement>
+                    <ui:VisualElement class="tile tile-calendar">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="CONSISTENCY" class="tile-label" />
+                            <ui:Label name="calendar-note" text="" class="tile-note accent" />
                         </ui:VisualElement>
-                        <ui:Label name="ring-note" text="" class="ring-note" picking-mode="Ignore" />
-                        <ui:Label name="goal-copy" text="" class="goal-copy" picking-mode="Ignore" />
-                    </ui:VisualElement>
-
-                    <ui:VisualElement class="tile tile-streak">
-                        <ui:VisualElement class="streak-row" picking-mode="Ignore">
-                            <ui:Label name="streak-number" text="0" class="streak-number" />
-                            <ui:VisualElement class="streak-copy" picking-mode="Ignore">
-                                <ui:Label text="DAY STREAK" class="tile-label" />
-                                <ui:Label name="streak-caption" text="" class="stat-caption" />
-                            </ui:VisualElement>
+                        <ui:VisualElement class="calendar-days" picking-mode="Ignore">
+                            <ui:Label text="M" class="day-letter" /><ui:Label text="T" class="day-letter" />
+                            <ui:Label text="W" class="day-letter" /><ui:Label text="T" class="day-letter" />
+                            <ui:Label text="F" class="day-letter" /><ui:Label text="S" class="day-letter" />
+                            <ui:Label text="S" class="day-letter" />
                         </ui:VisualElement>
+                        <ui:VisualElement name="calendar-grid" class="calendar-grid" picking-mode="Ignore" />
                     </ui:VisualElement>
 
                     <ui:VisualElement class="tile tile-today">

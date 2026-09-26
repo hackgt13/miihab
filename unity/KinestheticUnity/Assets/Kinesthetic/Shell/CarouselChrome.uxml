@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../Palette.uss" />
+    <ui:Style src="CarouselChrome.uss" />
+    <!-- The chrome stands on its own panel, wider than the windows and a little further away, so the two
+         arrows sit outside the edge of whatever window is facing. The gaze ray takes the nearest panel it
+         hits, so the window keeps everything in front of it and the arrows only answer at the margins. The
+         middle of this panel is empty and ignores picking for the same reason. -->
+    <ui:VisualElement class="chrome" picking-mode="Ignore">
+        <ui:Button name="carousel-prev" class="arrow" text="‹" />
+        <ui:VisualElement class="chrome-gap" picking-mode="Ignore" />
+        <ui:Button name="carousel-next" class="arrow" text="›" />
+    </ui:VisualElement>
+    <ui:VisualElement name="carousel-dots" class="dots" picking-mode="Ignore" />
+</ui:UXML>

@@ -6,20 +6,26 @@ namespace Kinesthetic
     /// the studio, golf, bowling, the replay panel — draws from these five hues and nothing else, so a
     /// patient moving between activities stays inside one identity instead of three accidental ones.
     ///
-    ///   sand dune       #EAE0CC   warm neutral: panels, page fills, ink on dark
-    ///   vibrant coral   #FF715B   the one call to action, and attention that has to be seen
-    ///   twilight indigo #29335C   headings, body ink on light, dark panel fills
-    ///   baby blue ice   #89BBFE   selection, focus, "this is live" highlights
-    ///   glaucous        #6F8AB7   secondary copy, dividers, reference lines
+    ///   sand dune       #EAE0CC   warm neutral: panels, page fills, lettering on dark
+    ///   rich cerulean   #2274A5   primary: the button you press, and anything being measured
+    ///   medium jungle   #4AAD52   good: a rep that counted, a day done, a target reached
+    ///   prussian blue   #0E1C36   ink, and the glass of panels that sit over the world
+    ///   vibrant coral   #FE5F55   what you are reaching for, and what has gone wrong
+    ///
+    /// Three of those carry meaning a patient has to read at two metres, so they never swap jobs:
+    /// **cerulean is primary and measured**, **jungle is good**, **coral is target or trouble**. A
+    /// measured line is never green just because the number is high — it turns green when it passes
+    /// the plan, and that difference is the whole point of the board.
     ///
     /// The numbered steps are tints and shades of those five, mixed toward white or black only — no new
-    /// hues enter here. Steps rise with darkness: 00 is nearly white, 80 nearly black, 30–40 is the
-    /// published colour. USS files carry the same values as literals (UI Toolkit resolves stylesheets
-    /// before any of this runs); the hex in a comment beside each one names the step it came from.
+    /// hues enter here. Steps rise with darkness: 00 is nearly white, 80 nearly black, 40–50 is the
+    /// published colour. Slate is prussian blue lightened, which is where secondary copy comes from.
+    /// USS files carry the same values as literals (UI Toolkit resolves stylesheets before any of this
+    /// runs); the hex in a comment beside each one names the step it came from.
     ///
-    /// Contrast is checked against the surface a colour actually lands on: Indigo60 and Glaucous70 on
-    /// Sand00 clear 4.5:1 for body copy, and Indigo70 on Coral40 clears 6:1 — which is why the coral
-    /// call to action is lettered in indigo rather than white, a pairing white would fail at 2.1:1.
+    /// Contrast is checked against the surface a colour actually lands on: Slate70 and Jungle60 on
+    /// Sand00 clear 4.5:1 for body copy, and sand on Cerulean50 clears 4.9:1 — which is why a primary
+    /// button is lettered in sand rather than in jungle, a pairing that would fail.
     public static class Palette
     {
         // ------------------------------------------------------------------ sand dune
@@ -29,53 +35,62 @@ namespace Kinesthetic
         public static readonly Color Sand30 = Hex("EAE0CC");   // published
         public static readonly Color Sand40 = Hex("DCCFB4");
 
-        // ------------------------------------------------------------------ baby blue ice
-        public static readonly Color Ice10 = Hex("EDF4FF");
-        public static readonly Color Ice20 = Hex("D8E8FE");
-        public static readonly Color Ice30 = Hex("B7D4FE");
-        public static readonly Color Ice40 = Hex("89BBFE");    // published
-        public static readonly Color Ice50 = Hex("5C9CF2");
-        public static readonly Color Ice60 = Hex("3D7CD4");
+        // ------------------------------------------------------------------ rich cerulean
+        public static readonly Color Cerulean10 = Hex("EAF3F9");
+        public static readonly Color Cerulean20 = Hex("CFE4F0");
+        public static readonly Color Cerulean30 = Hex("9FC8E0");
+        public static readonly Color Cerulean40 = Hex("5C9EC6");
+        public static readonly Color Cerulean50 = Hex("2274A5");   // published
+        public static readonly Color Cerulean60 = Hex("185A83");
+        public static readonly Color Cerulean70 = Hex("124563");
 
-        // ------------------------------------------------------------------ glaucous
-        public static readonly Color Glaucous30 = Hex("AABDD9");
-        public static readonly Color Glaucous40 = Hex("8CA3C7");
-        public static readonly Color Glaucous50 = Hex("6F8AB7");   // published
-        public static readonly Color Glaucous60 = Hex("5A749F");
-        public static readonly Color Glaucous70 = Hex("485F88");
-
-        // ------------------------------------------------------------------ twilight indigo
-        public static readonly Color Indigo40 = Hex("4E5A8C");
-        public static readonly Color Indigo50 = Hex("3B4673");
-        public static readonly Color Indigo60 = Hex("29335C");   // published
-        public static readonly Color Indigo70 = Hex("1F2747");
-        public static readonly Color Indigo80 = Hex("151A31");
+        // ------------------------------------------------------------------ medium jungle
+        public static readonly Color Jungle10 = Hex("EDF8EE");
+        public static readonly Color Jungle20 = Hex("D5EFD7");
+        public static readonly Color Jungle30 = Hex("A5DBA9");
+        public static readonly Color Jungle40 = Hex("4AAD52");   // published
+        public static readonly Color Jungle50 = Hex("3A8B41");
+        public static readonly Color Jungle60 = Hex("2B6B31");
 
         // ------------------------------------------------------------------ vibrant coral
-        public static readonly Color Coral10 = Hex("FFEAE5");
-        public static readonly Color Coral20 = Hex("FFD3C9");
-        public static readonly Color Coral30 = Hex("FFA695");
-        public static readonly Color Coral40 = Hex("FF715B");   // published
-        public static readonly Color Coral50 = Hex("E4523C");
-        public static readonly Color Coral60 = Hex("B33F2C");
+        public static readonly Color Coral10 = Hex("FFEDEB");
+        public static readonly Color Coral20 = Hex("FFD3CF");
+        public static readonly Color Coral30 = Hex("FF9D96");
+        public static readonly Color Coral40 = Hex("FE5F55");   // published
+        public static readonly Color Coral50 = Hex("DC4439");
+        public static readonly Color Coral60 = Hex("A93228");
+
+        // ------------------------------------------------------------------ prussian blue, and its tints
+        public static readonly Color Slate30 = Hex("B4BFD3");
+        public static readonly Color Slate40 = Hex("97A4BE");
+        public static readonly Color Slate50 = Hex("6B7EA4");
+        public static readonly Color Slate60 = Hex("4D6187");
+        public static readonly Color Slate70 = Hex("33456A");
+        public static readonly Color Prussian50 = Hex("2F3A4E");
+        public static readonly Color Prussian60 = Hex("1B2C4A");
+        public static readonly Color Prussian70 = Hex("0E1C36");   // published
+        public static readonly Color Prussian80 = Hex("08111F");
 
         /// What each hue is *for*, so a call site reads as intent rather than as a swatch. Reach for
         /// these first; drop to a numbered step only when a surface needs a specific tint.
-        public static readonly Color Ink = Indigo60;          // headings and figures on a light panel
-        public static readonly Color Body = Glaucous70;       // paragraph copy on a light panel
-        public static readonly Color Muted = Glaucous50;      // captions, units, things read second
+        public static readonly Color Ink = Prussian50;        // headings and figures on a light panel
+        public static readonly Color Body = Slate70;          // paragraph copy on a light panel
+        public static readonly Color Muted = Slate50;         // captions, units, things read second
         public static readonly Color Panel = Sand00;          // the light panel itself
-        public static readonly Color PanelDark = Indigo70;    // a panel that sits over the world
+        public static readonly Color PanelDark = Prussian70;  // a panel that sits over the world
         public static readonly Color InkOnDark = Sand30;      // copy on that dark panel
-        public static readonly Color Line = Glaucous30;       // dividers and hairlines
-        public static readonly Color Call = Coral40;          // the single primary action
-        public static readonly Color CallInk = Indigo70;      // lettering on that action
-        public static readonly Color Attention = Coral40;     // a number or cue that must be noticed
-        public static readonly Color Live = Ice40;            // connected, selected, happening now
-        public static readonly Color Progress = Ice50;        // a measured value drawn against a plan
-        public static readonly Color Reference = Glaucous50;  // the plan it is drawn against
+        public static readonly Color Line = Slate30;          // dividers and hairlines
+        public static readonly Color Call = Cerulean50;       // the primary action
+        public static readonly Color CallInk = Sand00;        // lettering on that action
+        public static readonly Color Live = Cerulean40;       // selected, focused, happening now
+        public static readonly Color Progress = Cerulean50;   // a measured value drawn against a plan
+        public static readonly Color Reference = Slate50;     // the plan it is drawn against
+        public static readonly Color Good = Jungle40;         // counted, done, reached
+        public static readonly Color GoodInk = Jungle60;      // the same verdict as lettering
+        public static readonly Color Target = Coral40;        // what is being reached for
+        public static readonly Color Attention = Coral40;     // and what has gone wrong
 
-        /// `Hex("29335C")` or `Hex("29335C80")` — RGB or RGBA, no leading '#'. Falls back to magenta
+        /// `Hex("0E1C36")` or `Hex("0E1C3680")` — RGB or RGBA, no leading '#'. Falls back to magenta
         /// rather than throwing, so a typo shows up on screen instead of taking the panel down.
         static Color Hex(string hex)
         {

@@ -7,18 +7,19 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UIElements;
 
+using Kinesthetic.Activities;
+
 namespace Kinesthetic.Rehab
 {
     // Patient-facing seated shoulder raise. The coordinator's measurement engine is the only source of
     // angles, rep counts and validity; this view renders them and the avatar never feeds back into them.
-    public sealed class RehabSession : MonoBehaviour
+    public sealed class RehabSession : MonoBehaviour, IActivity
     {
         public PoseRig rig;
         [Tooltip("Drive the Mii from camera pose (MediaPipe). Off: measurement is IMU-only and the Mii's arm follows the AirPod angle.")]
         public bool useCameraPose;
         public Transform targetOrb, liveMarker;
         public LineRenderer targetBand, armGuide;
-        public string poseUrl = "ws://127.0.0.1:8766/pose?role=viewer";
         public string exerciseUrl = "ws://127.0.0.1:8766/exercise?role=viewer";
         public string bridge = "http://127.0.0.1:8766";
         [Header("Clinician-approved plan (demo fixture)")]
@@ -26,9 +27,9 @@ namespace Kinesthetic.Rehab
         public float targetDeg = 80, bandDeg = 20;
         public int prescribedReps = 8, planVersion = 1;
 
-        LivePoseClient pose; ExerciseClient exercise;
+        LivePoseClient pose => SensorHub.Instance?.Pose;
+        ExerciseClient exercise;
         long poseTicks, poseSequence = -1; string poseSession;
-        float retryPoseAt;
         bool running, calibrated;
         public bool IsRunning => running;
         /// The angle the Mii's arm is showing right now, or null when nothing live is being measured.
@@ -36,6 +37,11 @@ namespace Kinesthetic.Rehab
         public string ExerciseKind => exerciseKind;
         bool startingSession, stoppingSession, sessionError, summaryReceived;
         public bool IsBusy => startingSession || stoppingSession;
+        // IActivity. The shell drives this without knowing it is a therapy session.
+        public string ActivityId => "rehab.studio";
+        public event Action<string> Completed;
+        /// <summary>Leaving must fail if /exercise/stop does not answer, or the set is lost.</summary>
+        public IEnumerator RequestExit(Action<bool> succeeded) => FinishSession(succeeded);
         int attempted, valid;
         float? liveAngle; string phase = "idle";
         float lastSampleAt = -99, shownAngle; string exerciseKind = "arm-elevation.v1";
@@ -50,14 +56,16 @@ namespace Kinesthetic.Rehab
         ProgressBar angleMeter;
         int paintedReps = -1, paintedGoal = -1;
         string coachingNote = "";
-        static readonly Color Idle = new(.85f, .9f, .95f, .55f), Active = new(1f, .86f, .3f, .9f),
-            Good = new(.35f, .95f, .5f, .95f), Bad = new(1f, .42f, .35f, .95f);
+        // The band around the measured arm: cerulean at rest, sand while the rep is being made,
+        // green once the target is reached, and coral only when something is wrong and has to be seen.
+        static readonly Color Idle = Palette.Cerulean20.At(.55f), Active = Palette.Sand30.At(.9f),
+            Good = Palette.Good.At(.95f), Bad = Palette.Attention.At(.95f);
 
         void Start()
         {
             Application.runInBackground = true;
             rig.Initialize(); rig.Apply(null);
-            if (useCameraPose) pose = new LivePoseClient(poseUrl);
+            SensorHub.Ensure();
             exercise = new ExerciseClient(exerciseUrl);
             // The mirror window is added here, so the generated scene needs no change.
             if (!useCameraPose && !GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().session = this;
@@ -232,11 +240,11 @@ namespace Kinesthetic.Rehab
             float filled = Mathf.Clamp01((float)valid / Mathf.Max(1, prescribedReps)) * segments;
             for (int i = 0; i < segments; i++)
             {
-                painter.strokeColor = Palette.Ice20;
+                painter.strokeColor = Palette.Slate30;
                 float begin = -90 + i * step + gap * .5f, end = -90 + (i + 1) * step - gap * .5f;
                 painter.BeginPath(); painter.Arc(rect.center, rect.width * .43f, Angle.Degrees(begin), Angle.Degrees(end)); painter.Stroke();
                 if (filled <= i) continue;
-                painter.strokeColor = Palette.Ice50;
+                painter.strokeColor = Palette.Good;
                 painter.BeginPath(); painter.Arc(rect.center, rect.width * .43f, Angle.Degrees(begin), Angle.Degrees(Mathf.Lerp(begin, end, Mathf.Clamp01(filled - i)))); painter.Stroke();
             }
         }
@@ -259,8 +267,6 @@ namespace Kinesthetic.Rehab
                 catch (Exception) { poseTicks = 0; }
             }
             if (!LivePoseClient.Fresh(poseTicks)) rig.Apply(null);
-            if (pose?.Connected != true && Time.unscaledTime > retryPoseAt)
-            { pose?.Dispose(); pose = new LivePoseClient(poseUrl); retryPoseAt = Time.unscaledTime + 3; }
         }
 
         // IMU-only: the Mii rests, and during a session the measured arm follows the AirPod angle (smoothed for
@@ -327,6 +333,8 @@ namespace Kinesthetic.Rehab
         {
             if (summaryReceived) return;
             summaryReceived = true; sessionError = false;
+            // The server decided this set was over and recorded it; tell whoever is driving us.
+            Completed?.Invoke((string)s["exerciseId"] ?? "");
             running = false; start.text = "Start session  ›";
             valid = s["valid"]?.Value<int>() ?? 0; attempted = s["attempted"]?.Value<int>() ?? 0;
             var median = s["medianValidPeakDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? $"{s["medianValidPeakDeg"].Value<float>():0}°" : "—";
@@ -419,6 +427,6 @@ namespace Kinesthetic.Rehab
             targetOrb.GetComponent<Renderer>().material.color = color;
         }
 
-        void OnDestroy() { pose?.Dispose(); exercise?.Dispose(); }
+        void OnDestroy() { exercise?.Dispose(); }   // the hub owns the pose channel
     }
 }

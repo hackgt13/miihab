@@ -1,4 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="../Palette.uss" />
   <ui:Style src="Bowling.uss" />
   <ui:VisualElement name="bowlingRoot" class="bowling" picking-mode="Ignore">
     <ui:VisualElement class="top" picking-mode="Ignore">

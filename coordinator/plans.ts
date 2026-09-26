@@ -18,6 +18,7 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { exerciseKind, exerciseKindForPlanType, DEFAULT_EXERCISE } from './exercise/registry.ts';
+import { requireActivity } from './activities.ts';
 import { LIBRARY } from './exercises.ts';
 
 export const PLAN_SCHEMA = 'kinesthetic.plan.v2';
@@ -151,6 +152,10 @@ function progressionOf(input: any, targetDeg: number, kindId: string, label: str
 function normaliseActivity(input: any, order: number): ActivityPrescription {
   const activityId = String(input?.activityId ?? '').trim();
   if (!activityId) throw Error(`activities[${order}].activityId is required.`);
+  // The catalog is the authority on what may be prescribed, so a typo or a retired activity fails
+  // here rather than becoming a permanent approved plan pointing at nothing.
+  const activity = requireActivity(activityId);
+  if (!activity.prescribable) throw Error(`activities[${order}]: ${activity.id} is not prescribable.`);
   // Explicit null means "measures nothing clinical" (golf). A named kind resolves through the
   // registry, which throws on an unknown id rather than silently prescribing nothing.
   const rawKind = input?.exerciseKind;

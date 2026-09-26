@@ -15,6 +15,7 @@ import { createSession, exerciseKind, type RepParams, type RepSession } from './
 import type { Frame, ImuSample, RepEvent } from './exercise/kind.ts';
 import { activitySummaryFromExercise, parseActivitySummary } from './activity.ts';
 import { NORMS, compareToNorm, type Sex, type Side } from './norms.ts';
+import { requireActivity } from './activities.ts';
 import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from './progression.ts';
 import { LIBRARY } from './exercises.ts';
 import { buildDashboard, golfUnlock } from './dashboard.ts';
@@ -146,7 +147,8 @@ async function finishExercise() {
     sensor: exercise.kind.requires.includes('imu') ? 'imu' : 'pose', ...measured, config: measured.params};
   await writeFile(resolve(recordings, `exercise-${exerciseId}.summary.json`), JSON.stringify(summary, null, 2));
   const envelope = activitySummaryFromExercise({activitySessionId: exerciseId, activityId: exerciseActivityId,
-    venueId: 'studio', startedAt: exerciseStartedAt || summary.endedAt, endedAt: summary.endedAt, measured});
+    venueId: requireActivity(exerciseActivityId).venue,
+    startedAt: exerciseStartedAt || summary.endedAt, endedAt: summary.endedAt, measured});
   await writeFile(resolve(recordings, `session-${exerciseId}.json`), JSON.stringify(envelope, null, 2));
   exerciseBroadcast({type:'exercise.summary', payload:summary});
   exerciseLog?.end(); exerciseLog = null;
