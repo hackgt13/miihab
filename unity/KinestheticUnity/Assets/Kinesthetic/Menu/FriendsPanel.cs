@@ -5,6 +5,7 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UIElements;
+using Kinesthetic.UI;
 
 namespace Kinesthetic.Menu
 {
@@ -40,8 +41,9 @@ namespace Kinesthetic.Menu
         [Serializable] class Recap { public string recap; }
 #pragma warning restore 0649
 
-        // Fixed vocabulary. A tap is a whole message, which is the point: on a bad
-        // day, typing is a barrier and a chip is not.
+        // The stored vocabulary, kept for reading rather than sending: a message
+        // already in a thread carries a `kind`, and this is what turns it back into
+        // words. See LabelFor.
         static readonly (string kind, string label)[] Quick =
         {
             ("nice_one", "Nice one"),
@@ -113,7 +115,8 @@ namespace Kinesthetic.Menu
             return element;
         }
 
-        VisualElement root, overlay, facesRow, list, threadView, quickRow, threadFace;
+        VisualElement root, overlay, facesRow, list, threadView, threadFace;
+        ScrollView threadScroll;
         VisualElement spotlight, spotlightFace;
         Label badge, threadName, threadHint, inviteCode, notice, spotlightName, spotlightLine;
         Button spotlightReply;
@@ -127,6 +130,8 @@ namespace Kinesthetic.Menu
         string spotlightId;
         SpotlightInfo insight;
         IntroductionsCard introductions;
+        VisualElement pageMessages, pageMeet;
+        Button tabMessages, tabMeet;
 
         public void Attach(VisualElement tree, ActivityNavigation nav)
         {
@@ -137,8 +142,8 @@ namespace Kinesthetic.Menu
             badge = root.Q<Label>("friends-badge");
             closeButton = root.Q<Button>("friends-close");
             list = root.Q<ScrollView>("friends-list")?.contentContainer;
-            threadView = root.Q<ScrollView>("thread")?.contentContainer;
-            quickRow = root.Q("quick-row");
+            threadScroll = root.Q<ScrollView>("thread");
+            threadView = threadScroll?.contentContainer;
             threadFace = root.Q("thread-face");
             threadName = root.Q<Label>("thread-name");
             inviteButton = root.Q<Button>("friends-invite");
@@ -152,6 +157,10 @@ namespace Kinesthetic.Menu
             spotlightName = root.Q<Label>("spotlight-name");
             spotlightLine = root.Q<Label>("spotlight-line");
             spotlightReply = root.Q<Button>("spotlight-reply");
+            pageMessages = root.Q("page-messages");
+            pageMeet = root.Q("page-meet");
+            tabMessages = root.Q<Button>("tab-messages");
+            tabMeet = root.Q<Button>("tab-meet");
             composer = root.Q<TextField>("composer-text");
             sendButton = root.Q<Button>("composer-send");
             photoButton = root.Q<Button>("composer-photo");
@@ -177,26 +186,37 @@ namespace Kinesthetic.Menu
                 root.RegisterCallback<NavigationCancelEvent>(e =>
                 { if (!overlay.ClassListContains("hidden")) { Close(); e.StopPropagation(); } });
 
-            BuildQuickChips();
+            if (tabMessages != null) tabMessages.clicked += () => ShowPage(false);
+            if (tabMeet != null) tabMeet.clicked += () => ShowPage(true);
+
             // Mounted only where the tree offers a home for it, so a screen that
             // has not adopted the card is not broken by its absence.
             var introMount = root.Q("introductions");
             if (introMount != null)
-                introductions = new IntroductionsCard(this, introMount, () => StartCoroutine(LoadRoster()));
+                introductions = new IntroductionsCard(this, introMount, () => StartCoroutine(LoadRoster()), ShowMeetEmpty);
             StartCoroutine(LoadRoster());
         }
 
-        void BuildQuickChips()
+        /// One page at a time. The tabs are KButtons, so the look of the chosen one
+        /// is a tone rather than a class this screen paints.
+        void ShowPage(bool meet)
         {
-            quickRow.Clear();
-            foreach (var (kind, label) in Quick)
-            {
-                var chip = new Button { text = label };
-                chip.AddToClassList("quick-chip");
-                string captured = kind;
-                chip.clicked += () => StartCoroutine(Send(captured));
-                quickRow.Add(chip);
-            }
+            if (pageMessages == null || pageMeet == null) return;
+            navigation?.PlaySelect();
+            pageMessages.EnableInClassList("hidden", meet);
+            pageMeet.EnableInClassList("hidden", !meet);
+            if (tabMessages is KButton a) a.tone = meet ? KButton.Tone.Quiet : KButton.Tone.Primary;
+            if (tabMeet is KButton b) b.tone = meet ? KButton.Tone.Primary : KButton.Tone.Quiet;
+            // Ask again on arrival: someone may have become a friend since the last look.
+            if (meet) introductions?.Refresh();
+        }
+
+        /// The meet page is a column of its own, so it says when there is nobody
+        /// rather than leaving the space blank — unlike the card on a shared page,
+        /// which simply goes away.
+        void ShowMeetEmpty(bool empty)
+        {
+            root?.Q<Label>("meet-empty")?.EnableInClassList("hidden", !empty);
         }
 
         public void Open()
@@ -594,6 +614,29 @@ namespace Kinesthetic.Menu
                 threadView.Add(bubble);
             }
             threadView.schedule.Execute(() => threadView.parent?.Focus());
+            ScrollToEnd();
+        }
+
+        /// A repaint leaves the view where it was, which on a long thread is the
+        /// top — so the message you just sent lands off-screen below. End at the
+        /// newest one instead.
+        ///
+        /// Past the end clamps to the end, so the content's own height is "the
+        /// bottom" and the maximum never has to be worked out. The bubbles have no
+        /// layout on the frame they are added, though, so this also waits for the
+        /// geometry pass: that is the signal a delay would only be guessing at.
+        void ScrollToEnd()
+        {
+            if (threadScroll == null || threadView == null) return;
+            threadScroll.scrollOffset = new Vector2(0, threadView.layout.height);
+            threadView.UnregisterCallback<GeometryChangedEvent>(SettleToEnd);
+            threadView.RegisterCallback<GeometryChangedEvent>(SettleToEnd);
+        }
+
+        void SettleToEnd(GeometryChangedEvent _)
+        {
+            threadView.UnregisterCallback<GeometryChangedEvent>(SettleToEnd);
+            threadScroll.scrollOffset = new Vector2(0, threadView.layout.height);
         }
 
         IEnumerator LoadPhoto(string photoId, VisualElement target)
@@ -605,6 +648,12 @@ namespace Kinesthetic.Menu
             if (request.result != UnityWebRequest.Result.Success) yield break;
             var texture = DownloadHandlerTexture.GetContent(request);
             target.style.backgroundImage = new StyleBackground(texture);
+            // The photo lands after the scroll and grows the thread beneath it, so
+            // the newest message slips below the fold again unless we follow it.
+            // The thread may have been repainted for someone else while this was in
+            // flight, which is why the last bubble is re-read rather than captured.
+            if (threadView != null && threadView.childCount > 0
+                && target.parent == threadView[threadView.childCount - 1]) ScrollToEnd();
         }
 
         static string LabelFor(string kind)
