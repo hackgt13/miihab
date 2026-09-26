@@ -435,6 +435,32 @@ const server = createServer(async (request, response) => {
             goalComponents: known?.goalComponents ?? [],
           });
         }
+        // Who is in an activity right now, grouped by the catalog id the gallery
+        // already knows its cards by. Presence goes stale the moment a machine
+        // stops reporting, so it is read with a window rather than trusted: no
+        // heartbeat inside it and the person is simply not shown.
+        if (request.method === 'GET' && url.pathname === '/api/friends/presence') {
+          const window = Number(process.env.KINESTHETIC_PRESENCE_MINUTES ?? 15) * 60000;
+          const known = await directory.profiles();
+          const mine = new Set(friends.list().map(p => p.id));
+          const inside: Record<string, {id: string; displayName: string; mii: number}[]> = {};
+          for (const p of known) {
+            if (!p.presence || !mine.has(p.personId)) continue;
+            const age = Date.now() - Date.parse(p.presence.since);
+            if (!Number.isFinite(age) || age < 0 || age > window) continue;
+            const person = friends.person(p.personId);
+            (inside[p.presence.activityId] ??= []).push({
+              id: p.personId,
+              displayName: person?.displayName ?? p.displayName ?? 'A friend',
+              mii: person?.mii ?? 0,
+            });
+          }
+          // An array, because Unity's JsonUtility cannot read an object with
+          // dynamic keys - the same reason the spotlight's activity is one.
+          return json(200, {
+            activities: Object.entries(inside).map(([activityId, people]) => ({activityId, people})),
+          });
+        }
         if (request.method === 'GET' && url.pathname === '/api/friends/spotlight') {
           const people = friends.list();
           const unread = messages.unread(me, people.map(p => p.id));
