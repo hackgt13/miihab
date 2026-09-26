@@ -69,7 +69,7 @@ public static class QuestRehabSetup
         // First person: coach ahead-right and mirror ahead-left, about 40 degrees off centre, inside the headset's view.
         var right = Vector3.Cross(Vector3.up, forward);
         var coachSeat = new GameObject("Coach seat (first person)").transform;
-        var coachAt = seat.position + right * 1.0f + forward * 1.35f;
+        var coachAt = seat.position + right * 1.0f + forward * 2.1f;
         coachSeat.SetPositionAndRotation(coachAt, Quaternion.LookRotation(Vector3.ProjectOnPlane(seat.position - coachAt, Vector3.up)));
         var client = new GameObject("Headset rehab-state client").AddComponent<RehabStateClient>();
         client.rig = rig; client.hud = hud; client.coachSeat = coachSeat;

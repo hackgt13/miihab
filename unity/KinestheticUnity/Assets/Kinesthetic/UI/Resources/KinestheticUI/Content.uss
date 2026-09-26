@@ -1,0 +1,19 @@
+.k-text.k-text--title, .k-text.k-text--heading, .k-text.k-text--body, .k-text.k-text--caption {
+    margin: 0; padding: 0; white-space: normal; -unity-font-style: normal;
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf");
+}
+.k-text.k-text--title, .k-text.k-text--heading { -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.k-text.k-text--title { font-size: 36px; }
+.k-text.k-text--heading { font-size: 26px; }
+.k-text.k-text--body { font-size: 19px; }
+.k-text.k-text--caption { font-size: 15px; }
+.k-text.k-text--ink { color: var(--prussian-50); }
+.k-text.k-text--soft { color: var(--slate-70); }
+.k-text.k-text--ondark { color: var(--sand-00); }
+.k-text.k-text--success { color: var(--jungle-60); }
+.k-surface.k-surface--paper { background-color: var(--sand-00-a96); border-radius: 24px; border-width: 1px; border-color: var(--sand-00); border-bottom-width: 3px; border-bottom-color: var(--slate-30); }
+.k-surface.k-surface--glass { background-color: var(--prussian-70-a88); border-radius: 24px; border-width: 1px; border-color: var(--sand-00-a24); }
+.k-surface.k-surface--scrim { background-color: var(--prussian-70-a45); border-width: 0; border-radius: 0; }
+.k-surface.k-surface--compact { padding: 16px 20px; }
+.k-surface.k-surface--comfortable { padding: 24px 28px; }
+.k-surface.k-surface--flush { padding: 0; }

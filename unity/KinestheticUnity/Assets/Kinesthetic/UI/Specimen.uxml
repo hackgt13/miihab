@@ -90,5 +90,10 @@
             <k:KStep title="Club" />
         </k:KSteps>
 
+        <k:KEyebrow text="TEXT AND SURFACES" />
+        <ui:VisualElement class="specimen-row">
+            <k:KSurface tone="Paper"><k:KText text="Today we will practice" tone="Soft" /><k:KText text="Shoulder raises" size="Title" /></k:KSurface>
+            <k:KSurface tone="Glass"><k:KText text="Raise, hold, lower." size="Heading" tone="OnDark" /><k:KText text="One cue at a time." size="Caption" tone="OnDark" /></k:KSurface>
+        </ui:VisualElement>
     </ui:ScrollView>
 </ui:UXML>

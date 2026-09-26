@@ -1,121 +1,37 @@
-.studio-screen { flex-grow: 1; color: var(--prussian-50); -unity-font: url("Fonts/Nunito-SemiBold.ttf"); }
-Label { margin: 0; padding: 0; }
-.studio-header { flex-direction: row; align-items: center; height: 88px; padding: 0 36px; background-color: var(--sand-00-a96); border-bottom-width: 3px; border-bottom-color: var(--slate-50-a32); }
-.brand-mark { width: 48px; height: 48px; border-radius: 16px; background-color: var(--cerulean-50); margin-right: 14px; align-items: center; justify-content: center; }
-.brand-mark Label { font-size: 36px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: var(--sand-10); margin-top: -8px; }
-.brand-name { font-size: 29px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: -1px; margin-top: -3px; }
-.eyebrow { font-size: 11px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: 1.6px; color: var(--slate-50); }
-.brand-copy .eyebrow { font-size: 9px; letter-spacing: 2px; }
-.header-space { flex-grow: 1; }
-.connection-chip { flex-direction: row; align-items: center; padding: 10px 15px; border-radius: 18px; background-color: var(--sand-20); }
-.connection-chip Label { font-size: 12px; color: var(--slate-50); }
-.connection-dot { width: 8px; height: 8px; border-radius: 4px; background-color: var(--slate-30); margin-right: 8px; }
-.connection-chip.connected { background-color: var(--jungle-20); }
-.connection-chip.connected .connection-dot { background-color: var(--jungle-40); }
-.connection-chip.connected Label { color: var(--jungle-60); }
-.header-note { font-size: 10px; letter-spacing: 1.5px; margin-left: 24px; color: var(--slate-50); }
-.card { background-color: var(--sand-00-a99); border-width: 1px; border-color: var(--sand-00); border-bottom-width: 4px; border-bottom-color: var(--slate-30); border-radius: 24px; }
-.exercise-card { position: absolute; left: 32px; top: 123px; bottom: 180px; width: 276px; padding: 24px 22px 20px; }
-.section-heading { flex-direction: row; align-items: center; margin-bottom: 16px; }
-.exercise-number { font-size: 14px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: var(--prussian-50); padding: 6px 9px; background-color: var(--cerulean-20); border-radius: 9px; margin-right: 11px; }
-.exercise-title { font-size: 34px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; white-space: normal; letter-spacing: -.9px; }
-.side-label { align-self: flex-start; margin-top: 10px; padding: 5px 10px; border-radius: 8px; background-color: var(--cerulean-20); color: var(--slate-70); font-size: 10px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: 1.4px; }
-.exercise-intro { font-size: 14px; color: var(--slate-50); white-space: normal; margin-top: 12px; }
-.card-divider { height: 1px; background-color: var(--sand-40); margin: 16px 0; }
-.instruction-row { flex-direction: row; align-items: flex-start; margin-top: 14px; }
-.step-number { width: 25px; height: 25px; flex-shrink: 0; border-radius: 13px; border-width: 1px; border-color: var(--slate-30); color: var(--slate-50); font-size: 12px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; -unity-text-align: middle-center; margin-right: 10px; }
-.instruction-copy { flex-grow: 1; flex-shrink: 1; }
-.step-title { font-size: 13px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
-.step-detail { font-size: 11px; white-space: normal; margin-top: 4px; color: var(--slate-50); }
-.plan-inset { margin-top: 20px; padding: 13px 12px; border-radius: 12px; background-color: var(--sand-20); }
-.plan-inset .eyebrow { font-size: 9px; color: var(--slate-50); letter-spacing: 1px; }
-.plan { font-size: 13px; margin-top: 5px; color: var(--prussian-50); -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; white-space: normal; }
-.progress-card { position: absolute; top: 123px; right: 32px; width: 242px; padding: 24px 20px 22px; }
-.progress-card > .eyebrow { -unity-text-align: middle-center; }
-.rep-ring { width: 180px; height: 180px; margin-top: 13px; align-self: center; align-items: center; justify-content: center; }
-.rep-value { font-size: 62px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: var(--prussian-50); margin-top: -7px; }
-.rep-goal { font-size: 12px; color: var(--slate-50); margin-top: -3px; }
-.progress-note { font-size: 10px; color: var(--slate-50); -unity-text-align: middle-center; margin-top: 12px; white-space: normal; }
-.angle-heading { flex-direction: row; justify-content: space-between; align-items: center; }
-.angle-heading .eyebrow { font-size: 10px; letter-spacing: 1px; }
-.target-label { font-size: 11px; color: var(--slate-50); }
-.angle-value { font-size: 42px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; margin-top: 8px; }
-.angle-meter { height: 8px; margin-top: 6px; margin-bottom: 6px; }
-.angle-meter .unity-progress-bar__container { flex-grow: 1; height: 8px; min-height: 8px; padding: 0; margin: 0; }
-.angle-meter .unity-progress-bar__background { height: 8px; min-height: 8px; border-width: 0; border-radius: 4px; background-color: var(--cerulean-20); }
-.angle-meter .unity-progress-bar__progress { height: 8px; min-height: 8px; margin: 0; border-width: 0; border-radius: 4px; background-color: var(--cerulean-50); }
-.angle-meter .unity-progress-bar__title-container { display: none; }
-.angle-note { font-size: 10px; color: var(--slate-50); margin-top: 10px; white-space: normal; }
-.studio-caption { position: absolute; left: 340px; right: 305px; bottom: 164px; align-items: center; }
-.studio-caption-title { font-size: 10px; letter-spacing: 3px; color: var(--slate-70); -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
-.studio-caption-detail { display: none; }
-.coaching-dock { position: absolute; bottom: 54px; left: 32px; right: 32px; min-height: 98px; flex-direction: row; align-items: center; padding: 18px 22px; background-color: var(--sand-00-a98); border-radius: 24px; border-width: 1px; border-color: var(--sand-00); border-bottom-width: 4px; border-bottom-color: var(--slate-30); }
-.cue-icon { width: 52px; height: 52px; flex-shrink: 0; border-radius: 18px; background-color: var(--cerulean-20); align-items: center; justify-content: center; margin-right: 16px; }
-.cue-icon Label { font-size: 25px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: var(--prussian-50); }
-.cue-icon.good { background-color: var(--jungle-20); }
-.cue-icon.attention { background-color: var(--coral-20); }
-.cue-icon.attention Label { color: var(--coral-60); }
-.coaching-copy { flex-grow: 1; flex-shrink: 1; margin-right: 22px; }
-.cue-title { font-size: 20px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
-.status { font-size: 14px; color: var(--slate-50); white-space: normal; margin-top: 5px; }
-Button.start { height: 54px; min-width: 196px; padding: 0 24px; border-radius: 27px; border-width: 2px; border-color: var(--cerulean-40); border-bottom-width: 4px; border-bottom-color: var(--cerulean-70); background-color: var(--cerulean-50); color: var(--sand-00); font-size: 17px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; flex-shrink: 0; }
-Button.start:hover { background-color: var(--cerulean-45); border-color: var(--cerulean-30); }
-Button.start:active { background-color: var(--cerulean-60); border-bottom-width: 2px; }
-Button.start:focus { border-color: var(--cerulean-70); }
-Button.start:disabled { background-color: var(--sand-40); border-color: var(--slate-30); color: var(--slate-70); }
-.footer-note { position: absolute; bottom: 23px; align-self: center; font-size: 10px; color: var(--slate-50); letter-spacing: .3px; }
-.summary-overlay { position: absolute; top: 88px; bottom: 0; left: 0; right: 0; background-color: var(--prussian-70-a45); align-items: center; justify-content: center; }
-.summary-card { width: 640px; max-width: 92%; padding: 28px 32px; align-items: center; }
-.summary-check { width: 68px; height: 68px; border-radius: 34px; background-color: var(--jungle-20); color: var(--jungle-60); font-size: 39px; -unity-text-align: middle-center; }
-.summary-title { font-size: 29px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; margin-top: 20px; }
-.summary-subtitle { font-size: 14px; color: var(--slate-50); margin-top: 8px; }
-.summary-text { font-size: 14px; white-space: normal; -unity-text-align: middle-center; color: var(--slate-50); }
-.summary-button { margin-left: 14px; }
-.hidden { display: none; }
+.studio-screen { flex-grow: 1; }
+.exercise-card { position: absolute; left: 32px; top: 30px; width: 370px; }
+.intro { margin-top: 16px; margin-bottom: 2px; }
+.exercise-meta { flex-direction: row; align-items: center; margin-top: 16px; }
+.plan { flex-shrink: 1; }
+.side-tag { margin-right: 12px; }
+.sensor-status { position: absolute; right: 32px; top: 30px; }
+.progress-card { position: absolute; right: 32px; top: 98px; width: 196px; align-items: center; }
+.rep-ring { width: 140px; height: 140px; margin-top: 14px; }
+.progress-note { margin-top: 12px; }
+.angle-details { width: 100%; margin-top: 18px; align-items: center; }
+.angle-meter { width: 100%; margin-top: 10px; }
+.angle-note { margin-top: 10px; }
+.coaching-dock { position: absolute; bottom: 64px; align-self: center; width: 810px; max-width: 82%; flex-direction: row; align-items: center; }
+.cue-step { align-self: center; margin-right: 20px; }
+.coaching-copy { flex-grow: 1; flex-shrink: 1; }
+.status { margin-top: 4px; }
+.session-action { margin-left: 22px; flex-shrink: 0; }
+.voice-caption { position: absolute; bottom: 195px; align-self: center; width: 620px; max-width: 65%; }
+.voice-line { margin-top: 6px; }
+.summary-overlay { position: absolute; left: 0; right: 0; top: 0; bottom: 0; align-items: center; justify-content: center; }
+.summary-card { width: 680px; max-width: 90%; max-height: 88%; align-items: center; }
+.summary-badge { align-self: center; margin-bottom: 18px; }
+.summary-subtitle, .summary-plan, .summary-progress { margin-top: 10px; }
+.summary-metrics { flex-direction: row; width: 100%; margin-top: 24px; margin-bottom: 24px; }
+.summary-metric { flex-grow: 1; align-items: center; }
+.summary-notes { max-height: 145px; width: 100%; }
+.summary-saved { margin-top: 16px; }
+.summary-actions { flex-direction: row; margin-top: 24px; }
+.summary-close { margin-left: 14px; }
+.studio-screen.playing .intro { display: none; }
+.studio-screen.playing .exercise-card { width: 330px; }
+.studio-screen.compact .exercise-card { width: 310px; }
+.studio-screen.compact .coaching-dock { width: 730px; bottom: 56px; }
+.studio-screen.compact .cue-step { display: none; }
 
-.exercise-scroll { flex-grow: 1; flex-shrink: 1; min-height: 0; }
-.exercise-scroll .unity-scroll-view__content-container { padding-right: 2px; }
-.angle-meter .unity-progress-bar { height: 8px; min-height: 8px; padding: 0; margin: 0; }
-
-.summary-plan { font-size: 11px; letter-spacing: 1px; color: var(--slate-50); margin-top: 17px; }
-.summary-metrics { flex-direction: row; align-self: stretch; margin-top: 22px; }
-.summary-metric { flex-grow: 1; flex-basis: 0; align-items: center; padding: 16px 8px; border-radius: 16px; background-color: var(--sand-20); }
-.metric-middle { margin-left: 10px; margin-right: 10px; }
-.metric-value { font-size: 46px; color: var(--prussian-50); -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); }
-.metric-label { font-size: 10px; color: var(--slate-50); letter-spacing: 0.8px; }
-.summary-notes { max-height: 100px; align-self: stretch; margin-top: 18px; margin-bottom: 14px; }
-.summary-saved { font-size: 12px; color: var(--jungle-60); }
-.summary-progress { font-size: 15px; -unity-font-style: bold; color: var(--slate-60); margin-top: 12px; padding: 8px 14px; border-radius: 12px; background-color: var(--cerulean-10); -unity-text-align: middle-center; white-space: normal; }
-.summary-progress.up { color: var(--jungle-60); background-color: var(--jungle-10); }
-.summary-progress.easy { color: var(--coral-60); background-color: var(--coral-10); }
-.summary-actions { flex-direction: row; margin-top: 23px; align-items: center; }
-Button.summary-secondary { height: 54px; padding: 0 22px; border-radius: 27px; border-width: 2px; border-bottom-width: 4px; border-color: var(--cerulean-30); background-color: var(--sand-00); color: var(--prussian-50); font-size: 16px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
-Button.summary-secondary:hover, Button.summary-secondary:focus { background-color: var(--cerulean-10); border-color: var(--cerulean-40); }
-
-.studio-screen .unity-scroller--vertical { width: 7px; margin-left: 5px; }
-.studio-screen .unity-scroller__low-button, .studio-screen .unity-scroller__high-button { display: none; }
-.studio-screen .unity-scroller--vertical .unity-base-slider__tracker { width: 3px; background-color: var(--sand-20); border-width: 0; }
-.studio-screen .unity-scroller--vertical .unity-base-slider__dragger { width: 6px; min-height: 28px; background-color: var(--slate-30); border-width: 0; border-radius: 3px; }
-.studio-screen .unity-scroller--vertical .unity-base-slider__dragger:hover { background-color: var(--slate-40); }
-
-/* In play the studio becomes a game view, like golf and bowling: the website-like cards give way to a compact
-   HUD over the 3D room, and the coaching dock turns into a translucent banner. */
-.play-hud { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: none; }
-.studio-screen.playing .play-hud { display: flex; }
-.studio-screen.playing .studio-header,
-.studio-screen.playing .exercise-card,
-.studio-screen.playing .progress-card,
-.studio-screen.playing .studio-caption,
-.studio-screen.playing .footer-note { display: none; }
-.hud-chip { position: absolute; top: 28px; padding: 12px 22px 10px; border-radius: 22px; background-color: var(--prussian-70-a45); align-items: center; }
-.hud-reps { left: 32px; }
-.hud-angle { right: 32px; }
-.hud-big { font-size: 46px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: var(--sand-10); }
-.hud-small { font-size: 11px; letter-spacing: 1.6px; color: var(--sand-10); -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; opacity: .85; }
-.hud-angle.in-band .hud-big { color: var(--jungle-40); }
-.hud-angle.over .hud-big { color: var(--coral-40); }
-.hud-coach { position: absolute; right: 32px; bottom: 190px; max-width: 420px; padding: 12px 18px; border-radius: 18px; background-color: var(--prussian-70-a45); }
-.hud-coach-line { font-size: 17px; color: var(--sand-10); white-space: normal; margin-top: 4px; }
-.studio-screen.playing .coaching-dock { background-color: var(--prussian-70-a45); border-color: rgba(0, 0, 0, 0); border-bottom-color: rgba(0, 0, 0, 0); left: 22%; right: 22%; bottom: 34px; }
-.studio-screen.playing .cue-title { color: var(--sand-10); }
-.studio-screen.playing .status { color: var(--sand-10); opacity: .85; }
+.view-toggle { position: absolute; bottom: 10px; left: 140px; }
