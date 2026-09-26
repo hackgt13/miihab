@@ -6,17 +6,17 @@ import type { ValidationEntry } from '../data/validationConfig'
 type SourceTag = 'Measured' | 'Patient report' | 'Agent' | 'Clinician'
 
 const sourceStyle: Record<SourceTag, { color: string; bg: string }> = {
-  'Measured':       { color: '#6FB8C4', bg: '#6FB8C4' },
-  'Patient report': { color: '#E3A86B', bg: '#E3A86B' },
-  'Agent':          { color: '#9CC2B5', bg: '#9CC2B5' },
-  'Clinician':      { color: '#7CC49A', bg: '#7CC49A' },
+  'Measured':       { color: '#1666C0', bg: '#1666C0' },
+  'Patient report': { color: '#C67C1A', bg: '#C67C1A' },
+  'Agent':          { color: '#0D9488', bg: '#0D9488' },
+  'Clinician':      { color: '#2E7D32', bg: '#2E7D32' },
 }
 
 function SourceBadge({ source }: { source: SourceTag }) {
   const s = sourceStyle[source]
   return (
     <span
-      className="text-[8px] uppercase tracking-widest px-1.5 py-0.5 font-medium"
+      className="text-[8px] uppercase tracking-widest px-1.5 py-0.5 font-medium rounded-sm"
       style={{ color: s.color, backgroundColor: `${s.bg}14`, border: `1px solid ${s.bg}30` }}
     >
       {source}
@@ -34,26 +34,26 @@ function InfoPopover({
   onClose: () => void
 }) {
   return (
-    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-[#1B2428] border border-[#3D484E] p-3 shadow-2xl">
+    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-[#DDE2E8] rounded-md p-3 shadow-lg">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[9px] text-[#A3B0B6] uppercase tracking-widest">Measurement method</p>
-        <button onClick={onClose} className="text-[#A3B0B6] hover:text-[#E4E9EB] text-sm leading-none">×</button>
+        <p className="text-[9px] text-[#5A6472] uppercase tracking-widest">Measurement method</p>
+        <button onClick={onClose} className="text-[#5A6472] hover:text-[#1A1D23] text-sm leading-none">×</button>
       </div>
       <div className="flex flex-col gap-0.5 text-[10px] font-mono">
-        <p className="text-[#E4E9EB]">{entry.method}</p>
-        <p className="text-[#A3B0B6]">Version: {entry.algorithmVersion}</p>
-        <p className="text-[#A3B0B6]">Cal ID: {entry.calibrationId}</p>
+        <p className="text-[#1A1D23]">{entry.method}</p>
+        <p className="text-[#5A6472]">Version: {entry.algorithmVersion}</p>
+        <p className="text-[#5A6472]">Cal ID: {entry.calibrationId}</p>
         {occlusionPct !== undefined && (
-          <p className={occlusionPct > 10 ? 'text-[#E3A86B]' : 'text-[#7CC49A]'}>
+          <p className={occlusionPct > 10 ? 'text-[#C67C1A]' : 'text-[#2E7D32]'}>
             Occlusion: {occlusionPct}% of frames
           </p>
         )}
         {entry.goniometerDeltaDeg !== undefined ? (
-          <p className="text-[#7CC49A]">
+          <p className="text-[#2E7D32]">
             Validated vs goniometer: ±{entry.goniometerDeltaDeg}° (n={entry.goniometerTrials} trials)
           </p>
         ) : (
-          <p className="text-[#E3A86B]">Not yet validated vs goniometer</p>
+          <p className="text-[#C67C1A]">Not yet validated vs goniometer</p>
         )}
       </div>
     </div>
@@ -75,15 +75,15 @@ function Measure({ label, value, unit = '', subtitle, warn = false, source, vali
   const [showInfo, setShowInfo] = useState(false)
 
   return (
-    <div className="bg-[#2A3337] border border-[#3D484E] p-4 relative">
+    <div className="bg-white border border-[#DDE2E8] rounded-md p-4 relative shadow-sm">
       <div className="flex items-center justify-between mb-2 gap-2">
-        <p className="text-[#A3B0B6] text-[9px] uppercase tracking-[0.18em] leading-none">{label}</p>
+        <p className="text-[#5A6472] text-[9px] uppercase tracking-[0.18em] leading-none">{label}</p>
         <div className="flex items-center gap-1.5 shrink-0">
           <SourceBadge source={source} />
           {validation && (
             <button
               onClick={() => setShowInfo(o => !o)}
-              className="text-[#A3B0B6] hover:text-[#6FB8C4] transition-colors text-[11px] leading-none"
+              className="text-[#5A6472] hover:text-[#1666C0] transition-colors text-[11px] leading-none"
               title="Measurement method"
             >
               ⓘ
@@ -92,11 +92,11 @@ function Measure({ label, value, unit = '', subtitle, warn = false, source, vali
         </div>
       </div>
 
-      <p className={`font-mono text-xl font-bold mb-1 ${warn ? 'text-[#E3A86B]' : 'text-[#E4E9EB]'}`}>
+      <p className={`font-mono text-xl font-bold mb-1 ${warn ? 'text-[#C67C1A]' : 'text-[#1A1D23]'}`}>
         {value}{unit}
       </p>
       {subtitle && (
-        <p className="text-[#A3B0B6] text-[10px] font-mono leading-snug">{subtitle}</p>
+        <p className="text-[#5A6472] text-[10px] font-mono leading-snug">{subtitle}</p>
       )}
 
       {showInfo && validation && (
@@ -138,7 +138,7 @@ export function KeyMeasures({
 
   return (
     <div>
-      <p className="text-[#A3B0B6] text-[10px] uppercase tracking-[0.18em] mb-2">Key Measures</p>
+      <p className="text-[#5A6472] text-[10px] uppercase tracking-[0.18em] mb-2">Key Measures</p>
       <div className="grid grid-cols-4 gap-3">
         <Measure
           label="Range of motion"

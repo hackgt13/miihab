@@ -2,10 +2,10 @@ import { Link, useParams } from '@tanstack/react-router'
 import { PATIENTS } from '../data/patients'
 import type { PatientStatus } from '../data/patients'
 
-const statusColor: Record<PatientStatus, string> = {
-  alert: '#E08585',
-  watch: '#E3A86B',
-  good:  '#7CC49A',
+const statusChip: Record<PatientStatus, { label: string; cls: string }> = {
+  alert: { label: 'NEEDS REVIEW', cls: 'bg-[#FECACA] text-[#7F1D1D]' },
+  watch: { label: 'ATTENTION',   cls: 'bg-[#FEF3C7] text-[#78350F]' },
+  good:  { label: 'ON TRACK',    cls: 'bg-[#D1FAE5] text-[#064E3B]' },
 }
 
 export function Sidebar() {
@@ -13,70 +13,60 @@ export function Sidebar() {
   const activeId = params.patientId
 
   return (
-    <aside className="w-[192px] shrink-0 h-full bg-[#2A3337] border-r border-[#3D484E] flex flex-col">
-      {/* Header */}
-      <div className="px-4 pt-5 pb-4 border-b border-[#3D484E]">
-        <span className="text-[#E4E9EB] font-semibold text-sm">Kinesthetic</span>
-        <p className="text-[#A3B0B6] text-[9px] tracking-[0.15em] uppercase mt-0.5">
-          Physician Portal
-        </p>
+    <aside className="w-[220px] shrink-0 h-full bg-[#f1f3f5] border-r border-[#d5dae0] flex flex-col">
+      {/* Search */}
+      <div className="px-2 py-2 border-b border-[#d5dae0]">
+        <div className="flex items-center gap-1.5 bg-white border border-[#c8cdd4] rounded-[2px] px-2 py-[5px]">
+          <span className="text-[#9CA3AF] text-[11px] shrink-0">⌕</span>
+          <input
+            type="text"
+            placeholder="Search patients…"
+            className="flex-1 text-[11px] text-[#374151] placeholder:text-[#9CA3AF] outline-none bg-transparent"
+          />
+        </div>
       </div>
 
-      {/* Patient list — sorted by urgency (pre-sorted in seed.ts) */}
-      <div className="flex-1 overflow-y-auto py-2">
-        <p className="px-4 pt-1 pb-1.5 text-[#A3B0B6] text-[9px] font-medium uppercase tracking-[0.18em]">
-          Patients
-        </p>
+      {/* Section header bar */}
+      <div className="px-3 py-[4px] bg-[#dde2e8] border-b border-[#c8cdd4] select-none">
+        <span className="text-[#4B5563] text-[10px] font-semibold uppercase tracking-[0.18em]">Patients</span>
+      </div>
+
+      {/* Patient list */}
+      <div className="flex-1 overflow-y-auto">
         <nav className="flex flex-col">
           {PATIENTS.map(patient => {
             const isActive = activeId === patient.id
+            const chip = statusChip[patient.status]
             return (
               <Link
                 key={patient.id}
                 to="/portal/$patientId"
                 params={{ patientId: patient.id }}
                 className={[
-                  'group flex items-start justify-between gap-2 px-4 py-2 border-l-2 transition-colors cursor-pointer',
+                  'group flex flex-col gap-1 px-3 py-2 border-l-[3px] border-b border-[#dde2e8] transition-colors cursor-pointer',
                   isActive
-                    ? 'bg-[#323C41] border-[#6FB8C4]'
-                    : 'border-transparent hover:bg-[#323C41] hover:border-[#3D484E]',
+                    ? 'bg-white border-l-[#1666C0]'
+                    : 'border-l-transparent hover:bg-[#e6eaef]',
                 ].join(' ')}
               >
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span
-                    className={[
-                      'text-xs font-medium truncate leading-none',
-                      isActive ? 'text-[#E4E9EB]' : 'text-[#A3B0B6] group-hover:text-[#E4E9EB]',
-                    ].join(' ')}
-                  >
+                <div className="flex items-center justify-between gap-1">
+                  <span className={[
+                    'text-[12px] font-medium truncate leading-tight',
+                    isActive ? 'text-[#1666C0]' : 'text-[#1F2937] group-hover:text-[#111827]',
+                  ].join(' ')}>
                     {patient.name}
                   </span>
-                  <span className="text-[10px] text-[#A3B0B6] truncate leading-none opacity-70">
-                    {patient.condition.split(' ').slice(0, 3).join(' ')}
-                  </span>
-                  <span
-                    className="text-[9px] truncate leading-tight mt-0.5"
-                    style={{ color: statusColor[patient.status], opacity: 0.75 }}
-                  >
-                    {patient.flagDetail}
+                  <span className={`text-[9px] font-semibold px-1.5 py-[2px] rounded-[2px] shrink-0 whitespace-nowrap ${chip.cls}`}>
+                    {chip.label}
                   </span>
                 </div>
-                <span
-                  className="w-1.5 h-1.5 rounded-full shrink-0 mt-0.5"
-                  style={{ backgroundColor: statusColor[patient.status] }}
-                />
+                <span className="text-[10px] text-[#6B7280] truncate leading-none">
+                  {patient.condition.split(' ').slice(0, 4).join(' ')}
+                </span>
               </Link>
             )
           })}
         </nav>
-      </div>
-
-      {/* Footer */}
-      <div className="px-4 py-3 border-t border-[#3D484E]">
-        <p className="text-[#E4E9EB] text-xs font-medium">Dr. Chen</p>
-        <button className="text-[#A3B0B6] text-[10px] hover:text-[#6FB8C4] transition-colors mt-0.5">
-          Sign out
-        </button>
       </div>
     </aside>
   )
