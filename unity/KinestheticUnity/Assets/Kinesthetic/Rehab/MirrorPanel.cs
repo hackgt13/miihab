@@ -95,6 +95,10 @@ namespace Kinesthetic.Rehab
             targetHand = Orb(window, "Ghost hand · target"); ceilingHand = Orb(window, "Ghost hand · safe ceiling");
         }
 
+        // The window is its own object, not a child of this one: it goes when the mirror does (a group session
+        // puts the other person where it stood).
+        void OnDestroy() { if (window) Destroy(window.gameObject); }
+
         void LateUpdate()
         {
             if (!copy || view == null) return;

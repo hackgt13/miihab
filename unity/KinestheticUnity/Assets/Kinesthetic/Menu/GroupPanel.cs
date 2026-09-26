@@ -69,6 +69,28 @@ namespace Kinesthetic.Menu
         public bool Showing => Visible(lobby) || Visible(roomLayer);
         public bool InRoom => room != null;
 
+        /// Someone in the room with you, as a venue draws them: a name, a Mii, and whether they are a sample.
+        public readonly struct Person
+        {
+            public readonly string Id, Name; public readonly int Mii; public readonly bool Sample;
+            public Person(string id, string name, int mii, bool sample) { Id = id; Name = name; Mii = mii; Sample = sample; }
+        }
+
+        /// The other person a venue shows beside you: the first member of the room who is not you. Null out of a
+        /// room, or alone in one. A studio shows one partner; the rest of the room is on the Tab list.
+        public Person? Partner
+        {
+            get
+            {
+                if (room?.members == null) return null;
+                foreach (var m in room.members) if (!m.isMe) return new Person(m.id, m.displayName, m.mii, m.sample);
+                return null;
+            }
+        }
+
+        /// The room, or who is in it, changed.
+        public event Action RoomChanged;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { Instance = null; }
 
@@ -377,7 +399,9 @@ namespace Kinesthetic.Menu
                     tickerUntil = Time.unscaledTime + TickerSeconds;
                 }
             }
+            bool roomMoved = moved || (room?.id != next?.id);
             room = next; lastSeen = newest; lastMembers = members;
+            if (roomMoved) RoomChanged?.Invoke();
             PaintChrome();
             // The poll lands every few seconds; redraw only for something new, so the list does not flicker.
             if (Visible(roomLayer)) { if (room == null) { Show(roomLayer, false); roomOpen = false; } else if (changed || moved) PaintRoom(changed); }

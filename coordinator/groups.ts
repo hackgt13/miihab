@@ -256,6 +256,20 @@ export class GroupStore {
     };
   }
 
+  /// Put a sample stranger into this person's room: a fake partner for a demo or a test, labelled like every
+  /// sample, who says nothing and moves only as a simulator or a second Mac makes them.
+  inject(personId: string): Member {
+    const group = this.current(personId);
+    if (!group) throw Object.assign(new Error('You are not in a group'), { status: 409 });
+    if (group.members.length >= CAPACITY) throw Object.assign(new Error('That group is full'), { status: 409 });
+    const here = new Set(group.members.map(m => m.id));
+    const pick = STRANGERS.find(s => !here.has(s.id) && !this.current(s.id));
+    if (!pick) throw Object.assign(new Error('No sample people left to add'), { status: 409 });
+    this.enter(group, { ...pick, sample: true });
+    this.save();
+    return group.members[group.members.length - 1];
+  }
+
   /// A member of this person's current room, for following them from the list.
   member(personId: string, otherId: string): Member | undefined {
     return this.current(personId)?.members.find(m => m.id === otherId);

@@ -161,8 +161,12 @@ namespace Kinesthetic.Rehab
             if (!boards) boards = FindAnyObjectByType<BoardSet>();
             SensorHub.Ensure();
             exercise = new ExerciseClient(exerciseUrl);
-            // The mirror window is added here, so the generated scene needs no change.
-            if (!useCameraPose && !GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
+            // The mirror window is added here, so the generated scene needs no change. In a group session the other
+            // person sits where it stands instead (PeerAvatar): you watch them move, not yourself. Joining or leaving
+            // a group mid-visit swaps one for the other.
+            ArrangeCompany();
+            var groups = Kinesthetic.Menu.GroupPanel.Instance;
+            if (groups) groups.RoomChanged += ArrangeCompany;
             // The patient's own eyes (mirror left, coach right); C glides out to the wide shot.
             if (!GetComponent<StudioCamera>()) gameObject.AddComponent<StudioCamera>().session = this;
             // A headset renders this studio from what it publishes (RehabStateClient in QuestRehab).
@@ -829,6 +833,29 @@ namespace Kinesthetic.Rehab
             }
         }
 
-        void OnDestroy() { exercise?.Dispose(); }   // the hub owns the pose channel
+        void OnDestroy()
+        {
+            exercise?.Dispose();   // the hub owns the pose channel
+            var groups = Kinesthetic.Menu.GroupPanel.Instance;
+            if (groups) groups.RoomChanged -= ArrangeCompany;
+        }
+
+        /// The mirror when you are on your own, the other person when you are in a group — never both, since they
+        /// stand in the same place.
+        void ArrangeCompany()
+        {
+            if (useCameraPose || !this) return;
+            bool together = Kinesthetic.Menu.GroupPanel.Instance?.InRoom == true;
+            if (together)
+            {
+                if (GetComponent<MirrorPanel>() is MirrorPanel mirror) Destroy(mirror);
+                if (!GetComponent<PeerAvatar>()) gameObject.AddComponent<PeerAvatar>().view = this;
+            }
+            else
+            {
+                if (GetComponent<PeerAvatar>() is PeerAvatar partner) Destroy(partner);
+                if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
+            }
+        }
     }
 }

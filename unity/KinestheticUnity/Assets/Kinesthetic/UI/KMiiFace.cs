@@ -78,6 +78,11 @@ namespace Kinesthetic.UI
         };
         static readonly Color Ink = Palette.Prussian70;
 
+        /// The same person's colours for their 3D Mii, so the body in the room matches the face in the list.
+        public static Color SkinOf(int variant) => Skin[Mathf.Abs(variant) % Skin.Length];
+        public static Color HairOf(int variant) => Hair[Mathf.Abs(variant) % Hair.Length];
+        public static Color ShirtOf(int variant) => Shirt[Mathf.Abs(variant) % Shirt.Length];
+
         public static void Draw(MeshGenerationContext ctx, int variant, float size)
         {
             if (size <= 1) return;

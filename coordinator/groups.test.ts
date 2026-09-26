@@ -104,3 +104,14 @@ test('following someone from the room puts only their room name and Mii in the g
   assert.ok(view.members.find(m => m.id === stranger.id)!.friend);
   assert.ok(view.members.find(m => m.id === 'me')!.isMe);
 });
+
+test('a fake partner can be put into your room, labelled, and never twice the same person', () => {
+  const store = new GroupStore(dir());
+  assert.throws(() => store.inject('me'), /not in a group/);
+  store.create(me, 'rehab.studio', true);
+  const a = store.inject('me'), b = store.inject('me');
+  assert.ok(a.sample && b.sample);
+  assert.notEqual(a.id, b.id);
+  assert.equal(store.current('me')!.members.length, 3);
+  assert.deepEqual(store.current('me')!.messages.map(m => m.event), ['joined', 'joined', 'joined']);
+});

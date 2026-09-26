@@ -95,6 +95,7 @@ test('on the network the relay announces itself with a proof only the pairing to
 test('the second Mac is read by the activity: golf makes it the friend, anything else the patient\'s second AirPod',{timeout:40000},async()=>{
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18791',KINESTHETIC_PAIR_TOKEN:'pair-secret',
+      KINESTHETIC_COORDINATOR_URL:'http://127.0.0.1:9',   // no coordinator: never in a group
       KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-route-'))}});
   const clients:WebSocket[]=[];
   const connect=async(path:string)=>{const ws=new WebSocket('ws://127.0.0.1:18791'+path);clients.push(ws);await once(ws,'open');return ws;};
@@ -144,4 +145,35 @@ test('the second Mac is read by the activity: golf makes it the friend, anything
     const health=await (await fetch('http://127.0.0.1:18791/')).json();
     assert.ok(health.players.includes('patient') && !health.players.some((p:string)=>p.includes('@')));
   } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
+});
+
+test('in a group session the second Mac is the other person, whatever is running',{timeout:40000},async()=>{
+  // A stand-in coordinator that says the patient is in a group.
+  const { createServer } = await import('node:http');
+  let group:unknown={id:'room'};
+  const coordinator=createServer((_q,r)=>r.writeHead(200,{'Content-Type':'application/json'}).end(JSON.stringify({group})));
+  coordinator.listen(18799);await once(coordinator,'listening');
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18792',KINESTHETIC_PAIR_TOKEN:'pair-secret',
+      KINESTHETIC_COORDINATOR_URL:'http://127.0.0.1:18799',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-group-'))}});
+  const clients:WebSocket[]=[];
+  const connect=async(path:string)=>{const ws=new WebSocket('ws://127.0.0.1:18792'+path);clients.push(ws);await once(ws,'open');return ws;};
+  const wait=(ms:number)=>new Promise(r=>setTimeout(r,ms));
+  try {
+    await ready(proc);await wait(300);   // the first answer from the coordinator
+    const club:any[]=[],wrist:any[]=[];
+    (await connect('/golf?role=viewer')).on('message',b=>club.push(JSON.parse(b.toString())));
+    (await connect('/bowling-motion?role=viewer')).on('message',b=>wrist.push(JSON.parse(b.toString())));
+    await connect('/rehab-state?role=host');   // the studio, an activity for one
+    const second=await connect('/bowling-motion?role=producer&player=patient&token=pair-secret');
+    let n=0;const send=()=>{n++;second.send(JSON.stringify({type:'bowling.motion',playerId:'patient',sourceId:'Left',
+      sessionId:'group-fixture',sequence:n,sensorTime:n,quaternion:[0,0,0,1],rotationRate:[0,1,0]}));};
+    send();await wait(80);
+    assert.deepEqual(club.filter(p=>p.type==='club.motion').map(p=>p.playerId),['friend']);
+    assert.equal(wrist.filter(p=>p.type==='bowling.motion').length,0,'never read as the patient\'s own sensor');
+
+    group=null;await wait(1300);   // left the group: back to the patient's second AirPod
+    send();await wait(80);
+    assert.deepEqual(wrist.filter(p=>p.type==='bowling.motion').map(p=>p.playerId),['patient']);
+  } finally { for(const ws of clients)ws.terminate(); await stop(proc); coordinator.close(); }
 });

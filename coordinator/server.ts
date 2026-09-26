@@ -561,6 +561,11 @@ const server = createServer(async (request, response) => {
           groups.send(me.id, await readJson(request) as {kind?: string; text?: string});
           return json(201, {group: mine()});
         }
+        // A fake partner, for a demo or a test (groups.ts `inject`): a labelled sample person joins your room.
+        if (request.method === 'POST' && url.pathname === '/api/groups/inject') {
+          groups.inject(me.id);
+          return json(201, {group: mine()});
+        }
         // Following someone from the room's list: only someone actually in the room with you.
         if (request.method === 'POST' && url.pathname === '/api/groups/befriend') {
           const body = await readJson(request) as {id?: string};

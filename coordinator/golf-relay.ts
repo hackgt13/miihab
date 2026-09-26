@@ -39,10 +39,12 @@ const subjects:Record<string,number>=(()=>{
 const runningFor=()=>{for(const [path,ch] of channels)if(ch.host?.readyState===WebSocket.OPEN)return (subjects[channelActivity[path]]??1);return 1;};
 
 // A motion app on the second Mac (the one that carries the pairing token) is read by what is running, not by the
-// player its picker says. In an activity for two people it is the second person, on /golf as `friend` — golf is
-// the one that takes two. In anything else it is the patient's second AirPod, on /bowling-motion as `patient` —
-// the second sensor the two-AirPod movements and bowling already read. A demo convenience: the second Mac needs
-// no setting at all. KINESTHETIC_REMOTE_MOTION=tagged restores the picker's word.
+// player its picker says. With another person in the picture — an activity for two (golf), or the patient in a
+// group session — it is that person, on /golf as `friend`: every reader of the patient's motion filters to
+// `patient`, so the friend's arm can never land in the patient's record. Otherwise it is the patient's second
+// AirPod, on whichever path this Mac is not using — the second sensor the two-AirPod movements and bowling read.
+// A demo convenience: the second Mac needs no setting at all. KINESTHETIC_REMOTE_MOTION=tagged restores the
+// picker's word.
 const remoteMotion=process.env.KINESTHETIC_REMOTE_MOTION??'auto';
 const remoteProducers=new WeakSet<WebSocket>();
 // The second Mac is registered apart from this one, so both may run the same app with the same picker; the status
@@ -51,9 +53,19 @@ const remoteKey='@second-mac',named=(key:string)=>key.replace(remoteKey,'');
 // This Mac's own patient stream, wherever it is. The second AirPod takes the other path, so two sensors are never
 // interleaved as one — whichever app this Mac happens to be running.
 const localPatientOn=(path:string)=>{const ws=motions.get(path)!.producers.get('patient');return !!ws&&!remoteProducers.has(ws);};
+// Whether the patient is in a group session, asked of the coordinator (groups.ts), which is the authority on it.
+// Polled rather than pushed so neither process needs the other to start first; an unreachable coordinator is
+// "not in a group", the one-person reading.
+const coordinator=process.env.KINESTHETIC_COORDINATOR_URL??'http://127.0.0.1:8766';
+let inGroup=false;
+const askGroup=async()=>{
+  try{const r=await fetch(coordinator+'/api/groups/current',{signal:AbortSignal.timeout(800)});
+    inGroup=r.ok&&!!(await r.json())?.group?.id;}catch{inGroup=false;}
+};
+if(remoteMotion!=='tagged'){askGroup();setInterval(askGroup,1000).unref();}
 function route(path:string,player:string,remote:boolean):{path:string,player:string}{
   if(!remote||remoteMotion==='tagged')return {path,player};
-  if(runningFor()>=2)return {path:'/golf',player:'friend'};
+  if(runningFor()>=2||inGroup)return {path:'/golf',player:'friend'};
   return {path:localPatientOn('/bowling-motion')?'/golf':'/bowling-motion',player:'patient'};
 }
 // A motion app on another Mac (a second AirPod pair, e.g. on a wrist strap) may send motion here, and read this

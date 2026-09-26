@@ -87,6 +87,20 @@ public static class GroupSessionVerification
         return $"Room up with {members} members.";
     }
 
+    /// A fake partner for the studio: a labelled sample person joins your group (coordinator groups.ts `inject`).
+    /// With no second Mac streaming they raise on a steady loop; start `node coordinator/sim-motion.ts reps 999
+    /// --second-mac` and the same person moves live, through the relay, the way a real second Mac would.
+    [MenuItem("Kinesthetic/Social/Inject a fake partner into my group")]
+    public static string InjectPartner()
+    {
+        using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+        var reply = http.PostAsync(SocialBridge.Url + "/api/groups/inject", new System.Net.Http.StringContent("{}")).Result;
+        var text = reply.Content.ReadAsStringAsync().Result;
+        if (!reply.IsSuccessStatusCode) throw new Exception("The coordinator said no: " + text);
+        Debug.Log("Fake partner added: " + text);
+        return text;
+    }
+
     [MenuItem("Kinesthetic/Social/6 Send an encouragement (Play mode)")]
     public static string Cheer()
     {
