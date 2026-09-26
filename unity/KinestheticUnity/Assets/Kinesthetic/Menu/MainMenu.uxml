@@ -2,66 +2,131 @@
     <ui:Style src="MainMenu.uss" />
     <ui:VisualElement name="menu-screen" class="menu-screen">
         <ui:VisualElement class="menu-content">
-            <ui:VisualElement class="utility-row">
-                <ui:Label text="A LITTLE MOVEMENT. A LOT OF POSSIBILITY." class="welcome" />
-                <ui:Button name="music" text="Music: On" class="music-button" />
-            </ui:VisualElement>
-            <ui:VisualElement class="title-block">
-                <ui:VisualElement class="wordmark">
-                    <ui:Label text="rehabmii" class="brand-title" />
-                    <ui:Label text="sports" class="sports-title" />
+
+            <ui:VisualElement class="splash-row">
+                <ui:VisualElement class="splash-copy">
+                    <ui:Label name="splash-greeting" text="Welcome back!" class="splash-greeting" />
+                    <ui:Label name="splash-sub" text="Today" class="splash-sub" />
                 </ui:VisualElement>
-                <ui:VisualElement class="title-rule" />
-                <ui:Label text="Choose your activity. Play at your pace." class="tagline" />
-            </ui:VisualElement>
-            <ui:VisualElement class="activities">
-                <ui:Button name="golf-card" class="activity-card golf-card selected" tooltip="Play adaptive golf">
-                    <ui:Label text="PLAY TOGETHER" class="preview-tag" picking-mode="Ignore" />
-                    <ui:VisualElement class="card-info" picking-mode="Ignore">
-                        <ui:VisualElement name="golf-icon" class="mode-icon" picking-mode="Ignore" />
-                        <ui:VisualElement class="card-copy" picking-mode="Ignore">
-                            <ui:Label text="Golf" class="card-title" picking-mode="Ignore" />
-                            <ui:Label text="Fresh air. Friendly competition." class="card-description" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                </ui:Button>
-                <ui:Button name="studio-card" class="activity-card" tooltip="Open the Movement Studio">
-                    <ui:Label text="YOUR DAILY PRACTICE" class="preview-tag" picking-mode="Ignore" />
-                    <ui:VisualElement class="card-info" picking-mode="Ignore">
-                        <ui:VisualElement name="studio-icon" class="mode-icon" picking-mode="Ignore" />
-                        <ui:VisualElement class="card-copy" picking-mode="Ignore">
-                            <ui:Label text="Movement Studio" class="card-title" picking-mode="Ignore" />
-                            <ui:Label text="Gentle raises. Personal progress." class="card-description" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                </ui:Button>
-            </ui:VisualElement>
-            <ui:VisualElement class="selection-row">
-                <ui:VisualElement class="selection-dot" />
-                <ui:Label name="selection-caption" text="Take a swing with a friend." class="selection-caption" />
-            </ui:VisualElement>
-            <ui:VisualElement class="footer-row">
-                <ui:VisualElement class="controls">
-                    <ui:Label text="←" class="keycap" /><ui:Label text="→" class="keycap" />
-                    <ui:Label text="Choose" class="control-label" />
-                    <ui:Label text="Enter" class="keycap" />
-                    <ui:Label text="Play" class="control-label" />
+                <ui:VisualElement class="utility-cluster">
+                    <ui:Button name="music" text="Music: On" class="utility-button" />
+                    <ui:Button name="help" text="How to play" class="utility-button" />
                 </ui:VisualElement>
-                <ui:Button name="help" text="How to play" class="help-button" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="bento">
+                <ui:VisualElement class="bento-main">
+
+                    <ui:VisualElement class="tile tile-today">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="TODAY" class="tile-label" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="today-list" class="today-list" picking-mode="Ignore" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="tile tile-progress">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="SHOULDER REACH" class="tile-label" />
+                            <ui:Label name="data-note" text="" class="tile-note" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="progress-body" picking-mode="Ignore">
+                            <ui:VisualElement class="reach-readout" picking-mode="Ignore">
+                                <ui:Label name="reach-now" text="—" class="stat-number" />
+                                <ui:Label text="median peak" class="stat-caption" />
+                                <ui:Label name="reach-delta" text="" class="reach-delta" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="progress-chart" class="progress-chart" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:Button name="start-activity" class="cta">
+                        <ui:VisualElement class="cta-copy" picking-mode="Ignore">
+                            <ui:Label name="cta-title" text="Start first activity" class="cta-title" picking-mode="Ignore" />
+                            <ui:Label name="cta-sub" text="" class="cta-sub" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="›" class="cta-arrow" picking-mode="Ignore" />
+                    </ui:Button>
+
+                </ui:VisualElement>
+
+                <ui:VisualElement class="bento-side">
+
+                    <ui:VisualElement class="tile tile-streak">
+                        <ui:Label text="STREAK" class="tile-label" />
+                        <ui:Label name="streak-number" text="0" class="streak-number" />
+                        <ui:Label name="streak-caption" text="days in a row" class="stat-caption" />
+                    </ui:VisualElement>
+
+                    <ui:Button name="choose-activity" class="tile tile-action">
+                        <ui:VisualElement class="action-copy" picking-mode="Ignore">
+                            <ui:Label text="Choose activity" class="action-title" picking-mode="Ignore" />
+                            <ui:Label text="Browse everything you can play" class="action-sub" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="›" class="cta-arrow" picking-mode="Ignore" />
+                    </ui:Button>
+
+                    <ui:VisualElement class="tile tile-week">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="THIS WEEK" class="tile-label" />
+                            <ui:Label name="week-count" text="0 of 0" class="tile-note accent" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="week-meter" class="week-meter" picking-mode="Ignore" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="tile tile-goal">
+                        <ui:Label text="YOUR GOAL" class="tile-label" />
+                        <ui:Label name="goal-copy" text="" class="goal-copy" />
+                    </ui:VisualElement>
+
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
+
+        <ui:VisualElement name="activity-overlay" class="modal-shade hidden">
+            <ui:VisualElement class="sheet">
+                <ui:Label text="What would you like to play?" class="sheet-title" />
+                <ui:VisualElement class="activities">
+                    <ui:Button name="golf-card" class="activity-card golf-card selected" tooltip="Play adaptive golf">
+                        <ui:Label text="PLAY TOGETHER" class="preview-tag" picking-mode="Ignore" />
+                        <ui:VisualElement class="card-info" picking-mode="Ignore">
+                            <ui:VisualElement name="golf-icon" class="mode-icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="card-copy" picking-mode="Ignore">
+                                <ui:Label text="Golf" class="card-title" picking-mode="Ignore" />
+                                <ui:Label text="Fresh air. Friendly competition." class="card-description" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:Button>
+                    <ui:Button name="studio-card" class="activity-card" tooltip="Open the Movement Studio">
+                        <ui:Label text="YOUR DAILY PRACTICE" class="preview-tag" picking-mode="Ignore" />
+                        <ui:VisualElement class="card-info" picking-mode="Ignore">
+                            <ui:VisualElement name="studio-icon" class="mode-icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="card-copy" picking-mode="Ignore">
+                                <ui:Label text="Movement Studio" class="card-title" picking-mode="Ignore" />
+                                <ui:Label text="Gentle raises. Personal progress." class="card-description" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:Button>
+                </ui:VisualElement>
+                <ui:VisualElement class="selection-row" picking-mode="Ignore">
+                    <ui:VisualElement class="selection-dot" picking-mode="Ignore" />
+                    <ui:Label name="selection-caption" text="" class="selection-caption" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:Button name="activity-close" text="Back" class="sheet-close" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
         <ui:VisualElement name="help-overlay" class="modal-shade hidden">
-            <ui:VisualElement class="help-card">
-                <ui:Label text="Ready when you are." class="help-title" />
+            <ui:VisualElement class="sheet help-sheet">
+                <ui:Label text="Ready when you are." class="sheet-title" />
                 <ui:Label text="Golf" class="help-heading" />
                 <ui:Label text="Choose Golf, then use the camera button to start tracking. Calibrate your mounted club before your first swing." class="help-copy" />
                 <ui:Label text="Movement Studio" class="help-heading" />
                 <ui:Label text="Sit comfortably with your shoulders, arms, and hips in view. Start your session and follow the target in your prescribed plan." class="help-copy" />
                 <ui:Label text="Getting around" class="help-heading" />
-                <ui:Label text="Click an activity, or use the arrow keys and Enter. Press Esc or choose Menu during an activity to return here." class="help-copy" />
-                <ui:Button name="help-close" text="Let's play  ›" class="help-close" />
+                <ui:Label text="Look at a panel and hold your gaze to choose it, or click. Press Esc or choose Menu during an activity to return here." class="help-copy" />
+                <ui:Button name="help-close" text="Let's play  ›" class="sheet-close" />
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

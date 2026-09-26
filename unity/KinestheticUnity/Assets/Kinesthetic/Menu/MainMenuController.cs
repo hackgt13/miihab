@@ -7,16 +7,26 @@ namespace Kinesthetic.Menu
 {
     public sealed class MainMenuController : MonoBehaviour
     {
-        VisualElement root, help;
+        VisualElement root;
+        VisualElement activityOverlay, helpOverlay;
         Button[] cards;
         Button music;
         Label caption;
         ActivityNavigation navigation;
+        MenuDashboardModel model;
         int selected;
 
         // Every activation this menu offers, by element name. Both the pointer's clicked handler and the gaze
         // dwell run out of this one table, so the two input paths can never drift apart.
         readonly Dictionary<string, Action> actions = new();
+
+        // What is reachable right now. A pointer cannot reach behind an open sheet because the shade covers
+        // it, but the gaze ray is resolved from element rects alone and would happily commit a tile the
+        // person cannot even see. So the menu decides what counts as reachable, per open layer.
+        static readonly string[] BaseScope = { "start-activity", "choose-activity", "music", "help" };
+        static readonly string[] ActivityScope = { "golf-card", "studio-card", "activity-close" };
+        static readonly string[] HelpScope = { "help-close" };
+        string[] scope = BaseScope;
 
         void Start() { navigation = ActivityNavigation.Ensure(); Bind(); }
         void Update() { if (root == null) Bind(); }
@@ -24,59 +34,121 @@ namespace Kinesthetic.Menu
         void Bind()
         {
             var tree = GetComponent<UIDocument>().rootVisualElement;
-            if (tree?.Q<Button>("golf-card") == null) return;
+            if (tree?.Q<Button>("start-activity") == null) return;
             root = tree;
+            model = MenuDashboardModel.Placeholder();
+
+            activityOverlay = root.Q("activity-overlay");
+            helpOverlay = root.Q("help-overlay");
             cards = new[] { root.Q<Button>("golf-card"), root.Q<Button>("studio-card") };
             caption = root.Q<Label>("selection-caption");
-            music = root.Q<Button>("music"); help = root.Q("help-overlay");
+            music = root.Q<Button>("music");
+
             for (int i = 0; i < cards.Length; i++)
             {
                 int index = i;
                 cards[i].RegisterCallback<PointerEnterEvent>(_ => Select(index, true));
                 cards[i].RegisterCallback<FocusInEvent>(_ => Select(index, true));
-                Act(cards[i], () => navigation.LoadActivity(index == 0 ? ActivityNavigation.GolfScene : ActivityNavigation.StudioScene));
+                Act(cards[i], () => Launch(index == 0 ? ActivityNavigation.GolfScene : ActivityNavigation.StudioScene));
             }
+
+            Act(root.Q<Button>("start-activity"), StartFirst);
+            Act(root.Q<Button>("choose-activity"), () => OpenSheet(activityOverlay, ActivityScope, cards[selected]));
+            Act(root.Q<Button>("activity-close"), () => CloseSheet(activityOverlay, "choose-activity"));
             Act(music, navigation.ToggleMusic);
+            Act(root.Q<Button>("help"), () => OpenSheet(helpOverlay, HelpScope, root.Q<Button>("help-close")));
+            Act(root.Q<Button>("help-close"), () => CloseSheet(helpOverlay, "help"));
+
             navigation.MusicChanged += MusicChanged;
             MusicChanged(navigation.MusicEnabled);
-            var helpButton = root.Q<Button>("help"); var close = root.Q<Button>("help-close");
-            Act(helpButton, () => { navigation.PlaySelect(); help.RemoveFromClassList("hidden"); close.Focus(); });
-            Act(close, CloseHelp);
-            root.RegisterCallback<NavigationCancelEvent>(e => { if (!help.ClassListContains("hidden")) { CloseHelp(); e.StopPropagation(); } });
-            root.RegisterCallback<NavigationMoveEvent>(e => {
-                if (!help.ClassListContains("hidden")) return;
+
+            root.RegisterCallback<NavigationCancelEvent>(e =>
+            {
+                if (Showing(activityOverlay)) { CloseSheet(activityOverlay, "choose-activity"); e.StopPropagation(); }
+                else if (Showing(helpOverlay)) { CloseSheet(helpOverlay, "help"); e.StopPropagation(); }
+            });
+            root.RegisterCallback<NavigationMoveEvent>(e =>
+            {
+                if (!Showing(activityOverlay)) return;
                 if (e.direction != NavigationMoveEvent.Direction.Left && e.direction != NavigationMoveEvent.Direction.Right) return;
                 Select(e.direction == NavigationMoveEvent.Direction.Left ? 0 : 1, false);
                 cards[selected].Focus(); e.StopPropagation();
             });
+
             var gaze = GetComponent<GazeDwell>();
             if (gaze) { gaze.Entered += Gazed; gaze.Committed += Commit; }
+
             root.Q("golf-icon").generateVisualContent += c => DrawIcon(c, false);
             root.Q("studio-icon").generateVisualContent += c => DrawIcon(c, true);
-            root.schedule.Execute(() => cards[selected].Focus());
+
+            MenuDashboard.Populate(root, model);
+            Select(0, false);
+            root.schedule.Execute(() => root.Q<Button>("start-activity").Focus());
         }
 
         // The dwell reports an element name; the pointer reports a click. Both land here.
-        void Act(Button button, Action action) { actions[button.name] = action; button.clicked += action; }
+        void Act(Button button, Action action)
+        {
+            if (button == null) return;
+            actions[button.name] = action;
+            button.clicked += action;
+        }
+
+        bool InScope(string name) => Array.IndexOf(scope, name) >= 0;
+        static bool Showing(VisualElement overlay) => overlay != null && !overlay.ClassListContains("hidden");
 
         void Gazed(string name)
         {
-            int card = System.Array.FindIndex(cards, c => c.name == name);
+            if (!InScope(name)) return;
+            int card = Array.FindIndex(cards, c => c != null && c.name == name);
             if (card >= 0) { Select(card, true); cards[card].Focus(); return; }
-            if (actions.ContainsKey(name)) navigation.PlayHover();
+            navigation.PlayHover();
         }
 
-        void Commit(string name) { if (actions.TryGetValue(name, out var action)) action(); }
+        void Commit(string name)
+        {
+            if (InScope(name) && actions.TryGetValue(name, out var action)) action();
+        }
+
+        /// The CTA launches whatever the plan says is still outstanding, so the board's headline action
+        /// and its Today list can never disagree about what comes next.
+        void StartFirst()
+        {
+            var next = model.FirstOutstanding();
+            if (next is not { } task) { OpenSheet(activityOverlay, ActivityScope, cards[selected]); return; }
+            Launch(task.activityId == "golf.adaptive" ? ActivityNavigation.GolfScene : ActivityNavigation.StudioScene);
+        }
+
+        void Launch(string scene) => navigation.LoadActivity(scene);
+
+        void OpenSheet(VisualElement overlay, string[] next, VisualElement focus)
+        {
+            if (overlay == null) return;
+            navigation.PlaySelect();
+            overlay.RemoveFromClassList("hidden");
+            scope = next;
+            focus?.Focus();
+        }
+
+        void CloseSheet(VisualElement overlay, string focusName)
+        {
+            if (overlay == null) return;
+            overlay.AddToClassList("hidden");
+            scope = BaseScope;
+            navigation.PlayBack();
+            root.Q<Button>(focusName)?.Focus();
+        }
 
         void Select(int index, bool sound)
         {
             bool changed = index != selected; selected = index;
-            for (int i = 0; i < cards.Length; i++) cards[i].EnableInClassList("selected", i == selected);
-            caption.text = selected == 0 ? "Take a swing with a friend." : "Make a little time for yourself.";
+            for (int i = 0; i < cards.Length; i++) cards[i]?.EnableInClassList("selected", i == selected);
+            if (caption != null)
+                caption.text = selected == 0 ? "Take a swing with a friend." : "Make a little time for yourself.";
             if (sound && changed) navigation.PlayHover();
         }
+
         void MusicChanged(bool enabled) { if (music != null) music.text = enabled ? "Music: On" : "Music: Off"; }
-        void CloseHelp() { help.AddToClassList("hidden"); navigation.PlayBack(); root.Q<Button>("help").Focus(); }
         void OnDestroy() { if (navigation) navigation.MusicChanged -= MusicChanged; }
 
         static void DrawIcon(MeshGenerationContext ctx, bool studio)
@@ -86,18 +158,18 @@ namespace Kinesthetic.Menu
             void Line(params Vector2[] points) { p.BeginPath(); p.MoveTo(points[0]); for(int i=1;i<points.Length;i++)p.LineTo(points[i]);p.Stroke(); }
             if (studio)
             {
-                p.BeginPath(); p.Arc(new(27,15),5,Angle.Degrees(0),Angle.Degrees(360));p.Stroke();
-                Line(new(27,24),new(27,36),new(38,36),new(40,45));
-                Line(new(27,26),new(38,22),new(43,11));
-                Line(new(27,26),new(17,33)); Line(new(17,37),new(17,45),new(30,45));
+                p.BeginPath(); p.Arc(new(30,17),5,Angle.Degrees(0),Angle.Degrees(360));p.Stroke();
+                Line(new(30,26),new(30,39),new(42,39),new(44,49));
+                Line(new(30,28),new(42,24),new(47,12));
+                Line(new(30,28),new(19,36)); Line(new(19,40),new(19,49),new(33,49));
                 p.strokeColor = new Color(.38f,.77f,.87f);p.lineWidth=2;
-                p.BeginPath();p.Arc(new(28,28),19,Angle.Degrees(235),Angle.Degrees(305));p.Stroke();
+                p.BeginPath();p.Arc(new(31,31),21,Angle.Degrees(235),Angle.Degrees(305));p.Stroke();
             }
             else
             {
-                Line(new(27,43),new(27,12),new(44,18),new(27,24));
-                p.strokeColor = new Color(.47f,.73f,.48f); Line(new(13,44),new(44,44));
-                p.fillColor=Color.white;p.BeginPath();p.Arc(new(17,37),4,Angle.Degrees(0),Angle.Degrees(360));p.Fill();p.Stroke();
+                Line(new(30,47),new(30,13),new(48,20),new(30,26));
+                p.strokeColor = new Color(.47f,.73f,.48f); Line(new(14,48),new(48,48));
+                p.fillColor=Color.white;p.BeginPath();p.Arc(new(19,41),4,Angle.Degrees(0),Angle.Degrees(360));p.Fill();p.Stroke();
             }
         }
     }
