@@ -290,7 +290,7 @@ function drawOverlay(landmarks) {
   if (!landmarks.length) return;
   const valid = point => point && Number.isFinite(point.x) && Number.isFinite(point.y);
   context.lineWidth = Math.max(2, width / 350);
-  context.strokeStyle = '#74dfca';
+  context.strokeStyle = '#5C9EC6';
   context.globalAlpha = .7;
   for (const [a, b] of CONNECTIONS) {
     const p = landmarks[a], q = landmarks[b];
@@ -303,7 +303,7 @@ function drawOverlay(landmarks) {
   context.globalAlpha = 1;
   for (const point of landmarks) {
     if (!valid(point) || point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) continue;
-    context.fillStyle = (point.visibility ?? 0) >= .5 ? '#9affdf' : '#ffc181';
+    context.fillStyle = (point.visibility ?? 0) >= .5 ? '#CFE4F0' : '#FF7C73';
     context.beginPath();
     context.arc(point.x * width, point.y * height, Math.max(3, width / 220), 0, Math.PI * 2);
     context.fill();
