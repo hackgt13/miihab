@@ -7,11 +7,13 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UIElements;
 
+using Kinesthetic.Activities;
+
 namespace Kinesthetic.Rehab
 {
     // Patient-facing seated shoulder raise. The coordinator's measurement engine is the only source of
     // angles, rep counts and validity; this view renders them and the avatar never feeds back into them.
-    public sealed class RehabSession : MonoBehaviour
+    public sealed class RehabSession : MonoBehaviour, IActivity
     {
         public PoseRig rig;
         public Transform targetOrb, liveMarker;
@@ -31,6 +33,11 @@ namespace Kinesthetic.Rehab
         public bool IsRunning => running;
         bool startingSession, stoppingSession, sessionError, summaryReceived;
         public bool IsBusy => startingSession || stoppingSession;
+        // IActivity. The shell drives this without knowing it is a therapy session.
+        public string ActivityId => "rehab.studio";
+        public event Action<string> Completed;
+        /// <summary>Leaving must fail if /exercise/stop does not answer, or the set is lost.</summary>
+        public IEnumerator RequestExit(Action<bool> succeeded) => FinishSession(succeeded);
         int attempted, valid;
         float? liveAngle; string phase = "idle";
         string status = "Rest your arms. Press Start session.";
@@ -296,6 +303,8 @@ namespace Kinesthetic.Rehab
         {
             if (summaryReceived) return;
             summaryReceived = true; sessionError = false;
+            // The server decided this set was over and recorded it; tell whoever is driving us.
+            Completed?.Invoke((string)s["exerciseId"] ?? "");
             running = false; start.text = "Start session  ›";
             valid = s["valid"]?.Value<int>() ?? 0; attempted = s["attempted"]?.Value<int>() ?? 0;
             var median = s["medianValidPeakDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? $"{s["medianValidPeakDeg"].Value<float>():0}°" : "—";

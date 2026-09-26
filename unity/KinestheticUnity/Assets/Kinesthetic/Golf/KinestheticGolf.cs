@@ -6,9 +6,11 @@ using UnityEngine.Networking;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+using Kinesthetic.Activities;
+
 namespace Kinesthetic.Golf
 {
-    public sealed class KinestheticGolf : MonoBehaviour
+    public sealed class KinestheticGolf : MonoBehaviour, IActivity
     {
         public Rigidbody ball;
         public Camera spectator;
@@ -32,8 +34,14 @@ namespace Kinesthetic.Golf
         // Swings that qualified but whose clubhead path missed the virtual ball. Part of the dose:
         // "attempted 11, 8 counted" is the one figure comparable across every activity.
         public int[] Misses { get; private set; } = new int[2];
-        /// <summary>Raised once when both players have holed out, carrying the session id that was recorded.</summary>
-        public event Action<string> RoundCompleted;
+        // IActivity. Golf has no start button and no server-side session to close: a round begins
+        // with the scene and ends when both players hole out.
+        public string ActivityId => "golf.adaptive";
+        /// <summary>Raised once when both players have holed out, carrying the recorded session id.</summary>
+        public event Action<string> Completed;
+        public bool IsRunning => !roundReported;
+        public bool IsBusy => postingRound;
+        bool postingRound;
         DateTime roundStartedUtc = DateTime.UtcNow;
         bool roundReported;
         int poseLossEvents;
@@ -240,17 +248,25 @@ namespace Kinesthetic.Golf
                 payload=new {kind="golf.round", schemaVersion="1", data=new {
                     strokes=Strokes, misses=Misses, acceptedShots=AcceptedShots, club=clubNames[clubIndex]}},
             };
-            RoundCompleted?.Invoke(id);
+            Completed?.Invoke(id);
             StartCoroutine(PostRound(id,Newtonsoft.Json.JsonConvert.SerializeObject(envelope)));
+        }
+        /// <summary>Nothing server-side to close, but do not leave mid-POST or the round is lost.</summary>
+        public IEnumerator RequestExit(Action<bool> succeeded)
+        {
+            while (postingRound) yield return null;
+            succeeded?.Invoke(true);
         }
         IEnumerator PostRound(string id,string body)
         {
+            postingRound=true;
             using var request=new UnityWebRequest(bridge+"/activity/session","POST") {
                 uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
                 downloadHandler=new DownloadHandlerBuffer(), timeout=5 };
             request.SetRequestHeader("Content-Type","application/json");
             yield return request.SendWebRequest();
             // A failed POST must never interrupt play; the round is over and the players are done.
+            postingRound=false;
             if(request.result!=UnityWebRequest.Result.Success)
                 Debug.LogWarning($"Golf round {id} was not recorded: {request.error} {request.downloadHandler?.text}");
         }
