@@ -18,7 +18,6 @@ namespace Kinesthetic.Rehab
         public PoseRig rig;
         public Transform targetOrb, liveMarker;
         public LineRenderer targetBand, armGuide;
-        public string poseUrl = "ws://127.0.0.1:8766/pose?role=viewer";
         public string exerciseUrl = "ws://127.0.0.1:8766/exercise?role=viewer";
         public string bridge = "http://127.0.0.1:8766";
         [Header("Clinician-approved plan (demo fixture)")]
@@ -26,9 +25,9 @@ namespace Kinesthetic.Rehab
         public float targetDeg = 80, bandDeg = 20;
         public int prescribedReps = 8, planVersion = 1;
 
-        LivePoseClient pose; ExerciseClient exercise;
+        LivePoseClient pose => SensorHub.Instance?.Pose;
+        ExerciseClient exercise;
         long poseTicks, poseSequence = -1; string poseSession;
-        float retryPoseAt;
         bool running, calibrated;
         public bool IsRunning => running;
         bool startingSession, stoppingSession, sessionError, summaryReceived;
@@ -57,7 +56,7 @@ namespace Kinesthetic.Rehab
         {
             Application.runInBackground = true;
             rig.Initialize(); rig.Apply(null);
-            pose = new LivePoseClient(poseUrl);
+            SensorHub.Ensure();
             exercise = new ExerciseClient(exerciseUrl);
             BindUI();
         }
@@ -249,8 +248,6 @@ namespace Kinesthetic.Rehab
                 catch (Exception) { poseTicks = 0; }
             }
             if (!LivePoseClient.Fresh(poseTicks)) rig.Apply(null);
-            if (pose?.Connected != true && Time.unscaledTime > retryPoseAt)
-            { pose?.Dispose(); pose = new LivePoseClient(poseUrl); retryPoseAt = Time.unscaledTime + 3; }
         }
 
         void ReadExercise()
@@ -366,6 +363,6 @@ namespace Kinesthetic.Rehab
             targetOrb.GetComponent<Renderer>().material.color = color;
         }
 
-        void OnDestroy() { pose?.Dispose(); exercise?.Dispose(); }
+        void OnDestroy() { exercise?.Dispose(); }   // the hub owns the pose channel
     }
 }
