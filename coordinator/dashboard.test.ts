@@ -4,7 +4,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PlanStore } from './plans.ts';
-import { buildDashboard, dayKey } from './dashboard.ts';
+import { buildDashboard, dayKey, golfUnlock } from './dashboard.ts';
 
 const NOW = new Date(2026, 8, 26, 15, 0);          // Saturday 26 Sep 2026, 3 pm local
 const at = (daysAgo: number, hour = 10) => new Date(2026, 8, 26 - daysAgo, hour).toISOString();
@@ -60,4 +60,17 @@ test('week, calendar and today reflect real sessions', () => {
   assert.equal(d.calendar.at(-1)!.date, dayKey(NOW)); assert.equal(new Date(`${d.calendar[0].date}T00:00`).getDay(), 0, 'starts on a Sunday');
   assert.deepEqual(d.today.map(t => t.done), [true, false, true], 'raise done (8 valid), curl not started, golf played');
   assert.deepEqual(d.history.map(h => h.label), ['Sep 17', 'Sep 21', 'Sep 23', 'Sep 23', 'Sep 26']);
+});
+
+test('rehab unlocks golf: swing power follows the level inside the envelope', () => {
+  const store = new PlanStore(mkdtempSync(join(tmpdir(), 'unlock-')));
+  const day1 = golfUnlock(store.active());                        // seed: 45° in a 40–90° envelope, 5° steps
+  assert.equal(day1.level, 2); assert.equal(day1.levels, 11); assert.equal(day1.swingPowerCap, .64);
+  assert.equal(day1.message, 'Rehab level 2 of 11 · 64% of a full drive');
+  const up = store.approve({ rationale: 'level up', changes: { 'arm-elevation-right': { params: { targetDeg: 70 } } } });
+  assert.equal(golfUnlock(up).swingPowerCap, .84);
+  const top = store.approve({ rationale: 'top of the envelope', changes: { 'arm-elevation-right': { params: { targetDeg: 90 } } } });
+  assert.equal(golfUnlock(top).swingPowerCap, 1); assert.equal(golfUnlock(top).message, 'Full drive unlocked');
+  const noProgression = store.approve({ rationale: 'golf only', activities: [{ activityId: 'golf.adaptive', exerciseKind: null, targetCount: 9 }] });
+  assert.equal(golfUnlock(noProgression).swingPowerCap, 1, 'nothing measured: golf is unchanged');
 });

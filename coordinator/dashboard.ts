@@ -87,3 +87,24 @@ export function buildDashboard(args: { plans: Plan[]; summaries: any[]; envelope
     today: today_, history, calendar,
   };
 }
+
+/** Share of a full drive the patient's swing can reach at level 1 of their envelope. */
+export const GOLF_POWER_FLOOR = 0.6;
+
+/**
+ * Rehab unlocks golf: the patient's swing power in the golf game follows where their measured reach sits
+ * in the clinician's envelope. At the envelope floor (day 1) a full swing gives GOLF_POWER_FLOOR of a full
+ * drive; each level up adds to it, and the envelope's top gives a full drive. A plan with nothing measured
+ * and progressing leaves golf as it was.
+ */
+export function golfUnlock(plan: Plan) {
+  const primary = plan.activities.find(a => a.exerciseKind && a.progression);
+  if (!primary?.progression) return { swingPowerCap: 1, level: null, levels: null, targetDeg: null, message: null };
+  const { minTargetDeg: lo, maxTargetDeg: hi, stepDeg } = primary.progression;
+  const target = Number(primary.params.targetDeg);
+  const fraction = hi > lo ? Math.min(1, Math.max(0, (target - lo) / (hi - lo))) : 1;
+  const levels = Math.floor((hi - lo) / stepDeg) + 1, level = Math.min(levels, Math.floor((target - lo) / stepDeg) + 1);
+  const swingPowerCap = Math.round((GOLF_POWER_FLOOR + (1 - GOLF_POWER_FLOOR) * fraction) * 100) / 100;
+  return { swingPowerCap, level, levels, targetDeg: target,
+    message: swingPowerCap >= 1 ? 'Full drive unlocked' : `Rehab level ${level} of ${levels} · ${Math.round(swingPowerCap * 100)}% of a full drive` };
+}
