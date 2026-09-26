@@ -155,15 +155,15 @@ namespace Kinesthetic.Menu
     public static class MenuDashboard
     {
         // Taken from Palette.cs by role, not by hex, so retuning the system moves these with it.
-        // The calendar ramp is the ice scale rather than a green one: the palette is five hues, and a
-        // sixth would buy nothing that darkness is not already saying.
+        // The calendar ramp is the jungle scale because its role is exactly what a done day is —
+        // Good, "counted, done, reached" — and depth of green then reads as how much was done.
         static readonly Color Ink = Palette.Ink;
         static readonly Color Progress = Palette.Progress;     // a measured value
         static readonly Color Reference = Palette.Reference;   // the plan it is drawn against
-        static readonly Color Attention = Palette.Attention;   // must be noticed
+        static readonly Color Target = Palette.Target;         // what is being reached for
         static readonly Color Panel = Palette.Panel;
         static readonly Color Empty = Palette.Line.At(.45f);
-        static readonly Color[] Levels = { Palette.Ice20, Palette.Ice30, Palette.Ice40, Palette.Ice50 };
+        static readonly Color[] Levels = { Palette.Jungle10, Palette.Jungle20, Palette.Jungle30, Palette.Jungle40 };
         static readonly Color Accent = Palette.Progress;
 
         // Rotates on the hour of day rather than at random, so the board is not a different greeting
@@ -185,7 +185,6 @@ namespace Kinesthetic.Menu
 
             Text(root, "ring-number", model.DaysRemaining.ToString());
             Text(root, "ring-caption", "days to go");
-            Text(root, "ring-note", $"{Mathf.RoundToInt(model.ProgramFraction * 100)}% of your program");
 
             Text(root, "calendar-note", $"{model.RecentActiveDays} of the last 28 days");
 
@@ -221,7 +220,6 @@ namespace Kinesthetic.Menu
             Text(root, "data-note", model.measured ? "From your measured sessions" : "Demo data · not measured");
 
             Paint(root, "range-fan", (ctx, r) => DrawRangeFan(ctx, r, model));
-            Paint(root, "reach-spark", (ctx, r) => DrawSparkline(ctx, r, model.history));
             Paint(root, "calendar-grid", (ctx, r) => DrawCalendar(ctx, r, model.RecentDays(28)));
             Paint(root, "browse-glyph", DrawBrowseGlyph);
             Paint(root, "program-ring", (ctx, r) => DrawRing(ctx, r, model.ProgramFraction));
@@ -282,8 +280,8 @@ namespace Kinesthetic.Menu
 
             // Arm at the side points down; raising it sweeps towards horizontal. Painter2D measures
             // from +X clockwise, so straight down is 90 and an elevation of E sits at 90 - E.
-            var pivot = new Vector2(r.width * .10f, r.height * .11f);
-            float radius = Mathf.Min(r.width * .88f, r.height * .90f);
+            float radius = Mathf.Min(r.width, r.height) * .94f;
+            var pivot = new Vector2((r.width - radius) * .5f, (r.height - radius) * .5f);
             float Ang(float elevation) => 90 - elevation;
 
             void Wedge(float from, float to, Color fill)
@@ -314,20 +312,20 @@ namespace Kinesthetic.Menu
             Wedge(start, now, Progress.At(.62f));
 
             // The target tick sits outside the fan when it has been passed, which is the point.
-            Spoke(target, .86f, 1.16f, Attention, 4);
+            Spoke(target, .84f, 1.14f, Target, 5);
 
             // The arm itself, ending in the hand.
             float armA = Ang(now) * Mathf.Deg2Rad;
             var armDir = new Vector2(Mathf.Cos(armA), Mathf.Sin(armA));
             p.strokeColor = Ink;
-            p.lineWidth = 7; p.lineCap = LineCap.Round;
+            p.lineWidth = 9; p.lineCap = LineCap.Round;
             p.BeginPath(); p.MoveTo(pivot); p.LineTo(pivot + armDir * radius); p.Stroke();
 
             p.fillColor = Ink;
-            p.BeginPath(); p.Arc(pivot, 9, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
+            p.BeginPath(); p.Arc(pivot, 11, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
             p.fillColor = Panel;
             p.strokeColor = Ink; p.lineWidth = 5;
-            p.BeginPath(); p.Arc(pivot + armDir * radius, 11, Angle.Degrees(0), Angle.Degrees(360));
+            p.BeginPath(); p.Arc(pivot + armDir * radius, 13, Angle.Degrees(0), Angle.Degrees(360));
             p.Fill(); p.Stroke();
 
             // Where week one stopped, so the band has a visible near edge.
@@ -336,31 +334,6 @@ namespace Kinesthetic.Menu
             p.strokeColor = Reference;
             p.lineWidth = 3;
             p.BeginPath(); p.MoveTo(pivot + oldDir * (radius * .12f)); p.LineTo(pivot + oldDir * radius); p.Stroke();
-        }
-
-        /// The week-by-week trend, small. The fan says how far; this says it kept going that way.
-        static void DrawSparkline(MeshGenerationContext ctx, Rect r, MenuDashboardModel.WeekPoint[] points)
-        {
-            if (r.width < 8 || r.height < 6 || points.Length < 2) return;
-            var p = ctx.painter2D;
-            float lo = points.Min(x => x.medianPeakDeg), hi = points.Max(x => x.medianPeakDeg);
-            float span = Mathf.Max(1, hi - lo);
-            float X(int i) => r.width * i / (points.Length - 1f);
-            float Y(float v) => r.height - 5 - (v - lo) / span * (r.height - 10);
-
-            p.fillColor = Progress.At(.16f);
-            p.BeginPath(); p.MoveTo(new(X(0), r.height));
-            for (int i = 0; i < points.Length; i++) p.LineTo(new(X(i), Y(points[i].medianPeakDeg)));
-            p.LineTo(new(X(points.Length - 1), r.height)); p.ClosePath(); p.Fill();
-
-            p.strokeColor = Accent; p.lineWidth = 3; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
-            p.BeginPath(); p.MoveTo(new(X(0), Y(points[0].medianPeakDeg)));
-            for (int i = 1; i < points.Length; i++) p.LineTo(new(X(i), Y(points[i].medianPeakDeg)));
-            p.Stroke();
-
-            p.fillColor = Panel; p.strokeColor = Accent; p.lineWidth = 3;
-            p.BeginPath(); p.Arc(new(X(points.Length - 1), Y(points[^1].medianPeakDeg)), 5, Angle.Degrees(0), Angle.Degrees(360));
-            p.Fill(); p.Stroke();
         }
 
         // ------------------------------------------------------------------ consistency
@@ -392,7 +365,7 @@ namespace Kinesthetic.Menu
                 // Today gets a ring rather than a different fill, so "where am I" and "did I train"
                 // stay two separate readings instead of one ambiguous colour.
                 if (cells[i].date != today) continue;
-                p.strokeColor = Attention;
+                p.strokeColor = Palette.Attention;
                 p.lineWidth = 3;
                 p.BeginPath();
                 p.Arc(new Vector2(x + cell * .5f, y + cell * .5f), cell * .62f, Angle.Degrees(0), Angle.Degrees(360));
@@ -409,7 +382,7 @@ namespace Kinesthetic.Menu
             float size = Mathf.Min(r.width, r.height), gap = size * .16f;
             float cell = (size - gap) * .5f;
             float ox = (r.width - size) * .5f, oy = (r.height - size) * .5f;
-            p.fillColor = Palette.Ice40;
+            p.fillColor = Palette.Live;
             for (int i = 0; i < 4; i++)
                 RoundedSquare(p, ox + (i % 2) * (cell + gap), oy + (i / 2) * (cell + gap), cell, cell * .3f);
         }

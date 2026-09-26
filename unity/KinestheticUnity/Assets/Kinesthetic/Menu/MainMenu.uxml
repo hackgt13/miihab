@@ -29,7 +29,6 @@
                                 <ui:Label name="reach-delta" text="" class="reach-delta" />
                                 <ui:Label name="reach-now" text="—" class="stat-number" />
                                 <ui:Label name="reach-best" text="" class="reach-best" />
-                                <ui:VisualElement name="reach-spark" class="reach-spark" picking-mode="Ignore" />
                                 <ui:Label name="reach-cheer" text="" class="reach-cheer" />
                             </ui:VisualElement>
                             <ui:VisualElement name="range-fan" class="range-fan" picking-mode="Ignore" />
@@ -63,21 +62,24 @@
                 <ui:VisualElement class="bento-side">
 
                     <ui:VisualElement class="tile tile-progress">
+                        <ui:Label text="YOUR PROGRAM" class="tile-label" />
                         <ui:VisualElement class="progress-split" picking-mode="Ignore">
-                            <ui:VisualElement class="ring-wrap" picking-mode="Ignore">
-                                <ui:VisualElement name="program-ring" class="program-ring" picking-mode="Ignore" />
-                                <ui:VisualElement class="ring-centre" picking-mode="Ignore">
-                                    <ui:Label name="ring-number" text="0" class="ring-number" />
-                                    <ui:Label name="ring-caption" text="" class="stat-caption" />
+                            <ui:VisualElement class="progress-cell" picking-mode="Ignore">
+                                <ui:VisualElement class="ring-wrap" picking-mode="Ignore">
+                                    <ui:VisualElement name="program-ring" class="program-ring" picking-mode="Ignore" />
+                                    <ui:VisualElement class="ring-centre" picking-mode="Ignore">
+                                        <ui:Label name="ring-number" text="0" class="ring-number" />
+                                        <ui:Label name="ring-caption" text="" class="ring-caption" />
+                                    </ui:VisualElement>
                                 </ui:VisualElement>
                             </ui:VisualElement>
-                            <ui:VisualElement class="streak-copy" picking-mode="Ignore">
+                            <ui:VisualElement class="progress-rule" picking-mode="Ignore" />
+                            <ui:VisualElement class="progress-cell" picking-mode="Ignore">
                                 <ui:Label name="streak-number" text="0" class="streak-number" />
                                 <ui:Label text="DAY STREAK" class="tile-label" />
                                 <ui:Label name="streak-caption" text="" class="stat-caption" />
                             </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:Label name="ring-note" text="" class="ring-note" picking-mode="Ignore" />
                         <ui:Label name="goal-copy" text="" class="goal-copy" picking-mode="Ignore" />
                     </ui:VisualElement>
 
