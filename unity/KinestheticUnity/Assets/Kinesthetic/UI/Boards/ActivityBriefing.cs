@@ -183,8 +183,13 @@ namespace Kinesthetic.UI.Boards
             action = new KButton(() => began?.Invoke()) { name = ActionName, text = "Begin", tone = KButton.Tone.Primary, size = KButton.Size.Large };
             action.AddToClassList(Block + "__action");
 
+            // A page's foot is where it is signed. An auto margin on the button would do it, but the
+            // button carries its own stylesheet and its own margins; a spacer is not a fight over which
+            // of two sheets set the margin last.
+            var slack = new VisualElement { name = "briefing-slack", pickingMode = PickingMode.Ignore };
+            slack.AddToClassList(Block + "__slack");
             sheet.Add(eyebrow); sheet.Add(title); sheet.Add(subtitle);
-            sheet.Add(lineBox); sheet.Add(noteBox); sheet.Add(action);
+            sheet.Add(lineBox); sheet.Add(noteBox); sheet.Add(slack); sheet.Add(action);
             host.Add(sheet);
         }
 

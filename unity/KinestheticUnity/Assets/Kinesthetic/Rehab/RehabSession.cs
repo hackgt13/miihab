@@ -409,8 +409,8 @@ namespace Kinesthetic.Rehab
         Briefing Prescription() => new()
         {
             eyebrow = practice ? "PRACTICE · NOT IN YOUR PLAN" : $"PRESCRIBED PLAN · V{planVersion}",
-            title = movementLabel ?? Modelled?.DisplayName ?? "Shoulder raises",
-            subtitle = movementPosture ?? (string.IsNullOrEmpty(side) ? "Seated" : $"{char.ToUpperInvariant(side[0])}{side.Substring(1)} arm, seated"),
+            title = Named(movementLabel, Modelled?.DisplayName, "Shoulder raises"),
+            subtitle = Named(movementPosture, string.IsNullOrEmpty(side) ? "Seated" : $"{char.ToUpperInvariant(side[0])}{side.Substring(1)} arm, seated"),
             // The hold and the tempo are what the set is judged on beyond the count, so they are read before it.
             lines = new[]
             {
@@ -426,6 +426,11 @@ namespace Kinesthetic.Rehab
             noteFrom = "FROM YOUR CARE TEAM",
             action = "Begin my set",
         };
+
+        /// The first of these that actually says something. A field the service sends as "" is absent, not
+        /// a value, and `??` keeps it: that is how the sheet came to render with no title and no posture on
+        /// it, since a briefing hides copy that is blank rather than leaving a gap where it would be.
+        static string Named(params string[] options) => Array.Find(options, o => !string.IsNullOrWhiteSpace(o));
 
         /// The sheet is down. Only from here may the studio start itself, once the sensor is ready.
         void BeginFromBriefing()

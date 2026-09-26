@@ -19,7 +19,10 @@
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: space-between;
-    align-items: baseline;
+    /* Not baseline: a value that wraps to two lines drops its baseline to the second one, and the field
+       name then sits a line below the figure it names. Top-aligned, with the smaller label nudged down
+       to sit on the same optical line as the larger figure beside it. */
+    align-items: flex-start;
     padding-top: 7px;
     padding-bottom: 7px;
     border-bottom-width: 1px;
@@ -29,7 +32,7 @@
 /* The field name is never broken. It is the shorter half and the one you scan down the page, and a
    label squeezed to one letter a line — which is what shrinking the label instead of the value did —
    stops being a word at all. */
-.k-briefing__line-label { flex-shrink: 0; white-space: nowrap; }
+.k-briefing__line-label { flex-shrink: 0; white-space: nowrap; padding-top: 3px; }
 
 /* The figure takes what is left and wraps inside its own column. Right-aligned, so the column reads
    down the page whether its entries are two characters or a sentence. */
@@ -51,5 +54,8 @@
 }
 .k-briefing__note-from { margin-bottom: 4px; }
 
-/* At the foot of the page, where a form is signed: margin-top auto takes whatever the page has left. */
-.k-briefing__action { margin-top: auto; align-self: flex-end; }
+/* Whatever the page has left over, so the action lands at its foot however much is written above. */
+.k-briefing__slack { flex-grow: 1; min-height: 16px; }
+
+/* At the foot of the page, where a form is signed. */
+.k-briefing__action { align-self: flex-end; }
