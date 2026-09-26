@@ -5,7 +5,8 @@
 // post-stroke against six months — so nothing here exposes one person's numbers
 // to another. Activity is shareable; measurement is not.
 //
-// Discovery is by invite code only. There is no search and no suggestion, so a
+// Discovery is by invite code, a mutual yes to an introduction, or following
+// someone you shared a group session with (groups.ts). There is no search, so a
 // person can never appear in someone's world without an explicit exchange.
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -33,6 +34,14 @@ export interface Graph {
 
 const AVATARS = 8;
 const NAME_LIMIT = 24;
+
+/// Every name someone types comes through here. People write "maya" or "de la
+/// cruz" on a controller keyboard; the room shows Maya and De La Cruz. Only the
+/// first letter of each word changes, so "Tomás", "O'Neil" and "Inês" survive.
+export function properName(raw: unknown): string {
+  return String(raw ?? '').trim().slice(0, NAME_LIMIT)
+    .replace(/(^|[\s'-])(\p{L})/gu, (_, before, letter) => before + letter.toLocaleUpperCase());
+}
 
 export class FriendStore {
   private file: string;
@@ -89,7 +98,7 @@ export class FriendStore {
   }
 
   setName(displayName: string): Person {
-    const name = String(displayName ?? '').trim().slice(0, NAME_LIMIT);
+    const name = properName(displayName);
     if (!name) throw Object.assign(new Error('A display name is required'), { status: 400 });
     this.graph.people[this.graph.me].displayName = name;
     this.save();
@@ -125,7 +134,7 @@ export class FriendStore {
     delete this.graph.invites[key];
 
     const id = `peer-${randomUUID().slice(0, 8)}`;
-    const name = String(displayName ?? '').trim().slice(0, NAME_LIMIT) || 'A friend';
+    const name = properName(displayName) || 'A friend';
     this.graph.people[id] = {
       id, displayName: name, mii: Math.floor(Math.random() * AVATARS),
       lastActiveAt: new Date().toISOString(),
@@ -135,6 +144,26 @@ export class FriendStore {
     this.graph.follows[id] = [...new Set([...(this.graph.follows[id] ?? []), me])];
     this.save();
     return this.graph.people[id];
+  }
+
+  /// Someone met in a group session, followed from its member list. The two of
+  /// you already stood in the same room under the names you chose, so this is an
+  /// explicit exchange too — only the name and the Mii that room showed come
+  /// across, and following stays one-way like every other follow here.
+  meet(person: Pick<Person, 'id' | 'displayName' | 'mii' | 'sample'>): Person {
+    const me = this.graph.me;
+    if (person.id === me) throw Object.assign(new Error('Cannot follow yourself'), { status: 400 });
+    if (!/^[\w-]{1,64}$/.test(person.id)) throw Object.assign(new Error('Unknown person'), { status: 404 });
+    this.graph.people[person.id] ??= {
+      id: person.id,
+      displayName: properName(person.displayName) || 'A friend',
+      mii: Math.abs(Math.trunc(person.mii ?? 0)) % AVATARS,
+      ...(person.sample ? { sample: true } : {}),
+      lastActiveAt: new Date().toISOString(),
+    };
+    this.graph.follows[me] = [...new Set([...(this.graph.follows[me] ?? []), person.id])];
+    this.save();
+    return this.graph.people[person.id];
   }
 
   touch(id: string): void {

@@ -28,10 +28,14 @@ namespace Kinesthetic.UI.Boards
         public string name;
         public float yawDegrees, pitchDegrees, distanceMetres;
 
-        /// How far the board's face leans back from square-on to the eye, positive turning it upward. A
-        /// board mounted in a room is square to whoever reads it, and every station here is zero for that
-        /// reason. A page in your hands is not square to anything: it lies back toward you, and the few
-        /// degrees of difference are most of what separates paper from a panel hanging in the air.
+        /// How far the board's face turns off square-on to the eye: positive lies it back toward level,
+        /// negative brings it up toward vertical. A board mounted in a room is square to whoever reads it,
+        /// and every mounted station here is zero for that reason.
+        ///
+        /// A page in your hands is not square to anything. You look down at it and hold it up, so it ends
+        /// up nearer upright than perpendicular to your own gaze — which is a negative tilt, and a large
+        /// one. That mismatch between where you look and how the paper stands is most of what separates
+        /// paper from a panel hanging in the air.
         public float tiltDegrees;
 
         public Station(string name, float yawDegrees, float pitchDegrees, float distanceMetres, float tiltDegrees = 0)
@@ -71,17 +75,22 @@ namespace Kinesthetic.UI.Boards
         /// Live figures — a ring, an angle, a meter — to the right, a little below the eye line.
         public static readonly Station Measure = new("Measure", 25, -5, 1.5f);
 
-        /// Where a page is held, not where a card is mounted: 42 cm out, 45° down, leaning 10° back
-        /// toward the face, because nobody holds paper square to their own eye. Its board is a sheet of
-        /// US Letter, 216 x 279 mm, at its real size.
+        /// Where a page is held, not where a card is mounted: 48 cm out, 40° down, and brought 18° up
+        /// from square so the sheet stands 22° off vertical. Its board is a sheet of US Letter,
+        /// 216 x 279 mm, at its real size — moving it out is what makes it smaller, since paper stays
+        /// paper.
         ///
-        /// The pitch is to the middle of the page, and a held sheet is large: at 45° down its top edge
-        /// still reaches to 26° below the eye. Aiming the centre where the top edge belongs is what put
+        /// The pitch and the tilt add: you look down 40° at a page that is very nearly upright, which is
+        /// how someone actually holds one, and is 18° off perpendicular — enough to feel held, far too
+        /// little to foreshorten the type. A page raked to meet the gaze reads as a slope instead.
+        ///
+        /// The pitch is to the middle of the sheet, and a held sheet is large: even at 40° down its top
+        /// edge reaches to 24° below the eye. Aiming the centre where the top edge belongs is what put
         /// the first version of this in the reader's face.
         ///
         /// A briefing is handed to you, so it arrives here and leaves again. Nothing lives at this
         /// distance: it is inside your reach and across the room you are looking at.
-        public static readonly Station Reading = new("Reading", 0, -45, .42f, tiltDegrees: 10);
+        public static readonly Station Reading = new("Reading", 0, -40, .48f, tiltDegrees: -18);
 
         public static readonly Station[] All = { Dock, Focus, Score, Measure, Reading };
     }

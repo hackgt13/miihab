@@ -17,6 +17,7 @@
 .k-briefing__lines { margin-top: 18px; }
 .k-briefing__line {
     flex-direction: row;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: baseline;
     padding-top: 7px;
@@ -24,8 +25,20 @@
     border-bottom-width: 1px;
     border-bottom-color: var(--sand-30);
 }
-.k-briefing__line-label { flex-shrink: 1; }
-.k-briefing__line-value { flex-shrink: 0; margin-left: 16px; }
+
+/* The field name is never broken. It is the shorter half and the one you scan down the page, and a
+   label squeezed to one letter a line — which is what shrinking the label instead of the value did —
+   stops being a word at all. */
+.k-briefing__line-label { flex-shrink: 0; white-space: nowrap; }
+
+/* The figure takes what is left and wraps inside its own column. Right-aligned, so the column reads
+   down the page whether its entries are two characters or a sentence. */
+.k-briefing__line-value {
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-left: 16px;
+    -unity-text-align: upper-right;
+}
 
 /* Words a person wrote, set apart from the figures and marked down the edge like a margin note. */
 .k-briefing__note {

@@ -6,7 +6,7 @@
 
 - **Mac is authority; Quest only renders.** Sensors (camera, AirPods IMU, mic) are Mac-attached. `coordinator/server.ts` (8766) + `golf-relay.ts` (8767) run there as separate Node processes; Unity is a client of both, never a host. The headset gets resolved `golf.state`, never raw sensor data.
 - **AirPods IMU is Mac-only.** `CMHeadphoneMotionManager` (`native/ClubMotionBridge.swift`, ~25 Hz), unreachable from Horizon OS. Chain: AirPods → Mac → relay → Unity (Mac) → `golf.state` → Quest.
-- **Scene index 0 is what a build boots.** `MainMenu.unity` holds it for the Mac. **Kinesthetic → Quest → Boot headset scene** before a Quest build; **Boot menu scene** after.
+- **Scene index 0 is what a build boots, and it is always a menu.** `MainMenu.unity` on the Mac, `QuestMenu.unity` (the plaza) on the headset; an activity scene is never the entry. The combined headset build orders its own list. For a manual Quest build, **Kinesthetic → Quest → Boot headset scene** first and **Boot menu scene** after.
 - **Perf is a separate budget.** Quest: 2 eyes, 72–90 Hz, mobile GPU, Vulkan. Mac: 1 view, Metal. Measure on device first. Foveated rendering, SpaceWarp, dynamic resolution all off — first knobs to reach for.
 
 ### Android traps

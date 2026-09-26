@@ -1,0 +1,87 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <ui:Style src="../../../Palette.uss" />
+    <ui:Style src="../../../UI/Base.uss" />
+    <ui:Style src="Group.uss" />
+    <!-- Group therapy. Mounted by GroupPanel into the navigation layer, which outlives scene loads, so the
+         room you join in the menu is still there when the venue opens. Three layers, one up at a time
+         except the Tab list, which rides over play. -->
+    <ui:VisualElement name="group-layer" class="group-layer" picking-mode="Ignore">
+
+        <!-- Before an activity: alone, or with other people. -->
+        <k:KSurface name="group-lobby" tone="Scrim" density="Flush" class="group-shade hidden">
+            <k:KSurface tone="Paper" density="Comfortable" class="group-card lobby-card">
+                <k:KEyebrow name="lobby-eyebrow" text="BEFORE YOU START" />
+                <k:KText name="lobby-title" text="How would you like to play?" size="Title" class="group-title" />
+
+                <ui:VisualElement name="lobby-choose" class="lobby-choose">
+                    <k:KButton name="lobby-solo" text="Play solo" tone="Secondary" size="Large" class="lobby-choice" />
+                    <k:KButton name="lobby-together" text="Play with others" tone="Primary" size="Large" class="lobby-choice" />
+                </ui:VisualElement>
+
+                <ui:VisualElement name="lobby-others" class="lobby-others hidden">
+                    <ui:VisualElement class="lobby-column">
+                        <k:KText text="Friends playing now" size="Heading" />
+                        <k:KText text="Join them where they are." size="Caption" tone="Soft" class="lobby-hint" />
+                        <ui:ScrollView name="lobby-friends" class="lobby-list" />
+                        <k:KText name="lobby-friends-empty" text="None of your friends are playing this right now." size="Body" tone="Soft" class="lobby-empty hidden" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="lobby-column">
+                        <k:KText text="Join a group" size="Heading" />
+                        <k:KText text="People doing this right now. You see names once you are in, and they see yours." size="Caption" tone="Soft" class="lobby-hint" />
+                        <ui:ScrollView name="lobby-open" class="lobby-list" />
+                        <k:KText name="lobby-open-empty" text="No open groups right now. Start one and others can join." size="Body" tone="Soft" class="lobby-empty hidden" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <k:KText name="lobby-notice" text="" size="Caption" tone="Soft" class="group-notice" />
+                <ui:VisualElement class="group-actions">
+                    <k:KButton name="lobby-back" text="Back" tone="Ghost" size="Medium" />
+                    <ui:VisualElement class="group-spacer" />
+                    <k:KButton name="lobby-host" text="Start a group" tone="Secondary" size="Medium" class="hidden" />
+                </ui:VisualElement>
+            </k:KSurface>
+        </k:KSurface>
+
+        <!-- During an activity: who is here, and what they are saying. -->
+        <k:KButton name="group-open" text="Group" tone="Quiet" size="Small" class="group-open hidden" />
+        <k:KSurface name="group-ticker" tone="Glass" density="Compact" class="group-ticker hidden" picking-mode="Ignore">
+            <k:KText name="group-ticker-line" text="" size="Caption" tone="OnDark" />
+        </k:KSurface>
+
+        <k:KSurface name="group-room" tone="Scrim" density="Flush" class="group-shade hidden">
+            <k:KSurface tone="Paper" density="Comfortable" class="group-card room-card">
+                <ui:VisualElement class="room-head">
+                    <ui:VisualElement class="room-heading">
+                        <k:KEyebrow text="GROUP SESSION" />
+                        <k:KText name="room-title" text="" size="Heading" />
+                    </ui:VisualElement>
+                    <k:KTag name="room-sample" text="SAMPLE GROUP" tone="Neutral" class="hidden" />
+                    <ui:VisualElement class="group-spacer" />
+                    <k:KButton name="room-leave" text="Leave group" tone="Ghost" size="Small" />
+                    <k:KButton name="room-close" text="Keep playing" tone="Secondary" size="Small" />
+                </ui:VisualElement>
+                <ui:VisualElement class="room-body">
+                    <ui:VisualElement class="room-members">
+                        <k:KText name="room-count" text="" size="Caption" tone="Soft" class="room-count" />
+                        <ui:ScrollView name="room-list" class="room-list" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="room-chat">
+                        <ui:ScrollView name="room-thread" class="room-thread" />
+                        <ui:VisualElement name="room-cheers" class="room-cheers" />
+                        <ui:VisualElement class="room-composer">
+                            <k:KField name="room-text" placeholder="Say something kind…" max-length="240" class="room-field" />
+                            <k:KButton name="room-send" text="Send" tone="Primary" size="Medium" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <k:KText name="room-notice" text="" size="Caption" tone="Soft" class="group-notice" />
+            </k:KSurface>
+        </k:KSurface>
+
+        <!-- Hold Tab: everyone in the room, over whatever you are doing. -->
+        <k:KSurface name="group-tablist" tone="Glass" density="Compact" class="group-tablist hidden" picking-mode="Ignore">
+            <k:KEyebrow name="tablist-title" text="IN THIS GROUP" backdrop="Dark" />
+            <ui:VisualElement name="tablist-rows" class="tablist-rows" picking-mode="Ignore" />
+        </k:KSurface>
+    </ui:VisualElement>
+</ui:UXML>

@@ -7,44 +7,11 @@
     <ui:VisualElement name="gallery-pane" class="pane-screen">
         <ui:VisualElement class="sheet">
             <ui:Label text="What would you like to play?" class="sheet-title" />
-            <ui:VisualElement class="activities">
-                <ui:Button name="golf-card" class="activity-card golf-card selected" tooltip="Play adaptive golf">
-                    <ui:Label text="PLAY TOGETHER" class="preview-tag" picking-mode="Ignore" />
-                    <ui:VisualElement class="card-info" picking-mode="Ignore">
-                        <ui:VisualElement name="golf-icon" class="mode-icon" picking-mode="Ignore" />
-                        <ui:VisualElement class="card-copy" picking-mode="Ignore">
-                            <ui:Label text="Golf" class="card-title" picking-mode="Ignore" />
-                            <ui:Label text="Fresh air. Friendly competition." class="card-description" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                    <ui:VisualElement name="golf-presence" class="card-presence hidden" picking-mode="Ignore" />
-                </ui:Button>
-                <ui:Button name="studio-card" class="activity-card studio-card" tooltip="Open the Movement Studio">
-                    <ui:Label text="YOUR DAILY PRACTICE" class="preview-tag" picking-mode="Ignore" />
-                    <ui:VisualElement class="card-info" picking-mode="Ignore">
-                        <ui:VisualElement name="studio-icon" class="mode-icon" picking-mode="Ignore" />
-                        <ui:VisualElement class="card-copy" picking-mode="Ignore">
-                            <ui:Label text="Movement Studio" class="card-title" picking-mode="Ignore" />
-                            <ui:Label text="Gentle raises. Personal progress." class="card-description" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                    <ui:VisualElement name="studio-presence" class="card-presence hidden" picking-mode="Ignore" />
-                </ui:Button>
-                <ui:Button name="bowling-card" class="activity-card" tooltip="Play bowling with your wrist-mounted AirPod">
-                    <ui:Label text="A GENTLE ROLL" class="preview-tag" picking-mode="Ignore" />
-                    <ui:VisualElement class="card-info" picking-mode="Ignore">
-                        <ui:VisualElement name="bowling-icon" class="mode-icon" picking-mode="Ignore" />
-                        <ui:VisualElement class="card-copy" picking-mode="Ignore">
-                            <ui:Label text="Bowling" class="card-title" picking-mode="Ignore" />
-                            <ui:Label text="Line up. Swing. Watch them fall." class="card-description" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                    <ui:VisualElement name="bowling-presence" class="card-presence hidden" picking-mode="Ignore" />
-                </ui:Button>
-            </ui:VisualElement>
+            <!-- Every card is built by MainMenuController from the activity catalog (coordinator/activities.json): golf,
+                 the studio, bowling and every movement in the exercise library, the same card at the same size. None is
+                 authored here, so none can drift from the catalog or be weighted above another. -->
+            <ui:VisualElement name="cards" class="activities gallery-grid" />
+            <ui:VisualElement name="pager" class="gallery-pager" />
             <ui:VisualElement class="selection-row" picking-mode="Ignore">
                 <ui:VisualElement class="selection-dot" picking-mode="Ignore" />
                 <ui:Label name="selection-caption" text="" class="selection-caption" picking-mode="Ignore" />

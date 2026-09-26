@@ -18,8 +18,8 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { exerciseKind, exerciseKindForPlanType, bindQualities, qualityLimits, DEFAULT_EXERCISE } from './exercise/registry.ts';
-import { requireActivity } from './activities.ts';
-import { LIBRARY } from './exercises.ts';
+import { requireActivity, type Activity } from './activities.ts';
+import { LIBRARY, SOURCE_OF } from './exercises.ts';
 
 export const PLAN_SCHEMA = 'kinesthetic.plan.v2';
 export const LEGACY_PLAN_SCHEMA = 'kinesthetic.plan.v1';
@@ -186,6 +186,8 @@ function normaliseActivity(input: any, order: number): ActivityPrescription {
   if (kindId) {
     // A measured prescription always has a band: target, and a safe ceiling above it.
     params.side ??= 'right';
+    // Which AirPod pair measures it follows from where it is worn: the club AirPod in a handle, the strap one on the body.
+    params.imuSource ??= catalog ? SOURCE_OF[catalog.sensor] : 'club';
     params.targetDeg ??= catalog?.defaults.targetDeg ?? 80;
     const target = Number(params.targetDeg);
     params.targetMaxDeg ??= Math.min(limits.targetMaxDeg?.[1] ?? 180, target + (catalog?.defaults.ceilingMarginDeg ?? 15));
@@ -250,6 +252,31 @@ function upgrade(raw: any): StoredPlan {
 }
 
 /** A change to one prescription, by id. Params and progression merge over what the plan has. */
+/**
+ * What launching an activity measures. A movement tile (movement-activities.ts) runs the plan's prescription for
+ * its kind when the plan has one, so the clinician's band still applies; otherwise a practice set at the
+ * library's defaults, which is recorded but never progresses the plan. Any other activity runs the plan's
+ * first measured prescription, as the studio always has.
+ */
+export function prescriptionForActivity(plan: Plan, activity: Activity): { prescription: ActivityPrescription | null; practice: boolean } {
+  if (activity.group !== 'movement') return { prescription: plan.activities.find(a => a.exerciseKind) ?? null, practice: false };
+  const kind = activity.exerciseKinds[0];
+  const planned = plan.activities.find(a => a.exerciseKind === kind);
+  if (planned) return { prescription: planned, practice: false };
+  const x = LIBRARY[kind];
+  if (!x) throw Error(`${activity.id} measures "${kind}", which has no library entry to practise it from.`);
+  const d = x.defaults, ceiling = exerciseKind(kind).limits.targetMaxDeg?.[1] ?? 180;
+  return {
+    practice: true,
+    prescription: {
+      id: `practice-${kind.replace(/\.v\d+$/, '')}-right`, activityId: activity.id, exerciseKind: kind, order: 0,
+      targetCount: d.prescribedReps,
+      params: { side: 'right', targetDeg: d.targetDeg, targetMaxDeg: Math.min(ceiling, d.targetDeg + d.ceilingMarginDeg), holdMs: d.holdMs },
+      note: 'Practice: not part of your plan.', progression: null,
+    },
+  };
+}
+
 export interface PrescriptionChange {
   exerciseKind?: string | null; targetCount?: number; note?: string;
   params?: Record<string, number | string | null>; progression?: Partial<Progression>;

@@ -29,16 +29,6 @@ namespace Kinesthetic.Menu
         const string Bridge = "http://127.0.0.1:8766";
         const float RefreshSeconds = 30f;
 
-        /// Card element name -> catalog activity id. The same pairing
-        /// MainMenuController launches by, kept here so a card that gains a friend
-        /// row and a card that launches something cannot disagree.
-        static readonly (string card, string activityId)[] Cards =
-        {
-            ("golf-presence", "golf.adaptive"),
-            ("studio-presence", "rehab.studio"),
-            ("bowling-presence", "bowling.adaptive"),
-        };
-
 #pragma warning disable 0649
         [Serializable] class Who { public string id, displayName; public int mii; }
         [Serializable] class InActivity { public string activityId; public Who[] people; }
@@ -79,8 +69,22 @@ namespace Kinesthetic.Menu
             foreach (var entry in feed?.activities ?? new InActivity[0])
                 if (!string.IsNullOrEmpty(entry?.activityId)) byActivity[entry.activityId] = entry.people;
 
-            foreach (var (card, activityId) in Cards)
-                Paint(root.Q(card), byActivity.TryGetValue(activityId, out var people) ? people : null);
+            // The gallery builds its cards from the catalog, so the rows are found
+            // by activity id rather than a list kept here that a new movement would
+            // fall off. Every row is visited, so a card someone has just left clears.
+            foreach (var row in root.Query<VisualElement>(className: "card-presence").ToList())
+            {
+                var id = row.name.StartsWith("presence-") ? row.name.Substring("presence-".Length) : null;
+                Paint(row, id != null && byActivity.TryGetValue(id, out var people) ? people : null);
+            }
+        }
+
+        /// The same face the friends roster draws, from the UI library.
+        static VisualElement Face(int variant, string cssClass)
+        {
+            var face = new KMiiFace { variant = variant };
+            face.AddToClassList(cssClass);
+            return face;
         }
 
         void Paint(VisualElement row, Who[] people)
@@ -96,7 +100,7 @@ namespace Kinesthetic.Menu
             faces.AddToClassList("presence-faces");
             faces.pickingMode = PickingMode.Ignore;
             for (int i = 0; i < people.Length && i < Shown; i++)
-                faces.Add(MiiFace.Portrait(people[i].mii, 26f, "friend-face"));
+                faces.Add(Face(people[i].mii, "friend-face"));
             row.Add(faces);
 
             row.Add(new KText

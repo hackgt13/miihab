@@ -48,19 +48,7 @@ public static class QuestSceneSetup
 
         var anchor = new GameObject("Patient seat anchor").transform;
         anchor.SetPositionAndRotation(game.players[0].position, game.players[0].rotation);
-        var originGo = new GameObject("XR Origin"); originGo.transform.SetParent(anchor, false);
-        var offset = new GameObject("Camera Offset"); offset.transform.SetParent(originGo.transform, false);
-        var camGo = new GameObject("Headset camera"); camGo.transform.SetParent(offset.transform, false); camGo.tag = "MainCamera";
-        var cam = camGo.AddComponent<Camera>(); cam.nearClipPlane = .05f; cam.farClipPlane = 800;
-        cam.cullingMask = ~((1 << LocalHeadLayer) | (1 << MinimapLayer));
-        cam.clearFlags = CameraClearFlags.Skybox;
-        camGo.AddComponent<AudioListener>();
-        var pose = camGo.AddComponent<TrackedPoseDriver>();
-        pose.positionInput = new InputActionProperty(new InputAction("Head position", binding: "<XRHMD>/centerEyePosition"));
-        pose.rotationInput = new InputActionProperty(new InputAction("Head rotation", binding: "<XRHMD>/centerEyeRotation"));
-        var origin = originGo.AddComponent<XROrigin>();
-        origin.Origin = originGo; origin.CameraFloorOffsetObject = offset; origin.Camera = cam;
-        origin.RequestedTrackingOriginMode = XROrigin.TrackingOriginMode.Floor;
+        QuestRigBuilder.Build(anchor, 1.15f, 800, CameraClearFlags.Skybox, ~((1 << LocalHeadLayer) | (1 << MinimapLayer)));
 
         var hudGo = new GameObject("Headset HUD");
         var hud = hudGo.AddComponent<TextMesh>();
@@ -106,10 +94,17 @@ public static class QuestSceneSetup
         return $"Headset will connect to {ip}:8767";
     }
 
-    // A build boots scene index 0. MainMenu is screen-space UI Toolkit driven by keyboard and pointer,
-    // so in the headset it renders wrong and cannot be operated: put QuestGolf first before a Quest build.
+    // A build boots scene index 0. The app's entry is the menu on both machines: MainMenu on the Mac, and on
+    // the headset its plaza, QuestMenu, where it waits for the Mac and enters golf, bowling or the studio
+    // through a door when the Mac does. An activity is never the boot scene. (MainMenu itself stays Mac-only:
+    // screen-space UI Toolkit, keyboard and pointer.)
     [MenuItem("Kinesthetic/Quest/Boot headset scene (before a Quest build)")]
-    public static string BootHeadsetScene() => SetBootScene(ScenePath);
+    public static string BootHeadsetScene()
+    {
+        if (!File.Exists(QuestMenuSetup.ScenePath))
+            throw new InvalidOperationException("No headset menu scene yet: run Kinesthetic/Quest/Create headset menu scene first.");
+        return SetBootScene(QuestMenuSetup.ScenePath);
+    }
 
     [MenuItem("Kinesthetic/Quest/Boot menu scene (back to Mac)")]
     public static string BootMenuScene() => MainMenuSetup.ConfigureMacBuildScenes();

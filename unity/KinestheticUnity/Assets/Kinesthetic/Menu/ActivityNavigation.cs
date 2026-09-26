@@ -19,9 +19,10 @@ namespace Kinesthetic.Menu
         public static ActivityNavigation Instance { get; private set; }
         public bool MusicEnabled { get; private set; }
         public bool Busy { get; private set; }
-        public bool OverlayOpen => Busy || (dialog != null && !dialog.ClassListContains("hidden")) || (help != null && !help.ClassListContains("hidden"));
+        public bool OverlayOpen => Busy || (group != null && group.Showing) || (dialog != null && !dialog.ClassListContains("hidden")) || (help != null && !help.ClassListContains("hidden"));
         public event Action<bool> MusicChanged;
         AudioSource musicSource, effects;
+        GroupPanel group;
         VisualElement root, dialog, help;
         Button returnButton, confirm, cancel, helpButton, helpClose, helpMusic;
         Label detail, title;
@@ -29,7 +30,7 @@ namespace Kinesthetic.Menu
         float lastHover = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Instance = null; }
+        static void ResetStatics() { Instance = null; LaunchedActivityId = null; }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
         {
@@ -37,8 +38,16 @@ namespace Kinesthetic.Menu
         }
         static bool Supports(string scene) =>
             scene == MenuScene || ActivityCatalog.All.Any(a => a.Scene == scene && a.UsesSharedNavigation);
-        /// <summary>The activity whose scene is loaded, or null in the menu.</summary>
-        static ActivityEntry Current() => ActivityCatalog.All.FirstOrDefault(a => a.Scene == SceneManager.GetActiveScene().name);
+        /// <summary>The activity last launched from the menu. Several activities share a scene (every movement opens the
+        /// studio), so the scene alone cannot say which one is running; the scene asks this instead.</summary>
+        public static string LaunchedActivityId { get; private set; }
+        /// <summary>The activity whose scene is loaded, or null in the menu. The launched one when it owns this scene.</summary>
+        public static ActivityEntry Current()
+        {
+            string scene = SceneManager.GetActiveScene().name;
+            var launched = ActivityCatalog.ById(LaunchedActivityId);
+            return launched != null && launched.Scene == scene ? launched : ActivityCatalog.All.FirstOrDefault(a => a.Scene == scene);
+        }
         /// <summary>Whatever the shell is driving right now, without knowing what kind of thing it is.</summary>
         static IActivity CurrentActivity() => FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
             .OfType<IActivity>().FirstOrDefault();
@@ -57,6 +66,8 @@ namespace Kinesthetic.Menu
             musicSource = gameObject.AddComponent<AudioSource>(); musicSource.playOnAwake = false;
             musicSource.spatialBlend = 0; musicSource.loop = true; musicSource.clip = menuMusic; musicSource.volume = 0;
             effects = gameObject.AddComponent<AudioSource>(); effects.playOnAwake = false; effects.spatialBlend = 0; effects.volume = .55f;
+            // Group therapy rides on this object for the same reason the music does: it outlives the scene.
+            group = GetComponent<GroupPanel>() ?? gameObject.AddComponent<GroupPanel>();
             SceneManager.sceneLoaded += SceneLoaded;
             SyncScene();
         }
@@ -75,6 +86,7 @@ namespace Kinesthetic.Menu
             helpButton.clicked += OpenHelp; helpClose.clicked += CloseHelp; helpMusic.clicked += ToggleMusic;
             helpButton.EnableInClassList("hidden", menuActive || !supported);
             cancel.clicked += CloseReturn;
+            group.Mount(root, this);
             confirm.clicked += () => { if (!Busy) StartCoroutine(ReturnToMenu()); };
             returnButton.EnableInClassList("hidden", menuActive || !supported);
             return true;
@@ -96,6 +108,7 @@ namespace Kinesthetic.Menu
                 helpButton.EnableInClassList("hidden", menuActive || !supported);
                 help.AddToClassList("hidden");
                 dialog.AddToClassList("hidden");
+                group.SceneChanged(menuActive);
             }
             if (showMusic && MusicEnabled && musicSource.clip && !musicSource.isPlaying) musicSource.Play();
         }
@@ -105,7 +118,9 @@ namespace Kinesthetic.Menu
             float target = showMusic && MusicEnabled ? (menuActive ? .38f : .22f) : 0;
             musicSource.volume = Mathf.MoveTowards(musicSource.volume, target, Time.unscaledDeltaTime * 1.8f);
             if (target == 0 && musicSource.volume == 0 && musicSource.isPlaying) musicSource.Pause();
-            if (Keyboard.current?.escapeKey.wasPressedThisFrame == true && !menuActive && supported && !Busy)
+            bool escape = Keyboard.current?.escapeKey.wasPressedThisFrame == true;
+            if (escape && group.Showing) { group.Cancel(); return; }
+            if (escape && !menuActive && supported && !Busy)
             { if (!help.ClassListContains("hidden")) CloseHelp(); else if (dialog.ClassListContains("hidden")) OpenReturn(); else CloseReturn(); }
         }
         public void ToggleMusic()
@@ -142,6 +157,14 @@ namespace Kinesthetic.Menu
             var entry = ActivityCatalog.ById(activityId);
             if (Busy || entry == null) return;
             if (!Application.CanStreamedLevelBeLoaded(entry.Scene)) { ShowUnavailable(); return; }
+            // Every launch, from any card, tile or button, first asks: alone, or with other people?
+            if (Bind() && group.Intercept(entry, () => Go(entry))) return;
+            Go(entry);
+        }
+        void Go(ActivityEntry entry)
+        {
+            if (Busy) return;
+            LaunchedActivityId = entry.Id;
             PlaySelect(); StartCoroutine(Load(entry.Scene, entry.Venue));
         }
         /// Straight back to the menu, no confirmation: for an activity whose own screen already asked (the
@@ -193,6 +216,7 @@ namespace Kinesthetic.Menu
                     confirm.text = "Try again"; yield break;
                 }
             }
+            yield return group.LeaveOnReturn();
             PlaySelect(); yield return Load(MenuScene, null);
         }
         /// Into `scene`, through the doorway of `venue` when this scene has one (the plaza does, for every

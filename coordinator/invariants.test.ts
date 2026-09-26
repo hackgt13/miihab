@@ -55,45 +55,25 @@ test('every activity points at a Unity scene that exists on disk', () => {
       `${a.id} loads scene "${a.scene}", which does not exist. Known scenes: ${[...scenes].sort().join(', ')}`);
 });
 
-test("the gallery's cards say what the catalog says, and cover every activity", () => {
-  // Three places hold an activity's display copy: activities.json, the card in Gallery.uxml, and the
-  // caption MainMenuController picks by card index. Nothing joined them, and bowling's card had
-  // already drifted from its catalog tagline -- the menu described the activity one way while the
-  // record the coordinator keeps described it another.
-  //
-  // Asserted here rather than fixed in Unity because the markup is the presentation layer's business;
-  // what must not vary is what it says. If this fails, edit activities.json and make the card match,
-  // not the other way round.
+test("the gallery is the catalog: no authored cards, and every activity is reachable", () => {
+  // Three places used to hold an activity's display copy: activities.json, a card in Gallery.uxml, and a
+  // caption MainMenuController picked by card index. Nothing joined them, and bowling's card had drifted
+  // from its catalog tagline. Now every card is built from the catalog (MainMenuController.BuildGallery),
+  // so the check is that nobody has authored one back into the markup.
   const gallery = resolve(import.meta.dirname, '../unity/KinestheticUnity/Assets/Kinesthetic/Menu/Gallery.uxml');
   if (!existsSync(gallery)) return;   // coordinator can be checked out without the Unity project
   const markup = readFileSync(gallery, 'utf8');
+  assert.ok(/name="cards"/.test(markup), 'Gallery.uxml has no "cards" container for the generated cards');
+  assert.deepEqual([...markup.matchAll(/class="[^"]*\bactivity-card\b/g)].length, 0,
+    'Gallery.uxml authors a card. Cards are generated from activities.json; put the copy in its "card" instead.');
 
-  const text = (attributes: string) => /\btext="([^"]*)"/.exec(attributes)?.[1] ?? '';
-  const cards = [...markup.matchAll(/<ui:Button name="([a-z-]+-card)"[\s\S]*?<\/ui:Button>/g)].map(([block, name]) => ({
-    name,
-    title: text(/<ui:Label([^>]*class="[^"]*\bcard-title\b[^"]*")/.exec(block)?.[1] ?? ''),
-    description: text(/<ui:Label([^>]*class="[^"]*\bcard-description\b[^"]*")/.exec(block)?.[1] ?? ''),
-  }));
-  assert.ok(cards.length, 'found no activity cards in Gallery.uxml -- has the markup been restructured?');
-
-  const byName = new Map(ACTIVITIES.map(a => [a.displayName, a]));
-  for (const card of cards) {
-    const activity = byName.get(card.title);
-    assert.ok(activity, `the "${card.name}" card is titled "${card.title}", which is no activity's ` +
-      `displayName. Known: ${[...byName.keys()].join(', ')}`);
-    assert.equal(card.description, activity.tagline,
-      `the "${card.name}" card describes ${activity.id} as "${card.description}", but the catalog's ` +
-      `tagline is "${activity.tagline}". The catalog is the source of truth.`);
-  }
-
-  // The coaching pane's call to action is the other way in: the therapist visit is reached from the plan it
-  // talks about, not from the games. Its title is the activity's displayName, the same join as a card's.
+  // An activity with no card is reached some other way: the therapist visit from the plan it talks about, whose
+  // call to action is titled with the activity's displayName.
   const coaching = resolve(import.meta.dirname, '../unity/KinestheticUnity/Assets/Kinesthetic/Menu/Coaching.uxml');
+  const text = (attributes: string) => /\btext="([^"]*)"/.exec(attributes)?.[1] ?? '';
   const calls = existsSync(coaching)
     ? [...readFileSync(coaching, 'utf8').matchAll(/<ui:Label([^>]*class="[^"]*\bcta-title\b[^"]*")/g)].map(m => text(m[1])) : [];
-  const shown = new Set([...cards.map(c => c.title), ...calls]);
-  const invisible = ACTIVITIES.filter(a => !shown.has(a.displayName));
+  const invisible = ACTIVITIES.filter(a => !a.card && !calls.includes(a.displayName));
   assert.deepEqual(invisible.map(a => a.id), [],
-    `these activities exist and can be prescribed but have no card in the gallery, so nobody can ` +
-    `reach them from the menu: ${invisible.map(a => a.id).join(', ')}.`);
+    `these activities have no gallery card and no other way in, so nobody can reach them from the menu: ${invisible.map(a => a.id).join(', ')}.`);
 });

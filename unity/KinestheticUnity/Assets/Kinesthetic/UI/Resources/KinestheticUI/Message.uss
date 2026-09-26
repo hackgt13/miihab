@@ -1,0 +1,28 @@
+/* KMessage: a balloon in a conversation. Mine is prussian with sand lettering, theirs is paper with prussian
+   lettering, and the room's own line is no balloon at all. The values are the ones the friends thread was
+   drawn with before this was a component, so that screen looks as it did. */
+.k-message.k-message--mine, .k-message.k-message--theirs {
+    max-width: 74%; border-radius: 16px; border-width: 0; padding: 9px 13px; margin: 0 0 8px 0; flex-shrink: 0;
+}
+.k-message.k-message--mine { align-self: flex-end; margin-right: 5px; background-color: var(--prussian-50); }
+.k-message.k-message--theirs { align-self: flex-start; background-color: var(--sand-00); }
+.k-message.k-message--room {
+    align-self: center; max-width: 90%; padding: 2px 10px; margin: 0 0 8px 0; flex-shrink: 0;
+    background-color: rgba(0, 0, 0, 0); border-width: 0;
+}
+
+.k-message .k-message__author, .k-message .k-message__said, .k-message .k-message__text, .k-message .k-message__time {
+    margin: 0; padding: 0; white-space: normal;
+}
+.k-message .k-message__author { font-size: 13px; color: var(--cerulean-60); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); margin-bottom: 2px; }
+.k-message .k-message__said { font-size: 16px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.k-message .k-message__text { font-size: 16px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
+.k-message .k-message__time { font-size: 13px; margin-top: 3px; }
+
+.k-message.k-message--mine .k-message__said, .k-message.k-message--mine .k-message__text { color: var(--sand-00); }
+.k-message.k-message--mine .k-message__time { color: var(--sand-00-a70); }
+.k-message.k-message--theirs .k-message__said, .k-message.k-message--theirs .k-message__text { color: var(--prussian-50); }
+.k-message.k-message--theirs .k-message__time { color: var(--slate-40); }
+.k-message.k-message--room .k-message__text { font-size: 14px; color: var(--slate-50); -unity-text-align: middle-center; }
+.k-message.k-message--room .k-message__time { display: none; }
+.k-message .hidden { display: none; }

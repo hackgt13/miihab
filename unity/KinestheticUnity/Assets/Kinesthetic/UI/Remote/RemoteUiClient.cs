@@ -87,10 +87,8 @@ namespace Kinesthetic.UI.Remote
             if (Instance && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
             var config = Resources.Load<QuestHostConfig>(QuestHostConfig.ResourcePath);
-            url = config
-                ? $"ws://{config.host}:{config.port}/ui?role=client&token={Uri.EscapeDataString(config.token ?? "")}"
-                : "ws://127.0.0.1:8767/ui?role=client";
-            socket = new UiSocket(url);
+            url = "ws://127.0.0.1:8767/ui?role=client";
+            socket = config ? new UiSocket(config.Url("/ui?role=client")) : new UiSocket(url);
         }
 
         void OnDestroy()

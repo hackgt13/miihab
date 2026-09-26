@@ -40,7 +40,8 @@ namespace Kinesthetic.Rehab
              .Append(",\"valid\":").Append(session.Valid).Append(",\"prescribed\":").Append(session.prescribedReps)
              .Append(",\"handoff\":").Append(view.CoachHandingOff ? "true" : "false")
              .Append(",\"cue\":").Append(Newtonsoft.Json.JsonConvert.ToString(session.Cue ?? ""))
-             .Append(",\"patient\":");
+             .Append(",\"feel\":"); Feel(b, view.Feel);
+            b.Append(",\"patient\":");
             Pose(b, patientBones);
             if (coach && coachBones != null)
             {
@@ -50,6 +51,21 @@ namespace Kinesthetic.Rehab
             }
             b.Append('}');
             socket.Send(b.ToString());
+        }
+
+        /// The rep as the mechanics feel it, so a headset's ball tips and pacer moves exactly as the Mac's do.
+        static void Feel(StringBuilder b, RepFeel f)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            b.Append("{\"rep\":").Append(f.InRep ? "true" : "false")
+             .Append(",\"phase\":\"").Append(f.Phase ?? "").Append("\",\"speed\":").Append(f.Speed.ToString("0.#", inv))
+             .Append(",\"tempo\":").Append(f.TempoSpeed.ToString("0.#", inv))
+             .Append(",\"hasTempo\":").Append(f.HasTempo ? "true" : "false").Append(",\"hasHold\":").Append(f.HasHold ? "true" : "false")
+             .Append(",\"hold\":").Append(f.HoldFraction.ToString("0.##", inv))
+             .Append(",\"holding\":").Append(f.Holding ? "true" : "false").Append(",\"met\":").Append(f.HoldMet ? "true" : "false")
+             .Append(",\"hitches\":").Append(f.Hitches).Append(",\"streak\":").Append(f.Streak)
+             .Append(",\"fast\":").Append(f.Fast ? "true" : "false")
+             .Append(",\"valid\":").Append(f.Valid).Append(",\"prescribed\":").Append(f.Prescribed).Append('}');
         }
 
         static void Pose(StringBuilder b, List<Transform> bones)

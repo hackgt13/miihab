@@ -4,12 +4,12 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.XR;
 
 /// The headset's rig, once: an XROrigin parked at the patient's seat with a tracked centre-eye camera
-/// under it, and the patient's own head moved off that camera's layers. QuestRehabSetup builds through
-/// this; QuestSceneSetup (golf) still carries its own copy of the same steps and can adopt this later.
+/// under it, and the patient's own head moved off that camera's layers. Golf, bowling and rehab all
+/// build through this.
 ///
 /// The anchor is the seat: its position is the floor point under the patient and its forward is where
-/// they face. With a floor tracking origin the headset's real height replaces `seatedEyeHeight` the
-/// moment tracking starts; the value only places the camera before that, and in the editor.
+/// they face. SeatedHeadset keeps the tracked camera at `seatedEyeHeight` above it, facing that way,
+/// wherever the wearer stands in their room — the patient's own eyes, not a view of the patient.
 public static class QuestRigBuilder
 {
     /// The layer the patient's own head is drawn on, culled from the headset camera. The same one
@@ -32,6 +32,9 @@ public static class QuestRigBuilder
         var origin = originGo.AddComponent<XROrigin>();
         origin.Origin = originGo; origin.CameraFloorOffsetObject = offset; origin.Camera = camera;
         origin.RequestedTrackingOriginMode = XROrigin.TrackingOriginMode.Floor;
+        // First person: keep the tracked eyes at the patient's seated eyes, whatever the wearer's room.
+        var seated = originGo.AddComponent<Kinesthetic.SeatedHeadset>();
+        seated.seat = anchor; seated.head = camGo.transform; seated.eyeHeight = seatedEyeHeight;
         return camera;
     }
 

@@ -1,0 +1,49 @@
+/* Group therapy: layout only. Every surface, word and button is a component variant (UI.md). */
+.group-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.group-shade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; }
+.group-card { width: 880px; max-width: 94%; max-height: 90%; }
+.group-title { margin-top: 6px; margin-bottom: 18px; }
+.group-spacer { flex-grow: 1; }
+.group-actions { flex-direction: row; align-items: center; margin-top: 16px; }
+.group-notice { margin-top: 10px; min-height: 18px; }
+
+.lobby-choose { flex-direction: row; justify-content: center; margin: 12px 0; }
+.lobby-choice { flex-grow: 1; flex-basis: 0; margin: 0 8px; }
+.lobby-others { flex-direction: row; min-height: 0; flex-shrink: 1; }
+.lobby-column { flex-grow: 1; flex-basis: 0; margin: 0 8px; min-height: 0; }
+.lobby-hint { margin-top: 2px; margin-bottom: 10px; }
+.lobby-list { height: 300px; }
+.lobby-empty { margin-top: 12px; }
+.lobby-row { flex-direction: row; align-items: center; margin-bottom: 10px; }
+.lobby-row-faces { flex-direction: row; margin-right: 10px; }
+.lobby-row-face { width: 36px; height: 36px; margin-right: -8px; }
+.lobby-row-copy { flex-grow: 1; flex-shrink: 1; margin-right: 10px; margin-left: 8px; }
+.lobby-row-tags { flex-direction: row; margin-top: 4px; }
+
+.group-open { position: absolute; bottom: 10px; left: 50%; translate: -50% 0; }
+.group-ticker { position: absolute; bottom: 58px; left: 50%; translate: -50% 0; max-width: 520px; }
+
+.room-card { height: 560px; }
+.room-head { flex-direction: row; align-items: center; margin-bottom: 14px; }
+.room-heading { margin-right: 12px; }
+.room-body { flex-direction: row; flex-grow: 1; min-height: 0; }
+.room-members { width: 290px; margin-right: 18px; min-height: 0; }
+.room-count { margin-bottom: 8px; }
+.room-list { flex-grow: 1; }
+.member-row { flex-direction: row; align-items: center; margin-bottom: 10px; }
+.member-face { width: 40px; height: 40px; margin-right: 10px; }
+.member-copy { flex-grow: 1; flex-shrink: 1; }
+.member-tags { flex-direction: row; margin-top: 3px; }
+.member-tags > * { margin-right: 4px; }
+.room-chat { flex-grow: 1; min-height: 0; }
+.room-thread { flex-grow: 1; min-height: 0; }
+.room-cheers { flex-direction: row; flex-wrap: wrap; margin-top: 8px; }
+.room-cheers > * { margin-right: 6px; margin-bottom: 6px; }
+.room-composer { flex-direction: row; align-items: center; }
+.room-field { flex-grow: 1; margin-right: 8px; }
+
+.group-tablist { position: absolute; top: 24px; left: 50%; translate: -50% 0; min-width: 360px; }
+.tablist-rows { margin-top: 8px; }
+.tablist-row { flex-direction: row; align-items: center; margin-bottom: 6px; }
+.tablist-face { width: 28px; height: 28px; margin-right: 10px; }
+.tablist-tag { margin-left: 6px; }

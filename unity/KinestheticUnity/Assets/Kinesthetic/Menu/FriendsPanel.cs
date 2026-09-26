@@ -24,7 +24,7 @@ namespace Kinesthetic.Menu
     /// </summary>
     public sealed class FriendsPanel : MonoBehaviour
     {
-        const string Bridge = "http://127.0.0.1:8766";
+        const string Bridge = SocialBridge.Url;
 
         // JsonUtility assigns these by reflection, which the compiler cannot see.
 #pragma warning disable 0649
@@ -47,19 +47,12 @@ namespace Kinesthetic.Menu
         [Serializable] class Recap { public string recap; }
 #pragma warning restore 0649
 
-        // The stored vocabulary, kept for reading rather than sending: a message
-        // already in a thread carries a `kind`, and this is what turns it back into
-        // words. See LabelFor.
-        static readonly (string kind, string label)[] Quick =
+        static VisualElement Face(int variant, string cssClass)
         {
-            ("nice_one", "Nice one"),
-            ("welcome_back", "Welcome back"),
-            ("that_looked_hard", "That looked hard"),
-            ("with_you", "With you"),
-            ("strong_finish", "Strong finish"),
-        };
-
-
+            var face = new KMiiFace { variant = variant };
+            face.AddToClassList(cssClass);
+            return face;
+        }
 
         VisualElement root, overlay, facesRow, list, threadView, threadFace;
         ScrollView threadScroll;
@@ -197,10 +190,7 @@ namespace Kinesthetic.Menu
                 ? "Working toward " + string.Join(" and ", view.goalComponents)
                 : "";
 
-            profileFace.generateVisualContent = null;
-            int variant = view.person.mii;
-            profileFace.generateVisualContent += ctx => MiiFace.Draw(ctx, variant, 40f);
-            profileFace.MarkDirtyRepaint();
+            KMiiFace.Paint(profileFace, view.person.mii, 40f);
 
             profileStats.Clear();
             var note = root.Q<Label>("profile-note");
@@ -382,16 +372,7 @@ namespace Kinesthetic.Menu
         }
 
         IEnumerator Post(string path, string body, Action<string> done = null)
-        {
-            using var request = new UnityWebRequest(Bridge + path, "POST");
-            request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body ?? "{}"));
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-            request.timeout = 5;
-            yield return request.SendWebRequest();
-            if (request.result == UnityWebRequest.Result.Success) done?.Invoke(request.downloadHandler.text);
-            else SetNotice("That did not go through. Is the bridge running?");
-        }
+            => SocialBridge.Post(path, body, done, _ => SetNotice("That did not go through. Is the bridge running?"));
 
         IEnumerator Invite()
         {
@@ -482,7 +463,7 @@ namespace Kinesthetic.Menu
             {
                 unread += person.unread;
                 if (shown++ >= 3) continue;
-                facesRow?.Add(MiiFace.Portrait(person.mii, 26f, "friend-face"));
+                facesRow?.Add(Face(person.mii, "friend-face"));
             }
             if (badge == null) return;
             if (unread > 0) { badge.text = unread.ToString(); badge.RemoveFromClassList("hidden"); }
@@ -499,7 +480,7 @@ namespace Kinesthetic.Menu
                 row.EnableInClassList("selected", person.id == selectedId);
 
                 // The face opens the person; the rest of the row opens the thread.
-                var portrait = MiiFace.Portrait(person.mii, 34f, "friend-row-face");
+                var portrait = Face(person.mii, "friend-row-face");
                 portrait.pickingMode = PickingMode.Position;
                 portrait.tooltip = "See how " + person.displayName + " is doing";
                 string portraitId = person.id;
@@ -579,10 +560,7 @@ namespace Kinesthetic.Menu
             }
             spotlightId = chosen.id;
 
-            spotlightFace.generateVisualContent = null;
-            int variant = chosen.mii;
-            spotlightFace.generateVisualContent += ctx => MiiFace.Draw(ctx, variant, 40f);
-            spotlightFace.MarkDirtyRepaint();
+            KMiiFace.Paint(spotlightFace, chosen.mii, 40f);
 
             spotlightName.text = chosen.displayName + (chosen.sample ? " · sample friend" : "");
             spotlight.RemoveFromClassList("hidden");
@@ -640,10 +618,7 @@ namespace Kinesthetic.Menu
         void PaintThread(Thread thread)
         {
             threadName.text = thread.person.displayName;
-            threadFace.generateVisualContent = null;
-            int faceVariant = thread.person.mii;
-            threadFace.generateVisualContent += ctx => MiiFace.Draw(ctx, faceVariant, 30f);
-            threadFace.MarkDirtyRepaint();
+            KMiiFace.Paint(threadFace, thread.person.mii, 30f);
             threadView.Clear();
 
             if (threadHint != null)
@@ -660,33 +635,20 @@ namespace Kinesthetic.Menu
 
             foreach (var message in thread.messages)
             {
-                bool mine = message.from == roster.me.id;
-                var bubble = new VisualElement();
-                bubble.AddToClassList("bubble");
-                bubble.AddToClassList(mine ? "bubble-mine" : "bubble-theirs");
-
-                if (!string.IsNullOrEmpty(message.kind))
+                var bubble = new KMessage
                 {
-                    var kind = new Label(LabelFor(message.kind));
-                    kind.AddToClassList("bubble-kind");
-                    bubble.Add(kind);
-                }
-                if (!string.IsNullOrEmpty(message.text))
-                {
-                    var text = new Label(message.text);
-                    text.AddToClassList("bubble-text");
-                    bubble.Add(text);
-                }
+                    side = message.from == roster.me.id ? KMessage.Side.Mine : KMessage.Side.Theirs,
+                    said = string.IsNullOrEmpty(message.kind) ? "" : LabelFor(message.kind),
+                    text = message.text,
+                    time = ShortTime(message.at),
+                };
                 if (!string.IsNullOrEmpty(message.photoId))
                 {
                     var photo = new VisualElement();
                     photo.AddToClassList("bubble-photo");
-                    bubble.Add(photo);
+                    bubble.Attachments.Add(photo);
                     StartCoroutine(LoadPhoto(message.photoId, photo));
                 }
-                var time = new Label(ShortTime(message.at));
-                time.AddToClassList("bubble-time");
-                bubble.Add(time);
                 threadView.Add(bubble);
             }
             threadView.schedule.Execute(() => threadView.parent?.Focus());
@@ -729,21 +691,14 @@ namespace Kinesthetic.Menu
             // The thread may have been repainted for someone else while this was in
             // flight, which is why the last bubble is re-read rather than captured.
             if (threadView != null && threadView.childCount > 0
-                && target.parent == threadView[threadView.childCount - 1]) ScrollToEnd();
+                && target.parent?.parent == threadView[threadView.childCount - 1]) ScrollToEnd();
         }
 
-        static string LabelFor(string kind)
-        {
-            foreach (var (k, label) in Quick) if (k == kind) return label;
-            return kind;
-        }
-
-        static string ShortTime(string iso)
-            => DateTime.TryParse(iso, out var when) ? when.ToLocalTime().ToString("HH:mm") : "";
+        static string LabelFor(string kind) => SocialBridge.LabelFor(kind);
+        static string ShortTime(string iso) => SocialBridge.ShortTime(iso);
 
         void SetNotice(string text) { if (notice != null) notice.text = text; }
 
-        static string Escape(string value)
-            => (value ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", " ").Replace("\r", " ");
+        static string Escape(string value) => SocialBridge.Escape(value);
     }
 }
