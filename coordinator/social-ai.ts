@@ -66,12 +66,18 @@ const SYSTEM_SPOTLIGHT =
   '- Never mention progress, recovery, effort, or anything clinical. You cannot see ' +
   'measurements and must not guess at them.\n' +
   '- An activity line is a short factual fragment, no name and no final full stop: ' +
-  '"returned after three days", "has been here every day this week", "sent you ' +
-  'something yesterday".\n' +
+  '"returned after three days", "here every day this week", "waiting on a reply ' +
+  'since Tuesday".\n' +
+  '- Give every person a line whenever you have any fact about them at all. Only ' +
+  'use an empty line when every field is null, which means you have nothing. A ' +
+  'thin true line beats silence: "here today", "no messages yet".\n' +
+  '- Say it about them where you can. Fall back to the state of the conversation ' +
+  '("waiting on your reply", "you wrote last") only when you know nothing else.\n' +
+  '- Take the most useful fact, in this order: they came back after a gap; they ' +
+  'are waiting on a reply; when they were last here; who wrote last.\n' +
   '- quietDaysBeforeTheyReturned is how long they were away before their latest ' +
   'message. When it is two days or more and they wrote recently, that is a ' +
   'return: "returned after three days".\n' +
-  '- If a person has no signal worth narrating, give them an empty line.\n' +
   '- Prefer to spotlight someone waiting on a reply, or who has just come back after ' +
   'being away.';
 
@@ -111,7 +117,10 @@ const SYSTEM_RECAP =
   '- Do not quote. The thread itself is right there; you are the line above it.\n' +
   '- sentPhoto tells you a photo was attached. Never say someone sent one unless ' +
   'that flag is set, whatever the wording suggests.\n' +
-  '- If there is nothing worth recapping, return an empty string.';
+  '- Always give a sentence when there are messages. A thread of nothing but quick ' +
+  'encouragements is worth saying plainly - "mostly quick encouragements, nothing ' +
+  'said in a while" - rather than returning nothing.\n' +
+  '- Return an empty string only when there are no messages at all.';
 
 const RECAP_TOOL = {
   name: 'recap',
