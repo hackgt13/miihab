@@ -31,6 +31,7 @@ namespace Kinesthetic
         UIDocument document;
         GazeReticle reticle;
         string hot;
+        Button hotButton;   // the element behind `hot`, for a replica board that sends the press away
         float held, lost;
 
         void Awake()
@@ -61,8 +62,11 @@ namespace Kinesthetic
             if (held < dwellSeconds) return;
             held = 0;
             string fired = hot;
+            var button = hotButton;
             hot = null;
             reticle.Hide();
+            // A replica board (UI/Remote) has no handlers of its own: its press crosses to the Mac instead.
+            if (Kinesthetic.UI.Remote.RemoteBoard.Intercepts(gameObject, button)) return;
             Committed?.Invoke(fired);
         }
 
@@ -70,7 +74,8 @@ namespace Kinesthetic
         string Under(Camera cam)
         {
             var ray = new Ray(cam.transform.position, cam.transform.forward);
-            return Panes.WorldPanelPick.NamedButtonOn(gameObject, ray, maxDistance)?.name;
+            hotButton = Panes.WorldPanelPick.NamedButtonOn(gameObject, ray, maxDistance);
+            return hotButton?.name;
         }
     }
 

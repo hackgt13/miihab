@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c34cc62c4a8045f0bedcc5c4011dfed, type: 3}
+  m_Name: UiSheetRegistry
+  m_EditorClassIdentifier: Assembly-CSharp::Kinesthetic.UI.Remote.UiSheetRegistry
+  ids:
+  - Kinesthetic/Bowling/Bowling
+  - Kinesthetic/Golf/Golf
+  - Kinesthetic/Menu/MainMenu
+  - Kinesthetic/Menu/Navigation
+  - Kinesthetic/Palette
+  - Kinesthetic/Rehab/Rehab
+  - Kinesthetic/Replay
+  - Kinesthetic/Shell/CarouselChrome
+  - Kinesthetic/UI/Base
+  - Kinesthetic/UI/Panes/Panes
+  - Kinesthetic/UI/Resources/KinestheticUI/Button
+  - Kinesthetic/UI/Resources/KinestheticUI/Chip
+  - Kinesthetic/UI/Resources/KinestheticUI/Content
+  - Kinesthetic/UI/Resources/KinestheticUI/Measures
+  - Kinesthetic/UI/Resources/KinestheticUI/Readout
+  - Kinesthetic/UI/Resources/KinestheticUI/Steps
+  - Kinesthetic/UI/Resources/KinestheticUI/Text
+  - Kinesthetic/UI/Specimen
+  sheets:
+  - {fileID: 7433441132597879392, guid: 401c04b07877145ccb3beebd0e0f9372, type: 3}
+  - {fileID: 7433441132597879392, guid: 507b3708197e84ae4a04eabdbdd5d941, type: 3}
+  - {fileID: 7433441132597879392, guid: 2cc5498d8d8c740688d932c2860ce428, type: 3}
+  - {fileID: 7433441132597879392, guid: 9643a04c77019473480e704a583ea6e2, type: 3}
+  - {fileID: 7433441132597879392, guid: 6b54ceec5ded64367a2fc07574b78b40, type: 3}
+  - {fileID: 7433441132597879392, guid: 001c49666c04041779e3f06b1e0dc9a8, type: 3}
+  - {fileID: 7433441132597879392, guid: 726a0eb67deae4b7ba272ae7ea251d83, type: 3}
+  - {fileID: 7433441132597879392, guid: 364615d1735a642348f1fc3c66ed8f31, type: 3}
+  - {fileID: 7433441132597879392, guid: 4971d76e667348eca8656c4c41cacaf6, type: 3}
+  - {fileID: 7433441132597879392, guid: c25193b6f0c404534ac02ee274df6fe4, type: 3}
+  - {fileID: 7433441132597879392, guid: 31aa05108a2f42af819fe947423dd50b, type: 3}
+  - {fileID: 7433441132597879392, guid: 2e65ca4973c9476a8aea8fe3a1d51d1c, type: 3}
+  - {fileID: 7433441132597879392, guid: 3913ea6dd7b9e469f885c82c9a967d28, type: 3}
+  - {fileID: 7433441132597879392, guid: 7a5c49c899e54afbab8f1640df526147, type: 3}
+  - {fileID: 7433441132597879392, guid: 140508dbf54c4a47a8de8eb42d987c2c, type: 3}
+  - {fileID: 7433441132597879392, guid: a96b2cfacf984661bc13becb2f06d3ad, type: 3}
+  - {fileID: 7433441132597879392, guid: 9dab0cb0cba946939a87b5e95f34b759, type: 3}
+  - {fileID: 7433441132597879392, guid: 5cfb363d0cda485bb76bad261c3b8177, type: 3}

@@ -1,0 +1,134 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d20f39acfd5f4a16ad53b641e7d7f39, type: 3}
+  m_Name: UiImageRegistry
+  m_EditorClassIdentifier: Assembly-CSharp::Kinesthetic.UI.Remote.UiImageRegistry
+  ids:
+  - Kinesthetic/Art/CesiumMan
+  - Kinesthetic/Art/Coach/trainerM_body
+  - Kinesthetic/Art/Coach/trainerM_eye.1
+  - Kinesthetic/Art/Coach/trainerM_eye.2
+  - Kinesthetic/Art/Coach/trainerM_eye.3
+  - Kinesthetic/Art/Coach/trainerM_face
+  - Kinesthetic/Art/Coach/trainerM_hair
+  - Kinesthetic/Art/Coach/trainerM_hair_B
+  - Kinesthetic/Art/Coach/trainerM_hair_C
+  - Kinesthetic/Art/Coach/trainerM_logo
+  - Kinesthetic/Art/Coach/trainerM_pants
+  - Kinesthetic/Art/Coach/trainerM_upper
+  - Kinesthetic/Art/GolfReference/WedgeIslandTerrain
+  - Kinesthetic/Art/Mii/Friend/Mii_eye.L
+  - Kinesthetic/Art/Mii/Friend/Mii_eye.R
+  - Kinesthetic/Art/Mii/Friend/Mii_eyebrow.L
+  - Kinesthetic/Art/Mii/Friend/Mii_eyebrow.R
+  - Kinesthetic/Art/Mii/Friend/Mii_mouth
+  - Kinesthetic/Art/Mii/Friend/Mii_nose
+  - Kinesthetic/Art/Mii/Friend/StandingFriendMii
+  - Kinesthetic/Art/Mii/KinestheticMii
+  - Kinesthetic/Art/Mii/Mii_eye.L
+  - Kinesthetic/Art/Mii/Mii_eye.R
+  - Kinesthetic/Art/Mii/Mii_eyebrow.L
+  - Kinesthetic/Art/Mii/Mii_eyebrow.R
+  - Kinesthetic/Art/Mii/Mii_glasses
+  - Kinesthetic/Art/Mii/Mii_mouth
+  - Kinesthetic/Art/Mii/Mii_nose
+  - Kinesthetic/Art/Mii/Resources/MiiEyes/friend_blink
+  - Kinesthetic/Art/Mii/Resources/MiiEyes/friend_mouth
+  - Kinesthetic/Art/Mii/Resources/MiiEyes/friend_mouth_o
+  - Kinesthetic/Art/Mii/Resources/MiiEyes/friend_open
+  - Kinesthetic/Art/Mii/Resources/MiiEyes/patient_blink
+  - Kinesthetic/Art/Mii/Resources/MiiEyes/patient_mouth
+  - Kinesthetic/Art/Mii/Resources/MiiEyes/patient_mouth_o
+  - Kinesthetic/Art/Mii/Resources/MiiEyes/patient_open
+  - Kinesthetic/Art/PurchasedGolf/Export_Course Green.004_BaseColor
+  - Kinesthetic/Art/PurchasedGolf/Export_Course Green_BaseColor
+  - Kinesthetic/Art/PurchasedGolf/Export_Course Rough.001_BaseColor
+  - Kinesthetic/Art/PurchasedGolf/Export_Course Rough_BaseColor
+  - Kinesthetic/Art/PurchasedGolf/PurchasedCourse
+  - Kinesthetic/Art/WiiSportsResort/glf_driver_grip
+  - Kinesthetic/Art/WiiSportsResort/glf_driver_head
+  - Kinesthetic/Art/WiiSportsResort/glf_env04
+  - Kinesthetic/Art/WiiSportsResort/glf_env08
+  - Kinesthetic/Art/WiiSportsResort/glf_env1
+  - Kinesthetic/Art/WiiSportsResort/glf_iron_head
+  - Kinesthetic/Art/WiiSportsResort/glf_putter_head
+  - Kinesthetic/Art/WiiSportsResort/glf_sw_head
+  - Kinesthetic/Bowling/Art/BowlingAlley
+  - Kinesthetic/Bowling/Art/BowlingBall
+  - Kinesthetic/Golf/Resources/GolfHUD/Driver
+  - Kinesthetic/Golf/Resources/GolfHUD/Iron
+  - Kinesthetic/Golf/Resources/GolfHUD/Putter
+  - Kinesthetic/Menu/Art/Golf
+  - Kinesthetic/Menu/Art/Studio
+  - Kinesthetic/Rehab/Fonts/Nunito-ExtraBold
+  - Kinesthetic/Rehab/Fonts/Nunito-SemiBold
+  - Kinesthetic/Rehab/Studio/OakGrain
+  images:
+  - {fileID: -5390149515647955136, guid: 5fb9ed36849cf47b7952e6be027435bd, type: 3}
+  - {fileID: 2800000, guid: 90cb11e24fbf74555a4167d76bea34d2, type: 3}
+  - {fileID: 2800000, guid: eefa268a1bf8c40398febb88af2e1707, type: 3}
+  - {fileID: 2800000, guid: 3e6a8f983713a4894ac7b46f70560daa, type: 3}
+  - {fileID: 2800000, guid: bb2445c1fab4f469fa27cf769dcd7dcb, type: 3}
+  - {fileID: 2800000, guid: 503d338a27dfe4d1b9753f626df118d8, type: 3}
+  - {fileID: 2800000, guid: 63cb1d5c4994745148dcf13cfcb1077c, type: 3}
+  - {fileID: 2800000, guid: 2819895b6ed4d40feaa1396d4af27ea7, type: 3}
+  - {fileID: 2800000, guid: 947f5db750da349d9a9d77465e969df9, type: 3}
+  - {fileID: 2800000, guid: c4d221f9e0a5a48ac9ca799b5e3dd4af, type: 3}
+  - {fileID: 2800000, guid: 482c9e8bbbf1f4e5aba81597d513f838, type: 3}
+  - {fileID: 2800000, guid: 9199ee9b2b1884d078889136e7cbf29f, type: 3}
+  - {fileID: -7191340899914432833, guid: bff15d42207de4bbaba7ecce21411faa, type: 2}
+  - {fileID: 2800000, guid: 7a722e750843746d8a39bf51e7230f9c, type: 3}
+  - {fileID: 2800000, guid: 5d23002e9fdf8409796fb7b13b7d30f2, type: 3}
+  - {fileID: 2800000, guid: 3623e1cd42bf040758485e3d53ecce41, type: 3}
+  - {fileID: 2800000, guid: 9ba584c1d788846d6942f9c3aee8deed, type: 3}
+  - {fileID: 2800000, guid: 81d7c4e31d406466fbc417d15250ccbd, type: 3}
+  - {fileID: 2800000, guid: 89fd5fc30743a4f7d8328130eb9818af, type: 3}
+  - {fileID: 7140106133982063087, guid: 33a4f31d03ae94857aa0d3209a2c3e9a, type: 3}
+  - {fileID: 7140106133982063087, guid: 5f4520cc600f547bcbbb7d9c37837916, type: 3}
+  - {fileID: 2800000, guid: 6293079e5b0074fa1bdbd3adeebdc1d7, type: 3}
+  - {fileID: 2800000, guid: 8239e55b1b4454f48b85f7401619d78a, type: 3}
+  - {fileID: 2800000, guid: ffef5cae16c25477e9ab97f618cd0956, type: 3}
+  - {fileID: 2800000, guid: 6aaacd73d7be84f5fafb095627db3f41, type: 3}
+  - {fileID: 2800000, guid: abb60225448604c4080ef071b031140d, type: 3}
+  - {fileID: 2800000, guid: f154642699f6c463bbee2d71c52a20ad, type: 3}
+  - {fileID: 2800000, guid: df54504cddd4e474f904120068a45ed0, type: 3}
+  - {fileID: 2800000, guid: 91e945d38ef2a41b6bf0d1934bdef82c, type: 3}
+  - {fileID: 2800000, guid: 5548ec9be238d4091a83241a60664cfa, type: 3}
+  - {fileID: 2800000, guid: d516423a41f4e4dc19e72c66c4435525, type: 3}
+  - {fileID: 2800000, guid: 0c6b1891d71da42b9a6e97595b451ba0, type: 3}
+  - {fileID: 2800000, guid: 5a9ae505806684819b722d7d96d36326, type: 3}
+  - {fileID: 2800000, guid: 99a88fd84e45742ec9a5a7db4a2cb025, type: 3}
+  - {fileID: 2800000, guid: 34ba38fdc6064421b97be8dca4517ba6, type: 3}
+  - {fileID: 2800000, guid: 5db5dfbadc20548889c8ef4b7189c91d, type: 3}
+  - {fileID: 2800000, guid: dfd62cb84daec4dc0a08083f3b6eee42, type: 3}
+  - {fileID: 2800000, guid: 540124173022f4abeba7a0ea18d19ec8, type: 3}
+  - {fileID: 2800000, guid: 1e2064882e28f4b599f0c361469f3e81, type: 3}
+  - {fileID: 2800000, guid: f956c76edd0d645259406d2e61ed9b95, type: 3}
+  - {fileID: -8222986998170519218, guid: eefeec2578b5d459eba04f8c0f4e3353, type: 3}
+  - {fileID: 2800000, guid: e1390905d234344ed87bc4d5a3764953, type: 3}
+  - {fileID: 2800000, guid: 84be4c599743e4ead901596c5b1a6ad0, type: 3}
+  - {fileID: 2800000, guid: a6750f268c3c24c91bc1f505bd720034, type: 3}
+  - {fileID: 2800000, guid: 859f61cb282954f7c8e7b38b3eb8145b, type: 3}
+  - {fileID: 2800000, guid: fe7ae8de69b264759ad9c02b99530222, type: 3}
+  - {fileID: 2800000, guid: 8650867a3d9ae45079b773443350166e, type: 3}
+  - {fileID: 2800000, guid: fdb88e1bcd7f74abab4764b9d1420744, type: 3}
+  - {fileID: 2800000, guid: eb5db82801c9f440a960b7486f046ce2, type: 3}
+  - {fileID: 6263281155232985640, guid: 76761059c936e4ed28f66c511d00690a, type: 3}
+  - {fileID: 3279095356982978623, guid: 9b9d989ca7e2b47d7a311f78e28b80fd, type: 3}
+  - {fileID: 2800000, guid: 3cd7cb3dc63854a8ab77217bb54e1d79, type: 3}
+  - {fileID: 2800000, guid: edd77d04babf6485482fbebe99197229, type: 3}
+  - {fileID: 2800000, guid: b56d828974d7841eebedc5e8aa44c591, type: 3}
+  - {fileID: 2800000, guid: 5f52bdb18329e47bcbb082aafb99e41a, type: 3}
+  - {fileID: 2800000, guid: 676f6f0b6d2004d53b5e52518f787130, type: 3}
+  - {fileID: 2800000, guid: 5201676467eee4d5a9c83a5dd46ab7b4, type: 3}
+  - {fileID: 2800000, guid: b62e596717e174d25866067e2dbb9eea, type: 3}
+  - {fileID: 2800000, guid: 5f3ca41ff668942e18e9508408c8f4c3, type: 3}
