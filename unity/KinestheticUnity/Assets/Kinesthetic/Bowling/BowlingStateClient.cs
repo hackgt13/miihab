@@ -18,10 +18,9 @@ namespace Kinesthetic.Bowling
         void Start()
         {
             var config = Resources.Load<QuestHostConfig>(QuestHostConfig.ResourcePath);
-            if (string.IsNullOrEmpty(overrideUrl) && (!config || config.host == "127.0.0.1" || string.IsNullOrEmpty(config.token)))
+            if (string.IsNullOrEmpty(overrideUrl) && (!config || string.IsNullOrEmpty(config.token)))
             { hud.text = "Pair with your Mac first.\nKinesthetic → Quest → Write host config"; enabled = false; return; }
-            string url = string.IsNullOrEmpty(overrideUrl) ? $"ws://{config.host}:{config.port}/bowling-state?role=client&token={Uri.EscapeDataString(config.token)}" : overrideUrl;
-            socket = new LatestSocket(url);
+            socket = string.IsNullOrEmpty(overrideUrl) ? new LatestSocket(config.Url("/bowling-state?role=client")) : new LatestSocket(overrideUrl);
         }
         public bool Apply(string text)
         {

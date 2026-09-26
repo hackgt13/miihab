@@ -1,4 +1,7 @@
 import { createServer } from 'node:http';
+import { createSocket } from 'node:dgram';
+import { createHmac } from 'node:crypto';
+import { networkInterfaces } from 'node:os';
 import { mkdirSync, createWriteStream } from 'node:fs';
 import { resolve } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -151,6 +154,24 @@ sockets.on('connection',(ws,role,player,path)=>{
 const bindHost=process.env.KINESTHETIC_GOLF_HOST??'127.0.0.1';
 if(bindHost!=='127.0.0.1'&&!pairToken)throw Error('Set KINESTHETIC_PAIR_TOKEN before exposing the relay to the network');
 server.listen(port,bindHost,()=>console.log(`Kinesthetic golf relay: ws://127.0.0.1:${port}/golf`));
+// On the network, announce this relay once a second so a headset finds the Mac after the network changes (venue
+// Wi-Fi to a hotspot) without a rebuild. The proof is an HMAC of the announcing address under the pairing token:
+// a headset only follows an announcement it can verify, so another machine cannot lure it (and its token) away.
+const beaconPort=Number(process.env.KINESTHETIC_BEACON_PORT ?? 8768);
+if(bindHost!=='127.0.0.1'){
+  const beacon=createSocket('udp4');
+  const announce=()=>{
+    for(const list of Object.values(networkInterfaces()))for(const a of list??[]){
+      if(a.family!=='IPv4'||a.internal)continue;
+      const ip=a.address.split('.').map(Number),mask=a.netmask.split('.').map(Number);
+      const directed=ip.map((o,i)=>(o|(~mask[i]&255))).join('.');
+      const proof=createHmac('sha256',pairToken).update(a.address).digest('hex');
+      beacon.send(JSON.stringify({service:'rehabmii-relay',host:a.address,port,proof}),beaconPort,directed,()=>{});
+    }
+  };
+  beacon.bind(()=>{beacon.setBroadcast(true);announce();setInterval(announce,1000).unref();});
+  beacon.unref();
+}
 // Shutdown must actually terminate. A graceful ws.close() waits for a closing handshake, and a peer
 // that vanished without one (a terminated test client, a Quest that dropped off the network) holds its
 // handle open, so server.close() never completes and the process hangs instead of exiting.

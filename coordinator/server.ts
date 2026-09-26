@@ -20,10 +20,16 @@ import { requireActivity } from './activities.ts';
 import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from './progression.ts';
 import { LIBRARY } from './exercises.ts';
 import { buildDashboard, golfUnlock } from './dashboard.ts';
+import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const captureRoot = resolve(root, 'spikes/pose-capture');
 const recordings = resolve(process.env.KINESTHETIC_RECORDINGS_DIRECTORY ?? resolve(root, 'local-data/sessions'));
+// The relay's motion recordings, which game-movement.ts reads for each golf round and bowling game.
+const motionDirs = {
+  golf: resolve(process.env.KINESTHETIC_GOLF_RECORDINGS ?? resolve(root, 'local-data/golf')),
+  bowling: resolve(process.env.KINESTHETIC_BOWLING_RECORDINGS ?? resolve(root, 'local-data/bowling')),
+};
 mkdirSync(recordings, { recursive: true });
 const port = Number(process.env.KINESTHETIC_PORT ?? 8766);
 const plans = new PlanStore(resolve(process.env.KINESTHETIC_PLANS_DIRECTORY ?? resolve(root, 'local-data/plans')));
@@ -219,6 +225,8 @@ const server = createServer(async (request, response) => {
   if (request.method === 'POST' && url.pathname === '/activity/session') {
     try {
       const envelope = parseActivitySummary(await readJson(request));
+      // The id names the file, so it must be a plain id (the games send a GUID), never a path.
+      if (!/^[\w-]{1,64}$/.test(envelope.activitySessionId)) throw Error('activitySessionId must be letters, digits, - or _');
       await writeFile(resolve(recordings, `session-${envelope.activitySessionId}.json`), JSON.stringify(envelope, null, 2));
       response.writeHead(201, {'Content-Type':'application/json'}).end(JSON.stringify({stored: envelope.activitySessionId}));
     } catch (error) { response.writeHead(400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }
@@ -389,6 +397,25 @@ const server = createServer(async (request, response) => {
         const sessions = await readSummaries();
         sessions.sort((a, b) => String(b.endedAt).localeCompare(String(a.endedAt)));
         return json(200, sessions.slice(0, 50));
+      }
+      // How the patient moved in each game: movements, typical speed and turn, consistency, and forearm ÷ club
+      // rotation when a wrist AirPod was on. Computed once per finished session from the motion recordings and
+      // kept next to its activity record; the recordings do not change after the session ends.
+      if (request.method === 'GET' && url.pathname === '/api/game-movement') {
+        const files = (await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f));
+        const envelopes = (await Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8')))))
+          .filter(e => GAME_ACTIVITIES.includes(e.activityId) && Date.parse(e.endedAt) < Date.now() - 5000)
+          .sort((a, b) => String(b.endedAt).localeCompare(String(a.endedAt))).slice(0, 20);
+        const sessions = [];
+        for (const e of envelopes) {
+          // Session ids arrive from the game; only a plain id names a cache file.
+          const cached = /^[\w-]{1,64}$/.test(String(e.activitySessionId)) ? resolve(recordings, `movement-${e.activitySessionId}.json`) : null;
+          let movement;
+          try { movement = JSON.parse(await readFile(cached ?? '', 'utf8')); }
+          catch { movement = await gameMovement(e, motionDirs); if (cached) await writeFile(cached, JSON.stringify(movement)); }
+          sessions.push({ ...movement, dose: e.subjects?.find((x: any) => x.role === 'patient')?.dose ?? null });
+        }
+        return json(200, sessions);
       }
       if (request.method === 'GET' && url.pathname === '/api/activity-sessions') {
         const files = (await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f));

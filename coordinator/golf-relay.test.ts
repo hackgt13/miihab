@@ -6,6 +6,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocket } from 'ws';
+import { createSocket } from 'node:dgram';
+import { createHmac } from 'node:crypto';
 import { ready, stop } from './test-process.ts';
 
 test('golf relay preserves player identity and rejects stale, duplicate and malformed motion',{timeout:40000},async()=>{
@@ -68,4 +70,24 @@ test('a second Mac may send motion with the pairing token; nothing else reaches 
     assert.equal((await fetch(`http://${lan}:18785/?token=pair-secret`)).status,200);
     assert.equal((await fetch(`http://${lan}:18785/`)).status,403);
   } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
+});
+
+test('on the network the relay announces itself with a proof only the pairing token can make', {timeout:10000}, async()=>{
+  const lan=Object.values(networkInterfaces()).flat().find(a=>a && a.family==='IPv4' && !a.internal)?.address;
+  if(!lan) return;   // no network interface on this machine: nothing to announce on
+  const listener=createSocket({type:'udp4',reuseAddr:true});
+  await new Promise<void>(r=>listener.bind(18786,r));
+  const heard=new Promise<{msg:any,from:string}>(r=>listener.on('message',(m,info)=>{
+    const msg=JSON.parse(String(m)); if(msg.host===info.address) r({msg,from:info.address});}));
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18787',KINESTHETIC_BEACON_PORT:'18786',KINESTHETIC_GOLF_HOST:'0.0.0.0',
+      KINESTHETIC_PAIR_TOKEN:'pair-secret',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-beacon-'))}});
+  try {
+    await ready(proc);
+    const {msg,from}=await heard;
+    assert.equal(msg.service,'rehabmii-relay'); assert.equal(msg.port,18787);
+    assert.equal(msg.proof,createHmac('sha256','pair-secret').update(from).digest('hex'),'verifiable with the token, for the sender address');
+    assert.notEqual(msg.proof,createHmac('sha256','other-token').update(from).digest('hex'));
+    assert.ok(!JSON.stringify(msg).includes('pair-secret'),'the token itself is never broadcast');
+  } finally { listener.close(); await stop(proc); }
 });

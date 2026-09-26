@@ -6,7 +6,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const deg = v => v == null ? '—' : `${Math.round(v)}°`;
 const REASONS = { did_not_reach_target: 'short of target', trunk_compensation: 'trunk compensation', tracking_lost: 'tracking lost', too_fast: 'too fast' };
 
-let state = { plans: [], active: null, sessions: [], proposals: [], library: {} };
+let state = { plans: [], active: null, sessions: [], proposals: [], library: {}, games: [] };
 // This portal view follows the first measured prescription (the shoulder raise); the rest are listed in the plan card.
 const primary = plan => plan.activities.find(a => a.exerciseKind) ?? plan.activities[0];
 const label = a => a.exerciseKind ? state.library[a.exerciseKind]?.label ?? a.exerciseKind : ({ 'golf.adaptive': 'Golf with a friend' }[a.activityId] ?? a.activityId);
@@ -15,9 +15,9 @@ const sensorOf = a => state.library[a.exerciseKind]?.sensor ?? 'Camera';
 const sessionFor = (s, a) => s.prescriptionId ? s.prescriptionId === a.id : a.exerciseKind === 'shoulder-raise.v1' || s.exercise === 'seated_shoulder_raise' && a.id.startsWith('shoulder-raise');
 
 async function load() {
-  const [plans, active, sessions, proposals, library] = await Promise.all([get('/api/plans'), get('/api/plans/active'),
-    get('/api/sessions'), get('/api/proposals'), get('/api/exercises')]);
-  state = { plans, active, sessions: sessions.filter(s => s.calibrated && s.attempted > 0), proposals, library };
+  const [plans, active, sessions, proposals, library, games] = await Promise.all([get('/api/plans'), get('/api/plans/active'),
+    get('/api/sessions'), get('/api/proposals'), get('/api/exercises'), get('/api/game-movement').catch(() => [])]);
+  state = { plans, active, sessions: sessions.filter(s => s.calibrated && s.attempted > 0), proposals, library, games };
   render();
 }
 
@@ -48,6 +48,7 @@ function render() {
     $('#sessions tbody').innerHTML = '<tr><td colspan="7" class="muted">No measured sessions yet.</td></tr>';
     $('#chart').innerHTML = '';
     renderPlan();
+    renderGames();
     return;
   }
 
@@ -86,6 +87,7 @@ function render() {
 
   renderPlan();
   drawChart(all);
+  renderGames();
 }
 
 /** The plan card and its editor. Independent of the evidence: a new plan is set up before any session exists. */
@@ -118,7 +120,47 @@ function renderPlan() {
   $('#plan-history').innerHTML = [...state.plans].reverse().map(p => { const x = primary(p); return `<li><strong>v${p.version}</strong>` +
     `${p.origin === 'auto-progression' ? ' <span class="tag">auto</span>' : ''} · ${esc(label(x))} ${x.params.targetDeg}–${x.params.targetMaxDeg ?? '?'}°, ${x.targetCount} reps
     <div class="why">${esc(p.rationale)}</div><div class="muted small">${new Date(p.approvedAt).toLocaleString()} · ${esc(p.approvedBy)}</div></li>`; }).join('');
+}
 
+// Games are practice, not tests: what is shown is how much the patient moved and how alike the movements were,
+// compared with their own earlier sessions. Game score, distance and power are left out on purpose.
+const GAME = { 'golf.adaptive': ['Golf', 'swing', 'swings'], 'bowling.adaptive': ['Bowling', 'roll', 'rolls'] };
+const num = (v, unit = '') => v == null ? '—' : `${Math.round(v)}${unit}`;
+const signed = v => v == null ? '—' : `${v > 0 ? '+' : ''}${Math.round(v)}%`;
+function renderGames() {
+  const games = state.games.filter(g => g && g.movements != null);
+  const when = g => new Date(g.endedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  if (!games.length) {
+    $('#games-sentence').textContent = 'No golf or bowling sessions yet. A round appears here when it ends, or when the patient leaves it partway.';
+    $('#games-tiles').innerHTML = ''; $('#games tbody').innerHTML = ''; $('#games-notes').textContent = ''; return;
+  }
+  // The headline is the newest session with movement in it; a session where the sensor sat still stays in the table.
+  const latest = games.find(g => g.movements > 0) ?? games[0], [name, one, many] = GAME[latest.activityId] ?? [latest.activityId, 'movement', 'movements'];
+  const previous = games.find(g => g !== latest && g.activityId === latest.activityId && g.movements > 0 && Date.parse(g.endedAt) < Date.parse(latest.endedAt));
+  const steadier = previous && latest.speedVariationPct != null && previous.speedVariationPct != null
+    ? latest.speedVariationPct < previous.speedVariationPct - 3 ? ', steadier than the session before'
+    : latest.speedVariationPct > previous.speedVariationPct + 3 ? ', less steady than the session before' : ', about as steady as the session before' : '';
+  $('#games-sentence').textContent = `${name}, ${when(latest)}${latest.completed ? '' : ' (left partway)'}: ${latest.movements} ${latest.movements === 1 ? one : many}` +
+    (latest.medianPeakDegPerSec != null ? `, typically ${num(latest.medianPeakDegPerSec, '°/s')} through ${num(latest.medianExcursionDeg, '°')}` : '') +
+    (latest.speedVariationPct != null ? `. Speed varied ${num(latest.speedVariationPct, '%')} from ${one} to ${one}${steadier}.` : '.') +
+    (latest.earlyToLateSpeedChangePct != null && Math.abs(latest.earlyToLateSpeedChangePct) >= 15
+      ? ` The last third were ${Math.abs(Math.round(latest.earlyToLateSpeedChangePct))}% ${latest.earlyToLateSpeedChangePct < 0 ? 'slower' : 'faster'} than the first.` : '');
+  const tiles = [
+    [`${name} ${many}`, `${latest.movements}`, `${latest.activeSeconds ?? 0} s moving`],
+    ['Typical speed', num(latest.medianPeakDegPerSec, '°/s'), previous ? `previous ${num(previous.medianPeakDegPerSec, '°/s')}` : 'median peak rotation'],
+    ['Typical turn', num(latest.medianExcursionDeg, '°'), `${latest.sensor} rotation`],
+    ['Speed variation', num(latest.speedVariationPct, '%'), 'lower is steadier'],
+    ...(latest.forearmShareMedian != null ? [['Forearm ÷ club', `${Math.round(latest.forearmShareMedian * 100)}%`, `of the club's turn · ${latest.forearmShareMovements} ${many}`]] : []),
+  ];
+  $('#games-tiles').innerHTML = tiles.map(([l, v, sub]) => `<div class="tile"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div><div class="sub">${esc(sub)}</div></div>`).join('');
+  $('#games tbody').innerHTML = games.map(g => `<tr>
+    <td>${esc(when(g))}${g.completed ? '' : ' <span class="muted">(left partway)</span>'}</td><td>${esc(GAME[g.activityId]?.[0] ?? g.activityId)}</td>
+    <td class="num">${g.movements}</td><td class="num">${num(g.medianPeakDegPerSec, '°/s')}</td><td class="num">${num(g.medianExcursionDeg, '°')}</td>
+    <td class="num">${num(g.speedVariationPct, '%')}</td><td class="num">${signed(g.earlyToLateSpeedChangePct)}</td>
+    <td class="num">${g.forearmShareMedian != null ? Math.round(g.forearmShareMedian * 100) + '%' : '—'}</td>
+    <td class="num">${g.tracking?.sensorCoverage != null ? Math.round(g.tracking.sensorCoverage * 100) + '%' : '—'}</td></tr>`).join('');
+  $('#games-notes').textContent = [...new Set(games.flatMap(g => g.notes ?? []))].join(' ') +
+    ' Early → late compares the median speed of the last third of movements with the first third. Sensor is the share of the session the AirPod was reporting.';
 }
 
 

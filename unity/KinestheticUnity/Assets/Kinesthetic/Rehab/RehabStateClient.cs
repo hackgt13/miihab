@@ -34,11 +34,9 @@ namespace Kinesthetic.Rehab
         {
             Application.runInBackground = true;
             var config = Resources.Load<QuestHostConfig>(QuestHostConfig.ResourcePath);
-            if (!Application.isEditor && config)
-                url = $"ws://{config.host}:{config.port}/rehab-state?role=client&token={Uri.EscapeDataString(config.token ?? "")}";
             rig.Initialize(); rig.Apply(null);
             patientBones = GolfStateFormat.Bones(rig);
-            socket = new LatestSocket(url);
+            socket = !Application.isEditor && config ? new LatestSocket(config.Url("/rehab-state?role=client")) : new LatestSocket(url);
         }
 
         void Update()
