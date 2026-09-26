@@ -1,0 +1,9 @@
+{
+  "name": "kinesthetic-pose-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": { "start": "node server.ts", "test": "node --test bridge.test.ts golf-relay.test.ts measurement.test.ts exercise.test.ts plans.test.ts" },
+  "dependencies": { "ws": "8.18.3" }
+}
