@@ -24,6 +24,7 @@ using UnityEngine.XR.OpenXR.Features;
 public static class QuestSceneSetup
 {
     public const string ScenePath = "Assets/Kinesthetic/Golf/QuestGolf.unity";
+    public const string MenuScenePath = "Assets/Kinesthetic/Menu/MainMenu.unity";
     const int LocalHeadLayer = 30, MinimapLayer = 31;
 
     [MenuItem("Kinesthetic/Quest/Create headset scene")]
@@ -72,9 +73,7 @@ public static class QuestSceneSetup
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
-        var scenes = EditorBuildSettings.scenes.Where(s => s.path != ScenePath).ToList();
-        scenes.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
-        EditorBuildSettings.scenes = scenes.ToArray();
+        SetBootScene(ScenePath);
         WriteHostConfig();
         ConfigureAndroidXR();
         return "Created " + ScenePath + " and configured OpenXR for Android.";
@@ -93,11 +92,33 @@ public static class QuestSceneSetup
             .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
             .SelectMany(n => n.GetIPProperties().UnicastAddresses)
             .Select(a => a.Address).FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a))?.ToString() ?? "127.0.0.1";
-        Directory.CreateDirectory(Application.streamingAssetsPath);
-        File.WriteAllText(Path.Combine(Application.streamingAssetsPath, "quest-host.json"),
-            $"{{\"host\":\"{ip}\",\"port\":8767,\"token\":\"{token}\"}}");
+        const string directory = "Assets/Kinesthetic/Golf/Resources/Golf";
+        Directory.CreateDirectory(directory);
+        AssetDatabase.Refresh();   // CreateAsset fails on a folder the database has not imported yet
+        var assetPath = directory + "/QuestHostConfig.asset";
+        var config = AssetDatabase.LoadAssetAtPath<QuestHostConfig>(assetPath);
+        if (!config) { config = ScriptableObject.CreateInstance<QuestHostConfig>(); AssetDatabase.CreateAsset(config, assetPath); }
+        config.host = ip; config.port = 8767; config.token = token;
+        EditorUtility.SetDirty(config);
+        AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         return $"Headset will connect to {ip}:8767";
+    }
+
+    // A build boots scene index 0. MainMenu is screen-space UI Toolkit driven by keyboard and pointer,
+    // so in the headset it renders wrong and cannot be operated: put QuestGolf first before a Quest build.
+    [MenuItem("Kinesthetic/Quest/Boot headset scene (before a Quest build)")]
+    public static string BootHeadsetScene() => SetBootScene(ScenePath);
+
+    [MenuItem("Kinesthetic/Quest/Boot menu scene (back to Mac)")]
+    public static string BootMenuScene() => SetBootScene(MenuScenePath);
+
+    static string SetBootScene(string path)
+    {
+        var scenes = EditorBuildSettings.scenes.Where(s => s.path != path).ToList();
+        scenes.Insert(0, new EditorBuildSettingsScene(path, true));
+        EditorBuildSettings.scenes = scenes.ToArray();
+        return "Build index 0 is now " + path;
     }
 
     public static void ConfigureAndroidXR()
