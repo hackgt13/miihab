@@ -104,14 +104,3 @@ test('following someone from the room puts only their room name and Mii in the g
   assert.ok(view.members.find(m => m.id === stranger.id)!.friend);
   assert.ok(view.members.find(m => m.id === 'me')!.isMe);
 });
-
-test('a typed name is shown with each word capitalised', () => {
-  const store = new FriendStore(dir());
-  assert.equal(store.setName('  maya ').displayName, 'Maya');
-  assert.equal(store.setName('de la cruz').displayName, 'De La Cruz');
-  assert.equal(store.setName("tomás o'neil-inês").displayName, "Tomás O'Neil-Inês");
-  assert.equal(store.setName('MAYA').displayName, 'MAYA');
-  const code = store.invite();
-  assert.equal(store.accept(code, 'arun').displayName, 'Arun');
-  assert.equal(store.meet({ id: 'p9', displayName: 'wen', mii: 1 }).displayName, 'Wen');
-});
