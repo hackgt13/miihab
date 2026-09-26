@@ -45,7 +45,6 @@
                                 <ui:Label name="reach-delta" text="" class="reach-delta" />
                                 <ui:Label name="reach-now" text="—" class="stat-number" />
                                 <ui:Label name="reach-best" text="" class="reach-best" />
-                                <ui:Label name="reach-cheer" text="" class="reach-cheer" />
                             </ui:VisualElement>
                             <ui:VisualElement name="range-fan" class="range-fan" picking-mode="Ignore" />
                         </ui:VisualElement>
@@ -110,13 +109,9 @@
                         <ui:VisualElement name="today-list" class="today-list" picking-mode="Ignore" />
                     </ui:VisualElement>
 
-                    <ui:Button name="choose-activity" class="tile tile-action">
-                        <ui:VisualElement class="action-copy" picking-mode="Ignore">
-                            <ui:Label text="Choose activity" class="action-title" picking-mode="Ignore" />
-                            <ui:Label text="Browse everything you can play" class="action-sub" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:VisualElement name="browse-glyph" class="browse-glyph" picking-mode="Ignore" />
-                    </ui:Button>
+                    <!-- One button per pane standing in the ring, built at runtime by MainMenuController from
+                         the carousel's own slots. Adding a pane to MainMenuSetup adds a button here. -->
+                    <ui:VisualElement name="pane-links" class="pane-links" picking-mode="Ignore" />
 
                 </ui:VisualElement>
             </ui:VisualElement>

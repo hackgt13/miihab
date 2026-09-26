@@ -118,7 +118,7 @@ public static class MenuIntegrationVerification
             yield return null;
             Check(second.Disposals == 1, "destroyed pane did not dispose content once");
 
-            Commit(menu, "choose-activity");
+            Commit(menu, "pane-gallery");
             for (int i = 0; i < 3; i++) yield return null;
             var menuDoc = menu.GetComponent<UIDocument>();
             Check(Pick(menuDoc, menuDoc.rootVisualElement.Q<Button>("bowling-card"))?.name == "bowling-card",

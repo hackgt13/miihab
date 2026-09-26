@@ -155,16 +155,16 @@ namespace Kinesthetic.Menu
             composer = root.Q<TextField>("composer-text");
             sendButton = root.Q<Button>("composer-send");
             photoButton = root.Q<Button>("composer-photo");
-            // The pane carries no modal shade and no open button — the ring turns to
-            // this screen instead, and MainMenu owns the button that turns it. Both
-            // were required here before the panes landed, so this returned early on
-            // Friends.uxml and nothing at all was wired: no roster, no chips, no send.
-            // Require what the tree must actually have, and treat the overlay era's
-            // two elements as optional.
-            if (list == null || closeButton == null) return;
+            // The pane carries no modal shade, no open button and, since the Back
+            // buttons went, no close button either: the ring turns to this screen
+            // and MainMenu owns the button that turns it. All three were required
+            // here before the panes landed, so Attach returned early on Friends.uxml
+            // and nothing at all was wired — no roster, no chips, no send. The list
+            // is the one thing this screen cannot do without.
+            if (list == null) return;
 
             if (openButton != null) openButton.clicked += Open;
-            closeButton.clicked += Close;
+            if (closeButton != null) closeButton.clicked += Close;
             inviteButton.clicked += () => StartCoroutine(Invite());
             acceptButton.clicked += () => StartCoroutine(Accept());
             sendButton.clicked += () => StartCoroutine(Send(null));
@@ -203,7 +203,7 @@ namespace Kinesthetic.Menu
         {
             navigation?.PlaySelect();
             overlay?.RemoveFromClassList("hidden");
-            closeButton?.Focus();
+            (closeButton ?? inviteButton)?.Focus();
             StartCoroutine(LoadRoster());
         }
 

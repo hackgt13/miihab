@@ -1,0 +1,52 @@
+# Remote UI
+
+The Mac runs every board's logic and the headset only draws it. Each board's visual tree crosses the
+golf relay's `/ui` channel as JSON; the Quest rebuilds it into the same board and sends presses back.
+Hover, dwell and the reticle stay local on the headset; nothing but a press crosses the wire, and
+nothing on the headset changes until the Mac's next patch says so.
+
+The contract both sides follow is the one the relay implements (`coordinator/golf-relay.ts`).
+
+## Files
+
+| File | What it is |
+| --- | --- |
+| `PanelWire.cs` | The wire form. A closed vocabulary table — `VisualElement`, `Label`, `TextElement`, `Button`, `Image`, `ScrollView` and every `K*` component — with an explicit factory and explicit attribute get/set per row, because IL2CPP strips what reflection would find. `Serialize`, `Diff`, `Build`, `Rebuild`, `Apply`, `Resolve`/`PathOf` for paths, `Click` for a press, and the vocab hash. |
+| `UiSheetRegistry.cs`, `UiImageRegistry.cs` | Resources assets mapping a stable id (asset path under `Assets/`, no extension) to a stylesheet or texture, so the headset can attach what the Mac named. `IReplicaImageSource` fills a texture the registry does not hold, like the live minimap. |
+| `UiSocket.cs` | A background WebSocket client with a FIFO in each direction. Golf's `LatestSocket` keeps only the newest message; a patch must not skip its predecessor, so this keeps them all. |
+| `RemoteBoard.cs` | Names a board: `id` and `role` (`Auto` is Replica on Android, Host elsewhere). `Intercepts` is the seam the local inputs call: on a Replica board a press goes to the Mac and the local `Committed` stays silent. |
+| `RemoteUiHost.cs` | The Mac. Diffs every Host board at 10 Hz, answers `ui.resync` with a snapshot, and handles `ui.press`: dedupe by (client, seq), resolve the path to an enabled `Button` of that name, `PressGate`, then `PanelWire.Click`, then ack. Created on load on anything that is not Android. |
+| `RemoteUiClient.cs` | The headset. Connects with `QuestHostConfig`, resyncs after welcome, applies snapshots and patches to Replica boards, resyncs on a rev gap, refuses a proto or vocab mismatch with one "Update the headset app" label per board, and keeps presses in an outbox — resent every 500 ms, dropped after 5 s. Created on load on Android. |
+| `../../../Editor/RemoteUiRegistries.cs` | `Kinesthetic → Remote UI → Refresh registries` fills both assets from everything under `Assets/Kinesthetic`. |
+| `../../../Editor/RemoteUiVerification.cs` | `Kinesthetic → Remote UI → Verify mirror, diff and press`: every screen mirrored, mutated, patched and pressed, no network. |
+
+## Logical children
+
+A node's children are the element's `Children()` — what the screen placed — never a composite's
+internals. A type whose constructor builds children (`KChip`, `KReadout`, `KStep`) owns all of them:
+its content is its attributes, so it is a leaf and the replica's constructor rebuilds the same
+internals. A type whose constructor builds nothing has only screen children, all mirrored. `ScrollView`
+already redirects `Children()` through its content container. `Button` holds screen children too — the
+gallery cards are buttons full of labels — and builds an icon `Image` and a `TextElement` only once an
+`iconImage` is set; those are skipped by the class Unity gives them. Paths index these lists.
+
+## A press
+
+The headset's pick lands on a `Button` on a Replica board. `GazeDwell` and `PanePointerInput` ask
+`RemoteBoard.Intercepts` before raising `Committed`; on a replica it sends `ui.press` with the board id,
+the logical path and the name. The Mac resolves the path on its own board, requires an enabled `Button`
+with that name, passes `PressGate`, and sends the button a `NavigationSubmitEvent`. `Button` handles that
+with `clickable.SimulateSingleClick`, which runs the same `Clickable.Invoke` a pointer-up runs, so every
+`clicked` handler fires — including the menu's, which commits its named action from `clicked`.
+
+## Not on the wire
+
+Pseudo-states (`:hover`, `:active`, `:focus`) — the headset draws its own hover from its own pick.
+`KSteps.activity`: it is a data source, and the `KStep` rows it produced are what crosses. Any style
+outside the inline subset; anything a stylesheet says is carried by the sheet's id instead.
+
+## Unverified
+
+Only the editor verification has run: no relay, no headset. The seam in `GazeDwell` and
+`PanePointerInput` is exercised only on a board that carries a Replica `RemoteBoard`, which no scene
+does yet.

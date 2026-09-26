@@ -35,7 +35,7 @@ const server=createServer((req,res)=>{
   res.writeHead(200,{'Content-Type':'application/json'}).end(JSON.stringify({
     ready:true,players:[...golfMotion.producers.keys()],viewers:golfMotion.viewers.size,stateHost:!!golfState.host,stateClients:golfState.clients.size,
     bowlingPlayers:[...bowlingMotion.producers.keys()],bowlingViewers:bowlingMotion.viewers.size,
-    bowlingHost:!!channels.get('/bowling-state')!.host,
+    bowlingHost:!!channels.get('/bowling-state')!.host,uiHost:!!ui.host,uiClients:ui.clients.size,
     samples:Object.fromEntries([...golfMotion.received].map(([id,s])=>[id,{ageMs:Date.now()-s.at,sequence:s.sequence,sourceId:s.sourceId}])),
     bowlingSamples:Object.fromEntries([...bowlingMotion.received].map(([id,s])=>[id,{ageMs:Date.now()-s.at,sequence:s.sequence,sourceId:s.sourceId}]))}));
 });
@@ -61,14 +61,57 @@ stateSockets.on('connection',(ws,role,path)=>{
   }
   ws.on('error',()=>ws.close());
 });
+// World-space UI mirror. Unity on the Mac (the one host) broadcasts board trees; headsets send presses back.
+// The relay checks shapes, stamps the client id and routes; it never reads a tree. Same auth as game state,
+// but its own servers, one per role: a snapshot may be tens of KB (1 MiB cap) while a client may say at most 1 KiB,
+// and ws enforces each cap itself (1009) before a byte is buffered.
+const uiHostSockets=new WebSocketServer({noServer:true,maxPayload:1024*1024}),uiClientSockets=new WebSocketServer({noServer:true,maxPayload:1024});
+const ui={host:null as WebSocket|null,clients:new Map<WebSocket,string>(),issued:0};
+const toUiHost=(p:unknown)=>{if(ui.host?.readyState===WebSocket.OPEN)ui.host.send(JSON.stringify(p));};
+const uiName=/^[\w.-]{1,80}$/,uiPath=/^(\d{1,4}(\/\d{1,4}){0,63})?$/;
+uiHostSockets.on('connection',ws=>{
+  ws.on('error',()=>ws.close());
+  if(ui.host?.readyState===WebSocket.OPEN){ws.close(1008,'A UI host is already connected');return;}
+  // A host still closing, or gone without a handshake, gives way: Unity restarting must not wait 30 s for it.
+  const old=ui.host;ui.host=ws;old?.terminate();
+  for(const client of ui.clients.values())ws.send(JSON.stringify({type:'ui.resync',client}));
+  ws.on('message',bytes=>{
+    const text=bytes.toString();let p:any;
+    try{p=JSON.parse(text);if(!['ui.snapshot','ui.patch','ui.ack'].includes(p.type))throw Error();}catch{ws.close(1008,'Invalid UI message');return;}
+    if(p.type==='ui.ack'){for(const [c,client] of ui.clients)if(client===p.client&&c.readyState===WebSocket.OPEN)c.send(text);return;}
+    // A client too far behind to take a tree would stay stale for good; closing it makes it reconnect and resync.
+    for(const c of ui.clients.keys())if(c.readyState===WebSocket.OPEN){if(c.bufferedAmount<512*1024)c.send(text);else c.close(1013,'UI client fell behind');}
+  });
+  ws.on('close',()=>{if(ui.host===ws){ui.host=null;for(const c of ui.clients.keys())if(c.readyState===WebSocket.OPEN)c.send(JSON.stringify({type:'ui.host-disconnected'}));}});
+});
+uiClientSockets.on('connection',ws=>{
+  ws.on('error',()=>ws.close());
+  const client=`c${++ui.issued}`;ui.clients.set(ws,client);
+  ws.send(JSON.stringify({type:'ui.welcome',client}));toUiHost({type:'ui.resync',client});
+  // 20 messages/s (a bucket of 20, refilled one per 50 ms). Everything over that, and everything malformed, is
+  // dropped and counted; the count forgives one drop a second, so only a client that keeps it up is disconnected.
+  let tokens=20,drops=0,at=Date.now();
+  ws.on('message',bytes=>{
+    const now=Date.now();tokens=Math.min(20,tokens+(now-at)/50);drops=Math.max(0,drops-(now-at)/1000);at=now;
+    const drop=()=>{if(++drops>=200)ws.close(1008,'Too many dropped UI messages');};
+    if(tokens<1)return drop();
+    tokens--;let p:any;try{p=JSON.parse(bytes.toString());}catch{return drop();}
+    if(p?.type==='ui.resync')return toUiHost({type:'ui.resync',client});
+    if(p?.type!=='ui.press' || !Number.isSafeInteger(p.seq) || p.seq<0 || typeof p.board!=='string' || !uiName.test(p.board) ||
+      typeof p.name!=='string' || !uiName.test(p.name) || typeof p.path!=='string' || !uiPath.test(p.path))return drop();
+    toUiHost({type:'ui.press',client,seq:p.seq,board:p.board,path:p.path,name:p.name});
+  });
+  ws.on('close',()=>ui.clients.delete(ws));
+});
 server.on('upgrade',(req,socket,head)=>{
   const u=new URL(req.url??'/','http://localhost');
   const role=u.searchParams.get('role'),player=u.searchParams.get('player');
-  if(channels.has(u.pathname)){
+  if(channels.has(u.pathname) || u.pathname==='/ui'){
     const ok=!req.headers.origin && (role==='host'?loopback(req.socket.remoteAddress):
       role==='client' && (loopback(req.socket.remoteAddress) || (pairToken!=='' && u.searchParams.get('token')===pairToken)));
     if(!ok){socket.destroy();return;}
-    stateSockets.handleUpgrade(req,socket,head,ws=>stateSockets.emit('connection',ws,role,u.pathname));return;
+    const wss=u.pathname!=='/ui'?stateSockets:role==='host'?uiHostSockets:uiClientSockets;
+    wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,role,u.pathname));return;
   }
   if(!loopback(req.socket.remoteAddress) && !(role==='producer' && paired(req))){socket.destroy();return;}
   // Browsers always send Origin. Only the local capture page may watch motion, read-only, from the Mac itself.
@@ -134,7 +177,8 @@ if(bindHost!=='127.0.0.1'){
 // handle open, so server.close() never completes and the process hangs instead of exiting.
 function shutdown(){
   for(const ws of sockets.clients)ws.terminate();for(const ws of stateSockets.clients)ws.terminate();
-  sockets.close();stateSockets.close();server.close(()=>process.exit(0));
+  for(const ws of uiHostSockets.clients)ws.terminate();for(const ws of uiClientSockets.clients)ws.terminate();
+  sockets.close();stateSockets.close();uiHostSockets.close();uiClientSockets.close();server.close(()=>process.exit(0));
   setTimeout(()=>process.exit(0),500).unref();
 }
 process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);

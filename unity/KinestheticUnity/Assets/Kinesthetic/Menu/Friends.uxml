@@ -9,7 +9,6 @@
                     <ui:Label text="Friends" class="friends-title" />
                     <ui:Label name="friends-subtitle" text="People who know how this feels." class="friends-subtitle" />
                 </ui:VisualElement>
-                <ui:Button name="friends-close" text="Close" class="panel-close" />
             </ui:VisualElement>
             <ui:VisualElement class="friends-body">
                 <ui:VisualElement class="friends-list-pane">

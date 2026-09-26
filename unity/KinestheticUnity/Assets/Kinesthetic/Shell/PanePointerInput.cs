@@ -62,7 +62,10 @@ namespace Kinesthetic.Shell
                 }
             }
 
-            if (under != null && mouse.leftButton.wasPressedThisFrame) Committed?.Invoke(under);
+            if (under == null || !mouse.leftButton.wasPressedThisFrame) return;
+            // A replica board (UI/Remote) has no handlers of its own: its press crosses to the Mac instead.
+            if (Kinesthetic.UI.Remote.RemoteBoard.Intercepts(gameObject, button)) return;
+            Committed?.Invoke(under);
         }
 
         /// The name of the Button under this screen point on this pane, or null.
