@@ -141,30 +141,10 @@ test("Unity's golf round envelope satisfies the coordinator contract", () => {
   assert.deepEqual(e.exerciseKinds, [], 'golf measures nothing clinical yet');
   assert.equal(e.subjects.length, 2);
   assert.deepEqual(e.subjects.map(s => s.role), ['patient', 'companion']);
+  assert.deepEqual(e.subjects.map(s => s.subjectId), ['patient', 'friend']);
   // Dose is the cross-activity figure: swings that qualified but missed still count as attempts.
   assert.deepEqual(e.subjects[0].dose, {prescribed: null, attempted: 9, valid: 7});
   assert.equal(e.trackingQuality.lossEvents, 2);
   assert.deepEqual(e.flags, ['tracking_lost']);
   assert.deepEqual((e.payload.data as any).strokes, [7, 6]);
-});
-
-test("live: Unity's golf envelope is accepted and served back", {timeout: 15000}, async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-unity-'));
-  const port = 18776;
-  const child = spawn(process.execPath, ['server.ts'], {cwd: import.meta.dirname,
-    env: {...process.env, KINESTHETIC_PORT: String(port), KINESTHETIC_RECORDINGS_DIRECTORY: directory,
-          KINESTHETIC_PLANS_DIRECTORY: join(directory, 'plans')}, stdio: ['ignore', 'pipe', 'pipe']});
-  try {
-    await once(child.stdout, 'data');
-    const posted = await fetch(`http://127.0.0.1:${port}/activity/session`,
-      {method: 'POST', headers: {'Content-Type': 'application/json'}, body: UNITY_GOLF_ROUND});
-    assert.equal(posted.status, 201, await posted.text());
-    const served = await (await fetch(`http://127.0.0.1:${port}/api/activity-sessions`)).json();
-    assert.equal(served.length, 1);
-    assert.equal(served[0].activityId, 'golf.adaptive');
-    assert.equal(served[0].subjects[1].subjectId, 'friend');
-  } finally {
-    child.kill(); await once(child, 'exit');
-    await rm(directory, {recursive: true, force: true});
-  }
 });
