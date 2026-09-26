@@ -31,6 +31,11 @@ namespace Kinesthetic.Activities
         public int Subjects = 1;
         public bool Prescribable;
         public bool UsesSharedNavigation = true;
+        /// <summary>"movement": one exercise kind as its own gallery tile, generated from the exercise library.</summary>
+        public string Group;
+        public bool IsMovement => Group == "movement";
+        /// <summary>The one kind a movement measures, or null.</summary>
+        public string MovementKind => IsMovement && ExerciseKinds.Length == 1 ? ExerciseKinds[0] : null;
         public bool NeedsPose => Requires.Contains("pose");
         public bool NeedsImu => Requires.Contains("imu");
     }
@@ -63,6 +68,7 @@ namespace Kinesthetic.Activities
                         Subjects = (int?)item["subjects"] ?? 1,
                         Prescribable = (bool?)item["prescribable"] ?? false,
                         UsesSharedNavigation = (string)item["navigation"] != "activity",
+                        Group = (string)item["group"],
                         LoadingMessage = (string)item["loadingMessage"] ?? "",
                         Music = (string)item["music"],
                         HelpTitle = (string)item["help"]?["title"] ?? "",
@@ -80,6 +86,9 @@ namespace Kinesthetic.Activities
         public static string SceneOf(string id) => ById(id)?.Scene;
 
         public static bool Knows(string id) => ById(id) != null;
+
+        /// <summary>Every movement tile, in catalog order (the exercise library's order).</summary>
+        public static ActivityEntry[] Movements => All.Where(a => a.IsMovement).ToArray();
 
         /// <summary>The headset scene that renders a Mac scene, or null: the catalog's questScene, by scene name.</summary>
         public static string QuestSceneOf(string macScene) => All.FirstOrDefault(a => a.Scene == macScene)?.QuestScene;

@@ -29,7 +29,7 @@ namespace Kinesthetic.Menu
         float lastHover = -1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Instance = null; }
+        static void ResetStatics() { Instance = null; LaunchedActivityId = null; }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
         {
@@ -37,8 +37,16 @@ namespace Kinesthetic.Menu
         }
         static bool Supports(string scene) =>
             scene == MenuScene || ActivityCatalog.All.Any(a => a.Scene == scene && a.UsesSharedNavigation);
-        /// <summary>The activity whose scene is loaded, or null in the menu.</summary>
-        static ActivityEntry Current() => ActivityCatalog.All.FirstOrDefault(a => a.Scene == SceneManager.GetActiveScene().name);
+        /// <summary>The activity last launched from the menu. Several activities share a scene (every movement opens the
+        /// studio), so the scene alone cannot say which one is running; the scene asks this instead.</summary>
+        public static string LaunchedActivityId { get; private set; }
+        /// <summary>The activity whose scene is loaded, or null in the menu. The launched one when it owns this scene.</summary>
+        public static ActivityEntry Current()
+        {
+            string scene = SceneManager.GetActiveScene().name;
+            var launched = ActivityCatalog.ById(LaunchedActivityId);
+            return launched != null && launched.Scene == scene ? launched : ActivityCatalog.All.FirstOrDefault(a => a.Scene == scene);
+        }
         /// <summary>Whatever the shell is driving right now, without knowing what kind of thing it is.</summary>
         static IActivity CurrentActivity() => FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
             .OfType<IActivity>().FirstOrDefault();
@@ -142,6 +150,7 @@ namespace Kinesthetic.Menu
             var entry = ActivityCatalog.ById(activityId);
             if (Busy || entry == null) return;
             if (!Application.CanStreamedLevelBeLoaded(entry.Scene)) { ShowUnavailable(); return; }
+            LaunchedActivityId = entry.Id;
             PlaySelect(); StartCoroutine(Load(entry.Scene, entry.Venue));
         }
         /// Straight back to the menu, no confirmation: for an activity whose own screen already asked (the

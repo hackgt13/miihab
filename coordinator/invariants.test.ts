@@ -92,7 +92,9 @@ test("the gallery's cards say what the catalog says, and cover every activity", 
   const calls = existsSync(coaching)
     ? [...readFileSync(coaching, 'utf8').matchAll(/<ui:Label([^>]*class="[^"]*\bcta-title\b[^"]*")/g)].map(m => text(m[1])) : [];
   const shown = new Set([...cards.map(c => c.title), ...calls]);
-  const invisible = ACTIVITIES.filter(a => !shown.has(a.displayName));
+  // Movement tiles are not authored: MainMenuController builds one per `group: "movement"` entry straight from the
+  // catalog, so they cannot drift from it and are not looked for in the markup.
+  const invisible = ACTIVITIES.filter(a => a.group !== 'movement' && !shown.has(a.displayName));
   assert.deepEqual(invisible.map(a => a.id), [],
     `these activities exist and can be prescribed but have no card in the gallery, so nobody can ` +
     `reach them from the menu: ${invisible.map(a => a.id).join(', ')}.`);

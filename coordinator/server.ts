@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { writeFile, readdir, readFile } from 'node:fs/promises';
-import { PlanStore } from './plans.ts';
+import { PlanStore, prescriptionForActivity } from './plans.ts';
 import { FriendStore } from './friends.ts';
 import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
 import { spotlight, recap, daysSince } from './social-ai.ts';
@@ -102,6 +102,7 @@ let exerciseSource: string | null = null;   // producer sourceId, e.g. camera vs
 let exerciseStartedAt = '';
 let exercisePrescriptionId = '';            // plan activities[].id being measured, e.g. arm-elevation-right
 let exerciseActivityId = 'rehab.studio';
+let exercisePractice = false;               // a movement tile the plan does not prescribe: recorded, never progressed
 // The latest camera frame, for exercises that read magnitude from the IMU and compensation from pose.
 let lastPose: { frame: Frame; hostMs: number } | null = null;
 let lastImuMs = -Infinity;
@@ -185,7 +186,7 @@ async function finishExercise() {
   const measured = exercise.summary() as Record<string, any>;
   const summary = {exerciseId, prescriptionId: exercisePrescriptionId, poseSessionId: exercisePoseSession, poseSource: exerciseSource,
     simulated: /synthetic|fixture|simulat/i.test(exerciseSource ?? ''), endedAt: new Date().toISOString(),
-    sensor: exercise.kind.requires.includes('imu') ? 'imu' : 'pose', ...measured, config: measured.params};
+    sensor: exercise.kind.requires.includes('imu') ? 'imu' : 'pose', practice: exercisePractice, ...measured, config: measured.params};
   await writeFile(resolve(recordings, `exercise-${exerciseId}.summary.json`), JSON.stringify(summary, null, 2));
   const envelope = activitySummaryFromExercise({activitySessionId: exerciseId, activityId: exerciseActivityId,
     venueId: requireActivity(exerciseActivityId).venue,
@@ -195,6 +196,7 @@ async function finishExercise() {
   exerciseLog?.end(); exerciseLog = null;
   exercise = null;
   let progression = null;
+  if (exercisePractice) return {...summary, progression};
   try { progression = await progress(exercisePrescriptionId); exerciseBroadcast({type:'exercise.progression', payload:progression}); }
   catch (error) { console.error('Progression failed:', (error as Error).message); }
   return {...summary, progression};
@@ -215,13 +217,15 @@ const server = createServer(async (request, response) => {
         const summary = await finishExercise();
         response.writeHead(summary ? 200 : 409, {'Content-Type':'application/json'}).end(JSON.stringify(summary ?? {error:'No exercise running'})); return;
       }
-      const body = await readJson(request) as Partial<RepParams> & {maxTrunkDeviationDeg?: number; exercise?: string; prescriptionId?: string};
+      const body = await readJson(request) as Partial<RepParams> & {maxTrunkDeviationDeg?: number; exercise?: string; prescriptionId?: string; activityId?: string};
       // The session pins an approved plan version; its thresholds come from that plan. Explicit fields
       // in the request are development overrides and are recorded as such in the summary config.
       const plan = body.planVersion != null ? plans.get(Number(body.planVersion)) : plans.active();
       if (!plan) throw Error(`Plan v${body.planVersion} does not exist`);
-      // Which prescription to measure: the one named, else the first measured activity in the plan.
-      const x = body.prescriptionId ? plan.activities.find(a => a.id === body.prescriptionId) : plan.activities.find(a => a.exerciseKind);
+      // Which prescription to measure: the one named, else what the launched activity runs (a movement tile its own
+      // kind), else the first measured activity in the plan.
+      const launched = body.prescriptionId ? null : prescriptionForActivity(plan, requireActivity(body.activityId ?? 'rehab.studio'));
+      const x = launched ? launched.prescription : plan.activities.find(a => a.id === body.prescriptionId);
       if (!x?.exerciseKind) throw Error(body.prescriptionId ? `No measured prescription "${body.prescriptionId}" in plan v${plan.version}` : `Plan v${plan.version} prescribes nothing measured`);
       // `exercise` measures this prescription with another kind (e.g. by camera): a development override.
       const kind = exerciseKind(body.exercise ?? x.exerciseKind);
@@ -239,12 +243,12 @@ const server = createServer(async (request, response) => {
         planVersion: plan.version},
         // The prescription's params tune the qualities the exercise is coached on (holdTargetMs, lowerMs, …).
         {...p, ...body});
-      exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; lastImuMs = -Infinity;
+      exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; exercisePractice = !!launched?.practice; lastImuMs = -Infinity;
       if (kind.requires.includes('imu')) watchMotion(p.imuSource === 'wrist' ? 'wrist' : 'club');
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
       exerciseStartedAt = new Date().toISOString();
       exerciseLog = createWriteStream(resolve(recordings, `exercise-${exerciseId}.jsonl`));
-      const started = {exerciseId, prescriptionId: x.id, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', imuSource: kind.requires.includes('imu') ? motionSource : null, config: exercise.params,
+      const started = {exerciseId, prescriptionId: x.id, practice: exercisePractice, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', imuSource: kind.requires.includes('imu') ? motionSource : null, config: exercise.params,
         qualities: exercise.qualities.configs};
       exerciseBroadcast({type:'exercise.started', payload: started});
       response.writeHead(200, {'Content-Type':'application/json'}).end(JSON.stringify(started));
@@ -274,6 +278,14 @@ const server = createServer(async (request, response) => {
     try {
       if (request.method === 'GET' && url.pathname === '/api/plans') return json(200, plans.list());
       if (request.method === 'GET' && url.pathname === '/api/plans/active') return json(200, plans.active());
+      // What launching an activity will measure, so the studio can brief the set before starting it.
+      if (request.method === 'GET' && url.pathname === '/api/prescription') {
+        const plan = plans.active(), activity = requireActivity(url.searchParams.get('activityId') ?? 'rehab.studio');
+        const { prescription, practice } = prescriptionForActivity(plan, activity);
+        const entry = prescription?.exerciseKind ? LIBRARY[prescription.exerciseKind] : undefined;
+        return json(200, { planVersion: plan.version, activityId: activity.id, practice, prescription,
+          label: entry?.label ?? null, sensor: entry?.sensor ?? null, posture: entry?.posture ?? null, cue: entry?.cue ?? null });
+      }
       if (request.method === 'POST' && url.pathname === '/api/plans') {
         const {origin, proposalId, ...body} = await readJson(request);   // only progression may mark a version automatic
         return json(201, plans.approve(body));
