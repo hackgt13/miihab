@@ -3,50 +3,56 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>RehabMii Camera</title>
+  <title>RehabMii Capture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body data-capture="idle" data-bridge="connecting" data-imu="off">
   <header class="topbar">
-    <div class="brand">RehabMii <span>Camera</span></div>
-    <div class="pills" aria-label="Connection status">
-      <span class="pill" id="camera-pill"><i></i>Camera</span>
-      <span class="pill" id="imu-pill"><i></i>AirPods</span>
-      <span class="pill" id="bridge-pill"><i></i>Unity</span>
-    </div>
+    <div class="brand">rehabmii<span>capture</span></div>
+    <dl class="signals" aria-label="Connection status">
+      <div id="camera-pill"><dt>Camera</dt><dd></dd></div>
+      <div id="imu-pill"><dt>AirPods</dt><dd></dd></div>
+      <div id="bridge-pill"><dt>Unity</dt><dd></dd></div>
+    </dl>
   </header>
 
   <main class="layout">
-    <section class="stage-wrap" aria-label="Camera view">
-      <div class="stage">
-        <video id="cam" controls playsinline muted></video>
-        <canvas id="overlay" aria-label="Estimated body landmark overlay"></canvas>
-        <div id="placeholder" class="placeholder">
-          <div class="silhouette" aria-hidden="true"></div>
-          <p><strong>Sit back so your upper body fits in the frame.</strong><br>Your camera or a recorded video will appear here.</p>
+    <div class="primary-col">
+      <section class="stage-wrap" aria-label="Camera view">
+        <div class="stage">
+          <video id="cam" controls playsinline muted></video>
+          <canvas id="overlay" aria-label="Estimated body landmark overlay"></canvas>
+          <div id="placeholder" class="placeholder">
+            <div class="viewfinder" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <p>Sit back until shoulders, elbows and hips are inside the frame.<br><span>Your camera or a recorded video appears here.</span></p>
+          </div>
+          <span class="live-badge" aria-hidden="true">Rec</span>
         </div>
-        <span class="live-badge" aria-hidden="true">Live</span>
-      </div>
-      <section class="stats" aria-label="Capture statistics">
-        <div><span>Source</span><strong id="source">—</strong></div>
-        <div><span>Frames</span><strong id="frames">0</strong></div>
-        <div><span>Person</span><strong id="subject">—</strong></div>
-        <div><span>Inference</span><strong id="latency">—</strong></div>
+        <dl class="stats" aria-label="Capture statistics">
+          <div><dt>Source</dt><dd id="source">—</dd></div>
+          <div><dt>Frames</dt><dd id="frames">0</dd></div>
+          <div><dt>Person</dt><dd id="subject">—</dd></div>
+          <div><dt>Inference</dt><dd id="latency">—</dd></div>
+        </dl>
       </section>
 
-      <section class="card imu" aria-label="AirPods motion">
-        <div class="imu-head">
+      <section class="block imu" aria-label="AirPods motion">
+        <header class="block-head">
           <h2>AirPods motion</h2>
-          <span class="hint">Angular speed from the IMU, live from the motion relay</span>
-        </div>
+          <span class="hint">Angular speed, live from the motion relay</span>
+        </header>
         <canvas id="imu-chart" aria-label="Angular speed over the last 6 seconds"></canvas>
-        <p id="imu-empty" class="hint imu-empty">No motion yet. Put the AirPods in and open Kinesthetic Club Motion (golf) or Bowling Motion.</p>
+        <p id="imu-empty" class="hint imu-empty">No motion yet. Open Club Motion (golf) or Bowling Motion with the AirPods connected.</p>
         <div id="imu-streams" class="imu-streams"></div>
       </section>
-    </section>
+    </div>
 
     <aside class="side">
-      <section class="card">
+      <section class="block">
+        <header class="block-head"><h2>Capture</h2></header>
         <p id="status" role="status">Starting camera… Allow camera access if prompted.</p>
         <div class="actions" aria-label="Capture controls">
           <button id="start" type="button" class="primary">Start camera</button>
@@ -58,26 +64,26 @@
         </div>
       </section>
 
-      <section class="card">
-        <h2>Framing</h2>
-        <p class="hint">Keep shoulders, elbows, wrists and hips in view for the whole movement.</p>
+      <section class="block">
+        <header class="block-head"><h2>Framing</h2></header>
+        <p class="hint">Shoulders, elbows, wrists and hips stay in view for the whole movement.</p>
         <div id="framing" class="framing" aria-label="Exercise framing"></div>
       </section>
 
-      <section class="card">
-        <h2>Unity bridge</h2>
+      <section class="block">
+        <header class="block-head"><h2>Unity</h2></header>
         <p id="bridge" class="hint">Connecting pose to Unity automatically…</p>
         <div class="actions">
-          <button id="unity" type="button">Reconnect Unity</button>
+          <button id="unity" type="button">Reconnect</button>
           <button id="export" type="button" disabled>Export JSON</button>
         </div>
       </section>
 
       <details class="about">
-        <summary>How this capture works</summary>
-        <p>Pose runs in this browser with MediaPipe. Only landmarks go to the local Mac bridge, where they are saved; video never leaves the browser and nothing is uploaded.</p>
-        <p>“Joints in view” means the exercise’s reference joints are inside the image with visibility ≥ 0.5. It checks framing, not measurement accuracy. Teal landmarks meet the threshold; amber ones are low or unknown. The image is not mirrored, and left/right follow MediaPipe’s subject labels.</p>
-        <p>Source video time and inference time are stored separately; camera exposure timestamps are not available in the browser.</p>
+        <summary>How capture works</summary>
+        <p>Pose runs in this browser with MediaPipe. Only landmarks go to the bridge on this Mac, where they are saved. Video never leaves the browser.</p>
+        <p>“Joints in view” means the exercise’s reference joints are inside the image with visibility ≥ 0.5. It checks framing, not measurement accuracy. Blue landmarks meet the threshold; coral ones are low or unknown. The image is not mirrored; left and right follow MediaPipe’s subject labels.</p>
+        <p>Source video time and inference time are stored separately; the browser does not expose camera exposure timestamps.</p>
       </details>
     </aside>
   </main>
