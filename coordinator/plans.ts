@@ -63,7 +63,6 @@ export interface Plan {
 type StoredPlan = Omit<Plan, 'exercise'>;
 
 export const REHAB_ACTIVITY = 'rehab.studio';
-export const GOLF_ACTIVITY = 'golf.adaptive';
 
 /** Bounds for activities that measure nothing clinical, where no ExerciseKind supplies limits. */
 const UNMEASURED_LIMITS = { targetCount: [1, 200] } as const;

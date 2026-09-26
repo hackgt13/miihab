@@ -23,8 +23,6 @@ export function exerciseKindForPlanType(type: string | undefined | null): Exerci
 export function createSession(id: string | undefined | null, params: RepParams) {
   return new RepSession(exerciseKind(id), params);
 }
-/** Parameter bounds for validation, replacing the flat LIMITS table in plans.ts. */
-export function limitsFor(id: string) { return exerciseKind(id).limits; }
 
 export { RepSession } from './kind.ts';
 export type { ExerciseKind, RepParams } from './kind.ts';

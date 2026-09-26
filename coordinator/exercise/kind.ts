@@ -78,7 +78,6 @@ export const len = (v: Vec) => Math.hypot(v[0], v[1], v[2]);
 export const dot = (a: Vec, b: Vec) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 export const cross = (a: Vec, b: Vec): Vec =>
   [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-export const scale = (v: Vec, k: number): Vec => [v[0] * k, v[1] * k, v[2] * k];
 export const unit = (v: Vec): Vec => { const l = len(v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 export const angle = (a: Vec, b: Vec) => {
   const d = dot(a, b) / (len(a) * len(b));
