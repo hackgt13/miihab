@@ -292,7 +292,7 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 
 /* Messages read as speech, so they are asymmetric: mine tinted, theirs white. */
 .bubble { max-width: 74%; border-radius: 16px; padding: 9px 13px; margin-bottom: 8px; }
-.bubble-mine { align-self: flex-end; background-color: var(--prussian-50); }
+.bubble-mine { align-self: flex-end; margin-right: 5px; background-color: var(--prussian-50); }
 .bubble-theirs { align-self: flex-start; background-color: var(--sand-00); }
 .bubble-text { font-size: 16px; white-space: normal; }
 .bubble-mine .bubble-text { color: var(--sand-00); }
@@ -308,7 +308,7 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .thread-empty { font-size: 16px; color: var(--slate-50); -unity-text-align: middle-center; margin-top: 30px; white-space: normal; }
 
 /* One tap is the whole message. Most encouragement should cost nothing. */
-.quick-row { flex-direction: row; flex-wrap: wrap; margin-top: 10px; }
+.quick-row { flex-direction: row; flex-wrap: wrap; flex-shrink: 0; margin-top: 10px; }
 .quick-chip {
     height: 30px;
     padding: 0 14px;
@@ -323,7 +323,9 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 }
 .quick-chip:hover { background-color: var(--cerulean-10-a95); border-color: var(--cerulean-50); }
 
-.composer { flex-direction: row; align-items: center; margin-top: 8px; }
+.composer { flex-direction: row; align-items: center; flex-shrink: 0; margin-top: 8px; }
+/* Photo and Send sit side by side, so they are one size: Send's. */
+.composer .ghost-button { min-width: 84px; height: 36px; padding: 0 18px; border-radius: 18px; font-size: 16px; }
 .composer-text { flex-grow: 1; height: 44px; font-size: 16px; margin-right: 6px; }
 .send-button {
     min-width: 84px;

@@ -97,15 +97,27 @@ namespace Kinesthetic.Menu
             CoachingPanel.Populate(coachingRoot, plan, model);
         }
 
-        bool bound;   // subscriptions are once, not once per frame that Bind is retried
+        bool bound;   // the dashboard has answered at least once
+        bool wired;   // and the subscriptions below happened, however often Bind is retried
+        float nextTry;
 
         void Start() { navigation = ActivityNavigation.Ensure(); Bind(); }
-        void Update() { if (!bound) Bind(); }
+        // Retried until the dashboard answers, but on a timer rather than every frame:
+        // each retry starts another request, and a frame's worth of those is a burst of
+        // identical calls at the coordinator for no gain.
+        void Update() { if (!bound && Time.unscaledTime >= nextTry) Bind(); }
 
         void Bind()
         {
             var tree = GetComponent<UIDocument>().rootVisualElement;
             if (tree?.Q<Button>("start-activity") == null) return;
+            nextTry = Time.unscaledTime + 1f;
+            // `bound` is only set once the dashboard replies, so Bind ran again on every
+            // frame until then and everything below subscribed again with it: two handlers
+            // on Send meant one press posted two messages, and FriendsPanel built a second
+            // introductions card. Subscribe once; a retry re-asks for the data only.
+            if (wired) { StartCoroutine(LoadDashboard()); return; }
+            wired = true;
             root = tree;
             model = BuildModel();
 
