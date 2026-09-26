@@ -41,8 +41,10 @@ namespace Kinesthetic.Rehab
         ProgressBar angleMeter;
         int paintedReps = -1, paintedGoal = -1;
         string coachingNote = "";
-        static readonly Color Idle = new(.85f, .9f, .95f, .55f), Active = new(1f, .86f, .3f, .9f),
-            Good = new(.35f, .95f, .5f, .95f), Bad = new(1f, .42f, .35f, .95f);
+        // The band around the measured arm: ice when it is resting or has reached the target, sand
+        // while the rep is being made, coral only when something is wrong and has to be seen.
+        static readonly Color Idle = Palette.Ice20.At(.55f), Active = Palette.Sand30.At(.9f),
+            Good = Palette.Ice40.At(.95f), Bad = Palette.Coral40.At(.95f);
 
         void Start()
         {
