@@ -31,6 +31,9 @@ namespace Kinesthetic.Rehab
         float retryPoseAt;
         bool running, calibrated;
         public bool IsRunning => running;
+        /// The angle the Mii's arm is showing right now, or null when nothing live is being measured.
+        public float? ShownAngle => !useCameraPose && running && Fresh && liveAngle.HasValue ? shownAngle : null;
+        public string ExerciseKind => exerciseKind;
         bool startingSession, stoppingSession, sessionError, summaryReceived;
         public bool IsBusy => startingSession || stoppingSession;
         int attempted, valid;
@@ -55,6 +58,8 @@ namespace Kinesthetic.Rehab
             rig.Initialize(); rig.Apply(null);
             if (useCameraPose) pose = new LivePoseClient(poseUrl);
             exercise = new ExerciseClient(exerciseUrl);
+            // The mirror window is added here, so the generated scene needs no change.
+            if (!useCameraPose && !GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().session = this;
             BindUI();
         }
 
@@ -389,7 +394,9 @@ namespace Kinesthetic.Rehab
             across = Vector3.ProjectOnPlane(across, down).normalized;
             float reach = Vector3.Distance(rig.RightUpperArm.position, rig.RightForearm.position) +
                           Vector3.Distance(rig.RightForearm.position, rig.RightHand.position);
-            Vector3 At(float deg, float r) { float a = deg * Mathf.Deg2Rad; return shoulder + (down * Mathf.Cos(a) + across * Mathf.Sin(a)) * r; }
+            // With the IMU, guides follow the same plane the arm is drawn in (PoseRig.ImuArmDirection).
+            Vector3 At(float deg, float r) { float a = deg * Mathf.Deg2Rad;
+                return shoulder + (useCameraPose ? down * Mathf.Cos(a) + across * Mathf.Sin(a) : rig.ImuArmDirection(left, deg)) * r; }
 
             const int n = 24; targetBand.positionCount = n;
             for (int i = 0; i < n; i++) targetBand.SetPosition(i, At(targetDeg + bandDeg * i / (n - 1), reach));

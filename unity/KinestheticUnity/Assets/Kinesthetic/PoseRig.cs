@@ -64,6 +64,7 @@ namespace Kinesthetic
         public Transform RightUpperArm => Bone(mii ? "bicep.R" : "Skeleton_arm_joint_R");
         public Transform RightForearm => Bone(mii ? "forearm.R" : "Skeleton_arm_joint_R__2_");
         public Transform LeftUpperArm => Bone(mii ? "bicep.L" : "Skeleton_arm_joint_L__4_");
+        public Transform LeftForearm => Bone(mii ? "forearm.L" : "Skeleton_arm_joint_L__3_");
         public Transform Hip => Bone(mii ? "hip" : "Skeleton_torso_joint_1");
         public Transform RightAnkle => Bone(mii ? "foot.R" : "leg_joint_R_3");
 
@@ -324,23 +325,36 @@ namespace Kinesthetic
             if (!mii) return;
             string side = left ? ".L" : ".R";
             Transform upper = Bone("bicep" + side), lower = Bone("forearm" + side), hand = Bone("hand" + side);
-            // The authored Mii faces local -Z and its anatomical left is local +X.
-            var down = transform.TransformDirection(Vector3.down);
-            var forward = transform.TransformDirection(new Vector3(0, 0, -1));
-            var outward = transform.TransformDirection(new Vector3(left ? 1 : -1, 0, 0));
             if (elevationDeg is float elevation)
             {
-                var plane = (outward * Mathf.Cos(30 * Mathf.Deg2Rad) + forward * Mathf.Sin(30 * Mathf.Deg2Rad)).normalized;
-                float r = Mathf.Clamp(elevation, 0, 180) * Mathf.Deg2Rad;
-                var arm = down * Mathf.Cos(r) + plane * Mathf.Sin(r);
+                var arm = ImuArmDirection(left, elevation);
                 Aim(upper, lower, arm); Aim(lower, hand, arm);
             }
             else if (elbowFlexionDeg is float flexion)
             {
-                Aim(upper, lower, (down + outward * .12f).normalized);
-                float r = Mathf.Clamp(flexion, 0, 150) * Mathf.Deg2Rad;
-                Aim(lower, hand, down * Mathf.Cos(r) + forward * Mathf.Sin(r));
+                Aim(upper, lower, ImuUpperArmAtSide(left));
+                Aim(lower, hand, ImuForearmDirection(flexion));
             }
+        }
+        // One geometry for everything drawn from an IMU angle — the arm, the scene's target band, the mirror's
+        // ghost arms — so they always agree. The authored Mii faces local -Z; its anatomical left is local +X.
+        /// Straight-arm direction at this elevation, in the scapular plane (30 degrees forward of the side).
+        public Vector3 ImuArmDirection(bool left, float elevationDeg)
+        {
+            var outward = transform.TransformDirection(new Vector3(left ? 1 : -1, 0, 0));
+            var forward = transform.TransformDirection(new Vector3(0, 0, -1));
+            var plane = (outward * Mathf.Cos(30 * Mathf.Deg2Rad) + forward * Mathf.Sin(30 * Mathf.Deg2Rad)).normalized;
+            float r = Mathf.Clamp(elevationDeg, 0, 180) * Mathf.Deg2Rad;
+            return transform.TransformDirection(Vector3.down) * Mathf.Cos(r) + plane * Mathf.Sin(r);
+        }
+        /// For a curl: the upper arm hangs at the side, just clear of the body.
+        public Vector3 ImuUpperArmAtSide(bool left) =>
+            (transform.TransformDirection(Vector3.down) + transform.TransformDirection(new Vector3(left ? 1 : -1, 0, 0)) * .12f).normalized;
+        /// Forearm direction at this elbow flexion, rising in front of the body.
+        public Vector3 ImuForearmDirection(float flexionDeg)
+        {
+            float r = Mathf.Clamp(flexionDeg, 0, 150) * Mathf.Deg2Rad;
+            return transform.TransformDirection(Vector3.down) * Mathf.Cos(r) + transform.TransformDirection(new Vector3(0, 0, -1)) * Mathf.Sin(r);
         }
         void DriveLeg(PoseFrame frame, bool left)
         {
