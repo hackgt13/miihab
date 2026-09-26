@@ -16,6 +16,7 @@ import { GroupStore } from './groups.ts';
 import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, type RepParams, type RepSession } from './exercise/registry.ts';
+import { PairSync } from './exercise/imu-pair.ts';
 import type { Frame, ImuSample, RepEvent } from './exercise/kind.ts';
 import { activitySummaryFromExercise, parseActivitySummary } from './activity.ts';
 import { NORMS, compareToNorm, type Sex, type Side } from './norms.ts';
@@ -132,32 +133,70 @@ const MOTION_SOURCES = {
 } as const;
 type MotionSource = keyof typeof MOTION_SOURCES;
 const motionPlayer = process.env.KINESTHETIC_MOTION_PLAYER ?? 'patient';
-let motion: WebSocket | null = null, motionSource: MotionSource = 'club';
-function watchMotion(source: MotionSource = motionSource) {
-  if (motion && source === motionSource) return;
-  if (motion) { const old = motion; motion = null; old.close(); }
-  motionSource = source;
-  const ws = new WebSocket(MOTION_SOURCES[source].url); motion = ws;
+// A paired kind (exercise/imu-pair.ts) reads both relays at once: the moving segment's sensor and the
+// one on the segment it moves against. PairSync holds the newest of each and only hands the engine a
+// reading when both are about the same instant — two streams from two Macs do not arrive together.
+const pairSync = new PairSync();
+/** Newest sample time per relay, so two streams keep their own order and their own silence. */
+const lastImuAt = new Map<MotionSource, number>();
+const pairedKind = () => exercise != null && exercise.kind.id.includes('.pair.');
+// One socket per relay. A one-sensor kind holds one; a paired kind holds both at once, which is why
+// this is a map rather than the single socket it used to be — opening the second used to close the first.
+const motions = new Map<MotionSource, WebSocket>();
+let motionSource: MotionSource = 'club';
+function watchMotion(...want: MotionSource[]) {
+  const sources = want.length ? want : [motionSource];
+  motionSource = sources[0];
+  for (const [source, ws] of [...motions]) {
+    if (sources.includes(source)) continue;
+    motions.delete(source); pairSync.drop(source === 'wrist' ? 'base' : 'moving'); ws.close();
+  }
+  for (const source of sources) if (!motions.has(source)) openMotion(source);
+}
+function openMotion(source: MotionSource) {
+  const ws = new WebSocket(MOTION_SOURCES[source].url); motions.set(source, ws);
   ws.on('message', data => {
-    if (!exercise?.kind.requires.includes('imu') || motion !== ws) return;
+    if (!exercise?.kind.requires.includes('imu') || motions.get(source) !== ws) return;
     let p: any; try { p = JSON.parse(String(data)); } catch { return; }
     if (p.type !== MOTION_SOURCES[source].type || p.playerId !== motionPlayer) return;
     exerciseSource ??= `airpod:${source}:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only
     exerciseLog?.write(JSON.stringify({type:'motion.sample', exerciseId, payload:p})+'\n');
     // Both relays stamp the shared host clock (hostclock.ts); older relays did not, so fall back to local time.
     const t = Number.isFinite(p.hostMonotonicMs) ? Number(p.hostMonotonicMs) : hostMonotonicMs();
-    if (t <= lastImuMs) return;
+    // Per stream: with two of them, one running ahead must not make the other look out of order.
+    const last = lastImuAt.get(source) ?? -Infinity;
+    if (t <= last) return;
     // The relay only forwards samples, so a silent stream is seen here: step the engine with no IMU at the
     // moment the gap passed, which is tracking loss, before the sample that ends it.
-    if (lastImuMs > -Infinity && t - lastImuMs > exercise.params.trackingGapMs)
-      feed(exercise.pushFused({tMs: lastImuMs + exercise.params.trackingGapMs + 1, imu: null}), p.sessionId);
+    if (last > -Infinity && t - last > exercise.params.trackingGapMs) {
+      // A stream that went quiet: forget its half so nothing stale pairs with a live sample.
+      if (pairedKind()) pairSync.drop(source === 'wrist' ? 'base' : 'moving');
+      feed(exercise.pushFused({tMs: last + exercise.params.trackingGapMs + 1, imu: null}), p.sessionId);
+    }
+    lastImuAt.set(source, t);
     lastImuMs = t;
     const imu: ImuSample = {quaternion: p.quaternion, rotationRate: p.rotationRate, hostMonotonicMs: t};
     const pose = lastPose && Math.abs(t - lastPose.hostMs) < 250 ? lastPose.frame : null;
+    if (pairedKind()) {
+      // Which relay this sample came from is which segment it is on: the profile's `base` sensor is
+      // the second pair, on the other Mac, reaching the wrist relay.
+      pairSync.push(source === 'wrist' ? 'base' : 'moving', imu);
+      const both = pairSync.pair();
+      // No pair yet is not a reading. The engine sees the gap and calls tracking lost, which is the
+      // truth: one of the two sensors is not saying anything.
+      if (!both) return;
+      feed(exercise.pushFused({tMs: both.tMs, imu: both.moving, imuBase: both.base, pose}), p.sessionId);
+      return;
+    }
     feed(exercise.pushFused({tMs: t, imu, pose}), p.sessionId);
   });
-  // A socket replaced by another source is not reconnected; the current one is, while an IMU exercise runs.
-  ws.on('close', () => { if (motion !== ws) return; motion = null; if (exercise?.kind.requires.includes('imu')) setTimeout(() => watchMotion(), 1000); });
+  // A socket replaced by another source is not reconnected; a current one is, while an IMU exercise runs.
+  ws.on('close', () => {
+    if (motions.get(source) !== ws) return;
+    motions.delete(source);
+    pairSync.drop(source === 'wrist' ? 'base' : 'moving');
+    if (exercise?.kind.requires.includes('imu')) setTimeout(() => openMotion(source), 1000);
+  });
   ws.on('error', () => {});
 }
 async function readJson(request: import('node:http').IncomingMessage) {
@@ -248,7 +287,12 @@ const server = createServer(async (request, response) => {
         {...p, ...body});
       exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; exercisePractice = !!launched?.practice; lastImuMs = -Infinity;
       // The plan fills imuSource from the mount (exercises.ts SOURCE_OF): club AirPod in a handle, strap AirPod on the body.
-      if (kind.requires.includes('imu')) watchMotion(p.imuSource === 'wrist' ? 'wrist' : 'club');
+      // A paired kind reads both relays at once; a one-sensor kind reads the one its mount names.
+      if (kind.requires.includes('imu')) {
+        pairSync.clear(); lastImuAt.clear();
+        if (kind.id.includes('.pair.')) watchMotion('club', 'wrist');
+        else watchMotion(p.imuSource === 'wrist' ? 'wrist' : 'club');
+      }
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
       exerciseStartedAt = new Date().toISOString();
       exerciseLog = createWriteStream(resolve(recordings, `exercise-${exerciseId}.jsonl`));

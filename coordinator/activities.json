@@ -29,7 +29,10 @@
         "knee-extension.v1",
         "straight-leg-raise.v1",
         "hip-abduction.v1",
-        "seated-march.v1"
+        "seated-march.v1",
+        "shoulder-raise.pair.v1",
+        "neck-flexion.pair.v1",
+        "elbow-flexion.pair.v1"
       ],
       "requires": [
         "imu"
