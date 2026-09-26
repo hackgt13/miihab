@@ -69,8 +69,15 @@ namespace Kinesthetic
             if (!anchor) { Destroy(gameObject); return; }
             var seat = anchor.follow ? anchor.follow : anchor.transform;
             transform.position = seat.position + Vector3.up * anchor.eyeHeight;
-            transform.rotation = anchor.lookAt
-                ? Quaternion.LookRotation(anchor.lookAt.position - transform.position, Vector3.up)
+            if (!anchor.lookAt) { transform.rotation = seat.rotation; return; }
+
+            // Face the target's direction, but level. The ball sits on the ground a metre in front of eyes
+            // over a metre up, so aiming straight at it pitches the view into the turf and loses the horizon,
+            // the fairway and the flag. Flattening keeps the rest pose level and leaves looking down to the
+            // look input — which is also what a headset needs, since pitching the rig tilts the wearer's world.
+            var toTarget = Vector3.ProjectOnPlane(anchor.lookAt.position - transform.position, Vector3.up);
+            transform.rotation = toTarget.sqrMagnitude > .0001f
+                ? Quaternion.LookRotation(toTarget.normalized, Vector3.up)
                 : seat.rotation;
         }
 

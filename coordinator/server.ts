@@ -8,7 +8,8 @@ import { randomUUID } from 'node:crypto';
 import { writeFile, readdir, readFile } from 'node:fs/promises';
 import { PlanStore } from './plans.ts';
 import { loadReplay } from './replay.ts';
-import { ShoulderRaiseSession, type ExerciseConfig } from './measurement.ts';
+import { createSession, exerciseKind, exerciseKindForPlanType, type RepParams, type RepSession } from './exercise/registry.ts';
+import { activitySummaryFromExercise, parseActivitySummary } from './activity.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const captureRoot = resolve(root, 'spikes/pose-capture');
@@ -32,10 +33,11 @@ const viewers = new Set<WebSocket>();
 // Exercise measurement runs on the incoming pose stream. Its events use a separate /exercise
 // socket so pose viewers (Unity) only ever receive pose.frame / pose.status messages.
 const exerciseViewers = new Set<WebSocket>();
-let exercise: ShoulderRaiseSession | null = null;
+let exercise: RepSession | null = null;
 let exerciseId = '';
 let exercisePoseSession: string | null = null;
 let exerciseSource: string | null = null;   // producer sourceId, e.g. camera vs synthetic simulator
+let exerciseStartedAt = '';
 // Kept apart from the pose recording: Unity's replay loader accepts only pose.frame lines there.
 let exerciseLog: ReturnType<typeof createWriteStream> | null = null;
 function exerciseBroadcast(message: any) {
@@ -48,9 +50,14 @@ async function readJson(request: import('node:http').IncomingMessage) {
 }
 async function finishExercise() {
   if (!exercise) return null;
+  const measured = exercise.summary();
   const summary = {exerciseId, poseSessionId: exercisePoseSession, poseSource: exerciseSource,
-    simulated: /synthetic|fixture|simulat/i.test(exerciseSource ?? ''), endedAt: new Date().toISOString(), ...exercise.summary()};
+    simulated: /synthetic|fixture|simulat/i.test(exerciseSource ?? ''), endedAt: new Date().toISOString(),
+    ...measured, config: measured.params};
   await writeFile(resolve(recordings, `exercise-${exerciseId}.summary.json`), JSON.stringify(summary, null, 2));
+  const envelope = activitySummaryFromExercise({activitySessionId: exerciseId, activityId: 'rehab.studio',
+    venueId: 'studio', startedAt: exerciseStartedAt || summary.endedAt, endedAt: summary.endedAt, measured});
+  await writeFile(resolve(recordings, `session-${exerciseId}.json`), JSON.stringify(envelope, null, 2));
   exerciseBroadcast({type:'exercise.summary', payload:summary});
   exerciseLog?.end(); exerciseLog = null;
   exercise = null; return summary;
@@ -71,22 +78,32 @@ const server = createServer(async (request, response) => {
         const summary = await finishExercise();
         response.writeHead(summary ? 200 : 409, {'Content-Type':'application/json'}).end(JSON.stringify(summary ?? {error:'No exercise running'})); return;
       }
-      const body = await readJson(request) as Partial<ExerciseConfig>;
+      const body = await readJson(request) as Partial<RepParams> & {maxTrunkDeviationDeg?: number; exercise?: string};
       // The session pins an approved plan version; its thresholds come from that plan. Explicit fields
       // in the request are development overrides and are recorded as such in the summary config.
       const plan = body.planVersion != null ? plans.get(Number(body.planVersion)) : plans.active();
       if (!plan) throw Error(`Plan v${body.planVersion} does not exist`);
       await finishExercise();
-      exercise = new ShoulderRaiseSession({side: (body.side ?? plan.exercise.side) === 'left' ? 'left' : 'right',
+      const kind = body.exercise ? exerciseKind(body.exercise) : exerciseKindForPlanType(plan.exercise.type);
+      exercise = createSession(kind.id, {side: (body.side ?? plan.exercise.side) === 'left' ? 'left' : 'right',
         targetDeg: Number(body.targetDeg ?? plan.exercise.targetDeg),
         prescribedReps: Number(body.prescribedReps ?? plan.exercise.prescribedReps),
         holdMs: Number(body.holdMs ?? plan.exercise.holdMs),
-        maxTrunkDeviationDeg: Number(body.maxTrunkDeviationDeg ?? plan.exercise.maxTrunkDeviationDeg),
+        maxCompensationDeg: Number(body.maxCompensationDeg ?? body.maxTrunkDeviationDeg ?? plan.exercise.maxTrunkDeviationDeg),
         planVersion: plan.version});
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
+      exerciseStartedAt = new Date().toISOString();
       exerciseLog = createWriteStream(resolve(recordings, `exercise-${exerciseId}.jsonl`));
-      exerciseBroadcast({type:'exercise.started', payload:{config: exercise.config}});
-      response.writeHead(200, {'Content-Type':'application/json'}).end(JSON.stringify({exerciseId, config: exercise.config}));
+      exerciseBroadcast({type:'exercise.started', payload:{config: exercise.params}});
+      response.writeHead(200, {'Content-Type':'application/json'}).end(JSON.stringify({exerciseId, config: exercise.params}));
+    } catch (error) { response.writeHead(400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/activity/session') {
+    try {
+      const envelope = parseActivitySummary(await readJson(request));
+      await writeFile(resolve(recordings, `session-${envelope.activitySessionId}.json`), JSON.stringify(envelope, null, 2));
+      response.writeHead(201, {'Content-Type':'application/json'}).end(JSON.stringify({stored: envelope.activitySessionId}));
     } catch (error) { response.writeHead(400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }
     return;
   }
@@ -100,11 +117,21 @@ const server = createServer(async (request, response) => {
       if (request.method === 'GET' && url.pathname === '/api/history') return json(200, JSON.parse(await readFile(historyFixture, 'utf8')));
       const replay = url.pathname.match(/^\/api\/sessions\/([0-9a-f-]{36})\/replay$/i);
       if (request.method === 'GET' && replay) return json(200, await loadReplay(recordings, replay[1]));
+      // Two endpoints on purpose. /api/sessions stays the exercise-engine view the clinician portal
+      // reads today; /api/activity-sessions is the cross-activity envelope view that golf also lands
+      // in. Merging them duplicates every exercise session, since a finished session writes both.
+      // The portal moves over when it gains a cross-activity table; until then these stay apart.
       if (request.method === 'GET' && url.pathname === '/api/sessions') {
         const files = (await readdir(recordings)).filter(f => /^exercise-.*\.summary\.json$/.test(f));
         const sessions = await Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
         sessions.sort((a, b) => String(b.endedAt).localeCompare(String(a.endedAt)));
         return json(200, sessions.slice(0, 50));
+      }
+      if (request.method === 'GET' && url.pathname === '/api/activity-sessions') {
+        const files = (await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f));
+        const sessions = await Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
+        sessions.sort((a, b) => String(b.endedAt).localeCompare(String(a.endedAt)));
+        return json(200, sessions.slice(0, 100));
       }
       return json(404, {error:'Not found'});
     } catch (error) { return json(400, {error:(error as Error).message}); }

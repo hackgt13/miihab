@@ -42,6 +42,10 @@ namespace Kinesthetic
                 views[i].enabled = live;
                 views[i].tag = live ? "MainCamera" : "Untagged";
                 var listener = views[i].GetComponent<AudioListener>();
+                // The live view must always end up with an enabled listener. Not every scene's own camera has
+                // one — MotionProof's does not — and disabling the others without adding one here leaves the
+                // scene with no listener at all, which is silence rather than an error.
+                if (live && !listener) listener = views[i].gameObject.AddComponent<AudioListener>();
                 if (listener) listener.enabled = live;
             }
             DevFreeLook.Attach();                               // Camera.main just changed underneath it
