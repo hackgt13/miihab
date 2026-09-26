@@ -19,7 +19,7 @@ what is inside it. Nothing here moves a pane except a deliberate grip drag.
 | `Content/AssetPane.cs` | A local image, page of text, or clip from `local-data/`. |
 | `Content/GamePane.cs` | A live 3D stage: own camera → RenderTexture → `Image`, built 10 km out. Layer 30; 31 is the golf minimap's. |
 | `Pane.uxml`, `Panes.uss` | Optional chrome (grip, title, close). Without a tree asset, content fills the whole panel. All colour is `var(--*)` from `Palette.uss`. |
-| `../../Editor/PaneSandboxSetup.cs` | `Kinesthetic → Panes → Create pane sandbox`. Not in `EditorBuildSettings` on purpose. |
+| `../../../Editor/PaneSandboxSetup.cs` | `Kinesthetic → Panes → Create pane sandbox`. Not in `EditorBuildSettings` on purpose. |
 
 ## Lifetime rules
 
