@@ -25,10 +25,12 @@ namespace Kinesthetic.Golf
         public int port = 8767;
         public string token = "";
 
-        /// The relay URL for `path` (which may carry its own query), resolved at each connection attempt: the Mac
-        /// that announced itself on this network if one has. Until one has, attempts alternate between the address
-        /// baked into the build and the headset's own loopback, which reaches the Mac over the USB cable after
-        /// `adb reverse tcp:8767 tcp:8767` — the way in on venue Wi-Fi that keeps devices apart.
+        /// The relay URL for `path` (which may carry its own query), resolved at each connection attempt. Attempts
+        /// alternate: the headset's own loopback first, which reaches the Mac over the USB cable after
+        /// `adb reverse tcp:8767 tcp:8767` (and is refused at once when there is no cable); then the Mac on the
+        /// network — the one that announced itself, else the address baked into the build. Venue Wi-Fi can pass
+        /// the announcement broadcast yet drop every connection to the address it names, so an announcement is
+        /// never trusted to the exclusion of the cable.
         public Func<string> Url(string path)
         {
             RelayDiscovery.Listen(token);
@@ -36,10 +38,12 @@ namespace Kinesthetic.Golf
             int attempt = 0;
             return () =>
             {
-                var target = RelayDiscovery.Host ?? (attempt++ % 2 == 0 ? host : "127.0.0.1");
+                var target = attempt++ % 2 == 0 ? Loopback : RelayDiscovery.Host ?? host;
                 return $"ws://{target}:{port}{path}{separator}token={Uri.EscapeDataString(token ?? "")}";
             };
         }
+
+        public const string Loopback = "127.0.0.1";
     }
 
     /// Hears the relay's once-a-second UDP announcement (coordinator/golf-relay.ts) and remembers the Mac that sent
