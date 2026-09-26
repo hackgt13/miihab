@@ -1,0 +1,46 @@
+.screen { flex-grow: 1; color: white; font-size: 18px; -unity-font-style: bold; }
+.outlined { -unity-text-outline-width: 1.4px; -unity-text-outline-color: rgba(20, 40, 48, .85); }
+.player-banner { position: absolute; left: 28px; top: 28px; width: 305px; background-color: rgba(12, 29, 43, .88); border-top-width: 3px; border-bottom-width: 3px; border-right-width: 7px; border-color: #76d5f6; padding: 12px 18px; border-bottom-right-radius: 22px; }
+.score { font-size: 23px; color: white; -unity-text-align: middle-center; }
+.hole-info { position: absolute; left: 30px; top: 106px; }
+.hole-number { font-size: 35px; }
+.par { font-size: 24px; color: #fff6b0; }
+.shot-info { position: absolute; top: 32px; left: 26%; right: 22%; align-items: center; }
+.turn-heading { font-size: 48px; margin-bottom: 3px; letter-spacing: 1px; }
+.stroke { font-size: 25px; margin-bottom: 10px; color: #fff6c2; }
+.lie { font-size: 20px; letter-spacing: 2px; }
+.distance { font-size: 22px; border-top-width: 1px; border-top-color: rgba(255,255,255,.7); padding: 4px 25px; margin-top: 4px; }
+.map-panel { position: absolute; right: 35px; top: 28px; width: 208px; background-color: rgba(24,57,49,.82); border-width: 2px; border-color: rgba(238,255,242,.95); border-radius: 4px; }
+.map-title { -unity-text-align: middle-center; font-size: 14px; height: 26px; letter-spacing: 2px; }
+.course-map { height: 333px; overflow: hidden; }
+.map-key { font-size: 11px; -unity-text-align: middle-center; height: 25px; color: #fff4c4; }
+.power-panel { position: absolute; left: 37px; top: 32%; width: 76px; align-items: center; }
+.power-title { font-size: 13px; letter-spacing: 1px; }
+.power-meter { width: 64px; height: 245px; margin-top: 10px; }
+.power-value { font-size: 24px; margin-top: 7px; }
+.club-panel { position: absolute; left: 26px; bottom: 35px; width: 230px; align-items: center; }
+.club-image { width: 130px; height: 100px; }
+.row { flex-direction: row; align-items: center; }
+.club-row { justify-content: center; }
+.club { font-size: 30px; min-width: 125px; -unity-text-align: middle-center; }
+.club-mode { font-size: 14px; -unity-font-style: bold; margin-top: 3px; -unity-text-outline-width: 0.5px; }
+.mount-hint { font-size: 13px; color: #c6eaff; white-space: normal; margin-bottom: 8px; -unity-font-style: normal; }
+.aim-row { margin-top: 4px; }
+.aim-row Label { margin-left: 15px; margin-right: 15px; font-size: 17px; }
+Button { background-color: #f5fbff; color: #28608b; border-width: 2px; border-color: #96cce5; border-radius: 7px; padding: 7px 12px; margin: 3px; font-size: 15px; -unity-font-style: bold; }
+Button:hover { background-color: #c9edff; border-color: white; }
+Button:active { background-color: #87d1ee; }
+Button:disabled { background-color: #d3dee2; color: #81969f; border-color: #adbec5; }
+Button.primary { background-color: #b6ecff; border-color: white; }
+Button.round-button { width: 35px; height: 35px; padding: 0; border-radius: 18px; font-size: 27px; }
+Button.aim-button { font-size: 20px; width: 48px; height: 44px; padding: 0; border-radius: 12px; }
+.footer { position: absolute; bottom: 18px; left: 26%; right: 23%; align-items: center; }
+.footer-guidance { padding: 7px 14px; margin-bottom: 8px; background-color: rgba(14,38,53,.8); border-radius: 10px; font-size: 17px; -unity-font-style: bold; -unity-text-align: middle-center; white-space: normal; }
+#camera-start { width: 100px; height: 82px; padding: 0; border-radius: 25px; border-width: 4px; border-color: #82ceef; align-items: center; justify-content: center; background-color: #f5fbff; }
+#camera-start:hover { background-color: #d5f3ff; border-color: white; }
+#camera-start:active { background-color: #a6e2fa; }
+#camera-start.ready { border-color: #8bf0b1; }
+.camera-icon { width: 57px; height: 43px; }
+.camera-top { position: absolute; left: 16px; top: 0; width: 26px; height: 10px; background-color: #377ba6; border-radius: 4px; }
+.camera-body { position: absolute; left: 0; top: 7px; width: 57px; height: 36px; background-color: #377ba6; border-radius: 7px; align-items: center; justify-content: center; }
+.camera-lens { width: 25px; height: 25px; border-width: 4px; border-color: #f5fbff; border-radius: 14px; }

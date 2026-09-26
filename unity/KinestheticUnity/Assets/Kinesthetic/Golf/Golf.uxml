@@ -1,0 +1,47 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Golf.uss" />
+    <ui:VisualElement class="screen" picking-mode="Ignore">
+        <ui:VisualElement class="player-banner" picking-mode="Ignore">
+            <ui:Label name="score" text="YOU 0 — 0 FRIEND" class="score" />
+        </ui:VisualElement>
+        <ui:VisualElement class="hole-info" picking-mode="Ignore">
+            <ui:Label text="Hole 1" class="hole-number outlined" />
+            <ui:Label text="Par 4" class="par outlined" />
+        </ui:VisualElement>
+        <ui:VisualElement class="shot-info" picking-mode="Ignore">
+            <ui:Label name="heading" text="YOUR TURN" class="turn-heading outlined" />
+            <ui:Label name="stroke" text="Stroke 1" class="stroke outlined" />
+            <ui:Label name="lie" text="Tee" class="lie outlined" />
+            <ui:Label name="distance" text="To the pin" class="distance outlined" />
+        </ui:VisualElement>
+        <ui:VisualElement class="map-panel" picking-mode="Ignore">
+            <ui:Label text="HOLE 1" class="map-title" />
+            <ui:VisualElement name="course-map" class="course-map" picking-mode="Ignore" />
+            <ui:Label text="● YOU    ● FRIEND" class="map-key" />
+        </ui:VisualElement>
+        <ui:VisualElement class="power-panel" picking-mode="Ignore">
+            <ui:Label text="POWER" class="power-title outlined" />
+            <ui:VisualElement name="power-meter" class="power-meter" picking-mode="Ignore" />
+            <ui:Label name="power-value" text="0%" class="power-value outlined" />
+        </ui:VisualElement>
+        <ui:VisualElement class="club-panel">
+            <ui:Image name="driver-artwork" class="club-image" picking-mode="Ignore" />
+            <ui:VisualElement class="row aim-row">
+                <ui:Button name="aim-left" text="◀" class="aim-button" />
+                <ui:Label text="Aim" class="outlined" />
+                <ui:Button name="aim-right" text="▶" class="aim-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="footer">
+            <ui:Label name="guidance" text="Click the camera to start" class="footer-guidance" picking-mode="Ignore" />
+            <ui:Button name="camera-start" tooltip="Start camera and AirPod tracking">
+                <ui:VisualElement class="camera-icon" picking-mode="Ignore">
+                    <ui:VisualElement class="camera-top" picking-mode="Ignore" />
+                    <ui:VisualElement class="camera-body" picking-mode="Ignore">
+                        <ui:VisualElement class="camera-lens" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:Button>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
