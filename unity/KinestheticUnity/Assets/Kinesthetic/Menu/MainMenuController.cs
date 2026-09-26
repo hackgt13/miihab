@@ -38,8 +38,8 @@ namespace Kinesthetic.Menu
         // The board's own scope is finished in Bind, once the ring says which panes it holds: every pane
         // gets a button here (see BuildPaneLinks), and a button the gaze cannot commit is a broken one.
         static readonly string[] BoardScope = { "start-activity", "friends", "music", "help", "edit-name" };
-        static readonly string[] ActivityScope = { "golf-card", "studio-card", "bowling-card", "activity-close" };
-        static readonly string[] FriendsScope = { "friends-close", "friends-invite", "friends-accept" };
+        static readonly string[] ActivityScope = { "golf-card", "studio-card", "bowling-card" };
+        static readonly string[] FriendsScope = { "friends-invite", "friends-accept" };
         static readonly string[] CoachingScope = { "coaching-close", "visit-therapist" };
         static readonly string[] ActivityIds = { "golf.adaptive", "rehab.studio", "bowling.adaptive" };
         static readonly string[] HelpScope = { "help-close" };
@@ -136,11 +136,10 @@ namespace Kinesthetic.Menu
 
             Act(root.Q<Button>("start-activity"), StartFirst);
             // The bottom-right of the board is one button per pane in the ring. None of them opens
-            // anything — each turns the ring to a pane that was standing there the whole time. Closing a
-            // pane turns back to the board.
+            // anything — each turns the ring to a pane that was standing there the whole time. The panes
+            // carry no Back button of their own: the ring's arrows and dots are the way home, and a pane
+            // that also closed itself would be a second way of doing the one thing.
             BuildPaneLinks();
-            Act(galleryRoot.Q<Button>("activity-close"), () => carousel.Show("home"));
-            Act(friendsRoot.Q<Button>("friends-close"), () => carousel.Show("home"));
             if (coachingRoot != null)
             {
                 Act(coachingRoot.Q<Button>("coaching-close"), () => carousel.Show("home"));

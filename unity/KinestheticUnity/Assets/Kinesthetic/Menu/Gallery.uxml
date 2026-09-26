@@ -46,7 +46,6 @@
                 <ui:VisualElement class="selection-dot" picking-mode="Ignore" />
                 <ui:Label name="selection-caption" text="" class="selection-caption" picking-mode="Ignore" />
             </ui:VisualElement>
-            <ui:Button name="activity-close" text="Back" class="sheet-close" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

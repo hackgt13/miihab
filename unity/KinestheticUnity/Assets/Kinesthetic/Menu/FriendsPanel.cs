@@ -157,7 +157,7 @@ namespace Kinesthetic.Menu
             if (overlay == null || openButton == null) return;
 
             openButton.clicked += Open;
-            closeButton.clicked += Close;
+            if (closeButton != null) closeButton.clicked += Close;
             inviteButton.clicked += () => StartCoroutine(Invite());
             acceptButton.clicked += () => StartCoroutine(Accept());
             sendButton.clicked += () => StartCoroutine(Send(null));
@@ -190,7 +190,7 @@ namespace Kinesthetic.Menu
         {
             navigation?.PlaySelect();
             overlay.RemoveFromClassList("hidden");
-            closeButton.Focus();
+            (closeButton ?? inviteButton)?.Focus();
             StartCoroutine(LoadRoster());
         }
 
