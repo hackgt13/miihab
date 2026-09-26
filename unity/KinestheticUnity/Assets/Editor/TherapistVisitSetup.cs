@@ -23,7 +23,7 @@ public static class TherapistVisitSetup
     /// side of straight ahead, both well inside the ±30° a seated patient can see without turning. The
     /// balloon has no fixed station: it is worked out from where the therapist's head is (SpeechStation).
     public static readonly Station Whiteboard = new("Whiteboard", -14, 7, 2.8f);
-    public static readonly Vector2 WhiteboardSize = new(1.8f, 1.3f), SpeechSize = new(1f, .5f), DockSize = new(.8f, .22f);
+    public static readonly Vector2 WhiteboardSize = new(1.8f, 1.3f), SpeechSize = new(1f, .5f), DockSize = new(.9f, .42f);
     /// Where the balloon's tail tip sits against the top of the therapist's renderer bounds, metres. Negative
     /// because the bounds run a few centimetres above the hair that is actually drawn; at this value the tip
     /// just meets the hair in the patient's view.

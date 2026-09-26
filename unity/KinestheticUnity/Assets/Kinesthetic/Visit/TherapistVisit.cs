@@ -25,6 +25,8 @@ namespace Kinesthetic.Visit
     {
         const string VisitUrl = "http://127.0.0.1:8766/api/visit";
         const string SeenUrl = "http://127.0.0.1:8766/api/visit/seen";
+        const string ReplyUrl = "http://127.0.0.1:8766/api/visit/replies";
+        static readonly string[] ReplyKinds = { "fine", "easy", "hard", "hurt" };
         const float WriteCharactersPerSecond = 30f, TurnDegreesPerSecond = 120f;
 
         public BoardSet boards;
@@ -40,7 +42,10 @@ namespace Kinesthetic.Visit
         string saying = ""; float said;     // the balloon: the current line and how much of it is out
         bool writing, writeSkip, finished;
         int boundGeneration = -1;
-        KButton boundSkip, boundReplay;
+        KButton boundSkip, boundReplay, boundSend;
+        readonly HashSet<KButton> boundQuick = new();
+        KField boundField;
+        bool sending;
         float nextMouth;
         Coroutine running;
 
@@ -99,10 +104,82 @@ namespace Kinesthetic.Visit
             }
             // Anything the script never talked about still goes up, so the board is never missing an update.
             if (revealed < written.Length) yield return Write(revealed, written.Length);
-            saying = ""; finished = true; Render();
-            Status("That's everything for today. Hear it again, or head back to the menu when you're ready.");
+            finished = true;
             // The patient has been through these changes: the next visit starts from here.
-            if (script.Live && script.PlanVersion > 0) yield return MarkSeen(script.PlanVersion);
+            if (script.Live && script.PlanVersion > 0) StartCoroutine(MarkSeen(script.PlanVersion));
+            if (script.AskPrompt != null)
+            {
+                // The question stays in the balloon while the patient answers it.
+                said = 1; Render();
+                OpenRelay();
+            }
+            else
+            {
+                saying = ""; Render();
+                Status("That's everything for today. Hear it again, or head back to the menu when you're ready.");
+            }
+            running = null;
+        }
+
+        /// The visit's last question: quick replies a head or a pointer can pick, and a line to type on the Mac.
+        void OpenRelay()
+        {
+            var relay = boards.Q("relay");
+            if (relay == null) return;
+            var prompt = boards.Q<Label>("relay-prompt");
+            if (prompt != null) prompt.text = script.AskPrompt.ToUpperInvariant();
+            foreach (var kind in ReplyKinds)
+            {
+                var button = boards.Q<KButton>("relay-" + kind);
+                var offered = script.QuickReplies.FirstOrDefault(r => r.Kind == kind);
+                if (button == null) continue;
+                button.EnableInClassList("hidden", offered == null);
+                if (offered != null) button.text = offered.Label;
+            }
+            relay.RemoveFromClassList("hidden");
+            // A world-space field is never clicked into, so it takes the keyboard as soon as it appears.
+            var field = boards.Q<KField>("relay-text");
+            if (field != null) { field.value = ""; field.Focus(); }
+            Status("Pick one, or type a message and press Enter.");
+        }
+
+        void CloseRelay() { boards?.Q("relay")?.AddToClassList("hidden"); }
+
+        void Relay(string kind, string text)
+        {
+            if (sending || script == null) return;
+            if (kind == "message" && string.IsNullOrWhiteSpace(text)) return;
+            running = StartCoroutine(SendReply(kind, text));
+        }
+
+        IEnumerator SendReply(string kind, string text)
+        {
+            sending = true;
+            Status("Sending…");
+            var body = new JObject { ["kind"] = kind, ["text"] = text ?? "", ["planVersion"] = script.PlanVersion }.ToString();
+            using var request = new UnityWebRequest(ReplyUrl, UnityWebRequest.kHttpVerbPOST)
+            {
+                uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(body)),
+                downloadHandler = new DownloadHandlerBuffer(),
+                timeout = 3,
+            };
+            request.SetRequestHeader("Content-Type", "application/json");
+            yield return request.SendWebRequest();
+            sending = false;
+            string answer = null;
+            if (request.result == UnityWebRequest.Result.Success)
+                try { answer = (string)JObject.Parse(request.downloadHandler.text)["acknowledgement"]; } catch { }
+            if (answer == null)
+            {
+                // Nothing was relayed, so the therapist does not pretend it was.
+                Status("That didn't send: the coordinator on this Mac isn't answering. Try again in a moment.");
+                yield break;
+            }
+            CloseRelay();
+            Status("Sent to your care team. Head back to the menu whenever you're ready.");
+            var line = new VisitScript.Line { Id = "acknowledgement", Text = answer };
+            saying = answer; said = 0; Render();
+            yield return voice.Say(line, p => { said = p; Render(); });
             running = null;
         }
 
@@ -151,7 +228,8 @@ namespace Kinesthetic.Visit
         {
             if (running != null) StopCoroutine(running);
             StopAllCoroutines();
-            voice?.Skip(); writing = false;
+            voice?.Skip(); writing = false; sending = false;
+            CloseRelay();
             // The same visit again, not a fresh one: once it has finished it is marked seen, and a reload
             // would find nothing changed since.
             running = StartCoroutine(Run(reload: false));
@@ -167,6 +245,23 @@ namespace Kinesthetic.Visit
             var replay = boards.Q<KButton>("visit-replay");
             if (skip != null && skip != boundSkip) { skip.clicked += Skip; boundSkip = skip; }
             if (replay != null && replay != boundReplay) { replay.clicked += Replay; boundReplay = replay; }
+            foreach (var kind in ReplyKinds)
+            {
+                var quick = boards.Q<KButton>("relay-" + kind);
+                if (quick != null && boundQuick.Add(quick)) quick.clicked += () => Relay(kind, "");
+            }
+            var field = boards.Q<KField>("relay-text");
+            var send = boards.Q<KButton>("relay-send");
+            if (send != null && send != boundSend) { send.clicked += () => Relay("message", boards.Q<KField>("relay-text")?.value); boundSend = send; }
+            if (field != null && field != boundField)
+            {
+                boundField = field;
+                field.RegisterCallback<KeyDownEvent>(e =>
+                {
+                    if (e.keyCode is not (KeyCode.Return or KeyCode.KeypadEnter)) return;
+                    Relay("message", field.value); e.StopPropagation();
+                }, TrickleDown.TrickleDown);
+            }
             if (script != null) { BuildRows(); Render(); }
             return true;
         }

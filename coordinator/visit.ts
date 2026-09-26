@@ -18,6 +18,11 @@
 //     change without its explanation.
 //   - The plan changes itself, inside the envelope the clinician set (progression.ts, origin
 //     'auto-progression'). The visit says so rather than presenting it as the therapist's decision.
+//   - The patient answers: the visit ends by asking whether there is anything to relay to the care team
+//     (`ask` in the reply). A quick reply or a typed message goes to POST /api/visit/replies, the clinician
+//     reads it in the portal, and the therapist's spoken acknowledgement comes back in the same response.
+//     The acknowledgement is fixed text per kind, not generated: a patient reporting pain always hears the
+//     same safety advice.
 //   - The patient sees it: when a visit finishes, Unity marks the plan version seen (POST /api/visit/seen).
 //     The next visit's board is everything approved since then, however many versions that spans, each
 //     change with the reason of the version that made it.
@@ -70,6 +75,8 @@ export interface Visit {
   since: { planVersion: number; lastVisit: string | null } | null;
   board: { title: string; attribution: string; updatedAt: string; updates: BoardUpdate[] };
   speech: SpeechLine[];
+  /** The question the visit ends on. Unity shows it once the speech is done. */
+  ask: typeof ASK;
 }
 
 export const DEFAULT_THERAPIST: Therapist = { name: 'Alex', credentials: 'PT, DPT', sample: true };
@@ -80,10 +87,39 @@ export function therapistFromEnv(env: Record<string, string | undefined> = proce
   return { name, credentials: env.KINESTHETIC_THERAPIST_CREDENTIALS?.trim() || 'PT', sample: false };
 }
 
+/** What the patient relays to their care team at the end of a visit. */
+export type ReplyKind = 'fine' | 'hurt' | 'easy' | 'hard' | 'message';
+export interface PatientReply { id: string; kind: ReplyKind; text: string; planVersion: number | null; at: string; seeded?: boolean }
+
+/** The question the visit ends on, and the quick replies a head or a pointer can pick without a keyboard. */
+export const ASK = {
+  prompt: 'Anything you want to relay to your coach?',
+  line: "Before you go: is there anything you want me to know? Pick one below, or write me a message.",
+  quickReplies: [
+    { kind: 'fine', label: 'All good' },
+    { kind: 'easy', label: 'Too easy' },
+    { kind: 'hard', label: 'Too hard' },
+    { kind: 'hurt', label: 'Something hurt' },
+  ] as { kind: ReplyKind; label: string }[],
+};
+const REPLY_TEXT: Record<Exclude<ReplyKind, 'message'>, string> = {
+  fine: 'Everything feels fine.', easy: 'The program feels too easy.', hard: 'The program feels too hard.', hurt: 'Something hurt.',
+};
+/** What the therapist says back. Fixed per kind, so pain always gets the same safety advice. */
+export const ACKNOWLEDGEMENTS: Record<ReplyKind, string> = {
+  fine: "Good to hear. Keep it steady, and I'll keep watching how it goes.",
+  easy: "Noted. If it stays easy for a couple more sessions, I'll move you up a step.",
+  hard: "Noted. We can ease off. I'll look at your last few sessions before the next one.",
+  hurt: "Thanks for telling me. Stop any exercise that hurts. If the pain is sharp or doesn't settle, call the clinic rather than waiting for your next visit.",
+  message: "Thanks, I've got that. I'll read it before your next session.",
+};
+const REPLY_LIMIT = 500;
+
 interface VisitFile {
   schema: 'kinesthetic.visit-notes.v1';
   notes: TherapistNote[];
   seen: { planVersion: number; at: string; seeded?: boolean } | null;
+  replies: PatientReply[];
 }
 
 /**
@@ -101,7 +137,7 @@ export class VisitStore {
 
   private read(): VisitFile {
     const raw = existsSync(this.file) ? JSON.parse(readFileSync(this.file, 'utf8')) : {};
-    return { schema: 'kinesthetic.visit-notes.v1', notes: raw.notes ?? [], seen: raw.seen ?? null };
+    return { schema: 'kinesthetic.visit-notes.v1', notes: raw.notes ?? [], seen: raw.seen ?? null, replies: raw.replies ?? [] };
   }
   private write(data: VisitFile) { writeFileSync(this.file, JSON.stringify(data, null, 2)); }
 
@@ -143,6 +179,27 @@ export class VisitStore {
     data.seen = { planVersion, at: now.toISOString(), ...(seeded ? { seeded: true } : {}) };
     this.write(data);
     return data.seen;
+  }
+
+  replies(): PatientReply[] { return this.read().replies; }
+
+  /**
+   * The patient relays something to the care team. A quick reply's kind carries its own text; a message
+   * needs the patient's words, and a quick reply may add some.
+   */
+  addReply(input: { kind?: unknown; text?: unknown; planVersion?: unknown }, now = new Date()) {
+    const kind = String(input.kind ?? 'message') as ReplyKind;
+    if (!(kind in ACKNOWLEDGEMENTS)) throw Error(`kind must be one of ${Object.keys(ACKNOWLEDGEMENTS).join(', ')}.`);
+    const typed = String(input.text ?? '').trim().replace(/\s+/g, ' ');
+    if (typed.length > REPLY_LIMIT) throw Error(`A message is at most ${REPLY_LIMIT} characters.`);
+    if (kind === 'message' && !typed) throw Error('A message needs text.');
+    const text = kind === 'message' ? typed : typed || REPLY_TEXT[kind];
+    const version = input.planVersion == null ? null : Number(input.planVersion);
+    const reply: PatientReply = { id: randomUUID(), kind, text, planVersion: Number.isInteger(version) ? version : null, at: now.toISOString() };
+    const data = this.read();
+    data.replies.push(reply);
+    this.write(data);
+    return { reply, acknowledgement: ACKNOWLEDGEMENTS[kind] };
   }
 
   /** Mark a note as the seeder's, dated when it says. */
@@ -325,7 +382,8 @@ export function buildVisit(args: { plans: Plan[]; notes: TherapistNote[]; seen?:
     lines.push({ text: say(repeat ? { ...u, why: undefined } : u), reveal: i + 1 });
   });
   if (active.coachingNote) lines.push({ text: sentence(active.coachingNote), reveal: updates.length });
-  lines.push({ text: `That's everything on the board. I'll keep an eye on how it goes.`, reveal: updates.length });
+  lines.push({ text: `That's everything on the board.`, reveal: updates.length });
+  lines.push({ text: ASK.line, reveal: updates.length });
 
   return {
     schema: VISIT_SCHEMA, therapist, planVersion: active.version,
@@ -336,5 +394,6 @@ export function buildVisit(args: { plans: Plan[]; notes: TherapistNote[]; seen?:
       updatedAt, updates,
     },
     speech: lines.map((l, i) => ({ id: `line-${i}`, audio: null, ...l })),
+    ask: ASK,
   };
 }

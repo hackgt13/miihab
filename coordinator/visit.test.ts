@@ -135,3 +135,21 @@ test('the seeder writes a fortnight of changes the visit can talk about, and tak
   assert.equal(visit.list().length, 0);
   assert.equal(visit.seen, null);
 });
+
+test('the visit ends by asking, and what the patient relays reaches the care team with a fixed answer', () => {
+  const plans = new PlanStore(dir('visit-'));
+  const visit = new VisitStore(dir('visit-notes-'));
+  const v = buildVisit({ plans: plans.list(), notes: [] });
+  assert.equal(v.speech.at(-1)!.text, v.ask.line, 'the last thing said is the question');
+  assert.deepEqual(v.ask.quickReplies.map(r => r.kind), ['fine', 'easy', 'hard', 'hurt']);
+
+  const hurt = visit.addReply({ kind: 'hurt', planVersion: 1 });
+  assert.equal(hurt.reply.text, 'Something hurt.');
+  assert.match(hurt.acknowledgement, /Stop any exercise that hurts/);
+  const typed = visit.addReply({ kind: 'message', text: '  My   elbow clicks on the curl. ' });
+  assert.equal(typed.reply.text, 'My elbow clicks on the curl.');
+  assert.throws(() => visit.addReply({ kind: 'message', text: ' ' }), /needs text/);
+  assert.throws(() => visit.addReply({ kind: 'vibes' }), /kind must be/);
+  assert.throws(() => visit.addReply({ kind: 'message', text: 'x'.repeat(501) }), /at most 500/);
+  assert.deepEqual(visit.replies().map(r => r.kind), ['hurt', 'message']);
+});

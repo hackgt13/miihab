@@ -1,0 +1,10 @@
+/* KField: a paper box with a quiet edge that turns cerulean while it has focus, the way a KButton's hot
+   state does. The input element is Unity's; these rules own every property its default theme sets. */
+.k-field.unity-base-field { margin: 0; padding: 0; }
+.k-field .unity-base-text-field__input {
+    background-color: var(--sand-00); border-width: 2px; border-color: var(--slate-30); border-radius: 14px;
+    padding: 8px 14px; min-height: 40px; font-size: 16px; color: var(--prussian-50);
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf");
+}
+.k-field:focus .unity-base-text-field__input { border-color: var(--cerulean-50); }
+.k-field .unity-text-element--placeholder { color: var(--slate-50); }
