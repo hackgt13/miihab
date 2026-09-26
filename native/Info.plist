@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>org.kinesthetic.clubmotion</string>
+<key>CFBundleName</key><string>Kinesthetic Club Motion</string>
+<key>CFBundleExecutable</key><string>ClubMotionBridge</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>NSMotionUsageDescription</key><string>Kinesthetic reads AirPod motion to control your virtual golf club.</string>
+<key>NSBluetoothAlwaysUsageDescription</key><string>Kinesthetic uses your connected AirPods for golf motion.</string>
+<key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
+</dict></plist>
