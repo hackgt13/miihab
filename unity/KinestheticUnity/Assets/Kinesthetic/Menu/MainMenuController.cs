@@ -40,7 +40,7 @@ namespace Kinesthetic.Menu
         static readonly string[] BoardScope = { "start-activity", "friends", "music", "help", "edit-name" };
         static readonly string[] ActivityScope = { "golf-card", "studio-card", "bowling-card" };
         static readonly string[] FriendsScope = { "friends-invite", "friends-accept" };
-        static readonly string[] CoachingScope = { "coaching-close", "visit-therapist" };
+        static readonly string[] CoachingScope = { "visit-therapist" };
         static readonly string[] ActivityIds = { "golf.adaptive", "rehab.studio", "bowling.adaptive" };
         static readonly string[] HelpScope = { "help-close" };
         static readonly string[] NameScope = { "name-save", "name-cancel" };
@@ -140,11 +140,7 @@ namespace Kinesthetic.Menu
             // carry no Back button of their own: the ring's arrows and dots are the way home, and a pane
             // that also closed itself would be a second way of doing the one thing.
             BuildPaneLinks();
-            if (coachingRoot != null)
-            {
-                Act(coachingRoot.Q<Button>("coaching-close"), () => carousel.Show("home"));
-                Act(coachingRoot.Q<Button>("visit-therapist"), VisitTherapist);
-            }
+            if (coachingRoot != null) Act(coachingRoot.Q<Button>("visit-therapist"), VisitTherapist);
             Act(music, navigation.ToggleMusic);
             Act(root.Q<Button>("help"), () => OpenSheet(helpOverlay, HelpScope, root.Q<Button>("help-close")));
             Act(root.Q<Button>("help-close"), () => CloseSheet(helpOverlay, "help"));

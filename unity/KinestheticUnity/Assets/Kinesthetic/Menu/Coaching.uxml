@@ -97,7 +97,6 @@
             </ui:VisualElement>
 
             <ui:VisualElement class="coaching-actions">
-                <ui:Button name="coaching-close" text="Back" class="sheet-close" />
                 <ui:Button name="visit-therapist" class="cta coaching-cta">
                     <ui:VisualElement class="cta-copy" picking-mode="Ignore">
                         <ui:Label text="Visit your physical therapist" class="cta-title" picking-mode="Ignore" />
