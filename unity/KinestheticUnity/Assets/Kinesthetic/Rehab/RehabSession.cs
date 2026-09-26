@@ -39,6 +39,7 @@ namespace Kinesthetic.Rehab
         int attempted, valid;
         float? liveAngle; string phase = "idle";
         float lastSampleAt = -99, shownAngle; string exerciseKind = "arm-elevation.v1";
+        Kinesthetic.Coach.CoachDemonstrator coach;
         // Whether the measurement stream is live: camera frames, or AirPod-driven samples from the coordinator.
         bool Fresh => useCameraPose ? LivePoseClient.Fresh(poseTicks) : Time.unscaledTime - lastSampleAt < .5f;
         string status = "Rest your arms. Press Start session.";
@@ -191,7 +192,10 @@ namespace Kinesthetic.Rehab
             DrawGuides();
             reps.text = valid.ToString();
             angle.text = running && Fresh && liveAngle.HasValue ? $"{liveAngle.Value:0}°" : "—";
-            statusLabel.text = status;
+            // While the coach demonstrates and hands over, the cue is theirs; the measurement status follows after.
+            coach ??= FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>();
+            statusLabel.text = running && coach && coach.Demonstrating ? "Watch the coach: up to the line, pause, then lower"
+                : running && coach && coach.HandingOff ? "Your turn · watch yourself in the mirror" : status;
             UpdateStudioUI();
         }
 

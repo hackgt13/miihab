@@ -16,7 +16,11 @@ namespace Kinesthetic.Rehab
         [Tooltip("Metres from the patient's hips: to their left, and forward.")]
         public float offsetLeft = 1.15f, offsetForward = .45f;
 
-        Transform source, copy;
+        Transform source, copy, window;
+        Material frameMaterial;
+        Kinesthetic.Coach.CoachDemonstrator coach;
+        /// The window's centre, for the coach to point at and the patient to look at.
+        public Vector3? WindowPosition => window ? window.position : null;
         Transform[] from, to;
         Renderer[] fromRenderers, toRenderers;
         float scale;
@@ -42,13 +46,13 @@ namespace Kinesthetic.Rehab
             var forward = rig.transform.TransformDirection(Vector3.back);    // it faces local -Z
             var centre = hip + left * offsetLeft + forward * offsetForward;
             centre.y = source.position.y + height * .5f + .06f;
-            var window = new GameObject("Mirror window").transform;
+            window = new GameObject("Mirror window").transform;
             var viewer = Camera.main ? Camera.main.transform.position : hip;
             var facing = viewer - centre; facing.y = 0;
             window.SetPositionAndRotation(centre, Quaternion.LookRotation(facing.sqrMagnitude > 1e-4f ? facing.normalized : -left));
 
             // Frame: a shallow box, so the reflection sits inside it rather than on a flat sheet.
-            var frameMaterial = Lit(Palette.Glaucous30); var backMaterial = Lit(Palette.Ice10);
+            frameMaterial = Lit(Palette.Glaucous30); var backMaterial = Lit(Palette.Ice10);
             const float t = .05f;
             Box(window, "Frame top", new Vector3(0, height * .5f + t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, depth), frameMaterial);
             Box(window, "Frame bottom", new Vector3(0, -height * .5f - t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, depth), frameMaterial);
@@ -106,6 +110,10 @@ namespace Kinesthetic.Rehab
                     if (fromRenderers[i] && toRenderers[i]) toRenderers[i].sharedMaterials = fromRenderers[i].sharedMaterials;
             }
             DrawGhosts();
+            // When the coach hands over, the frame pulses to draw the patient's eye here.
+            coach ??= FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>();
+            float pulse = coach && coach.HandingOff ? .5f + .5f * Mathf.Sin(Time.time * 7) : 0;
+            frameMaterial.color = Color.Lerp(Palette.Glaucous30, Palette.Ice50, pulse);
         }
 
         // Ghost arms and the band are drawn on the real patient's geometry, then carried through the reflection,
