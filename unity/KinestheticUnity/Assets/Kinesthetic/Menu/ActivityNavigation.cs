@@ -19,6 +19,7 @@ namespace Kinesthetic.Menu
         public bool OverlayOpen => Busy || (dialog != null && !dialog.ClassListContains("hidden")) || (help != null && !help.ClassListContains("hidden"));
         public event Action<bool> MusicChanged;
         AudioSource musicSource, effects;
+        AudioClip golfMusic;
         VisualElement root, dialog, curtain, help;
         Button returnButton, confirm, cancel, helpButton, helpClose, helpMusic;
         Label detail, title, loading;
@@ -45,6 +46,7 @@ namespace Kinesthetic.Menu
             if (Instance && Instance != this) { Destroy(gameObject); return; }
             Instance = this; DontDestroyOnLoad(gameObject);
             MusicEnabled = PlayerPrefs.GetInt(MusicPreference, 1) != 0;
+            golfMusic = Resources.Load<AudioClip>("GolfAudio/QuietFairway");
             musicSource = gameObject.AddComponent<AudioSource>(); musicSource.playOnAwake = false;
             musicSource.spatialBlend = 0; musicSource.loop = true; musicSource.clip = menuMusic; musicSource.volume = 0;
             effects = gameObject.AddComponent<AudioSource>(); effects.playOnAwake = false; effects.spatialBlend = 0; effects.volume = .55f;
@@ -74,7 +76,9 @@ namespace Kinesthetic.Menu
         void SyncScene()
         {
             string scene = SceneManager.GetActiveScene().name;
-            menuActive = scene == MenuScene; supported = Supports(scene); showMusic = menuActive;
+            menuActive = scene == MenuScene; supported = Supports(scene); showMusic = menuActive || scene == GolfScene;
+            var nextMusic = menuActive ? menuMusic : scene == GolfScene ? golfMusic : null;
+            if (musicSource.clip != nextMusic) { musicSource.Stop(); musicSource.clip = nextMusic; musicSource.volume = 0; }
             if (Bind())
             {
                 returnButton.EnableInClassList("hidden", menuActive || !supported);
@@ -82,12 +86,12 @@ namespace Kinesthetic.Menu
                 help.AddToClassList("hidden");
                 dialog.AddToClassList("hidden");
             }
-            if (menuActive && MusicEnabled && !musicSource.isPlaying) musicSource.Play();
+            if (showMusic && MusicEnabled && musicSource.clip && !musicSource.isPlaying) musicSource.Play();
         }
         void Update()
         {
             if (!Bind()) return;
-            float target = showMusic && MusicEnabled ? .38f : 0;
+            float target = showMusic && MusicEnabled ? (menuActive ? .38f : .22f) : 0;
             musicSource.volume = Mathf.MoveTowards(musicSource.volume, target, Time.unscaledDeltaTime * 1.8f);
             if (target == 0 && musicSource.volume == 0 && musicSource.isPlaying) musicSource.Pause();
             if (Keyboard.current?.escapeKey.wasPressedThisFrame == true && !menuActive && supported && !Busy)
@@ -96,22 +100,22 @@ namespace Kinesthetic.Menu
         public void ToggleMusic()
         {
             MusicEnabled = !MusicEnabled; PlayerPrefs.SetInt(MusicPreference, MusicEnabled ? 1 : 0); PlayerPrefs.Save();
-            if (MusicEnabled && menuActive) { if (musicSource.time > 0) musicSource.UnPause(); else musicSource.Play(); }
+            if (MusicEnabled && showMusic && musicSource.clip) { if (musicSource.time > 0) musicSource.UnPause(); else musicSource.Play(); }
             MusicChanged?.Invoke(MusicEnabled); PlaySelect();
-            if (helpMusic != null) helpMusic.text = MusicEnabled ? "Menu music: On" : "Menu music: Off";
+            if (helpMusic != null) helpMusic.text = MusicEnabled ? "Music: On" : "Music: Off";
         }
         void OpenHelp()
         {
             if (Busy || !dialog.ClassListContains("hidden")) return;
             bool golf = SceneManager.GetActiveScene().name == GolfScene;
-            root.Q<Label>("activity-help-title").text = golf ? "Your round, at a glance" : "Find your studio rhythm";
-            root.Q<Label>("help-step-one").text = golf ? "Get connected" : "Make yourself comfortable";
-            root.Q<Label>("help-copy-one").text = golf ? "Open Setup to connect the camera and AirPods. Keep both hands, elbows and shoulders in view." : "Sit with your shoulders, elbows and hips in view. Start session opens the camera and loads your prescribed set.";
-            root.Q<Label>("help-step-two").text = golf ? "Settle, aim, swing" : "Reach, hold, return";
-            root.Q<Label>("help-copy-two").text = golf ? "Use the aim arrows. Rest the club at the mat until calibration finishes, then make a controlled swing." : "Rest your arm while calibration finishes. Follow the glowing target, hold gently, and lower slowly.";
-            root.Q<Label>("help-step-three").text = golf ? "Take turns together" : "Follow your own pace";
-            root.Q<Label>("help-copy-three").text = golf ? "Turns change after each shot. Recalibrate at each new lie. Both players finish the hole to see the scorecard." : "The ring fills with counted repetitions. Finish set ends early and shows your session summary. Your session continues while this guide is open.";
-            helpMusic.text = MusicEnabled ? "Menu music: On" : "Menu music: Off";
+            root.Q<Label>("activity-help-title").text = golf ? "Today we will practice golf." : "Today we will practice shoulder raises.";
+            root.Q<Label>("help-step-one").text = golf ? "Get in view" : "Sit comfortably";
+            root.Q<Label>("help-copy-one").text = golf ? "Camera and AirPods connect automatically. Keep both hands in view." : "Keep your shoulders and hips in view. Press Start session.";
+            root.Q<Label>("help-step-two").text = golf ? "Hold still" : "Raise your arm";
+            root.Q<Label>("help-copy-two").text = golf ? "Rest the club at the mat. Wait for Ready." : "Reach the glowing target. Hold gently.";
+            root.Q<Label>("help-step-three").text = golf ? "Swing gently" : "Lower slowly";
+            root.Q<Label>("help-copy-three").text = golf ? "Aim with the arrows. Swing. Then your friend takes a turn." : "Repeat at your pace. Finish set stops early. This guide does not pause your set.";
+            helpMusic.text = MusicEnabled ? "Music: On" : "Music: Off";
             help.RemoveFromClassList("hidden"); helpClose.Focus(); PlaySelect();
         }
         void CloseHelp() { help.AddToClassList("hidden"); helpButton.Focus(); PlayBack(); }

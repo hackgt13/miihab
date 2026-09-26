@@ -21,7 +21,7 @@
             </ui:VisualElement>
             <ui:Label name="title" text="Shoulder raises" class="exercise-title" />
             <ui:Label name="side-label" text="RIGHT ARM" class="side-label" />
-            <ui:Label text="A little movement.&#10;A little more you." class="exercise-intro" />
+            <ui:Label text="Today we will practice&#10;shoulder raises." class="exercise-intro" />
             <ui:VisualElement class="card-divider" />
             <ui:ScrollView class="exercise-scroll" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto">
             <ui:Label text="FIND YOUR RHYTHM" class="eyebrow" />
@@ -58,7 +58,7 @@
                 <ui:Label name="reps" text="0" class="rep-value" />
                 <ui:Label name="rep-goal" text="of 8 repetitions" class="rep-goal" />
             </ui:VisualElement>
-            <ui:Label name="progress-note" text="One good movement at a time" class="progress-note" />
+            <ui:Label name="progress-note" text="Take your time." class="progress-note" />
             <ui:VisualElement class="card-divider" />
             <ui:VisualElement class="angle-heading">
                 <ui:Label text="ARM RAISE" class="eyebrow" />
@@ -70,17 +70,17 @@
         </ui:VisualElement>
         <ui:VisualElement class="studio-caption" picking-mode="Ignore">
             <ui:Label text="THE MOVEMENT STUDIO" class="studio-caption-title" />
-            <ui:Label text="Room to move. Space to feel good." class="studio-caption-detail" />
+            <ui:Label text="Move at your pace." class="studio-caption-detail" />
         </ui:VisualElement>
         <ui:VisualElement class="coaching-dock">
             <ui:VisualElement name="cue-icon" class="cue-icon"><ui:Label name="cue-symbol" text="1" /></ui:VisualElement>
             <ui:VisualElement class="coaching-copy">
-                <ui:Label name="cue-title" text="Make yourself comfortable" class="cue-title" />
-                <ui:Label name="status" text="Sit tall, rest your arms, and start when you're ready." class="status" />
+                <ui:Label name="cue-title" text="Sit comfortably." class="cue-title" />
+                <ui:Label name="status" text="Rest your arms. Press Start session." class="status" />
             </ui:VisualElement>
             <ui:Button name="start" text="Start session  ›" class="start" />
         </ui:VisualElement>
-        <ui:Label text="Your own pace. Your prescribed range." class="footer-note" />
+        <ui:Label text="Move at your pace." class="footer-note" />
         <ui:VisualElement name="summary-card" class="summary-overlay hidden">
             <ui:VisualElement class="summary-card card">
                 <ui:Label text="✓" class="summary-check" />
