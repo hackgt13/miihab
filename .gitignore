@@ -24,6 +24,8 @@ unity/*/*.sln
 unity/*/*.slnx
 unity/*/*.pidb
 unity/*/.utmp/
+unity/*/Assets/StreamingAssets/quest-host.json
+unity/*/Assets/StreamingAssets/quest-host.json.meta
 
 # JS / Python
 node_modules/
@@ -48,11 +50,10 @@ artifacts/pose-tests/
 artifacts/*.png
 artifacts/docs-trusted-read-20260925/
 
-# large binary assets (kept local, fetched/extracted from sources noted in PROVENANCE files)
+# Downloaded voice weights and archived evaluation checkout
 coach/models/
 art/mii/
 art/course-reference/
-unity/KinestheticUnity/Assets/Kinesthetic/Art/PurchasedGolf/
 third_party/cbush201-golf-original/FirstTest/Assets/ImportedAssets/
 third_party/cbush201-golf-original/FirstTest/Assets/TextMesh Pro/
 third_party/cbush201-golf-original/FirstTest/Assets/Screenshots/

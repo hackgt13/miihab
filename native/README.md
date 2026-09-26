@@ -2,7 +2,7 @@
 
 Native macOS AirPod sensor host for the adaptive golf scene. Uses the actual CMHeadphoneMotionManager acquisition pattern reviewed in `/Users/tazeemmahashin/Downloads/Aircade-main/Sources/Aircade/MotionModel.swift`, including sensorLocation, finite values and increasing hardware timestamps. It has no simulated input mode.
 
-Build: `zsh native/build.sh` from the workspace. This Mac has stale duplicate SwiftBridging module maps; the build uses a temporary compiler VFS overlay instead of changing system files.
+Build: `zsh native/build.sh` from the workspace on macOS 14 or newer with Xcode or Command Line Tools installed. The script discovers Swift and the selected macOS SDK through `xcrun`, targets the current Mac's architecture, and signs the local app. On CLT installations with duplicate SwiftBridging module maps, it uses a temporary compiler VFS overlay without changing installed toolchain files; that workaround needs Python 3 on PATH.
 
 Run `node coordinator/golf-relay.ts`, then open `native/build/Kinesthetic Club Motion.app`. Pair supported AirPods to this Mac; the app now detects motion availability and starts streaming automatically. macOS may ask for Motion access. The first validation is whether the intended mounted earbud continues reporting when off-ear. The app shows the actual reporting Left/Right source; it cannot force macOS to select a particular bud. **Stop motion** pauses automatic detection; **Start motion** resumes it.
 
