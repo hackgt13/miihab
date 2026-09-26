@@ -151,6 +151,18 @@ export interface RTMRecord {
   sessionCount: number
 }
 
+/**
+ * What the patient relayed at the end of a visit — the answer to "is there anything you want me to know?",
+ * stored by coordinator/visit.ts. A quick reply carries fixed text; `message` carries the patient's own.
+ */
+export interface VisitReply {
+  id: string
+  kind: 'fine' | 'easy' | 'hard' | 'hurt' | 'message'
+  text: string
+  at: string
+  planVersion: number | null
+}
+
 export interface PatientData {
   patient: Patient
   sessions: SessionSummary[]
@@ -158,4 +170,6 @@ export interface PatientData {
   schedule: { date: string; completed: boolean }[]
   plans: PlanVersion[]
   rtm: RTMRecord
+  /** Live patients only: seeded ones have never been to a visit. Newest first. */
+  replies?: VisitReply[]
 }

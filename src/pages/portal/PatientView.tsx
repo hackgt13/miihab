@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useParams } from '@tanstack/react-router'
-import { getPatientData } from '../../data/seed'
+import { usePatientData } from '../../hooks/useLivePatient'
+import { concerning } from '../../data/coordinator'
 import { evaluateTrigger, computeNextSession } from '../../data/rules'
 import { useSessionSocket } from '../../hooks/useSessionSocket'
-import { useLatestSession } from '../../hooks/useLatestSession'
 import { LiveReadings } from '../../ui/LiveReadings'
 import { SessionTrendChart } from '../../ui/SessionTrendChart'
+import { VisitNotes } from '../../ui/VisitNotes'
+import { PatientRelay } from '../../ui/PatientRelay'
 import type { PatientStatus } from '../../data/types'
 
 // ── Status badge styles ───────────────────────────────────────────────────────
@@ -45,7 +47,7 @@ const GOALS: Record<string, { short: string; shortTarget: string; long: string; 
 
 const PRECAUTIONS: Record<string, string[]> = {
   'marcus-r': [
-    'Monitor trunk deviation: stop if > 10° sustained',
+    'Monitor trunk deviation — stop if > 10° sustained',
     'No overhead lifting outside supervised sessions',
     'Skin integrity check required prior to each session',
   ],
@@ -60,7 +62,7 @@ const PRECAUTIONS: Record<string, string[]> = {
     'Report locking or giving-way immediately',
   ],
   'elena-v': [
-    'Fall precaution: balance tasks near support surface only',
+    'Fall precaution — balance tasks near support surface only',
     'Notify caregiver of session schedule',
     'Monitor medication timing relative to session start',
   ],
@@ -136,16 +138,21 @@ const RIGHT_TABS = ['Overview', 'Goals', 'RTM']
 // ── Main component ────────────────────────────────────────────────────────────
 export function PatientView() {
   const { patientId } = useParams({ from: '/portal/$patientId' })
-  const data = getPatientData(patientId)
-  const { status: wsStatus } = useSessionSocket({ url: 'ws://localhost:8766', enabled: false })
-  const { override } = useLatestSession(patientId, 10_000)  // re-fetch every 10 s
+  // Live for the live patient, seed for the seeded ones. Every component below this line reads the same
+  // PatientData shape either way — src/data/coordinator.ts is what makes the real records look like it.
+  const { data, live, offline } = usePatientData(patientId)
+  const { status: wsStatus } = useSessionSocket({ url: 'ws://localhost:8766', enabled: true })
   const [activeTab, setActiveTab] = useState('Summary')
   const [rightTab, setRightTab]   = useState('Overview')
 
   if (!data) {
     return (
       <div className="flex items-center justify-center h-full min-h-screen bg-[#E8EDF2]">
-        <p className="text-[#6B7280] text-sm">Patient not found.</p>
+        <p className="text-[#6B7280] text-sm">
+          {live
+            ? 'Reading this patient from the coordinator…'
+            : 'Patient not found.'}
+        </p>
       </div>
     )
   }
@@ -159,6 +166,7 @@ export function PatientView() {
   const goals       = GOALS[patient.id]
   const precautions = PRECAUTIONS[patient.id] ?? []
   const baselineDeg = sessions[0]?.medianPeakDeg ?? 0
+  const concerningReplies = concerning(data.replies)
 
   const trunkLimit = (() => {
     const s = plans[0]?.settings.find(p => p.setting === 'Trunk limit')
@@ -233,15 +241,32 @@ export function PatientView() {
             <span className={`text-[10px] font-semibold px-2 py-[2px] rounded-[2px] ${badge.cls}`}>
               {badge.label}
             </span>
-            <span className={`text-[10px] px-1.5 py-[2px] rounded-[2px] font-medium ${isLive ? 'bg-[#D1FAE5] text-[#166534]' : 'bg-[#FEF3C7] text-[#92400E]'}`}>
-              {isLive ? 'Live' : 'Replay'}
+            {/* Where these numbers come from. Three separate facts, and the page says which it is showing:
+                seeded patients are invented, a live patient is read from the coordinator every few seconds,
+                and the websocket is only up while an exercise is actually running on the headset. */}
+            <span className={`flex items-center gap-1 text-[10px] ${
+              !live ? 'text-[#6B7280]'
+                : offline ? 'text-[#92400E]'
+                : isLive ? 'text-[#166534]'
+                : 'text-[#0E7490]'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                !live ? 'bg-[#9CA3AF]'
+                  : offline ? 'bg-[#FBB040]'
+                  : isLive ? 'bg-[#4ADE80] animate-pulse'
+                  : 'bg-[#22B8CF]'
+              }`} />
+              {!live ? 'Demo patient'
+                : offline ? 'Coordinator offline'
+                : isLive ? 'Live · session in progress'
+                : 'Live · from coordinator'}
             </span>
           </div>
 
           {/* Tinted info tiles */}
           <div className="flex flex-wrap gap-1.5">
             {[
-              { label: 'DOB',    value: `${fmtDob(patient.dob)} · ${age} y/o ${patient.sex}`, bg: '#EEF4FC', fg: '#1A3A6A' },
+              { label: 'DOB',    value: patient.dob ? `${fmtDob(patient.dob)} · ${age} y/o ${patient.sex}` : 'Not on file', bg: '#EEF4FC', fg: '#1A3A6A' },
               { label: 'MRN',    value: patient.mrn,                   bg: '#F0F4F8', fg: '#374151' },
               { label: 'ICD-10', value: patient.icd10,                 bg: '#FEF9F0', fg: '#854D0E' },
               { label: 'Ref.',   value: patient.referringPhysician,    bg: '#F0F4F8', fg: '#374151' },
@@ -307,9 +332,21 @@ export function PatientView() {
         {/* ── Center column ──────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 bg-white border-r border-[#D1D9E3]">
 
+          {/* What the patient said. Above the clinical alert on purpose: the rule below is a machine reading
+              sensor output, and this is the patient's own account. When they disagree, the physician should
+              have read this first. */}
+          {concerningReplies.length > 0 && (
+            <>
+              <SectionLabel label="From the Patient" />
+              <div className="px-3 pt-2">
+                <PatientRelay replies={concerningReplies} />
+              </div>
+            </>
+          )}
+
           {/* Live VR readings */}
           <SectionLabel label="Current Session" />
-          <LiveReadings session={session} wsStatus={wsStatus} baselineDeg={baselineDeg} override={override} />
+          <LiveReadings session={session} wsStatus={wsStatus} baselineDeg={baselineDeg} />
 
           {/* Clinical alert */}
           {trigger.fired && (
@@ -365,7 +402,7 @@ export function PatientView() {
           </table>
 
           {/* ROM + trunk trend chart */}
-          <SectionLabel label="ROM & Trunk Deviation · All Sessions" />
+          <SectionLabel label="ROM & Trunk Deviation — All Sessions" />
           <div className="px-3 pt-2 pb-4">
             <SessionTrendChart
               data={sessions}
@@ -411,6 +448,12 @@ export function PatientView() {
               ))}
             </tbody>
           </table>
+
+          {/* Visit whiteboard: notes for the patient's therapist visit */}
+          <SectionLabel label="Visit Whiteboard" />
+          <div className="px-3 py-3">
+            <VisitNotes />
+          </div>
         </div>
 
         {/* ── Right Reference Panel ───────────────────────────────────── */}

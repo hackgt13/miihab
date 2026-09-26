@@ -1,5 +1,5 @@
 import { Link, useParams } from '@tanstack/react-router'
-import { PATIENTS } from '../data/patients'
+import { usePatients, LIVE_PATIENT_ID } from '../hooks/useLivePatient'
 import type { PatientStatus } from '../data/patients'
 
 const statusChip: Record<PatientStatus, { label: string; cls: string }> = {
@@ -11,6 +11,9 @@ const statusChip: Record<PatientStatus, { label: string; cls: string }> = {
 export function Sidebar() {
   const params = useParams({ strict: false }) as { patientId?: string }
   const activeId = params.patientId
+  // The live patient is read from the coordinator and sorts above the seeded ones; when the coordinator
+  // is not running the list is the seeded ones alone, said out loud rather than left to be guessed at.
+  const { patients, offline, settled } = usePatients()
 
   return (
     <aside className="w-[220px] shrink-0 h-full bg-[#f1f3f5] border-r border-[#d5dae0] flex flex-col">
@@ -33,8 +36,13 @@ export function Sidebar() {
 
       {/* Patient list */}
       <div className="flex-1 overflow-y-auto">
+        {settled && offline && (
+          <p className="px-3 py-1.5 text-[#92400E] bg-[#FEF3C7] border-b border-[#dde2e8] text-[9px]">
+            Coordinator offline · seeded patients only
+          </p>
+        )}
         <nav className="flex flex-col">
-          {PATIENTS.map(patient => {
+          {patients.map(patient => {
             const isActive = activeId === patient.id
             const chip = statusChip[patient.status]
             return (
@@ -54,6 +62,9 @@ export function Sidebar() {
                     'text-[12px] font-medium truncate leading-tight',
                     isActive ? 'text-[#1666C0]' : 'text-[#1F2937] group-hover:text-[#111827]',
                   ].join(' ')}>
+                    {patient.id === LIVE_PATIENT_ID && (
+                      <span className="text-[#0E7490] text-[8px] font-semibold uppercase tracking-[0.18em] mr-1.5 align-middle">Live</span>
+                    )}
                     {patient.name}
                   </span>
                   <span className={`text-[9px] font-semibold px-1.5 py-[2px] rounded-[2px] shrink-0 whitespace-nowrap ${chip.cls}`}>

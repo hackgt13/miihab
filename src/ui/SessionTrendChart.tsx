@@ -34,7 +34,7 @@ export function SessionTrendChart({ data, targetLow, targetHigh, trunkLimit }: S
           contentStyle={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 4, fontSize: 12 }}
           labelStyle={{ color: '#6B7280' }}
           labelFormatter={v => `Session ${v}`}
-          formatter={(v: number, name: string) => [`${v}°`, name]}
+          formatter={(v, name) => [`${v}°`, String(name)]}
         />
         <Legend
           wrapperStyle={{ fontSize: 11, color: '#6B7280', paddingTop: 8 }}
