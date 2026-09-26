@@ -68,8 +68,24 @@ public interface IActivity
 silently lost. A game with nothing server-side to close still must not be unloaded mid-POST.
 
 **5. Emit one session record when the activity reaches its terminal condition.**
-POST the envelope to `http://127.0.0.1:8766/activity/session`. The coordinator validates and stores
-it; `GET /api/activity-sessions` serves them back. See `coordinator/activity.ts` for the shape.
+Call `ActivityRecorder.Send(...)` — do not build the envelope yourself. It owns everything structural
+(schema, session timestamps, duration clamping, the flag vocabulary, and the venue and exercise kinds,
+which it reads from the catalog), so you supply only what differs:
+
+```csharp
+var subjects = new[] { new ActivitySubject {
+    SubjectId = "patient", Attempted = rolls, Valid = rolls,
+    MetricName = "score", MetricValue = Score.Total, MetricUnit = "pins" } };
+Completed?.Invoke(id);
+StartCoroutine(ActivityRecorder.Send(bridge, ActivityId, id, startedUtc, subjects,
+    lossEvents, "bowling.game", new { total = Score.Total, rolls }, _ => posting = false));
+```
+
+That is about 20 lines for a whole activity. Golf and bowling each carried their own copy of the
+envelope and the POST before this existed, identical but for a noun — if you find yourself writing
+JSON field names, you are re-creating the bug. The coordinator validates and stores what arrives;
+`GET /api/activity-sessions` serves them back, and `coordinator/activity.ts` is the authority on the
+shape.
 
 What belongs in the envelope: **dose** (prescribed/attempted/valid), **tracking quality**, a
 **normalised flag** vocabulary, and a `primaryMetric`. What does not: anything scored. A stroke count
