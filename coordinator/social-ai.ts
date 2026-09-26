@@ -35,6 +35,9 @@ export interface Candidate {
   daysSinceActive: number | null;
   daysSinceTheyWrote: number | null;
   daysSinceIWrote: number | null;
+  /// How long they were quiet before their most recent message. This is what
+  /// makes "returned after three days" sayable; daysSinceActive alone cannot.
+  quietDaysBeforeTheyReturned?: number | null;
   unread: number;
   sample: boolean;
 }
@@ -65,6 +68,9 @@ const SYSTEM_SPOTLIGHT =
   '- An activity line is a short factual fragment, no name and no final full stop: ' +
   '"returned after three days", "has been here every day this week", "sent you ' +
   'something yesterday".\n' +
+  '- quietDaysBeforeTheyReturned is how long they were away before their latest ' +
+  'message. When it is two days or more and they wrote recently, that is a ' +
+  'return: "returned after three days".\n' +
   '- If a person has no signal worth narrating, give them an empty line.\n' +
   '- Prefer to spotlight someone waiting on a reply, or who has just come back after ' +
   'being away.';
@@ -103,6 +109,8 @@ const SYSTEM_RECAP =
   '- Say only what is in the messages. Never add advice, encouragement or ' +
   'interpretation, and never mention progress or anything clinical.\n' +
   '- Do not quote. The thread itself is right there; you are the line above it.\n' +
+  '- sentPhoto tells you a photo was attached. Never say someone sent one unless ' +
+  'that flag is set, whatever the wording suggests.\n' +
   '- If there is nothing worth recapping, return an empty string.';
 
 const RECAP_TOOL = {
@@ -214,7 +222,14 @@ export async function spotlight(people: Candidate[]): Promise<Spotlight | null> 
   }
 }
 
-export interface RecapMessage { fromMe: boolean; kind: string | null; text: string; at: string }
+export interface RecapMessage {
+  fromMe: boolean;
+  kind: string | null;
+  text: string;
+  /// Passed as a fact so the summary never has to infer one from a caption.
+  photo?: boolean;
+  at: string;
+}
 
 /**
  * One line describing what a thread has been about. Returns null on any
@@ -232,6 +247,7 @@ export async function recap(otherName: string, messages: RecapMessage[]): Promis
     const recent = messages.slice(-20).map(m => ({
       who: m.fromMe ? 'you' : otherName,
       said: m.kind ?? m.text,
+      sentPhoto: m.photo === true,
       at: m.at,
     }));
     const response = await call(SYSTEM_RECAP, RECAP_TOOL, { with: otherName, messages: recent }, 1000);

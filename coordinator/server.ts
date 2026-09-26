@@ -304,14 +304,30 @@ const server = createServer(async (request, response) => {
           const unread = messages.unread(me, people.map(p => p.id));
           const candidates = people.map(p => {
             const thread = messages.thread(me, p.id);
-            const theirs = [...thread].reverse().find(m => m.from === p.id);
+            const fromThem = thread.filter(m => m.from === p.id);
+            const theirs = fromThem[fromThem.length - 1];
             const mine = [...thread].reverse().find(m => m.from === me);
+            // "Returned after three days" needs the quiet spell BEFORE they came
+            // back, which a single lastActiveAt cannot express. The gap between
+            // their last two messages is the one place that survives.
+            const previous = fromThem[fromThem.length - 2];
+            const gapDays = theirs && previous
+              ? Math.max(0, Math.floor((Date.parse(theirs.at) - Date.parse(previous.at)) / 86400000))
+              : null;
+            // lastActiveAt only moves when someone joins, so a message of theirs
+            // is often the fresher evidence. Take whichever is more recent.
+            const stamped = daysSince(p.lastActiveAt);
+            const wrote = daysSince(theirs?.at);
+            const active = stamped === null ? wrote
+              : wrote === null ? stamped
+              : Math.min(stamped, wrote);
             return {
               id: p.id, displayName: p.displayName, sample: p.sample === true,
               unread: unread[p.id] ?? 0,
-              daysSinceActive: daysSince(p.lastActiveAt),
-              daysSinceTheyWrote: daysSince(theirs?.at),
+              daysSinceActive: active,
+              daysSinceTheyWrote: wrote,
               daysSinceIWrote: daysSince(mine?.at),
+              quietDaysBeforeTheyReturned: Number.isFinite(gapDays as number) ? gapDays : null,
             };
           });
           return json(200, await spotlight(candidates) ?? {choose: null, activity: []});
@@ -327,6 +343,7 @@ const server = createServer(async (request, response) => {
               fromMe: m.from === me,
               kind: m.kind ? ENCOURAGEMENTS[m.kind] : null,
               text: m.text,
+              photo: m.photoId != null,
               at: m.at,
             })));
           return json(200, {recap: line ?? ''});

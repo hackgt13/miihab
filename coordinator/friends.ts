@@ -52,10 +52,15 @@ export class FriendStore {
   /// encouragement — they exist so the UI has shape before a real friend joins.
   private static seed(): Graph {
     const me = 'me';
+    // Staggered activity so a fresh install has something to show: one peer
+    // around today, one back after a gap. Labelled `sample` like everything
+    // else here — shape for the UI, never invented encouragement.
+    const now = Date.now();
+    const daysAgo = (n: number) => new Date(now - n * 86400000).toISOString();
     const people: Record<string, Person> = {
       me: { id: me, displayName: 'You', mii: 0 },
-      'sample-maya': { id: 'sample-maya', displayName: 'Maya', mii: 3, sample: true },
-      'sample-arun': { id: 'sample-arun', displayName: 'Arun', mii: 5, sample: true },
+      'sample-maya': { id: 'sample-maya', displayName: 'Maya', mii: 3, sample: true, lastActiveAt: daysAgo(3) },
+      'sample-arun': { id: 'sample-arun', displayName: 'Arun', mii: 5, sample: true, lastActiveAt: daysAgo(0) },
     };
     return {
       schema: 'kinesthetic.friends.v1', me, people,
