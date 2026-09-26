@@ -84,10 +84,17 @@
         <ui:VisualElement name="summary-card" class="summary-overlay hidden">
             <ui:VisualElement class="summary-card card">
                 <ui:Label text="✓" class="summary-check" />
-                <ui:Label text="Practice complete" class="summary-title" />
-                <ui:Label text="Every controlled movement counts." class="summary-subtitle" />
-                <ui:Label name="summary" text="" class="summary-text" />
-                <ui:Button name="summary-close" text="Back to the studio  ›" class="start summary-button" />
+                <ui:Label name="summary-title" text="Your set is complete" class="summary-title" />
+                <ui:Label name="summary-subtitle" text="Here's what your camera measured today." class="summary-subtitle" />
+                <ui:Label name="summary-plan" text="" class="summary-plan" />
+                <ui:VisualElement class="summary-metrics">
+                    <ui:VisualElement class="summary-metric"><ui:Label name="summary-valid" text="—" class="metric-value" /><ui:Label text="COUNTED REPS" class="metric-label" /></ui:VisualElement>
+                    <ui:VisualElement class="summary-metric metric-middle"><ui:Label name="summary-attempted" text="—" class="metric-value" /><ui:Label text="ATTEMPTED" class="metric-label" /></ui:VisualElement>
+                    <ui:VisualElement class="summary-metric"><ui:Label name="summary-peak" text="—" class="metric-value" /><ui:Label text="MEDIAN PEAK" class="metric-label" /></ui:VisualElement>
+                </ui:VisualElement>
+                <ui:ScrollView class="summary-notes" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto"><ui:Label name="summary" text="" class="summary-text" /></ui:ScrollView>
+                <ui:Label name="summary-saved" text="Session saved" class="summary-saved" />
+                <ui:VisualElement class="summary-actions"><ui:Button name="summary-menu" text="Choose activity" class="summary-secondary" /><ui:Button name="summary-close" text="Back to studio  ›" class="start summary-button" /></ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

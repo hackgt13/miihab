@@ -44,3 +44,52 @@ Button.aim-button { font-size: 20px; width: 48px; height: 44px; padding: 0; bord
 .camera-top { position: absolute; left: 16px; top: 0; width: 26px; height: 10px; background-color: #377ba6; border-radius: 4px; }
 .camera-body { position: absolute; left: 0; top: 7px; width: 57px; height: 36px; background-color: #377ba6; border-radius: 7px; align-items: center; justify-content: center; }
 .camera-lens { width: 25px; height: 25px; border-width: 4px; border-color: #f5fbff; border-radius: 14px; }
+
+.device-chip { position: absolute; right: 35px; bottom: 58px; flex-direction: row; align-items: center; padding: 8px 10px 8px 14px; background-color: rgba(255,255,255,.97); border-radius: 18px; color: #547384; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal; }
+.device-chip Label { font-size: 12px; max-width: 185px; white-space: normal; }
+.device-dot { width: 8px; height: 8px; border-radius: 4px; background-color: #d2ab57; margin-right: 8px; }
+.device-chip.connected .device-dot { background-color: #51ac7b; }
+.device-chip Button { font-size: 12px; padding: 5px 12px; margin-left: 12px; border-radius: 14px; }
+.golf-overlay { position: absolute; left: 0; right: 0; top: 0; bottom: 0; align-items: center; justify-content: center; background-color: rgba(29,62,80,.40); color: #426a7d; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal; }
+Label { margin: 0; padding: 0; }
+.setup-sheet { flex-direction: row; width: 1050px; max-width: 92%; background-color: white; border-width: 3px; border-bottom-width: 7px; border-color: #bce2f3; border-radius: 28px; overflow: hidden; }
+.setup-hero { width: 355px; flex-shrink: 0; padding: 32px; background-image: url("project://database/Assets/Kinesthetic/Menu/Art/Golf.png"); -unity-background-scale-mode: scale-and-crop; background-color: #357f95; -unity-background-image-tint-color: #8cafbb; }
+.sheet-eyebrow { font-size: 11px; letter-spacing: 2px; color: white; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.setup-title { font-size: 37px; white-space: normal; color: white; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); margin-top: 25px; -unity-text-outline-width: 0.5px; -unity-text-outline-color: #305966; }
+.setup-tag { font-size: 10px; color: white; background-color: rgba(27,71,69,.75); padding: 10px 12px; margin-top: 18px; border-radius: 10px; align-self: flex-start; }
+.hero-space { flex-grow: 1; min-height: 80px; }
+.hero-detail { color: white; font-size: 15px; white-space: normal; background-color: rgba(27,71,69,.75); padding: 12px; border-radius: 12px; }
+.setup-content { flex-grow: 1; flex-shrink: 1; padding: 28px 32px; }
+.sheet-title { font-size: 30px; color: #278fbf; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.sheet-copy { font-size: 15px; color: #638394; white-space: normal; margin-top: 8px; }
+.setup-step { flex-direction: row; align-items: center; padding: 13px 0; border-bottom-width: 1px; border-bottom-color: #e7f0f5; }
+.step-badge { width: 36px; height: 36px; flex-shrink: 0; border-radius: 18px; background-color: #edf5fa; color: #73a0b7; font-size: 19px; -unity-text-align: middle-center; margin-right: 15px; }
+.step-ready .step-badge { color: #41956b; background-color: #e3f4e9; }
+.step-copy { flex-grow: 1; flex-shrink: 1; }
+.step-heading { font-size: 17px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.step-state { font-size: 13px; color: #638394; white-space: normal; margin-top: 4px; }
+.assist-row { flex-direction: row; align-items: center; margin-top: 10px; }
+.assist-status { flex-grow: 1; flex-shrink: 1; font-size: 10px; white-space: normal; color: #638394; margin-left: 10px; }
+.setup-status { font-size: 12px; white-space: normal; color: #527e94; padding: 12px 0; min-height: 45px; }
+.golf-overlay Button { border-radius: 22px; border-width: 2px; border-bottom-width: 4px; border-color: #b4dcea; padding: 10px 18px; font-size: 15px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; background-color: white; color: #3289b6; margin: 0; }
+.golf-overlay Button:hover, .golf-overlay Button:focus { border-color: #249acb; background-color: #edfaff; }
+.golf-overlay Button:disabled { opacity: .45; }
+.golf-overlay Button.sheet-primary { color: white; background-color: #35a8d6; border-color: #2493c4; }
+.golf-overlay Button.sheet-primary:hover, .golf-overlay Button.sheet-primary:focus { background-color: #218fc1; border-color: #146487; }
+.sheet-actions { flex-direction: row; justify-content: flex-end; margin-top: 18px; }
+.sheet-actions Button { margin-left: 12px; }
+.assist-row Button { font-size: 12px; padding: 6px 12px; }
+.results-sheet { width: 660px; padding: 30px 38px; border-width: 3px; border-bottom-width: 7px; border-color: #bce2f3; background-color: white; border-radius: 28px; align-items: center; }
+.result-medallion { width: 66px; height: 66px; border-radius: 33px; background-color: #e5f5fc; color: #37a4d2; font-size: 38px; -unity-text-align: middle-center; }
+.result-eyebrow { color: #6e9bad; margin-top: 18px; }
+.result-title { margin-top: 10px; font-size: 32px; }
+.score-cards { flex-direction: row; align-self: stretch; margin-top: 25px; }
+.score-card { flex-grow: 1; flex-basis: 0; padding: 20px; align-items: center; border-radius: 18px; background-color: #edf8fd; border-bottom-width: 4px; border-bottom-color: #bbdeee; }
+.friend-card { margin-left: 18px; background-color: #fff8e9; border-bottom-color: #eddeaf; }
+.score-name { font-size: 12px; letter-spacing: 1px; }
+.result-score { font-size: 65px; color: #2b99c8; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.friend-card .result-score { color: #b9933b; }
+.score-unit { font-size: 12px; color: #7893a0; margin-top: -6px; }
+.score-par { font-size: 15px; margin-top: 15px; }
+.result-footnote { margin-top: 18px; font-size: 11px; color: #7d98a7; letter-spacing: 1px; }
+.hidden { display: none; }

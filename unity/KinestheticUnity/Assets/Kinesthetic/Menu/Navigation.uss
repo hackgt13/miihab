@@ -15,4 +15,14 @@ Button.primary:hover, Button.primary:focus { background-color: #218fc1; border-c
 .transition { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: #f1faff; align-items: center; justify-content: center; }
 .transition-brand { font-size: 52px; color: #2b9ed0; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 .loading-label { font-size: 20px; color: #63899d; margin-top: 18px; }
+Button.activity-help { position: absolute; bottom: 10px; right: 32px; font-size: 13px; padding: 5px 19px; height: 35px; }
+.activity-help-card { width: 650px; max-width: 90%; padding: 32px 38px; border-width: 3px; border-bottom-width: 7px; border-color: #bce2f3; border-radius: 25px; background-color: white; }
+.help-eyebrow { font-size: 11px; letter-spacing: 2px; color: #7b9dac; margin-bottom: 10px; }
+.help-step { flex-direction: row; margin-top: 24px; }
+.help-number { width: 36px; height: 36px; border-radius: 18px; background-color: #eaf7fd; color: #2a98c8; font-size: 20px; -unity-text-align: middle-center; flex-shrink: 0; margin-right: 16px; }
+.help-step-copy { flex-grow: 1; flex-shrink: 1; }
+.help-step-title { font-size: 19px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.help-copy { font-size: 15px; white-space: normal; margin-top: 6px; color: #628398; }
+.help-bottom { flex-direction: row; justify-content: space-between; margin-top: 30px; }
+.help-bottom Button { font-size: 14px; }
 .hidden { display: none; }

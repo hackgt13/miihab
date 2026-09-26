@@ -29,6 +29,8 @@ namespace Kinesthetic.Rehab
         float retryPoseAt;
         bool running, calibrated;
         public bool IsRunning => running;
+        bool startingSession, stoppingSession, sessionError, summaryReceived;
+        public bool IsBusy => startingSession || stoppingSession;
         int attempted, valid;
         float? liveAngle; string phase = "idle";
         string status = "Sit tall, rest your arms, and start when you're ready.";
@@ -71,7 +73,8 @@ namespace Kinesthetic.Rehab
             repRing.generateVisualContent += DrawRepRing;
             paintedReps = paintedGoal = -1;
             root.Q<Button>("summary-close").clicked += () => summaryCard.AddToClassList("hidden");
-            start.clicked += () => { if (running) StartCoroutine(Stop()); else StartCoroutine(Begin()); };
+            root.Q<Button>("summary-menu").clicked += () => Kinesthetic.Menu.ActivityNavigation.Ensure().OpenReturn();
+            start.clicked += () => { if (IsBusy) return; if (running) StartCoroutine(Stop()); else StartCoroutine(Begin()); };
             start.text = running ? "Finish set" : "Start session  ›";
             UpdatePlanLabels();
             summaryCard.AddToClassList("hidden");
@@ -89,14 +92,17 @@ namespace Kinesthetic.Rehab
 
         IEnumerator Begin()
         {
+            startingSession = true; sessionError = false; summaryReceived = false;
             start.SetEnabled(false); summaryCard.AddToClassList("hidden");
             status = "Starting camera…";
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
             var script = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../scripts/start_camera_session.sh"));
             if (File.Exists(script))
             {
-                var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
-                    FileName = "/bin/zsh", Arguments = "\"" + script + "\"", UseShellExecute = false, CreateNoWindow = true });
+                System.Diagnostics.Process process = null;
+                try { process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+                    FileName = "/bin/zsh", Arguments = "\"" + script + "\"", UseShellExecute = false, CreateNoWindow = true }); }
+                catch (Exception) { sessionError = true; }
                 while (process != null && !process.HasExited) yield return null;
                 process?.Dispose();
             }
@@ -107,8 +113,10 @@ namespace Kinesthetic.Rehab
             using var request = new UnityWebRequest(bridge + "/exercise/start", "POST") {
                 uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)), downloadHandler = new DownloadHandlerBuffer(), timeout = 5 };
             yield return request.SendWebRequest();
+            startingSession = false;
             start.SetEnabled(true);
-            if (request.result != UnityWebRequest.Result.Success) { status = "Couldn't reach the measurement service · press Start to retry"; yield break; }
+            if (request.result != UnityWebRequest.Result.Success) { sessionError = true; status = "Check that camera capture is open, then press Start to try again."; yield break; }
+            sessionError = false;
             running = true; calibrated = false; attempted = valid = 0; liveAngle = null;
             status = "Hold still with your arms relaxed · calibrating";
             start.text = "Finish set";
@@ -140,15 +148,24 @@ namespace Kinesthetic.Rehab
 
         public IEnumerator FinishSession(Action<bool> completed = null)
         {
+            if (stoppingSession) { while (stoppingSession) yield return null; completed?.Invoke(!running); yield break; }
+            stoppingSession = true; sessionError = false; start.SetEnabled(false);
+            status = "Finishing your session…";
             using var request = new UnityWebRequest(bridge + "/exercise/stop", "POST") { downloadHandler = new DownloadHandlerBuffer(), timeout = 5 };
             yield return request.SendWebRequest();
+            stoppingSession = false; start.SetEnabled(true);
             if (request.result != UnityWebRequest.Result.Success)
             {
+                if (summaryReceived) { completed?.Invoke(true); yield break; }
+                sessionError = true;
                 status = "Couldn't finish the session · check the measurement service and retry";
                 completed?.Invoke(false);
                 yield break;
             }
-            // The summary arrives on the exercise stream; this only ends the session.
+            // The HTTP response also carries the summary if the exercise stream was interrupted.
+            JObject summary = null;
+            try { summary = JObject.Parse(request.downloadHandler.text); } catch (Exception) { }
+            if (summary?["attempted"] != null) ShowSummary(summary);
             running = false; start.text = "Start session  ›";
             completed?.Invoke(true);
         }
@@ -173,11 +190,11 @@ namespace Kinesthetic.Rehab
             angleMeter.value = fresh && liveAngle.HasValue && running ? Mathf.Clamp01(liveAngle.Value / Mathf.Max(1, targetDeg)) * 100 : 0;
             angleNote.text = !running ? "Your range appears when you begin" : !fresh || !liveAngle.HasValue ? "Waiting for a clear view of your arm" : "Measured from your live movement";
             progressNote.text = valid >= prescribedReps ? "Your set is complete" : valid == 0 ? "One good movement at a time" : $"{prescribedReps - valid} more · take your time";
-            bool attention = running && !fresh;
+            bool attention = sessionError || running && !fresh;
             bool reached = running && fresh && liveAngle.HasValue && liveAngle.Value >= targetDeg;
             cueIcon.EnableInClassList("attention", attention);
             cueIcon.EnableInClassList("good", reached || valid >= prescribedReps);
-            cueTitle.text = !start.enabledSelf ? "Getting the studio ready" : !running ? (valid >= prescribedReps ? "A little stronger, one set at a time" : "Make yourself comfortable") : attention ? "Let's get you in view" : !calibrated ? "Find your resting position" : reached ? "Hold gently, then lower" : "Move at your own pace";
+            cueTitle.text = stoppingSession ? "Saving your session" : startingSession ? "Getting the studio ready" : sessionError ? (running ? "Let's finish saving your session" : "Let's get you connected") : !running ? (valid >= prescribedReps ? "A little stronger, one set at a time" : "Make yourself comfortable") : attention ? "Let's get you in view" : !calibrated ? "Find your resting position" : reached ? "Hold gently, then lower" : "Move at your own pace";
             cueSymbol.text = attention ? "!" : reached || valid >= prescribedReps ? "✓" : !running || !calibrated ? "1" : phase == "rep" ? "2" : "3";
             if (paintedReps != valid || paintedGoal != prescribedReps)
             {
@@ -275,12 +292,32 @@ namespace Kinesthetic.Rehab
 
         void ShowSummary(JObject s)
         {
+            if (summaryReceived) return;
+            summaryReceived = true; sessionError = false;
             running = false; start.text = "Start session  ›";
+            valid = s["valid"]?.Value<int>() ?? 0; attempted = s["attempted"]?.Value<int>() ?? 0;
             var median = s["medianValidPeakDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? $"{s["medianValidPeakDeg"].Value<float>():0}°" : "—";
             var reasons = s["invalidReasons"] as JObject; var notes = new StringBuilder();
-            if (reasons != null) foreach (var r in reasons) notes.Append($"\n{r.Value} × {r.Key.Replace('_', ' ')}");
-            summaryLabel.text = $"{s["valid"]} of {s["attempted"]} reps counted · target {targetDeg:0}°\nMedian peak {median}{notes}\n\nSent to your care team as session evidence.";
+            if (reasons != null) foreach (var r in reasons)
+            {
+                string reason = r.Key switch {
+                    "did_not_reach_target" => "Below the target range", "trunk_compensation" => "Chest moved from resting position",
+                    "tracking_lost" => "Camera view interrupted", "too_fast" => "Movement was too quick",
+                    _ => r.Key.Replace('_', ' ') };
+                notes.Append($"{r.Value} · {reason}\n");
+            }
+            var root = GetComponent<UIDocument>().rootVisualElement;
+            root.Q<Label>("summary-title").text = attempted == 0 ? "Ready for another day" : valid >= prescribedReps ? "Your set is complete" : "Practice, at your pace";
+            root.Q<Label>("summary-subtitle").text = attempted == 0 ? "No repetitions were recorded this time." : "Here's what your camera measured today.";
+            root.Q<Label>("summary-valid").text = valid.ToString();
+            root.Q<Label>("summary-attempted").text = attempted.ToString();
+            root.Q<Label>("summary-peak").text = median;
+            root.Q<Label>("summary-plan").text = $"{side.ToUpperInvariant()} ARM  ·  TARGET {targetDeg:0}°  ·  {prescribedReps} REPS";
+            summaryLabel.text = notes.Length > 0 ? notes.ToString().TrimEnd() : attempted == 0 ? "Return to the studio when you're ready to begin." : "Every controlled movement counts.";
+            root.Q<Label>("summary-saved").text = s["simulated"]?.Value<bool>() == true ? "Demo session · simulated movement" : "Session saved · available to your care team";
             summaryCard.RemoveFromClassList("hidden");
+            root.Q<Button>("summary-close").Focus();
+            Kinesthetic.Menu.ActivityNavigation.Ensure().PlaySelect();
             status = "Session saved";
         }
 
