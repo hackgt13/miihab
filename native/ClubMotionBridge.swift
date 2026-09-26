@@ -36,6 +36,7 @@ enum MotionActivity {
     @Published var running = false
     @Published var monitoring = false
     @Published var relayConnected = false
+    @Published var routeHeld = false
     @Published var speed = 0.0
     private var manager: CMHeadphoneMotionManager?
     private var socket: URLSessionWebSocketTask?
@@ -46,6 +47,9 @@ enum MotionActivity {
     private var lastSampleReceived = 0.0
     private var streamStarted = 0.0
     private var discoveryTimer: Timer?
+    // Holds the AirPods as the active audio output; without it macOS hands output
+    // back to the speakers when a bud leaves the ear and motion silently stops.
+    private let route = AudioRouteKeeper(nameMatch: "AirPods")
 
     func startAutomatically() {
         monitoring = true
@@ -60,6 +64,9 @@ enum MotionActivity {
     }
 
     private func checkConnection() {
+        // Runs on the existing 2s discovery timer; claim() is idempotent.
+        if let note = route.claim() { status = note }
+        routeHeld = route.holding
         if running {
             if ProcessInfo.processInfo.systemUptime - lastSampleReceived > 5 {
                 status = "AirPod motion paused. Reconnecting…"
@@ -149,6 +156,7 @@ enum MotionActivity {
     func pause() {
         monitoring = false
         discoveryTimer?.invalidate(); discoveryTimer=nil
+        route.release()
         stop()
     }
 }
@@ -184,6 +192,7 @@ final class ClubAppDelegate: NSObject, NSApplicationDelegate {
                 }
                 Text(bridge.status).fixedSize(horizontal:false,vertical:true)
                 Text("Reporting AirPod: \(bridge.source)")
+if bridge.routeHeld {Text("Holding the AirPods audio route so motion continues off-ear.").font(.caption).foregroundStyle(.secondary)}
                 Text(String(format:"Angular speed: %.2f rad/s · %d samples",bridge.speed,bridge.samples)).monospacedDigit()
                 HStack {
                     Button(bridge.monitoring ? "Pause motion" : "Start motion") {if bridge.monitoring {bridge.pause()} else {bridge.startAutomatically()}}

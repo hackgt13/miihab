@@ -89,11 +89,11 @@
         <form id="plan-form">
           <div class="grid2">
             <label>Target angle (°)<input name="targetDeg" type="number" min="30" max="140" step="1" required></label>
-            <label>Safe ceiling (°)<input name="maxSafeDeg" type="number" min="40" max="150" step="1" required></label>
+            <label>Safe ceiling (°)<input name="targetMaxDeg" type="number" min="40" max="170" step="1" required></label>
             <label>Reps<input name="prescribedReps" type="number" min="1" max="30" step="1" required></label>
             <label>Hold (ms)<input name="holdMs" type="number" min="0" max="3000" step="50" required></label>
-            <label>Measured with<select name="sensor"></select></label>
-            <label id="trunk-field">Trunk lean limit (°)<input name="maxTrunkDeviationDeg" type="number" min="3" max="45" step="1"></label>
+            <label>Measured with<select name="exerciseKind"></select></label>
+            <label id="trunk-field">Trunk lean limit (°)<input name="maxCompensationDeg" type="number" min="3" max="45" step="1"></label>
             <label>Auto-progress up to (°)<input name="maxTargetDeg" type="number" min="30" max="140" step="1" required></label>
           </div>
           <label class="check"><input name="autoApply" type="checkbox"> Apply level changes inside the envelope automatically</label>

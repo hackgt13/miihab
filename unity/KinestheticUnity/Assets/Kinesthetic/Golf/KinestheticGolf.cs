@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Collections;
+using System.Text;
 using UnityEngine.Networking;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -17,6 +18,7 @@ namespace Kinesthetic.Golf
         public LineRenderer aimLine;
         public string poseUrl = "ws://127.0.0.1:8766/pose?role=viewer";
         public string motionUrl = "ws://127.0.0.1:8767/golf?role=viewer";
+        public string bridge = "http://127.0.0.1:8766";
         public bool allowDeveloperShots;
         public int activePlayer;
         public int clubIndex;
@@ -27,6 +29,14 @@ namespace Kinesthetic.Golf
         public int[] Strokes { get; private set; } = new int[2];
         public bool[] Finished { get; private set; } = new bool[2];
         public int AcceptedShots { get; private set; }
+        // Swings that qualified but whose clubhead path missed the virtual ball. Part of the dose:
+        // "attempted 11, 8 counted" is the one figure comparable across every activity.
+        public int[] Misses { get; private set; } = new int[2];
+        /// <summary>Raised once when both players have holed out, carrying the session id that was recorded.</summary>
+        public event Action<string> RoundCompleted;
+        DateTime roundStartedUtc = DateTime.UtcNow;
+        bool roundReported;
+        int poseLossEvents;
         public bool PoseReady => LivePoseClient.Fresh(poseTicks) &&
             (rigs[activePlayer].RightArmTracked || rigs[activePlayer].LeftArmTracked);
         public Vector3 HudAim => AimDirection();
@@ -190,15 +200,59 @@ namespace Kinesthetic.Golf
         public void NextTurn()
         {
             if(Phase!="Settled" && Phase!="Holed")return;
-            if(Finished[0] && Finished[1]) {Phase="Round complete"; Message="Back on the course. Together.";return;}
+            if(Finished[0] && Finished[1]) {Phase="Round complete"; Message="Back on the course. Together.";CompleteRound();return;}
             int nextPlayer=1-activePlayer;
             if(Finished[nextPlayer])nextPlayer=activePlayer;
             BeginTurn(nextPlayer);
         }
         public void RestartRound()
         {
-            Strokes=new int[2]; Finished=new bool[2]; lies[0]=lies[1]=tee.position;
+            Strokes=new int[2]; Finished=new bool[2]; Misses=new int[2]; lies[0]=lies[1]=tee.position;
+            roundStartedUtc=DateTime.UtcNow; roundReported=false; poseLossEvents=0;
             clubIndex=0; BeginTurn(0);
+        }
+        // One session record per round, in the same envelope an exercise session produces, POSTed to the
+        // coordinator rather than written locally. golf-shots.jsonl stays as a per-shot debugging log, but
+        // it lives in Application.persistentDataPath — a directory that differs between the Editor and a
+        // built Player and that the coordinator cannot read, so it can never be the clinical record.
+        void CompleteRound()
+        {
+            if(roundReported)return;
+            roundReported=true;
+            string id=Guid.NewGuid().ToString();
+            var endedUtc=DateTime.UtcNow;
+            var subjects=new object[2];
+            for(int i=0;i<2;i++)
+                subjects[i]=new {
+                    subjectId=playerIds[i], role=i==0?"patient":"companion",
+                    dose=new {prescribed=(int?)null, attempted=Strokes[i]+Misses[i], valid=Strokes[i]},
+                    primaryMetric=new {name="strokes", value=(double)Strokes[i], unit="strokes"},
+                };
+            var envelope=new {
+                schema="kinesthetic.activity.v1", activitySessionId=id, activityId="golf.adaptive",
+                exerciseKinds=new string[0], venueId="resort-course",
+                patientId=(string)null, planVersion=(int?)null,
+                startedAt=roundStartedUtc.ToString("o"), endedAt=endedUtc.ToString("o"),
+                durationMs=(int)Mathf.Clamp((float)(endedUtc-roundStartedUtc).TotalMilliseconds,0,86_400_000),
+                completed=true, subjects,
+                trackingQuality=new {validFrameRatio=(double?)null, lossEvents=poseLossEvents},
+                flags=poseLossEvents>0?new[]{"tracking_lost"}:new string[0],
+                payload=new {kind="golf.round", schemaVersion="1", data=new {
+                    strokes=Strokes, misses=Misses, acceptedShots=AcceptedShots, club=clubNames[clubIndex]}},
+            };
+            RoundCompleted?.Invoke(id);
+            StartCoroutine(PostRound(id,Newtonsoft.Json.JsonConvert.SerializeObject(envelope)));
+        }
+        IEnumerator PostRound(string id,string body)
+        {
+            using var request=new UnityWebRequest(bridge+"/activity/session","POST") {
+                uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
+                downloadHandler=new DownloadHandlerBuffer(), timeout=5 };
+            request.SetRequestHeader("Content-Type","application/json");
+            yield return request.SendWebRequest();
+            // A failed POST must never interrupt play; the round is over and the players are done.
+            if(request.result!=UnityWebRequest.Result.Success)
+                Debug.LogWarning($"Golf round {id} was not recorded: {request.error} {request.downloadHandler?.text}");
         }
         void Update()
         {
@@ -226,7 +280,7 @@ namespace Kinesthetic.Golf
                 }
                 else if(Now-motionContactAt>.12)
                 {
-                    Log("virtual-miss","pose+airpod",pendingSpeed);
+                    Log("virtual-miss","pose+airpod",pendingSpeed);Misses[activePlayer]++;
                     ResetSwing();Message="Missed the virtual ball. Return to address and recalibrate.";
                 }
             }
@@ -262,7 +316,7 @@ namespace Kinesthetic.Golf
                 }catch(Exception){poseTicks=0;}
             }
             if(pose?.Connected!=true && Time.unscaledTime>retryPoseAt)
-            {pose?.Dispose();pose=new LivePoseClient(poseUrl);retryPoseAt=Time.unscaledTime+3;poseTicks=0;}
+            {pose?.Dispose();pose=new LivePoseClient(poseUrl);retryPoseAt=Time.unscaledTime+3;poseTicks=0;poseLossEvents++;}
         }
         void ReadMotion()
         {

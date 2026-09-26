@@ -1,49 +1,365 @@
-.menu-screen { flex-grow: 1; color: #3d657a; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
+/* Bento board for the menu. Read at roughly two metres off a 1.85 m panel, so every size here is
+   larger than a desktop equivalent would be: the smallest type is 16px on a 1600px reference, and
+   nothing load-bearing is below 20px. Tiles are translucent sand so the plaza stays visible
+   through them — the board is a thing standing in the world, not a screen pasted over it.
+
+   Colours are the five in Assets/Kinesthetic/Palette.cs and nothing else: indigo ink on sand panels,
+   glaucous for anything read second, ice for selection and focus, and coral for exactly two things —
+   the start button and the streak. The start button is lettered in indigo, not white, because white
+   on coral reads at 2.1:1. */
+
+.menu-screen { flex-grow: 1; color: #485F88; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
 Label { margin: 0; padding: 0; }
-.backdrop { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
-.menu-content { flex-grow: 1; padding: 34px 80px 30px; }
-.utility-row { flex-direction: row; align-items: center; justify-content: space-between; height: 44px; }
-.welcome { font-size: 14px; color: #7895a5; letter-spacing: 1px; }
-Button { -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #3386b6; border-color: #b8def1; border-width: 2px; border-radius: 24px; background-color: white; padding: 9px 24px; margin: 0; }
-Button:hover { background-color: #edfaff; border-color: #53b7e4; }
-Button:focus { border-color: #159dd8; }
-Button:active { background-color: #d9f3ff; }
-Button:disabled { opacity: .6; }
-.music-button { min-width: 142px; font-size: 14px; }
-.title-block { align-items: center; margin-top: 15px; margin-bottom: 34px; }
-.wordmark { flex-direction: row; align-items: center; }
-.brand-title { font-size: 64px; color: #8397a2; letter-spacing: -3px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.sports-title { font-size: 64px; color: #239bd3; letter-spacing: -2px; margin-left: 13px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.title-rule { width: 116px; height: 4px; border-radius: 2px; background-color: #72c7e8; margin-top: 8px; margin-bottom: 15px; }
-.tagline { font-size: 20px; color: #658799; }
-.activities { flex-direction: row; flex-grow: 1; min-height: 0; max-height: 440px; }
-Button.activity-card { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: stretch; justify-content: flex-start; padding: 0; border-radius: 25px; border-width: 4px; border-bottom-width: 8px; border-color: #d4e6ed; background-color: white; overflow: hidden; transition-duration: .16s; }
+.menu-content { flex-grow: 1; padding: 38px 48px 34px; }
+
+/* ---------------------------------------------------------------- splash */
+
+.splash-row { flex-direction: row; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.splash-copy { flex-grow: 1; flex-shrink: 1; }
+.splash-greeting { font-size: 58px; color: #29335C; letter-spacing: -1px; text-shadow: 0 2px 12px rgba(253,251,246,.95); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.splash-sub { font-size: 25px; color: #5A749F; margin-top: 6px; text-shadow: 0 1px 8px rgba(253,251,246,.95); }
+.splash-side { flex-direction: column; align-items: flex-end; flex-shrink: 0; margin-left: 24px; }
+.utility-cluster { flex-direction: row; flex-shrink: 0; margin-top: 8px; }
+
+Button { -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #29335C; border-color: rgba(253,251,246,.8); border-width: 2px; border-radius: 22px; background-color: rgba(253,251,246,.88); padding: 10px 22px; margin: 0; }
+Button:hover { background-color: rgba(237,244,255,.95); border-color: #89BBFE; }
+Button:focus { border-color: #5C9CF2; }
+Button:active { background-color: rgba(216,232,254,.96); }
+Button:disabled { opacity: .55; }
+.utility-button { font-size: 18px; margin-left: 12px; }
+
+/* ---------------------------------------------------------------- bento grid */
+
+.bento { flex-direction: row; flex-grow: 1; min-height: 0; }
+.bento-main { flex-grow: 1.55; flex-basis: 0; min-width: 0; margin-right: 22px; }
+.bento-side { flex-grow: 1; flex-basis: 0; min-width: 0; }
+
+.tile { background-color: rgba(253,251,246,.90); border-radius: 24px; border-width: 2px; border-bottom-width: 5px; border-color: rgba(253,251,246,.8); border-bottom-color: rgba(111,138,183,.42); padding: 16px 22px; margin-bottom: 13px; overflow: hidden; }
+.tile-head { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.tile-label { font-size: 17px; letter-spacing: 1.6px; color: #5A749F; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.tile-note { font-size: 17px; color: #6F8AB7; }
+.tile-note.accent { color: #29335C; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+
+/* ---------------------------------------------------------------- hero */
+
+.tile-hero { flex-grow: 1; min-height: 0; }
+.hero-body { flex-direction: row; align-items: stretch; flex-grow: 1; min-height: 0; }
+.hero-readout { flex-shrink: 0; width: 236px; margin-right: 12px; justify-content: center; }
+.reach-delta { font-size: 23px; color: #3D7CD4; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.stat-number { font-size: 78px; color: #29335C; letter-spacing: -3px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.stat-caption { font-size: 16px; color: #6F8AB7; margin-top: 2px; }
+.reach-best { font-size: 16px; color: #6F8AB7; margin-top: 2px; }
+.reach-spark { height: 46px; margin-top: 14px; }
+.reach-cheer { font-size: 17px; color: #B33F2C; margin-top: 10px; white-space: normal; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.range-fan { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+
+/* ---------------------------------------------------------------- consistency */
+
+.tile-calendar { flex-shrink: 0; }
+.calendar-days { flex-direction: row; max-width: 420px; align-self: center; width: 100%; margin-bottom: 6px; }
+.day-letter { flex-grow: 1; flex-basis: 0; font-size: 14px; color: #8CA3C7; -unity-text-align: middle-center; }
+.calendar-grid { height: 150px; max-width: 420px; align-self: center; width: 100%; }
+
+/* ---------------------------------------------------------------- primary CTA */
+
+.cta { flex-direction: row; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 20px 28px; border-radius: 26px; border-width: 2px; border-bottom-width: 7px; border-color: #FFA695; border-bottom-color: #C14730; background-color: rgba(255,113,91,.95); transition-duration: .16s; }
+.cta:hover, .cta:focus { background-color: rgba(255,138,120,.98); border-color: #FFD3C9; scale: 1.02; }
+.cta:active { background-color: rgba(228,82,60,.98); scale: 1.005; }
+.cta-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.cta-title { font-size: 32px; color: #1F2747; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.cta-sub { font-size: 20px; color: rgba(31,39,71,.82); margin-top: 3px; }
+.cta-arrow { font-size: 44px; color: rgba(31,39,71,.86); margin-left: 16px; flex-shrink: 0; }
+
+/* ---------------------------------------------------------------- side tiles */
+
+.tile-progress { flex-shrink: 0; }
+.progress-split { flex-direction: row; align-items: center; }
+.ring-wrap { width: 132px; height: 132px; flex-shrink: 0; align-items: center; justify-content: center; }
+.program-ring { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.ring-centre { align-items: center; max-width: 96px; }
+.ring-number { font-size: 40px; color: #29335C; letter-spacing: -1px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.streak-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; margin-left: 20px; }
+.streak-number { font-size: 62px; color: #FF715B; letter-spacing: -3px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.ring-note { font-size: 16px; color: #6F8AB7; margin-top: 10px; }
+.goal-copy { font-size: 16px; color: #485F88; white-space: normal; margin-top: 6px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
+
+.tile-today { flex-grow: 1; min-height: 0; }
+.task-row { flex-direction: row; align-items: center; padding: 10px 0; border-top-width: 1px; border-top-color: rgba(111,138,183,.28); }
+.task-row.first { border-top-width: 0; }
+.task-dot { width: 15px; height: 15px; border-radius: 8px; border-width: 3px; border-color: #6F8AB7; background-color: rgba(253,251,246,.7); margin-right: 13px; flex-shrink: 0; }
+.task-dot.done { background-color: #29335C; border-color: #29335C; }
+.task-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.task-title { font-size: 23px; color: #29335C; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.task-detail { font-size: 16px; color: #6F8AB7; margin-top: 1px; }
+.task-status { font-size: 15px; color: #5A749F; padding: 4px 12px; border-radius: 11px; background-color: rgba(216,232,254,.85); flex-shrink: 0; }
+.task-status.done { color: #29335C; background-color: rgba(183,212,254,.55); }
+#today-empty { font-size: 17px; color: #6F8AB7; padding: 8px 0; }
+
+.tile-action { flex-direction: row; align-items: center; justify-content: space-between; flex-shrink: 0; background-color: rgba(253,251,246,.82); margin-bottom: 0; transition-duration: .16s; }
+.tile-action:hover, .tile-action:focus { background-color: rgba(253,251,246,.95); border-color: rgba(137,187,254,.95); scale: 1.02; }
+.action-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.action-title { font-size: 29px; color: #29335C; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.action-sub { font-size: 18px; color: #6F8AB7; margin-top: 3px; white-space: normal; }
+.browse-glyph { width: 40px; height: 40px; flex-shrink: 0; margin-left: 14px; }
+
+/* ---------------------------------------------------------------- overlays */
+
+.modal-shade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; background-color: rgba(31,39,71,.45); }
+.sheet { width: 1180px; padding: 40px 44px 36px; background-color: rgba(253,251,246,.97); border-radius: 32px; border-width: 3px; border-bottom-width: 8px; border-color: #B7D4FE; }
+.help-sheet { width: 900px; }
+.sheet-title { font-size: 36px; color: #29335C; margin-bottom: 22px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.sheet-close { align-self: flex-end; margin-top: 26px; font-size: 19px; }
+.name-sheet { width: 720px; }
+.name-field { margin: 18px 0 14px; }
+.name-field > TextInput { font-size: 30px; padding: 14px 18px; border-radius: 18px; border-width: 2px; border-color: #B7D4FE; background-color: #FDFBF6; color: #29335C; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.sheet-actions { flex-direction: row; justify-content: flex-end; margin-top: 22px; }
+.sheet-close { margin-left: 14px; font-size: 19px; }
+.sheet-close.primary { color: #F8F3E8; background-color: rgba(41,51,92,.96); border-color: #3B4673; }
+.sheet-close.primary:hover { background-color: rgba(59,70,115,.98); }
+
+
+.activities { flex-direction: row; }
+Button.activity-card { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: stretch; justify-content: flex-start; padding: 18px 22px 10px; border-radius: 26px; border-width: 2px; border-bottom-width: 6px; border-color: #D8E8FE; border-bottom-color: rgba(111,138,183,.55); background-color: #FDFBF6; overflow: hidden; transition-duration: .16s; }
 Button.golf-card { margin-right: 26px; }
-Button.activity-card.selected, Button.activity-card:hover, Button.activity-card:focus { border-color: #39afe0; border-bottom-color: #1d8dc6; background-color: white; }
-Button.activity-card:active { border-color: #1688be; background-color: #eaf8ff; }
-.activity-preview { flex-grow: 1; min-height: 140px; overflow: hidden; -unity-background-scale-mode: scale-and-crop; }
-.golf-preview { background-image: url("project://database/Assets/Kinesthetic/Menu/Art/Golf.png"); }
-.studio-preview { background-image: url("project://database/Assets/Kinesthetic/Menu/Art/Studio.png"); }
-.preview-tag { position: absolute; top: 17px; left: 18px; padding: 7px 13px; border-radius: 12px; color: #2c6d83; font-size: 11px; letter-spacing: 1.2px; background-color: rgba(255,255,255,.94); }
-.card-info { flex-direction: row; align-items: center; padding: 20px 22px; min-height: 112px; border-top-width: 3px; border-top-color: #edf7fb; }
-.mode-icon { width: 62px; height: 62px; flex-shrink: 0; border-radius: 31px; border-width: 2px; border-color: #c8e9f6; background-color: #f1faff; margin-right: 17px; }
-.card-copy { flex-grow: 1; flex-shrink: 1; }
-.card-title { font-size: 31px; color: #319acb; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.card-description { font-size: 14px; color: #6e8c9b; margin-top: 3px; white-space: normal; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
-.card-arrow { font-size: 37px; color: #acd4e5; margin-left: 10px; }
-.selected .card-arrow { color: #239fd8; }
-.selection-row { height: 75px; flex-direction: row; align-items: center; justify-content: center; }
-.selection-dot { width: 8px; height: 8px; border-radius: 4px; background-color: #48b2dd; margin-right: 12px; }
-.selection-caption { font-size: 17px; color: #55819a; }
-.footer-row { flex-direction: row; align-items: center; justify-content: space-between; margin-top: auto; }
-.controls { flex-direction: row; align-items: center; }
-.keycap { min-width: 30px; height: 28px; padding: 3px 8px; margin-right: 5px; border-radius: 8px; border-width: 1px; border-bottom-width: 3px; border-color: #b8dbea; background-color: rgba(255,255,255,.88); -unity-text-align: middle-center; font-size: 12px; color: #50809a; }
-.control-label { margin-left: 5px; margin-right: 23px; font-size: 13px; color: #6c91a4; }
-.help-button { font-size: 14px; }
-.modal-shade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; background-color: rgba(43,83,104,.24); }
-.help-card { width: 580px; padding: 38px; background-color: white; border-radius: 28px; border-width: 3px; border-bottom-width: 7px; border-color: #bce2f3; }
-.help-title { font-size: 30px; color: #268cbe; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.help-heading { font-size: 18px; margin-top: 24px; margin-bottom: 6px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.help-copy { font-size: 16px; white-space: normal; color: #5d7e90; }
-.help-close { align-self: flex-end; margin-top: 28px; font-size: 17px; }
+Button.activity-card.selected, Button.activity-card:hover, Button.activity-card:focus { border-color: #5C9CF2; border-bottom-color: #3D7CD4; background-color: #EDF4FF; scale: 1.02; }
+Button.activity-card:active { border-color: #3D7CD4; background-color: #D8E8FE; scale: 1.005; }
+.preview-tag { align-self: flex-start; padding: 6px 14px; border-radius: 12px; color: #485F88; font-size: 13px; letter-spacing: 1.2px; background-color: #D8E8FE; }
+.card-info { flex-direction: row; align-items: center; padding: 14px 2px 10px; }
+.mode-icon { width: 62px; height: 62px; flex-shrink: 0; border-radius: 31px; border-width: 2px; border-color: #B7D4FE; background-color: #EDF4FF; margin-right: 16px; }
+.card-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.card-title { font-size: 30px; color: #29335C; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.card-description { font-size: 16px; color: #6F8AB7; margin-top: 3px; white-space: normal; }
+.card-arrow { font-size: 38px; color: #AABDD9; margin-left: 10px; flex-shrink: 0; }
+.selected .card-arrow { color: #5C9CF2; }
+.selection-row { height: 54px; flex-direction: row; align-items: center; justify-content: center; }
+.selection-dot { width: 9px; height: 9px; border-radius: 5px; background-color: #5C9CF2; margin-right: 12px; }
+.selection-caption { font-size: 19px; color: #5A749F; }
+
+.help-heading { font-size: 21px; margin-top: 22px; margin-bottom: 6px; color: #29335C; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.help-copy { font-size: 18px; white-space: normal; color: #6F8AB7; }
+
 .hidden { display: none; }
+
+/* ---- Friends -------------------------------------------------------------
+   Same cool palette as the activity cards (#29335C accents, #6F8AB7 secondary
+   text, 12-28px radii). No red and no counts of missed days: this surface has
+   to feel welcoming on the days someone has not shown up. */
+
+.friends-button {
+    flex-direction: row;
+    align-items: center;
+    font-size: 18px;
+    /* Tighter on the left so the stacked faces sit inside the pill's curve. */
+    padding: 10px 22px 10px 14px;
+}
+.friends-faces { flex-direction: row; align-items: center; height: 26px; margin-right: 16px; }
+.friends-label { font-size: 18px; color: #29335C; }
+
+/* A gentle count of who is waiting, never a red alert. */
+.friends-badge {
+    margin-left: 8px;
+    min-width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background-color: #5C9CF2;
+    color: #FDFBF6;
+    font-size: 15px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+}
+.friends-badge.hidden { display: none; }
+
+/* Stacked Mii faces, overlapping like an avatar group. */
+.friend-face {
+    width: 26px;
+    height: 26px;
+    border-radius: 13px;
+    margin-right: -8px;
+    border-width: 2px;
+    border-color: #FDFBF6;
+}
+
+.friends-overlay {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(31,39,71,.45);
+}
+.friends-overlay.hidden { display: none; }
+
+.friends-panel {
+    width: 980px;
+    height: 600px;
+    border-radius: 32px;
+    border-width: 3px;
+    border-bottom-width: 8px;
+    border-color: #B7D4FE;
+    background-color: rgba(253,251,246,.97);
+    padding: 32px 34px 28px;
+}
+.friends-header { flex-direction: row; justify-content: space-between; align-items: flex-start; }
+.friends-heading { flex-direction: column; }
+.friends-title { font-size: 32px; color: #29335C; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.friends-subtitle { font-size: 16px; color: #6F8AB7; margin-top: 4px; }
+.panel-close { font-size: 19px; }
+
+.friends-body { flex-direction: row; flex-grow: 1; margin-top: 18px; }
+
+.friends-list-pane { width: 268px; margin-right: 22px; }
+.friends-list { flex-grow: 1; }
+
+.friend-row {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+    padding: 9px 10px;
+    margin-bottom: 6px;
+    border-radius: 14px;
+    background-color: rgba(248,243,232,.70);
+}
+.friend-row:hover { background-color: rgba(216,232,254,.96); }
+.friend-row.selected { background-color: rgba(111,138,183,.20); }
+.friend-row-face { width: 34px; height: 34px; border-radius: 17px; margin-right: 10px; }
+.friend-row-copy { flex-grow: 1; flex-shrink: 1; flex-direction: column; overflow: hidden; margin-right: 8px; }
+.friend-row-name { font-size: 17px; color: #29335C; -unity-font-style: bold; overflow: hidden; text-overflow: ellipsis; }
+.friend-row-meta { font-size: 14px; color: #6F8AB7; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; }
+.friend-row-dot { width: 8px; height: 8px; border-radius: 4px; background-color: #5C9CF2; margin-left: 6px; }
+.friend-row-dot.hidden { display: none; }
+
+.follow-pill {
+    flex-shrink: 0;
+    min-width: 76px;
+    height: 26px;
+    font-size: 14px;
+    border-radius: 13px;
+    border-width: 1px;
+    border-color: rgba(111,138,183,.42);
+    background-color: rgba(253,251,246,.90);
+    color: #29335C;
+}
+.follow-pill.following { background-color: #29335C; color: #FDFBF6; border-color: #29335C; }
+
+.invite-block { margin-top: 12px; }
+.ghost-button {
+    height: 32px;
+    font-size: 15px;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: rgba(111,138,183,.42);
+    background-color: rgba(253,251,246,.90);
+    color: #29335C;
+}
+.invite-code {
+    font-size: 24px;
+    color: #29335C;
+    -unity-font-style: bold;
+    letter-spacing: 4px;
+    -unity-text-align: middle-center;
+    margin-top: 8px;
+}
+.invite-code.hidden { display: none; }
+.code-row { flex-direction: row; align-items: center; margin-top: 8px; }
+.code-field { flex-grow: 1; margin-right: 6px; height: 40px; font-size: 16px; }
+.friends-notice { font-size: 14px; color: #6F8AB7; margin-top: 6px; white-space: normal; }
+
+.thread-pane { flex-grow: 1; flex-direction: column; }
+.thread-head { flex-direction: row; align-items: center; margin-bottom: 10px; }
+.thread-face { width: 30px; height: 30px; border-radius: 15px; margin-right: 10px; }
+.thread-name { font-size: 20px; color: #29335C; -unity-font-style: bold; }
+.thread { flex-grow: 1; border-radius: 18px; background-color: rgba(248,243,232,.55); padding: 12px; }
+
+/* Messages read as speech, so they are asymmetric: mine tinted, theirs white. */
+.bubble { max-width: 74%; border-radius: 16px; padding: 9px 13px; margin-bottom: 8px; }
+.bubble-mine { align-self: flex-end; background-color: #29335C; }
+.bubble-theirs { align-self: flex-start; background-color: #FDFBF6; }
+.bubble-text { font-size: 16px; white-space: normal; }
+.bubble-mine .bubble-text { color: #FDFBF6; }
+.bubble-theirs .bubble-text { color: #29335C; }
+.bubble-kind { font-size: 16px; -unity-font-style: bold; }
+.bubble-mine .bubble-kind { color: #FDFBF6; }
+.bubble-theirs .bubble-kind { color: #29335C; }
+.bubble-photo { width: 190px; height: 128px; border-radius: 12px; margin-top: 6px; }
+.bubble-time { font-size: 13px; margin-top: 3px; }
+.bubble-mine .bubble-time { color: rgba(253,251,246,.72); }
+.bubble-theirs .bubble-time { color: #8CA3C7; }
+
+.thread-empty { font-size: 16px; color: #6F8AB7; -unity-text-align: middle-center; margin-top: 30px; white-space: normal; }
+
+/* One tap is the whole message. Most encouragement should cost nothing. */
+.quick-row { flex-direction: row; flex-wrap: wrap; margin-top: 10px; }
+.quick-chip {
+    height: 30px;
+    padding: 0 14px;
+    margin-right: 6px;
+    margin-bottom: 6px;
+    border-radius: 15px;
+    border-width: 1px;
+    border-color: rgba(111,138,183,.35);
+    background-color: rgba(253,251,246,.95);
+    color: #29335C;
+    font-size: 15px;
+}
+.quick-chip:hover { background-color: rgba(237,244,255,.95); border-color: #5C9CF2; }
+
+.composer { flex-direction: row; align-items: center; margin-top: 8px; }
+.composer-text { flex-grow: 1; height: 44px; font-size: 16px; margin-right: 6px; }
+.send-button {
+    min-width: 84px;
+    height: 36px;
+    margin-left: 6px;
+    border-radius: 18px;
+    background-color: #29335C;
+    color: #FDFBF6;
+    font-size: 16px;
+    -unity-font-style: bold;
+    border-width: 0;
+}
+.send-button:hover { background-color: #5C9CF2; }
+
+
+/* ---- Spotlight: one friend, on the landing page ---------------------------
+   Shows a message a friend actually sent. When there is none it states the
+   friendship rather than inventing a quote — putting words in a real person's
+   mouth would be a betrayal of someone at a low point. */
+.friend-spotlight {
+    flex-direction: row;
+    align-items: center;
+    align-self: flex-end;
+    max-width: 460px;
+    margin-top: 12px;
+    padding: 10px 14px 10px 10px;
+    border-radius: 24px;
+    background-color: rgba(253,251,246,.94);
+    border-width: 2px;
+    border-color: rgba(253,251,246,.8);
+}
+.friend-spotlight.hidden { display: none; }
+.spotlight-face { width: 40px; height: 40px; border-radius: 20px; margin-right: 10px; flex-shrink: 0; }
+.spotlight-copy { flex-direction: column; flex-grow: 1; flex-shrink: 1; overflow: hidden; }
+.spotlight-name { font-size: 17px; color: #29335C; -unity-font-style: bold; }
+.spotlight-line { font-size: 17px; color: #29335C; white-space: normal; margin-top: 1px; }
+.spotlight-reply {
+    flex-shrink: 0;
+    margin-left: 10px;
+    padding: 7px 16px;
+    border-radius: 18px;
+    font-size: 17px;
+}
+.spotlight-reply:hover { background-color: rgba(237,244,255,.95); border-color: #5C9CF2; }
+
+.thread-hint { font-size: 15px; color: #6F8AB7; margin-left: 10px; }
+
+/* A per-row Message button, so sending is never hidden behind selection. */
+.message-pill {
+    flex-shrink: 0;
+    min-width: 74px;
+    height: 26px;
+    margin-left: 6px;
+    font-size: 14px;
+    border-radius: 13px;
+    border-width: 0;
+    background-color: rgba(111,138,183,.18);
+    color: #29335C;
+}
+.message-pill:hover { background-color: rgba(111,138,183,.28); }

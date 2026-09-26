@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24" },
-  "scripts": { "start": "node server.ts", "test": "node --test bridge.test.ts golf-relay.test.ts bowling-relay.test.ts measurement.test.ts imu-measurement.test.ts exercise.test.ts plans.test.ts progression.test.ts" },
+  "scripts": { "start": "node server.ts", "test": "node --test bridge.test.ts golf-relay.test.ts bowling-relay.test.ts measurement.test.ts exercise/trunk-rotation.test.ts exercise/arm-elevation.test.ts exercise.test.ts plans.test.ts activity.test.ts hostclock.test.ts norms.test.ts progression.test.ts exercise/imu-session.test.ts" },
   "dependencies": { "ws": "8.18.3" }
 }

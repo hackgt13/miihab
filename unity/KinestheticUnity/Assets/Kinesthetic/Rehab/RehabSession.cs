@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Linq;
 using System.IO;
 using System.Text;
 using Newtonsoft.Json.Linq;
@@ -125,13 +124,12 @@ namespace Kinesthetic.Rehab
 
         void ApplyPlan(JObject plan)
         {
-            // A plan lists several exercises; this scene measures the shoulder raise.
-            var e = (plan["exercises"] as JArray)?.OfType<JObject>().FirstOrDefault(x => (string)x["type"] == "seated_shoulder_raise");
-            if (e == null) return;
+            // The plan's derived v1 view is the first measured prescription: the shoulder raise this scene runs.
+            var e = plan["exercise"] as JObject; if (e == null) return;
             planVersion = plan["version"]?.Value<int>() ?? planVersion;
             side = (string)e["side"] ?? side;
             targetDeg = e["targetDeg"]?.Value<float>() ?? targetDeg;
-            var ceiling = e["maxSafeDeg"]?.Value<float>();
+            var ceiling = e["targetMaxDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? e["targetMaxDeg"].Value<float>() : (float?)null;
             if (ceiling > targetDeg) bandDeg = ceiling.Value - targetDeg;   // the drawn band is the plan's safe band
             prescribedReps = e["prescribedReps"]?.Value<int>() ?? prescribedReps;
             coachingNote = (string)plan["coachingNote"] ?? "";
@@ -219,11 +217,11 @@ namespace Kinesthetic.Rehab
             float filled = Mathf.Clamp01((float)valid / Mathf.Max(1, prescribedReps)) * segments;
             for (int i = 0; i < segments; i++)
             {
-                painter.strokeColor = new Color(.87f, .93f, .90f);
+                painter.strokeColor = Palette.Ice20;
                 float begin = -90 + i * step + gap * .5f, end = -90 + (i + 1) * step - gap * .5f;
                 painter.BeginPath(); painter.Arc(rect.center, rect.width * .43f, Angle.Degrees(begin), Angle.Degrees(end)); painter.Stroke();
                 if (filled <= i) continue;
-                painter.strokeColor = new Color(.22f, .68f, .62f);
+                painter.strokeColor = Palette.Ice50;
                 painter.BeginPath(); painter.Arc(rect.center, rect.width * .43f, Angle.Degrees(begin), Angle.Degrees(Mathf.Lerp(begin, end, Mathf.Clamp01(filled - i)))); painter.Stroke();
             }
         }

@@ -47,6 +47,8 @@ public static class KinestheticSceneSetup
         Surface("Floor", PrimitiveType.Plane, Vector3.zero, Vector3.one, Material("Floor", new Color(.07f, .11f, .14f)));
         var target = Surface("Shoulder test target", PrimitiveType.Sphere,
             rig.RightUpperArm.position + new Vector3(-.5f, .3f, 0), Vector3.one * .12f, Material("Target", Color.gray));
+        var eyes = actor.AddComponent<EyeAnchor>();
+        eyes.ownBody = model.transform; eyes.lookAt = target.transform;
         var camera = new GameObject("Spectator camera").AddComponent<Camera>();
         camera.transform.position = new Vector3(1.5f, 1.3f, -3.3f);
         camera.transform.LookAt(new Vector3(0, .69f, 0));
@@ -75,7 +77,12 @@ public static class KinestheticSceneSetup
         PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
         PlayerSettings.runInBackground = true;
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
-        EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+        // Additive, like every other setup here. Assigning the whole list instead drops every other scene from
+        // Build Settings, which boots a build into this diagnostic scene and leaves the menu unable to load
+        // any activity, since LoadScene only reaches scenes on the list.
+        var builds = EditorBuildSettings.scenes.ToList();
+        if (!builds.Any(s => s.path == ScenePath)) builds.Add(new EditorBuildSettingsScene(ScenePath, true));
+        EditorBuildSettings.scenes = builds.ToArray();
         AssetDatabase.SaveAssets();
         Debug.Log("[Kinesthetic] Motion scene created with articulated avatar and replay controls.");
     }

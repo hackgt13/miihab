@@ -7,11 +7,16 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { writeFile, readdir, readFile } from 'node:fs/promises';
 import { PlanStore } from './plans.ts';
-import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from './progression.ts';
-import { LIBRARY, libraryEntry } from './exercises.ts';
+import { FriendStore } from './friends.ts';
+import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
+import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
-import { ShoulderRaiseSession, type ExerciseConfig, type ExerciseEvent } from './measurement.ts';
-import { ImuRepSession } from './imu-measurement.ts';
+import { createSession, exerciseKind, type RepParams, type RepSession } from './exercise/registry.ts';
+import type { Frame, ImuSample, RepEvent } from './exercise/kind.ts';
+import { activitySummaryFromExercise, parseActivitySummary } from './activity.ts';
+import { NORMS, compareToNorm, type Sex, type Side } from './norms.ts';
+import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from './progression.ts';
+import { LIBRARY } from './exercises.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const captureRoot = resolve(root, 'spikes/pose-capture');
@@ -22,6 +27,23 @@ const plans = new PlanStore(resolve(process.env.KINESTHETIC_PLANS_DIRECTORY ?? r
 const proposals = new ProposalStore(resolve(process.env.KINESTHETIC_PROPOSALS_DIRECTORY ?? resolve(root, 'local-data/proposals')));
 // Simulated input never moves a real patient's plan, except in a demo run that opts in.
 const progressFromSimulated = process.env.KINESTHETIC_PROGRESS_SIMULATED === '1';
+const socialDir = resolve(process.env.KINESTHETIC_SOCIAL_DIRECTORY ?? resolve(root, 'local-data/social'));
+const friends = new FriendStore(socialDir);
+const messages = new MessageStore(socialDir);
+
+/// Reads a bounded request body. Photos are the only binary upload here.
+function readBytes(request: import('node:http').IncomingMessage, limit: number): Promise<Buffer> {
+  return new Promise((done, fail) => {
+    const chunks: Buffer[] = []; let size = 0;
+    request.on('data', chunk => {
+      size += chunk.length;
+      if (size > limit) { fail(Object.assign(new Error('Photo is larger than 4 MB'), {status:413})); request.destroy(); return; }
+      chunks.push(chunk);
+    });
+    request.on('end', () => done(Buffer.concat(chunks)));
+    request.on('error', fail);
+  });
+}
 const portalRoot = resolve(root, 'coordinator/portal');
 const historyFixture = resolve(root, 'coordinator/fixtures/history.json');
 const allowedOrigins = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:8765', 'http://127.0.0.1:8765']);
@@ -38,11 +60,16 @@ const viewers = new Set<WebSocket>();
 // Exercise measurement runs on the incoming pose stream. Its events use a separate /exercise
 // socket so pose viewers (Unity) only ever receive pose.frame / pose.status messages.
 const exerciseViewers = new Set<WebSocket>();
-let exercise: ShoulderRaiseSession | ImuRepSession | null = null;
+let exercise: RepSession | null = null;
 let exerciseId = '';
 let exercisePoseSession: string | null = null;
 let exerciseSource: string | null = null;   // producer sourceId, e.g. camera vs synthetic simulator
-let exercisePlanId = '';                   // plan exercise being measured, e.g. shoulder-raise-right
+let exerciseStartedAt = '';
+let exercisePrescriptionId = '';            // plan activities[].id being measured, e.g. arm-elevation-right
+let exerciseActivityId = 'rehab.studio';
+// The latest camera frame, for exercises that read magnitude from the IMU and compensation from pose.
+let lastPose: { frame: Frame; hostMs: number } | null = null;
+let lastImuMs = -Infinity;
 // Kept apart from the pose recording: Unity's replay loader accepts only pose.frame lines there.
 let exerciseLog: ReturnType<typeof createWriteStream> | null = null;
 function exerciseBroadcast(message: any) {
@@ -50,7 +77,7 @@ function exerciseBroadcast(message: any) {
   for (const ws of exerciseViewers) if (ws.readyState === WebSocket.OPEN && ws.bufferedAmount < 128*1024) ws.send(text);
 }
 // Engine output goes to /exercise viewers and the session log the same way for both sensors.
-function feed(events: ExerciseEvent[], sourceSessionId: string | null) {
+function feed(events: RepEvent[], sourceSessionId: string | null) {
   if (!exercise) return;
   const sample = exercise.samples.at(-1);
   if (sample) exerciseBroadcast({type:'exercise.sample', payload:{...sample, phase:exercise.phase, rep:exercise.currentRep}});
@@ -64,14 +91,24 @@ function watchMotion() {
   if (motion) return;
   const ws = new WebSocket(motionUrl); motion = ws;
   ws.on('message', data => {
-    if (!(exercise instanceof ImuRepSession)) return;
+    if (!exercise?.kind.requires.includes('imu')) return;
     let p: any; try { p = JSON.parse(String(data)); } catch { return; }
     if (p.type !== 'club.motion' || p.playerId !== motionPlayer) return;
     exerciseSource ??= `airpod:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only
     exerciseLog?.write(JSON.stringify({type:'motion.sample', exerciseId, payload:p})+'\n');
-    feed(exercise.push(p), p.sessionId);
+    // Both relays stamp the shared host clock (hostclock.ts); older relays did not, so fall back to local time.
+    const t = Number.isFinite(p.hostMonotonicMs) ? Number(p.hostMonotonicMs) : hostMonotonicMs();
+    if (t <= lastImuMs) return;
+    // The relay only forwards samples, so a silent stream is seen here: step the engine with no IMU at the
+    // moment the gap passed, which is tracking loss, before the sample that ends it.
+    if (lastImuMs > -Infinity && t - lastImuMs > exercise.params.trackingGapMs)
+      feed(exercise.pushFused({tMs: lastImuMs + exercise.params.trackingGapMs + 1, imu: null}), p.sessionId);
+    lastImuMs = t;
+    const imu: ImuSample = {quaternion: p.quaternion, rotationRate: p.rotationRate, hostMonotonicMs: t};
+    const pose = lastPose && Math.abs(t - lastPose.hostMs) < 250 ? lastPose.frame : null;
+    feed(exercise.pushFused({tMs: t, imu, pose}), p.sessionId);
   });
-  ws.on('close', () => { motion = null; if (exercise instanceof ImuRepSession) setTimeout(watchMotion, 1000); });
+  ws.on('close', () => { motion = null; if (exercise?.kind.requires.includes('imu')) setTimeout(watchMotion, 1000); });
   ws.on('error', () => {});
 }
 async function readJson(request: import('node:http').IncomingMessage) {
@@ -83,31 +120,36 @@ async function readSummaries() {
   return Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
 }
 // After a session: rules propose the next dose; inside the clinician's envelope with auto-apply on, it applies.
-async function progress(planExerciseId: string, pain?: PainReport[]) {
+async function progress(prescriptionId: string, pain?: PainReport[]) {
   const all = plans.list(), active = all[all.length - 1];
-  let proposal = evaluate(all, planExerciseId, (await readSummaries()).map(evidenceFromSummary), {includeSimulated: progressFromSimulated, pain});
-  const x = active.exercises.find(e => e.id === planExerciseId)!;
-  if ((proposal.decision === 'progress' || proposal.decision === 'regress') && x.progression.autoApply && proposal.to) {
+  let proposal = evaluate(all, prescriptionId, (await readSummaries()).map(evidenceFromSummary), {includeSimulated: progressFromSimulated, pain});
+  const x = active.activities.find(a => a.id === prescriptionId)!;
+  if ((proposal.decision === 'progress' || proposal.decision === 'regress') && x.progression?.autoApply && proposal.to) {
     const clinician = [...all].reverse().find(p => p.origin === 'clinician')?.approvedBy ?? active.approvedBy;
     const plan = plans.approve({origin:'auto-progression', proposalId: proposal.id, expectedActiveVersion: proposal.planVersion,
       approvedBy: `Auto-progression within ${clinician}'s envelope`, rationale: proposal.reasons.join(' '),
-      basedOnExerciseIds: proposal.evidence.map(e => e.exerciseId), changes: {[planExerciseId]: {targetDeg: proposal.to.targetDeg}}});
+      basedOnExerciseIds: proposal.evidence.map(e => e.exerciseId), changes: {[prescriptionId]: {params: {targetDeg: proposal.to.targetDeg}}}});
     proposal = {...proposal, status: 'applied', appliedPlanVersion: plan.version};
   }
   proposals.save(proposal);
-  if (proposal.status === 'pending' || proposal.status === 'applied') proposals.supersede(proposal.exerciseId, proposal.id);
+  if (proposal.status === 'pending' || proposal.status === 'applied') proposals.supersede(proposal.prescriptionId, proposal.id);
   return proposal;
 }
 async function finishExercise() {
   if (!exercise) return null;
-  const summary = {exerciseId, planExerciseId: exercisePlanId, poseSessionId: exercisePoseSession, poseSource: exerciseSource,
-    simulated: /synthetic|fixture|simulat/i.test(exerciseSource ?? ''), endedAt: new Date().toISOString(), ...exercise.summary()};
+  const measured = exercise.summary() as Record<string, any>;
+  const summary = {exerciseId, prescriptionId: exercisePrescriptionId, poseSessionId: exercisePoseSession, poseSource: exerciseSource,
+    simulated: /synthetic|fixture|simulat/i.test(exerciseSource ?? ''), endedAt: new Date().toISOString(),
+    sensor: exercise.kind.requires.includes('imu') ? 'imu' : 'pose', ...measured, config: measured.params};
   await writeFile(resolve(recordings, `exercise-${exerciseId}.summary.json`), JSON.stringify(summary, null, 2));
+  const envelope = activitySummaryFromExercise({activitySessionId: exerciseId, activityId: exerciseActivityId,
+    venueId: 'studio', startedAt: exerciseStartedAt || summary.endedAt, endedAt: summary.endedAt, measured});
+  await writeFile(resolve(recordings, `session-${exerciseId}.json`), JSON.stringify(envelope, null, 2));
   exerciseBroadcast({type:'exercise.summary', payload:summary});
   exerciseLog?.end(); exerciseLog = null;
   exercise = null;
   let progression = null;
-  try { progression = await progress(exercisePlanId); exerciseBroadcast({type:'exercise.progression', payload:progression}); }
+  try { progression = await progress(exercisePrescriptionId); exerciseBroadcast({type:'exercise.progression', payload:progression}); }
   catch (error) { console.error('Progression failed:', (error as Error).message); }
   return {...summary, progression};
 }
@@ -127,34 +169,50 @@ const server = createServer(async (request, response) => {
         const summary = await finishExercise();
         response.writeHead(summary ? 200 : 409, {'Content-Type':'application/json'}).end(JSON.stringify(summary ?? {error:'No exercise running'})); return;
       }
-      const body = await readJson(request) as Partial<ExerciseConfig> & { exerciseId?: string; sensor?: 'imu' | 'pose' };
+      const body = await readJson(request) as Partial<RepParams> & {maxTrunkDeviationDeg?: number; exercise?: string; prescriptionId?: string};
       // The session pins an approved plan version; its thresholds come from that plan. Explicit fields
       // in the request are development overrides and are recorded as such in the summary config.
       const plan = body.planVersion != null ? plans.get(Number(body.planVersion)) : plans.active();
       if (!plan) throw Error(`Plan v${body.planVersion} does not exist`);
-      const x = body.exerciseId ? plan.exercises.find(e => e.id === body.exerciseId) : plan.exercises.find(e => e.type === 'seated_shoulder_raise');
-      if (!x) throw Error(body.exerciseId ? `No exercise "${body.exerciseId}" in plan v${plan.version}` : `Plan v${plan.version} has no shoulder raise`);
-      // Explicit sensor/threshold fields are development overrides, recorded in the summary config.
-      const lib = libraryEntry(x.type), sensor = body.sensor ?? x.sensor;
-      if (!lib.sensors.includes(sensor)) throw Error(`${lib.label} can be measured with ${lib.sensors.join(' or ')}, not ${sensor}`);
+      // Which prescription to measure: the one named, else the first measured activity in the plan.
+      const x = body.prescriptionId ? plan.activities.find(a => a.id === body.prescriptionId) : plan.activities.find(a => a.exerciseKind);
+      if (!x?.exerciseKind) throw Error(body.prescriptionId ? `No measured prescription "${body.prescriptionId}" in plan v${plan.version}` : `Plan v${plan.version} prescribes nothing measured`);
+      // `exercise` measures this prescription with another kind (e.g. by camera): a development override.
+      const kind = exerciseKind(body.exercise ?? x.exerciseKind);
       await finishExercise();
-      const common = {side: ((body.side ?? x.side) === 'left' ? 'left' : 'right') as 'left' | 'right',
-        targetDeg: Number(body.targetDeg ?? x.targetDeg),
-        targetMaxDeg: Number(body.targetMaxDeg ?? Number(body.targetDeg ?? x.targetDeg) + x.maxSafeDeg - x.targetDeg),
-        restMaxDeg: lib.restMaxDeg, prescribedReps: Number(body.prescribedReps ?? x.prescribedReps),
-        holdMs: Number(body.holdMs ?? x.holdMs), planVersion: plan.version};
-      if (sensor === 'imu') { exercise = new ImuRepSession({exercise: x.type as ImuRepSession['config']['exercise'], ...common}); watchMotion(); }
-      else {
-        const trunk = body.maxTrunkDeviationDeg ?? x.maxTrunkDeviationDeg;
-        exercise = new ShoulderRaiseSession({...common, ...(trunk != null ? {maxTrunkDeviationDeg: Number(trunk)} : {})});
-      }
-      exercisePlanId = x.id;
+      const p = x.params, target = Number(body.targetDeg ?? p.targetDeg);
+      const compensation = body.maxCompensationDeg ?? body.maxTrunkDeviationDeg ?? p.maxCompensationDeg;
+      exercise = createSession(kind.id, {side: (body.side ?? p.side) === 'left' ? 'left' : 'right',
+        targetDeg: target,
+        targetMaxDeg: Number(body.targetMaxDeg ?? target + Number(p.targetMaxDeg) - Number(p.targetDeg)),
+        prescribedReps: Number(body.prescribedReps ?? x.targetCount),
+        holdMs: Number(body.holdMs ?? p.holdMs ?? 400),
+        ...(compensation != null ? {maxCompensationDeg: Number(compensation)} : {}),
+        planVersion: plan.version});
+      exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; lastImuMs = -Infinity;
+      if (kind.requires.includes('imu')) watchMotion();
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
+      exerciseStartedAt = new Date().toISOString();
       exerciseLog = createWriteStream(resolve(recordings, `exercise-${exerciseId}.jsonl`));
-      const started = {exerciseId, planExerciseId: x.id, exercise: x.type, sensor, config: exercise.config};
+      const started = {exerciseId, prescriptionId: x.id, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', config: exercise.params};
       exerciseBroadcast({type:'exercise.started', payload: started});
       response.writeHead(200, {'Content-Type':'application/json'}).end(JSON.stringify(started));
     } catch (error) { response.writeHead(400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }
+    return;
+  }
+  if (request.method === 'POST' && url.pathname === '/activity/session') {
+    try {
+      const envelope = parseActivitySummary(await readJson(request));
+      await writeFile(resolve(recordings, `session-${envelope.activitySessionId}.json`), JSON.stringify(envelope, null, 2));
+      response.writeHead(201, {'Content-Type':'application/json'}).end(JSON.stringify({stored: envelope.activitySessionId}));
+    } catch (error) { response.writeHead(400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }
+    return;
+  }
+  // Photos are served as bytes, so this sits ahead of the JSON API block.
+  if (request.method === 'GET' && url.pathname.startsWith('/api/friends/photo/')) {
+    const photo = messages.photo(decodeURIComponent(url.pathname.slice('/api/friends/photo/'.length)));
+    if (!photo) { response.writeHead(404).end(); return; }
+    response.writeHead(200, {'Content-Type':photo.contentType,'Cache-Control':'private, max-age=86400'}).end(photo.bytes);
     return;
   }
   if (url.pathname.startsWith('/api/')) {
@@ -171,7 +229,7 @@ const server = createServer(async (request, response) => {
       if (request.method === 'GET' && url.pathname === '/api/proposals') return json(200, proposals.list().slice(0, 50));
       if (request.method === 'POST' && url.pathname === '/api/progression/evaluate') {
         const body = await readJson(request);
-        return json(200, await progress(String(body.exerciseId ?? ''), Array.isArray(body.pain) ? body.pain : undefined));
+        return json(200, await progress(String(body.prescriptionId ?? ''), Array.isArray(body.pain) ? body.pain : undefined));
       }
       const decide = url.pathname.match(/^\/api\/proposals\/([0-9a-f-]{36})\/(approve|dismiss)$/i);
       if (request.method === 'POST' && decide) {
@@ -183,16 +241,81 @@ const server = createServer(async (request, response) => {
         const body = await readJson(request);
         const plan = plans.approve({approvedBy: body.approvedBy, rationale: body.rationale ?? proposal.reasons.join(' '),
           expectedActiveVersion: proposal.planVersion, proposalId: proposal.id, basedOnExerciseIds: proposal.evidence.map(e => e.exerciseId),
-          changes: {[proposal.exerciseId]: {targetDeg: proposal.to.targetDeg}}});
+          changes: {[proposal.prescriptionId]: {params: {targetDeg: proposal.to.targetDeg}}}});
         return json(200, {proposal: proposals.save({...proposal, status:'approved', appliedPlanVersion: plan.version}), plan});
       }
       if (request.method === 'GET' && url.pathname === '/api/history') return json(200, JSON.parse(await readFile(historyFixture, 'utf8')));
+      if (url.pathname.startsWith('/api/friends')) {
+        const me = friends.me().id;
+        if (request.method === 'GET' && url.pathname === '/api/friends') {
+          const people = friends.list();
+          const unread = messages.unread(me, people.map(p => p.id));
+          return json(200, {
+            me: friends.me(),
+            encouragements: ENCOURAGEMENTS,
+            friends: people.map(p => ({...p, unread: unread[p.id] ?? 0})),
+          });
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/name')
+          return json(200, friends.setName((await readJson(request) as {displayName?:string}).displayName ?? ''));
+        if (request.method === 'POST' && url.pathname === '/api/friends/invite')
+          return json(201, {code: friends.invite()});
+        if (request.method === 'POST' && url.pathname === '/api/friends/accept') {
+          const body = await readJson(request) as {code?:string; displayName?:string};
+          return json(201, friends.accept(body.code ?? '', body.displayName));
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/follow') {
+          const body = await readJson(request) as {id?:string; following?:boolean};
+          friends.follow(body.id ?? '', body.following !== false);
+          return json(200, {ok:true});
+        }
+        if (request.method === 'GET' && url.pathname === '/api/friends/thread') {
+          const other = url.searchParams.get('id') ?? '';
+          if (!friends.has(other)) return json(404, {error:'Unknown person'});
+          messages.markSeen(me, other);
+          return json(200, {person: friends.person(other), messages: messages.thread(me, other)});
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/message') {
+          const body = await readJson(request) as {to?:string; kind?:string; text?:string; photoId?:string};
+          if (!friends.has(body.to ?? '')) return json(404, {error:'Unknown person'});
+          return json(201, messages.send(me, body.to!, body));
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/photo') {
+          const bytes = await readBytes(request, 4 * 1024 * 1024);
+          return json(201, {photoId: messages.savePhoto(bytes, String(request.headers['content-type'] ?? ''))});
+        }
+        return json(404, {error:'Not found'});
+      }
       const replay = url.pathname.match(/^\/api\/sessions\/([0-9a-f-]{36})\/replay$/i);
       if (request.method === 'GET' && replay) return json(200, await loadReplay(recordings, replay[1]));
+      // Two endpoints on purpose. /api/sessions stays the exercise-engine view the clinician portal
+      // reads today; /api/activity-sessions is the cross-activity envelope view that golf also lands
+      // in. Merging them duplicates every exercise session, since a finished session writes both.
+      // The portal moves over when it gains a cross-activity table; until then these stay apart.
+      // Normative ROM, so a result can read "142 degrees, typical for your age band". Every response
+      // says it is provisional: the per-band appendix values have not been applied yet.
+      if (request.method === 'GET' && url.pathname === '/api/norms') return json(200, NORMS);
+      if (request.method === 'GET' && url.pathname === '/api/norms/compare') {
+        const comparison = compareToNorm({
+          movement: String(url.searchParams.get('movement') ?? ''),
+          measuredDeg: Number(url.searchParams.get('measuredDeg')),
+          ageYears: Number(url.searchParams.get('ageYears')),
+          sex: (url.searchParams.get('sex') ?? undefined) as Sex | undefined,
+          side: (url.searchParams.get('side') ?? undefined) as Side | undefined,
+        });
+        return comparison ? json(200, comparison)
+          : json(404, {error: 'No normative table for that movement, age or measurement'});
+      }
       if (request.method === 'GET' && url.pathname === '/api/sessions') {
         const sessions = await readSummaries();
         sessions.sort((a, b) => String(b.endedAt).localeCompare(String(a.endedAt)));
         return json(200, sessions.slice(0, 50));
+      }
+      if (request.method === 'GET' && url.pathname === '/api/activity-sessions') {
+        const files = (await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f));
+        const sessions = await Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
+        sessions.sort((a, b) => String(b.endedAt).localeCompare(String(a.endedAt)));
+        return json(200, sessions.slice(0, 100));
       }
       return json(404, {error:'Not found'});
     } catch (error) { return json(400, {error:(error as Error).message}); }
@@ -274,9 +397,11 @@ sockets.on('connection', (ws, _request, role) => {
       }
       if (data.sequence <= sequence) return;
       sequence = data.sequence; lastReceived = performance.now(); captureStatus = 'Camera streaming';
-      latest = {...data, receivedSessionMs:lastReceived-sessionStarted};
+      latest = {...data, receivedSessionMs:lastReceived-sessionStarted, hostMonotonicMs:hostMonotonicMs()};
       recording?.write(JSON.stringify(latest)+'\n'); broadcast(latest);
-      if (exercise instanceof ShoulderRaiseSession) {
+      lastPose = {frame: f, hostMs: latest.hostMonotonicMs};
+      // Camera-driven exercises step on each frame; IMU-driven ones step on motion and read this frame then.
+      if (exercise && !exercise.kind.requires.includes('imu')) {
         exercisePoseSession ??= sessionId; exerciseSource ??= String(data.sourceId ?? 'unknown');
         feed(exercise.push(f), sessionId);
       }
@@ -286,5 +411,11 @@ sockets.on('connection', (ws, _request, role) => {
   ws.on('error', () => ws.close());
 });
 server.listen(port, '127.0.0.1', () => console.log(`Kinesthetic local pose bridge: http://localhost:${port}`));
-function shutdown() { recording?.end(); exercise = null; motion?.terminate(); for (const ws of sockets.clients) ws.close(); sockets.close(); server.close(); }
+// Shutdown must actually terminate (see golf-relay.ts): a peer that vanished without a closing handshake,
+// or the outgoing motion-relay socket, would otherwise keep the process alive.
+function shutdown() {
+  recording?.end(); exercise = null; motion?.terminate();
+  for (const ws of sockets.clients) ws.terminate(); sockets.close();
+  server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 500).unref();
+}
 process.on('SIGINT', shutdown); process.on('SIGTERM', shutdown);

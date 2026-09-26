@@ -19,7 +19,7 @@ namespace Kinesthetic.Golf
             gameObject.AddComponent<MeshFilter>().sharedMesh=mesh;
             meshRenderer=gameObject.AddComponent<MeshRenderer>();
             material=new Material(Shader.Find("Universal Render Pipeline/Unlit")){name="Translucent aim guidance",renderQueue=3000};
-            material.SetColor("_BaseColor",new Color(1,.94f,.61f,.48f));
+            material.SetColor("_BaseColor",Palette.Sand30.At(.48f));
             material.SetFloat("_Surface",1);material.SetFloat("_SrcBlend",(float)BlendMode.SrcAlpha);
             material.SetFloat("_DstBlend",(float)BlendMode.OneMinusSrcAlpha);material.SetFloat("_ZWrite",0);
             material.SetFloat("_Cull",0);material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");

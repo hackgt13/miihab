@@ -7,9 +7,12 @@ const deg = v => v == null ? '—' : `${Math.round(v)}°`;
 const REASONS = { did_not_reach_target: 'short of target', trunk_compensation: 'trunk compensation', tracking_lost: 'tracking lost', too_fast: 'too fast' };
 
 let state = { plans: [], active: null, history: null, sessions: [], proposals: [], library: {} };
-// This portal view follows the shoulder raise; other plan exercises are listed in the plan card.
-const primary = plan => plan.exercises.find(e => e.type === 'seated_shoulder_raise') ?? plan.exercises[0];
-const label = e => state.library[e.type]?.label ?? e.type;
+// This portal view follows the first measured prescription (the shoulder raise); the rest are listed in the plan card.
+const primary = plan => plan.activities.find(a => a.exerciseKind) ?? plan.activities[0];
+const label = a => a.exerciseKind ? state.library[a.exerciseKind]?.label ?? a.exerciseKind : ({ 'golf.adaptive': 'Golf with a friend' }[a.activityId] ?? a.activityId);
+const sensorOf = a => state.library[a.exerciseKind]?.sensor ?? 'Camera';
+// Summaries from before prescription ids name only the camera shoulder raise.
+const sessionFor = (s, a) => s.prescriptionId ? s.prescriptionId === a.id : a.exerciseKind === 'shoulder-raise.v1' || s.exercise === 'seated_shoulder_raise' && a.id.startsWith('shoulder-raise');
 
 async function load() {
   const [plans, active, history, sessions, proposals, library] = await Promise.all([get('/api/plans'), get('/api/plans/active'),
@@ -22,7 +25,7 @@ function rows() {
   const synthetic = state.history.sessions.map(s => ({ ...s, synthetic: true, when: s.label, trunk: s.trunkCompensationReps }));
   // The chart and table follow the plan's shoulder raise; older summaries have no plan exercise id.
   const x = primary(state.active);
-  const real = [...state.sessions].reverse().filter(s => s.planExerciseId ? s.planExerciseId === x.id : s.exercise === x.type).map(s => ({
+  const real = [...state.sessions].reverse().filter(s => sessionFor(s, x)).map(s => ({
     synthetic: false, when: new Date(s.endedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
     planVersion: s.planVersion, attempted: s.attempted, valid: s.valid, prescribed: s.prescribed, medianValidPeakDeg: s.medianValidPeakDeg,
     trunk: s.invalidReasons?.trunk_compensation ?? 0, simulated: s.simulated !== false, reasons: s.invalidReasons ?? {}, tracking: s.validFrameRatio, id: s.exerciseId, targetDeg: s.config?.targetDeg,
@@ -76,23 +79,28 @@ function render() {
   $('#plan-version').textContent = `v${active.version}`;
   const e = primary(active);
   $('#plan').innerHTML = [['Goal', esc(active.goal.text)],
-    ...active.exercises.map(x => [esc(label(x)), `${esc(x.side)} · ${x.sensor === 'imu' ? 'AirPod' : 'camera'} · ${x.targetDeg}–${x.maxSafeDeg}° · ${x.prescribedReps} reps` +
-      (x.loadKg ? ` · ${x.loadKg} kg` : '') + `<div class="muted small">${x.progression.autoApply ? 'Auto' : 'Clinician-approved'} levels ${x.progression.minTargetDeg}–${x.progression.maxTargetDeg}°, ` +
-      `+${x.progression.stepDeg}° after ${x.progression.sessionsToProgress} good sessions</div>`]),
+    ...active.activities.map(a => [esc(label(a)), !a.exerciseKind ? `${a.targetCount} · ${esc(a.note)}` :
+      `${esc(a.params.side)} · ${esc(sensorOf(a))} · ${a.params.targetDeg}–${a.params.targetMaxDeg}° · ${a.targetCount} reps` +
+      (a.params.loadKg ? ` · ${a.params.loadKg} kg` : '') + (a.progression ? `<div class="muted small">${a.progression.autoApply ? 'Auto' : 'Clinician-approved'} levels ` +
+      `${a.progression.minTargetDeg}–${a.progression.maxTargetDeg}°, +${a.progression.stepDeg}° after ${a.progression.sessionsToProgress} good sessions</div>` : '')]),
     ['Coaching note', esc(active.coachingNote)]]
     .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
   renderProposals();
   $('#plan-approved').textContent = `Approved ${new Date(active.approvedAt).toLocaleString()} by ${active.approvedBy}. Next session uses this version.`;
   const form = $('#plan-form');
-  $('#form-exercise').textContent = `Editing ${label(e)} · ${e.side}`;
-  for (const k of ['targetDeg', 'maxSafeDeg', 'prescribedReps', 'holdMs', 'maxTrunkDeviationDeg']) form.elements[k].value = e[k] ?? '';
-  form.elements.sensor.innerHTML = (state.library[e.type]?.sensors ?? [e.sensor]).map(s => `<option value="${s}">${s === 'imu' ? 'AirPod on the handle' : 'Camera'}</option>`).join('');
-  form.elements.sensor.value = e.sensor;
-  $('#trunk-field').hidden = e.sensor !== 'pose';
-  form.elements.maxTargetDeg.value = e.progression.maxTargetDeg; form.elements.autoApply.checked = e.progression.autoApply;
+  $('#form-exercise').textContent = `Editing ${label(e)} · ${e.params.side}`;
+  for (const k of ['targetDeg', 'targetMaxDeg', 'holdMs', 'maxCompensationDeg']) form.elements[k].value = e.params[k] ?? '';
+  form.elements.prescribedReps.value = e.targetCount;
+  // The same movement measured another way: the kinds that share this one's movement in the catalog.
+  const movement = state.library[e.exerciseKind]?.movement;
+  form.elements.exerciseKind.innerHTML = Object.values(state.library).filter(k => k.movement === movement)
+    .map(k => `<option value="${esc(k.kind)}">${esc(k.sensor)}</option>`).join('');
+  form.elements.exerciseKind.value = e.exerciseKind;
+  $('#trunk-field').hidden = sensorOf(e) !== 'Camera';
+  form.elements.maxTargetDeg.value = e.progression?.maxTargetDeg ?? ''; form.elements.autoApply.checked = !!e.progression?.autoApply;
   form.elements.coachingNote.value = active.coachingNote;
   $('#plan-history').innerHTML = [...state.plans].reverse().map(p => { const x = primary(p); return `<li><strong>v${p.version}</strong>` +
-    `${p.origin === 'auto-progression' ? ' <span class="tag">auto</span>' : ''} · ${esc(label(x))} ${x.targetDeg}–${x.maxSafeDeg}°, ${x.prescribedReps} reps
+    `${p.origin === 'auto-progression' ? ' <span class="tag">auto</span>' : ''} · ${esc(label(x))} ${x.params.targetDeg}–${x.params.targetMaxDeg ?? '?'}°, ${x.targetCount} reps
     <div class="why">${esc(p.rationale)}</div><div class="muted small">${new Date(p.approvedAt).toLocaleString()} · ${esc(p.approvedBy)}</div></li>`; }).join('');
 
   drawChart(all);
@@ -103,7 +111,7 @@ function drawChart(all) {
   const W = svg.clientWidth || 700, H = 260, m = { l: 44, r: 16, t: 14, b: 34 };
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const pts = all.filter(r => r.medianValidPeakDeg != null);
-  const target = primary(state.active).targetDeg;
+  const target = Number(primary(state.active).params.targetDeg);
   const ys = [...pts.map(p => p.medianValidPeakDeg), target];
   const lo = Math.floor((Math.min(...ys) - 10) / 10) * 10, hi = Math.ceil((Math.max(...ys) + 10) / 10) * 10;
   const x = i => m.l + (pts.length < 2 ? (W - m.l - m.r) / 2 : i * (W - m.l - m.r) / (pts.length - 1));
@@ -131,15 +139,16 @@ function drawChart(all) {
   });
 }
 
-$('#plan-form').elements.sensor.addEventListener('change', ev => { $('#trunk-field').hidden = ev.target.value !== 'pose'; });
+$('#plan-form').elements.exerciseKind.addEventListener('change', ev => { $('#trunk-field').hidden = state.library[ev.target.value]?.sensor !== 'Camera'; });
 $('#plan-form').addEventListener('submit', async ev => {
   ev.preventDefault();
   const f = ev.target, status = $('#form-status'), button = $('#approve');
   const e = primary(state.active);
-  const change = Object.fromEntries(['targetDeg', 'maxSafeDeg', 'prescribedReps', 'holdMs'].map(k => [k, Number(f.elements[k].value)]));
-  change.sensor = f.elements.sensor.value;
-  // A trunk lean limit needs the camera; the AirPod on the handle cannot see the trunk.
-  change.maxTrunkDeviationDeg = change.sensor === 'pose' ? Number(f.elements.maxTrunkDeviationDeg.value) || 12 : null;
+  const kind = f.elements.exerciseKind.value;
+  const change = { exerciseKind: kind, targetCount: Number(f.elements.prescribedReps.value),
+    params: Object.fromEntries(['targetDeg', 'targetMaxDeg', 'holdMs'].map(k => [k, Number(f.elements[k].value)])) };
+  // The camera sees the trunk; with the AirPod alone the lean limit is left to the kind's default.
+  if (state.library[kind]?.sensor === 'Camera') change.params.maxCompensationDeg = Number(f.elements.maxCompensationDeg.value) || 12;
   change.progression = { maxTargetDeg: Number(f.elements.maxTargetDeg.value), autoApply: f.elements.autoApply.checked };
   button.disabled = true; status.className = 'form-status'; status.textContent = 'Saving…';
   try {

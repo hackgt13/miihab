@@ -45,8 +45,10 @@ for motion_mode in club bowling; do
   -sdk "$sdk_path" \
   "${compiler_flags[@]}" "${activity_flags[@]}" \
   native/ClubMotionBridge.swift \
+  native/KeepAlive.swift \
   -o "$build_tmp/ClubMotionBridge" \
   -framework SwiftUI -framework CoreMotion \
+  -framework CoreAudio -framework AVFoundation \
   -module-cache-path "$build_tmp/module-cache"
   mkdir -p "native/build/$app_name.app/Contents/MacOS"
   cp "$plist" "native/build/$app_name.app/Contents/Info.plist"

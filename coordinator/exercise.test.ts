@@ -25,7 +25,7 @@ test('live exercise: pose stream → rep events on /exercise, pose viewers untou
     const producer = await open('/pose?role=producer');
 
     const started = await (await fetch(`http://127.0.0.1:${port}/exercise/start`, {method:'POST',
-      body:JSON.stringify({side:'right', targetDeg:80, prescribedReps:2, planVersion:1, sensor:'pose'})})).json();
+      body:JSON.stringify({side:'right', targetDeg:80, prescribedReps:2, planVersion:1, exercise:'shoulder-raise.v1'})})).json();
     assert.match(started.exerciseId, /^[0-9a-f-]{36}$/);
 
     const sessionId = randomUUID(); let sequence = 0, t = 0;

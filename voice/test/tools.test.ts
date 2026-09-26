@@ -11,8 +11,8 @@ import type { PatientService } from '../backend/services/patientService.ts';
 
 const plan = { version: 2, approvedBy: 'Dr. Demo', approvedAt: '2026-09-26T06:00:00Z', rationale: 'Progress range', origin: 'clinician',
   goal: { text: 'Play golf again', components: ['shoulder elevation'] },
-  exercises: [{ id: 'shoulder-raise-right', type: 'seated_shoulder_raise', side: 'right', sensor: 'imu', targetDeg: 85, maxSafeDeg: 100,
-    prescribedReps: 8, sets: 1, holdMs: 600, loadKg: 0, assistance: 'active' }],
+  activities: [{ id: 'arm-elevation-right', activityId: 'rehab.studio', exerciseKind: 'arm-elevation.v1', targetCount: 8,
+    params: { side: 'right', targetDeg: 85, targetMaxDeg: 100, holdMs: 600 }, note: '' }],
   coachingNote: 'Sit tall.' };
 const summary = (id: string, endedAt: string, valid: number, peak: number | null) => ({ exerciseId: id, endedAt,
   exercise: 'seated_shoulder_raise', side: 'right', planVersion: 2, config: { targetDeg: 85 }, prescribed: 8,

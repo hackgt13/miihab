@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { mkdirSync, createWriteStream } from 'node:fs';
 import { resolve } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
+import { hostMonotonicMs } from './hostclock.ts';
 
 // Separate from the already-running pose proof. Native hosts connect here.
 const port=Number(process.env.KINESTHETIC_GOLF_PORT ?? 8767);
@@ -91,7 +92,8 @@ sockets.on('connection',(ws,role,player,path)=>{
       if(norm<.5 || norm>1.5 || p.rotationRate.some((v:number)=>Math.abs(v)>100))throw Error();
       sequence=p.sequence;time=p.sensorTime;received.set(player,{at:Date.now(),sequence,sourceId:p.sourceId});
       const sample={type:type+'.motion',playerId:player,sourceId:p.sourceId,sessionId:session,
-        sequence,sensorTime:time,quaternion:p.quaternion,rotationRate:p.rotationRate};
+        sequence,sensorTime:time,quaternion:p.quaternion,rotationRate:p.rotationRate,
+        hostMonotonicMs:hostMonotonicMs()};
       broadcast(viewers,sample);log.write(JSON.stringify({...sample,receivedAt:Date.now()})+'\n');
     }catch{ws.close(1008,'Invalid motion');}
   });
@@ -102,5 +104,12 @@ sockets.on('connection',(ws,role,player,path)=>{
 const bindHost=process.env.KINESTHETIC_GOLF_HOST??'127.0.0.1';
 if(bindHost!=='127.0.0.1'&&!pairToken)throw Error('Set KINESTHETIC_PAIR_TOKEN before exposing the relay to the network');
 server.listen(port,bindHost,()=>console.log(`Kinesthetic golf relay: ws://127.0.0.1:${port}/golf`));
-function shutdown(){for(const ws of sockets.clients)ws.close();for(const ws of stateSockets.clients)ws.close();sockets.close();stateSockets.close();server.close();}
+// Shutdown must actually terminate. A graceful ws.close() waits for a closing handshake, and a peer
+// that vanished without one (a terminated test client, a Quest that dropped off the network) holds its
+// handle open, so server.close() never completes and the process hangs instead of exiting.
+function shutdown(){
+  for(const ws of sockets.clients)ws.terminate();for(const ws of stateSockets.clients)ws.terminate();
+  sockets.close();stateSockets.close();server.close(()=>process.exit(0));
+  setTimeout(()=>process.exit(0),500).unref();
+}
 process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);

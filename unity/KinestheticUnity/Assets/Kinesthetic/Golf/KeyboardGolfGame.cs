@@ -58,9 +58,9 @@ namespace Kinesthetic.Golf
             ball.angularVelocity = Vector3.zero;
             lastShotPosition = teePosition;
             if (clubVisual) clubRestRotation = clubVisual.localRotation;
-            panelTexture = Solid(new Color(.055f, .105f, .105f, .92f));
-            fillTexture = Solid(new Color(.94f, .78f, .35f, 1));
-            trackTexture = Solid(new Color(.17f, .25f, .24f, 1));
+            panelTexture = Solid(Palette.Indigo70.At(.92f));
+            fillTexture = Solid(Palette.Ice40);
+            trackTexture = Solid(Palette.Indigo80);
         }
 
         static Texture2D Solid(Color color)
@@ -169,10 +169,10 @@ namespace Kinesthetic.Golf
             if (!enabled) return;
             if (titleStyle == null)
             {
-                titleStyle = Style(23, new Color(.96f, .98f, .92f), FontStyle.Bold);
-                valueStyle = Style(18, Color.white, FontStyle.Bold);
-                hintStyle = Style(15, new Color(.84f, .9f, .86f), FontStyle.Normal);
-                smallStyle = Style(13, new Color(.59f, .89f, .75f), FontStyle.Bold);
+                titleStyle = Style(23, Palette.Sand10, FontStyle.Bold);
+                valueStyle = Style(18, Palette.Sand00, FontStyle.Bold);
+                hintStyle = Style(15, Palette.Sand30, FontStyle.Normal);
+                smallStyle = Style(13, Palette.Ice40, FontStyle.Bold);
             }
             float scale = Mathf.Min(Screen.width / 1400f, Screen.height / 900f);
             var old = GUI.matrix; GUI.matrix = Matrix4x4.Scale(Vector3.one * scale);
