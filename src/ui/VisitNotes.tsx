@@ -7,12 +7,14 @@ import { Button } from './Button'
 
 interface Note { id: string; text: string; author: string; at: string }
 interface BoardUpdate { kind: string; heading: string; detail: string }
+interface Reply { id: string; kind: string; text: string; at: string }
 
 const LIMIT = 280
 
 export function VisitNotes() {
   const [notes, setNotes] = useState<Note[]>([])
   const [board, setBoard] = useState<BoardUpdate[]>([])
+  const [replies, setReplies] = useState<Reply[]>([])
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [offline, setOffline] = useState(false)
@@ -20,8 +22,9 @@ export function VisitNotes() {
 
   async function load() {
     try {
-      const [n, v] = await Promise.all([fetch('/api/visit/notes'), fetch('/api/visit')])
-      if (!n.ok || !v.ok) throw Error()
+      const [n, v, r] = await Promise.all([fetch('/api/visit/notes'), fetch('/api/visit'), fetch('/api/visit/replies')])
+      if (!n.ok || !v.ok || !r.ok) throw Error()
+      setReplies(await r.json())
       setNotes(await n.json())
       setBoard((await v.json()).board.updates)
       setOffline(false)
@@ -54,6 +57,22 @@ export function VisitNotes() {
           {offline ? 'Coordinator offline' : `${board.length} on the board`}
         </span>
       </div>
+
+      {/* What the patient relayed at the end of their visits, newest first. "Something hurt" leads the eye. */}
+      {!offline && replies.length > 0 && (
+        <div className="mb-4">
+          <p className="text-[#A3B0B6] text-[9px] uppercase tracking-[0.18em] mb-1.5">From the patient</p>
+          <ul className="space-y-1">
+            {replies.slice().reverse().slice(0, 5).map(r => (
+              <li key={r.id} className="text-xs text-[#E4E9EB]">
+                <span className="font-mono text-[10px] uppercase mr-2" style={{ color: r.kind === 'hurt' ? '#E08585' : '#9CC2B5' }}>{r.kind}</span>
+                {r.text}
+                <span className="text-[#A3B0B6] font-mono text-[10px]"> · {new Date(r.at).toLocaleDateString()}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {!offline && (
         <ul className="mb-4 space-y-1">
