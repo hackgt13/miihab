@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Kinesthetic;
 using Kinesthetic.Menu;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -43,7 +44,7 @@ public static class MainMenuSetup
             importer.defaultSampleSettings = settings; importer.forceToMono = name != "MorningPlay";
             importer.SaveAndReimport();
         }
-        var panel = Panel("MenuPanel", 0);
+        var panel = Panel("MenuPanel", 0, world: true);
         var navigationPanel = Panel("NavigationPanel", 200);
         var navigation = new GameObject("Activity navigation", typeof(UIDocument), typeof(ActivityNavigation));
         var doc = navigation.GetComponent<UIDocument>(); doc.panelSettings = navigationPanel;
@@ -56,18 +57,30 @@ public static class MainMenuSetup
         var plaza = MenuPlazaBuilder.Build();
         Transform Anchor(string name) => plaza.GetComponentsInChildren<Transform>().First(t => t.name == name);
         Diorama();
-        // The camera is parked at the plaza Viewpoint and left bare on purpose: position is
-        // fixed, and look input is installed separately. Nothing here rotates it.
+        // The camera is parked at the plaza Viewpoint and left bare on purpose: position is fixed and look
+        // input is installed separately. It only starts facing the menu board so the first frame reads.
         var eye = Anchor("Viewpoint");
+        var board = Anchor("MenuBoard");
         var camera = new GameObject("Menu camera", typeof(Camera), typeof(AudioListener)).GetComponent<Camera>();
         camera.tag = "MainCamera"; camera.clearFlags = CameraClearFlags.Skybox;
         camera.fieldOfView = 46; camera.nearClipPlane = .05f; camera.farClipPlane = 600;
-        camera.transform.SetPositionAndRotation(eye.position, eye.rotation);
+        camera.transform.SetPositionAndRotation(eye.position, Quaternion.LookRotation(board.position - eye.position, Vector3.up));
         var sway = plaza.AddComponent<MenuSway>();
         sway.sway = plaza.GetComponentsInChildren<Transform>().Where(t => t.name.StartsWith("Sway ")).ToArray();
         Resident(Anchor("MiiStand"));
-        var menu = new GameObject("RehabMii activity menu", typeof(UIDocument), typeof(MainMenuController));
+        // The menu is geometry standing on the plaza, not an overlay painted over it. That is what lets a
+        // moving head work at all: a screen-space panel is composited to the backbuffer after the camera
+        // renders, so it stays glued to the screen wherever the camera looks, and never reaches a stereo eye.
+        var menu = new GameObject("RehabMii activity menu", typeof(UIDocument), typeof(MainMenuController), typeof(GazeDwell));
+        menu.transform.SetPositionAndRotation(board.position, board.rotation);
+        // A world-space panel lays its pixels out first and the transform maps them to metres; worldSpaceSize
+        // alone does not govern the result. 1600 reference pixels land at roughly 8 m, so scale to the width
+        // the plaza wants. Measured off a camera render, not derived — see MenuPlazaBuilder's MenuBoard.
+        const float panelMetresAtUnitScale = 8f, wantedWidth = 1.85f;
+        menu.transform.localScale = Vector3.one * (wantedWidth / panelMetresAtUnitScale);
         var menuDoc = menu.GetComponent<UIDocument>(); menuDoc.panelSettings = panel;
+        menuDoc.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;
+        menuDoc.worldSpaceSize = new Vector2(1600, 900);     // panel pixels, not metres; the transform maps them
         menuDoc.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(Root + "/MainMenu.uxml");
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
         var scenes = EditorBuildSettings.scenes.Where(s => s.path != ScenePath).ToList();
@@ -138,7 +151,7 @@ public static class MainMenuSetup
     }
 
     static AudioClip Audio(string name) => AssetDatabase.LoadAssetAtPath<AudioClip>(Root + "/Audio/" + name + ".wav");
-    static PanelSettings Panel(string name, float order)
+    static PanelSettings Panel(string name, float order, bool world = false)
     {
         string path = Root + "/" + name + ".asset";
         var panel = AssetDatabase.LoadAssetAtPath<PanelSettings>(path);
@@ -147,8 +160,14 @@ public static class MainMenuSetup
             panel = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<PanelSettings>("Assets/Kinesthetic/Rehab/RehabPanel.asset"));
             panel.name = name; AssetDatabase.CreateAsset(panel, path);
         }
-        panel.referenceResolution = new Vector2Int(1600,900); panel.scaleMode = PanelScaleMode.ScaleWithScreenSize;
+        panel.referenceResolution = new Vector2Int(1600,900);
+        // A world-space panel has no screen to scale against: its pixels are laid out once and then mapped to
+        // metres by worldSpaceSize. Screen-space panels keep scaling with the window as before.
+        panel.scaleMode = world ? PanelScaleMode.ConstantPixelSize : PanelScaleMode.ScaleWithScreenSize;
         panel.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight; panel.match = .5f;
+        // A world-space panel renders as geometry, and UIDocument maintains a collider for it — that collider
+        // is what GazeDwell picks against. Screen-space stays for in-activity chrome that is still Mac-only.
+        panel.renderMode = world ? PanelRenderMode.WorldSpace : PanelRenderMode.ScreenSpaceOverlay;
         panel.sortingOrder = order; EditorUtility.SetDirty(panel); return panel;
     }
 }
