@@ -11,6 +11,7 @@ import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, exerciseKindForPlanType, type RepParams, type RepSession } from './exercise/registry.ts';
 import { activitySummaryFromExercise, parseActivitySummary } from './activity.ts';
+import { NORMS, compareToNorm, type Sex, type Side } from './norms.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const captureRoot = resolve(root, 'spikes/pose-capture');
@@ -122,6 +123,20 @@ const server = createServer(async (request, response) => {
       // reads today; /api/activity-sessions is the cross-activity envelope view that golf also lands
       // in. Merging them duplicates every exercise session, since a finished session writes both.
       // The portal moves over when it gains a cross-activity table; until then these stay apart.
+      // Normative ROM, so a result can read "142 degrees, typical for your age band". Every response
+      // says it is provisional: the per-band appendix values have not been applied yet.
+      if (request.method === 'GET' && url.pathname === '/api/norms') return json(200, NORMS);
+      if (request.method === 'GET' && url.pathname === '/api/norms/compare') {
+        const comparison = compareToNorm({
+          movement: String(url.searchParams.get('movement') ?? ''),
+          measuredDeg: Number(url.searchParams.get('measuredDeg')),
+          ageYears: Number(url.searchParams.get('ageYears')),
+          sex: (url.searchParams.get('sex') ?? undefined) as Sex | undefined,
+          side: (url.searchParams.get('side') ?? undefined) as Side | undefined,
+        });
+        return comparison ? json(200, comparison)
+          : json(404, {error: 'No normative table for that movement, age or measurement'});
+      }
       if (request.method === 'GET' && url.pathname === '/api/sessions') {
         const files = (await readdir(recordings)).filter(f => /^exercise-.*\.summary\.json$/.test(f));
         const sessions = await Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));

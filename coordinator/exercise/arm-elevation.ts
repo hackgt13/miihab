@@ -54,7 +54,7 @@ export const armElevation: ExerciseKind<'trunk_compensation'> = {
   compensationKey: 'trunkDeviation',
   defaults: {},
   limits: { targetDeg: [35, 175], prescribedReps: [1, 30], holdMs: [0, 3000], maxCompensationDeg: [3, 45] },
-  measurementNote: 'Arm elevation from a wrist IMU relative to a calibrated resting attitude; yaw-free but plane-blind, and valid only while the elbow stays straight. Not a goniometer reading.',
+  measurementNote: 'Arm elevation from a wrist IMU relative to a calibrated resting attitude; yaw-free but plane-blind, and valid only while the elbow stays straight. Agreement with a goniometer is about +/-5 degrees once mounting and sensor-to-segment alignment error are included, not the ~1 degree raw inclination alone suggests.',
 
   // Only the compensation needs landmarks; magnitude comes from the IMU.
   landmarks: () => [...SHOULDERS, ...HIPS],
