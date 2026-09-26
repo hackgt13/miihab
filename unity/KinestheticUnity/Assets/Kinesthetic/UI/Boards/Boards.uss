@@ -1,0 +1,6 @@
+/* A board's own layout: the root fills the panel, and the waiting card a replica shows with no Mac behind
+   it is centred on it. Layout only; every look on a board comes from a component. */
+.k-board { flex-grow: 1; }
+.k-board.k-board--waiting { align-items: center; justify-content: center; }
+.k-board__waiting-card { align-items: center; max-width: 80%; }
+.k-board__waiting-copy { margin-top: 10px; -unity-text-align: middle-center; }

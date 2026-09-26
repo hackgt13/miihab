@@ -1,0 +1,27 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../Palette.uss" />
+    <Style src="../UI/Base.uss" />
+    <Style src="Rehab.uss" />
+    <!-- Measure station: the live figures. The rep ring with the count inside it, and once calibrated the
+         measured angle against the target. -->
+    <ui:VisualElement name="measure-board" class="board" picking-mode="Ignore">
+        <k:KSurface class="progress-card" density="Compact" picking-mode="Ignore">
+            <k:KEyebrow text="YOUR SET" />
+            <k:KArc name="rep-ring" form="Segmented" tone="Good" segments="8" class="rep-ring">
+                <k:KReadout name="rep-count" value="0" caption="of 8 reps" size="Large" />
+            </k:KArc>
+            <k:KText name="progress-note" text="One at a time." size="Caption" tone="Soft" class="progress-note" />
+            <!-- Form: the streak of reps made well, the best hold so far, and the last rep's verdict in words. -->
+            <ui:VisualElement name="form-row" class="form-row hidden">
+                <k:KReadout name="streak" value="0" caption="in a row" size="Compact" class="form-metric" />
+                <k:KReadout name="best-hold" value="—" caption="best hold" size="Compact" class="form-metric" />
+            </ui:VisualElement>
+            <k:KText name="form-note" text="" size="Caption" tone="Soft" class="form-note hidden" />
+            <ui:VisualElement name="angle-details" class="angle-details hidden">
+                <k:KReadout name="angle-readout" value="—" caption="Target 85°" size="Compact" />
+                <k:KMeter name="angle-meter" form="Bar" class="angle-meter" />
+                <k:KText name="angle-note" text="Raise slowly" size="Caption" tone="Soft" class="angle-note" />
+            </ui:VisualElement>
+        </k:KSurface>
+    </ui:VisualElement>
+</ui:UXML>

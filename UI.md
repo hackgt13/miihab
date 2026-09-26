@@ -152,6 +152,40 @@ Shared surfaces for compact HUDs and summaries. Tones: `Paper`, `Glass`, `Scrim`
 owns its padding, background, edge and radius. A scrim's blocking behavior and visibility remain
 with the screen. These variants and `KText` are also shown in `Specimen.uxml`.
 
+### `KSheet` — `entrance`, plus everything `KSurface` has
+
+A surface that is handed to you and taken away again: the briefing a venue opens with and the summary
+it closes on are the same object at two ends of a session, so they are one component. Entrances:
+`Right`, `Left`, `Below` — chosen for where the giver stands in the room, not for the layout, so in the
+studio the briefing arrives from the coach's side. `Present()`, `Dismiss()` and `Hide()` (no exit, for a
+reset or a rebuilt tree) drive it; `Presented` is where it is heading, not whether the motion has
+finished.
+
+It is the first animation in the library, and the reason motion belongs to a component: `transition` is
+paint, so a sealed screen may not write it. `Sheet.uss` carries the entrance (ease-out-back, a few
+millimetres of overshoot, a slight angle that straightens as it lands) and the faster straight exit, and
+every sheet in every venue moves the same way.
+
+### Briefings — `UI/Boards/ActivityBriefing.cs`
+
+What an activity hands you before it begins. `Briefing` is a value — eyebrow, title, subtitle, a
+`BriefingLine[]` of label-and-figure rows, a note someone wrote, and what the button says — so an
+activity describes itself and lays nothing out. A venue adopts it with one element on its Focus board:
+
+```xml
+<ui:VisualElement name="briefing" class="briefing-host" />
+```
+
+and a `Bind(host, onBegin)` from wherever it binds its boards; `Describe(briefing)` rewrites the sheet
+in place when numbers arrive late. It stands at the `Reading` station, at chest height inside arm's reach, and waits for
+`HeadFade` to lift before it is offered — an activity is entered behind the curtain, and a sheet that
+arrives during it is handed to nobody. While it is down its board goes to `Ignore Raycast`: a ray stops
+at the nearest collider, so a board this close would otherwise eat every press meant for the room. **Dismissing it is the point**: an activity gates its own start on
+`Dismissed`, so a set begins because someone decided to begin it.
+
+Every field is content the activity already has. A briefing that invented a clinician, a date or a
+signature would be a fabricated record, so an empty field is left off the sheet instead of filled in.
+
 ### Panes — `UI/Panes/`
 
 A pane is a whole surface standing in a venue: a `Pane` `MonoBehaviour` with its own `UIDocument`,
@@ -184,6 +218,24 @@ not one written twice.
 
 The menu boards carry a `Pane` for projection only — no content, no `PaneHost` — and are placed by the
 menu, not opened by a host. Making them full panes is a change to the menu's own files.
+
+### Boards — `UI/Boards/`
+
+A screen in a venue is not one document any more but a few **boards** standing at fixed **stations**
+around the seated patient: `Dock` (0° yaw, −22° pitch, 1.2 m: what to do now), `Focus` (0°, 0°, 1.4 m:
+modals), `Score` (−25°, +12°, 2.0 m), `Measure` (+25°, −5°, 1.5 m: live figures) and `Reading` (0°, −45°,
+0.42 m, tilted 10°: a page held, not a card mounted — only a document passing through occupies it) — all within ±30° of
+yaw so nobody is asked to turn, and a venue that reserves a side takes a station's `Mirrored` image. A
+board lays out at **px/m = 1000 / distance**, so a 19px body line subtends the same angle at every
+station. A station may also carry a `tiltDegrees`, which leans the board's face back toward the reader
+without moving it: a mounted board is square to the eye at 0°, and only a page in your hands is not.
+`SeatRig` is the seat anchor and stands boards at stations; `BoardSet` is the venue's boards as
+one query root (`boards.Q<Label>("status")`, names unchanged) and lands a gaze or pointer press on the
+button's own `clicked`; `Assets/Editor/BoardBuilder.cs` is the recipe — a world-space `UIDocument` on
+`Boards/BoardPanel.asset`, a projection-only `Pane`, `GazeDwell`, `PanePointerInput` and a `RemoteBoard`
+id like `rehab.dock`. The headset runs the same boards as Replicas (`UI/Remote/`); `Waiting.uxml` is what
+a replica shows until the Mac connects. The studio is the first venue on boards; the menu still stands
+its own panes and migrates later.
 
 ## What a screen may do
 
@@ -234,9 +286,9 @@ One screen at a time, by whoever owns it:
   connection state, repetition ring, angle meter and summary. Other screens remain on their legacy
   sheets until migrated; run the UI check and inspect each migration in the Game view.
 - **The same px is not the same size on every screen.** Golf and Replay panels use a 1400×900 reference
-  resolution; Bowling, Navigation and Rehab use 1600×900; the menu board is world-space. So a 16px
-  button renders about 14% larger in Golf. The fix is in the `PanelSettings` assets, which this system
-  deliberately does not touch.
+  resolution; Bowling and Navigation use 1600×900; the menu board is world-space; the studio's boards
+  lay out at their stations' density. So a 16px button renders about 14% larger in Golf. The fix is in
+  the `PanelSettings` assets, which this system deliberately does not touch.
 - **Quest is unproven.** No UI Toolkit has rendered on the headset here yet (`QuestSceneSetup.cs:40`
   disables the UIDocument on device). `[UxmlElement]` uses generated code rather than reflection, which
   is the right side of the IL2CPP stripping trap in `AGENTS.md`, but that is reasoning, not a device

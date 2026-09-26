@@ -13,13 +13,14 @@ namespace Kinesthetic.Menu
     ///
     /// The shapes here deliberately mirror the coordinator's own records — `today` is one entry per
     /// `plan.activities[]` (schema kinesthetic.plan.v2), `history` is one entry per completed session
-    /// the way `/api/sessions` reports it. So replacing Placeholder() with a fetch is a swap of this
+    /// the way `/api/sessions` reports it. So filling it from a fetch is a swap of this
     /// one object, not a rewrite of the panel.
     ///
     /// FromCoordinator() fills it from `/api/dashboard` (coordinator/dashboard.ts). Until the patient has
-    /// a real session, everything but today's prescription and the goal comes from Placeholder(): invented
-    /// from a fixed seed so the board looks identical between runs, with the reach trend taken from the
-    /// authored demo history in `coordinator/fixtures/history.json`. The board labels which it is showing.
+    /// a real session it stays Empty(): no history, no calendar, no tasks. It used to be filled with
+    /// invented ones -- six weeks of climbing reach and sixteen weeks of adherence generated from a fixed
+    /// seed, shaped to look like a real recovery. A board that looks measured when nothing has been
+    /// measured is worse than a blank one, and it cost real debugging time to tell the two apart.
     public sealed class MenuDashboardModel
     {
         public string patientName = MenuProfile.DefaultName;
@@ -88,7 +89,7 @@ namespace Kinesthetic.Menu
         /// only once `measured` says a real session exists, so a new patient still sees a readable board.
         public static MenuDashboardModel FromCoordinator(JObject j)
         {
-            var model = Placeholder();
+            var model = Empty();
             model.goal = (string)j["goal"] ?? model.goal;
             if (j["targetDeg"]?.Type is JTokenType.Float or JTokenType.Integer) model.targetDeg = j["targetDeg"].Value<float>();
             if (j["today"] is JArray today)
@@ -110,73 +111,16 @@ namespace Kinesthetic.Menu
             return model;
         }
 
-        public static MenuDashboardModel Placeholder()
+        /// Nothing measured yet. The board reads this as a new patient and says so, rather than
+        /// drawing a plausible past. FromCoordinator() overwrites today's list and the goal from the
+        /// live plan, and the rest only once `measured` confirms a real session exists.
+        public static MenuDashboardModel Empty() => new()
         {
-            var model = new MenuDashboardModel
-            {
-                patientName = MenuProfile.Name,
-                today = new[]
-                {
-                    new TodayTask { activityId = "rehab.studio", title = "Movement Studio", detail = "8 shoulder raises · right", done = false },
-                    new TodayTask { activityId = "golf.adaptive", title = "Golf", detail = "9 holes with a friend", done = false },
-                },
-                // The first three weeks are the authored history in coordinator/fixtures/history.json;
-                // the rest continue that trend so the hero chart has something to show.
-                history = new[]
-                {
-                    new WeekPoint { label = "Wk 1", attempted = 8, valid = 3, medianPeakDeg = 68 },
-                    new WeekPoint { label = "Wk 2", attempted = 8, valid = 5, medianPeakDeg = 76 },
-                    new WeekPoint { label = "Wk 3", attempted = 9, valid = 6, medianPeakDeg = 84 },
-                    new WeekPoint { label = "Wk 4", attempted = 9, valid = 6, medianPeakDeg = 81 },
-                    new WeekPoint { label = "Wk 5", attempted = 10, valid = 8, medianPeakDeg = 88 },
-                    new WeekPoint { label = "Wk 6", attempted = 10, valid = 9, medianPeakDeg = 93 },
-                },
-            };
-            model.calendar = SyntheticCalendar(model.streakDays);
-            return model;
-        }
-
-        /// 16 weeks of invented activity, seeded so it is the same picture every run. Shaped like a real
-        /// recovery rather than noise: patchy at the start, denser as the habit forms, and the last
-        /// `streak` days unbroken so the grid and the streak tile agree with each other.
-        static DayCell[] SyntheticCalendar(int streak)
-        {
-            const int weeks = 16, days = weeks * 7;
-            var rng = new System.Random(20260926);
-            var cells = new DayCell[days];
-            // Start on a Sunday so each column is a clean week, like the graph this is modelled on.
-            var end = DateTime.Today;
-            var start = end.AddDays(-(days - 1));
-            start = start.AddDays(-(int)start.DayOfWeek);
-
-            for (int i = 0; i < days; i++)
-            {
-                var date = start.AddDays(i);
-                float progress = i / (float)(days - 1);
-                if (date > end) { cells[i] = new DayCell { date = date, level = 0 }; continue; }
-
-                // Adherence climbs from about a third of days to most of them.
-                float chance = Mathf.Lerp(.3f, .82f, progress);
-                bool rest = date.DayOfWeek == DayOfWeek.Sunday && rng.NextDouble() < .55;
-                int level = 0;
-                if (!rest && rng.NextDouble() < chance)
-                {
-                    double roll = rng.NextDouble() + progress * .35;
-                    level = roll > 1.05 ? 4 : roll > .78 ? 3 : roll > .45 ? 2 : 1;
-                }
-                cells[i] = new DayCell { date = date, level = level };
-            }
-
-            // The tail is the current streak, so the brightest run sits where the eye ends up.
-            for (int i = 0; i < days; i++)
-            {
-                var date = cells[i].date;
-                if (date > end) continue;
-                int back = (end - date).Days;
-                if (back < streak && cells[i].level == 0) cells[i].level = 1 + (back % 3);
-            }
-            return cells;
-        }
+            patientName = MenuProfile.Name,
+            today = System.Array.Empty<TodayTask>(),
+            history = System.Array.Empty<WeekPoint>(),
+            calendar = System.Array.Empty<DayCell>(),
+        };
     }
 
     /// Fills the bento tiles from a model and paints the charts. Static because it owns no state:
@@ -241,19 +185,20 @@ namespace Kinesthetic.Menu
             float reach = model.history.Length > 0 ? model.history[^1].medianPeakDeg : 0;
             float first = model.history.Length > 0 ? model.history[0].medianPeakDeg : 0;
             float delta = reach - first;
+            // Three lines. The green one says how far it has moved, the grey one where it stands against the
+            // target; "median peak" is the clinician's word for it and belongs in the note, not the readout.
+            int target = Mathf.RoundToInt(model.targetDeg), gap = Mathf.RoundToInt(Mathf.Abs(reach - model.targetDeg));
             Text(root, "reach-now", $"{Mathf.RoundToInt(reach)}°");
             Text(root, "reach-delta", model.history.Length > 1
-                ? $"{(delta >= 0 ? "+" : "")}{Mathf.RoundToInt(delta)}° further than week one"
+                ? $"{(delta >= 0 ? "+" : "")}{Mathf.RoundToInt(delta)}° since week one"
                 : "First session — no trend yet");
-            Text(root, "reach-best", $"median peak · target {Mathf.RoundToInt(model.targetDeg)}°");
-            Text(root, "reach-cheer", reach >= model.targetDeg
-                ? $"Past your target by {Mathf.RoundToInt(reach - model.targetDeg)}° \u2014 nice."
-                : $"{Mathf.RoundToInt(model.targetDeg - reach)}° to reach your target");
-            Text(root, "data-note", model.measured ? "From your measured sessions" : "Demo data · not measured");
+            Text(root, "reach-best", reach >= model.targetDeg
+                ? $"target {target}° · {gap}° past it"
+                : $"target {target}° · {gap}° to go");
+            Text(root, "data-note", model.measured ? "Median peak · measured" : "No sessions measured yet");
 
             Paint(root, "range-fan", (ctx, r) => DrawRangeFan(ctx, r, model));
             Paint(root, "calendar-grid", (ctx, r) => DrawCalendar(ctx, r, model.RecentDays(28)));
-            Paint(root, "browse-glyph", DrawBrowseGlyph);
             Paint(root, "program-ring", (ctx, r) => DrawRing(ctx, r, model.ProgramFraction));
         }
 
@@ -410,20 +355,6 @@ namespace Kinesthetic.Menu
                 p.lineWidth = 3;
                 RoundedRect(p, x - 2.5f, y - 2.5f, cell + 5, radius + 2, cell + 5, stroke: true);
             }
-        }
-
-        /// Four squares for "browse everything", so the two tiles on this board do not both end in the
-        /// same chevron and read as the same control twice.
-        static void DrawBrowseGlyph(MeshGenerationContext ctx, Rect r)
-        {
-            if (r.width < 8 || r.height < 8) return;
-            var p = ctx.painter2D;
-            float size = Mathf.Min(r.width, r.height), gap = size * .16f;
-            float cell = (size - gap) * .5f;
-            float ox = (r.width - size) * .5f, oy = (r.height - size) * .5f;
-            p.fillColor = Palette.Live;
-            for (int i = 0; i < 4; i++)
-                RoundedSquare(p, ox + (i % 2) * (cell + gap), oy + (i / 2) * (cell + gap), cell, cell * .3f);
         }
 
         static void RoundedSquare(Painter2D p, float x, float y, float size, float radius, float height = -1)

@@ -1,0 +1,37 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../Palette.uss" />
+    <Style src="../UI/Base.uss" />
+    <Style src="Visit.uss" />
+    <!-- Dock station: where the visit is and what the patient can do about it. Three states, one at a time
+         (TherapistVisit.Show): while Alex talks, the status with Next and Hear it again; once the board is
+         done, the relay in its place — quick replies a head or a pointer can pick, a line to type on the Mac,
+         and Got it! for nothing to add; after an answer, the status with Got it! alone. Got it! goes back
+         to the menu. The quick replies' words come from the coordinator (visit.ts ASK). -->
+    <ui:VisualElement name="dock-board" class="board" picking-mode="Ignore">
+        <k:KSurface name="dock-controls" class="visit-dock" density="Compact">
+            <ui:VisualElement class="visit-dock-copy" picking-mode="Ignore">
+                <k:KEyebrow text="VISIT" />
+                <k:KText name="visit-status" text="Your therapist is getting ready…" tone="Soft" />
+            </ui:VisualElement>
+            <k:KButton name="visit-skip" text="Next" tone="Secondary" size="Medium" class="visit-action" />
+            <k:KButton name="visit-replay" text="Hear it again" tone="Primary" size="Medium" class="visit-action" />
+            <k:KButton name="visit-done" text="Got it!" tone="Primary" size="Medium" class="visit-action hidden" />
+        </k:KSurface>
+        <k:KSurface name="relay" class="visit-relay hidden" density="Compact">
+            <ui:VisualElement class="visit-relay-head" picking-mode="Ignore">
+                <k:KEyebrow name="relay-prompt" text="ANYTHING YOU WANT TO RELAY TO YOUR COACH?" class="visit-relay-prompt" />
+                <k:KButton name="relay-done" text="Got it!" tone="Primary" size="Small" class="visit-send" />
+            </ui:VisualElement>
+            <ui:VisualElement class="visit-quick" picking-mode="Ignore">
+                <k:KButton name="relay-fine" text="All good" tone="Secondary" size="Small" class="visit-quick-reply" />
+                <k:KButton name="relay-easy" text="Too easy" tone="Secondary" size="Small" class="visit-quick-reply" />
+                <k:KButton name="relay-hard" text="Too hard" tone="Secondary" size="Small" class="visit-quick-reply" />
+                <k:KButton name="relay-hurt" text="Something hurt" tone="Secondary" size="Small" class="visit-quick-reply" />
+            </ui:VisualElement>
+            <ui:VisualElement class="visit-write" picking-mode="Ignore">
+                <k:KField name="relay-text" placeholder="Or type a message, then press Enter…" class="visit-field" />
+                <k:KButton name="relay-send" text="Send" tone="Primary" size="Small" class="visit-send" />
+            </ui:VisualElement>
+        </k:KSurface>
+    </ui:VisualElement>
+</ui:UXML>

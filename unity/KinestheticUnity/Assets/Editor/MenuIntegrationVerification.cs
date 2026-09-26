@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Linq;
 using System.Reflection;
 using Kinesthetic.Activities;
 using Kinesthetic.Bowling;
@@ -68,6 +69,9 @@ public static class MenuIntegrationVerification
             Check(ActivityCatalog.ById("rehab.studio").NeedsImu && !ActivityCatalog.ById("rehab.studio").NeedsPose,
                 "Studio must stay IMU-only");
             Check(Application.CanStreamedLevelBeLoaded(bowling.Scene), "Bowling missing from the build list");
+            // An activity is entered by walking through its venue's door, so a venue with no door is a dead card.
+            foreach (var entry in ActivityCatalog.All)
+                Check(Portal.Find(entry.Venue) != null, $"the plaza has no doorway for venue '{entry.Venue}'");
 
             fixture.transform.SetPositionAndRotation(new Vector3(100, 100, 100), Quaternion.Euler(12, 38, 7));
             fixture.transform.localScale = new Vector3(1.7f, .8f, 1.2f);
@@ -118,10 +122,16 @@ public static class MenuIntegrationVerification
             yield return null;
             Check(second.Disposals == 1, "destroyed pane did not dispose content once");
 
-            Commit(menu, "choose-activity");
+            Commit(menu, "pane-gallery");
+            // The cards stand on the gallery pane, not the board (MainMenuSetup adopts it as slot "gallery"),
+            // and the menu only lets a card through once the ring has settled on that pane.
+            var ring = UnityEngine.Object.FindAnyObjectByType<Kinesthetic.Shell.PaneCarousel>();
             for (int i = 0; i < 3; i++) yield return null;
-            var menuDoc = menu.GetComponent<UIDocument>();
-            Check(Pick(menuDoc, menuDoc.rootVisualElement.Q<Button>("bowling-card"))?.name == "bowling-card",
+            while (ring.IsTurning) yield return null;
+            for (int i = 0; i < 3; i++) yield return null;
+            var gallerySlot = ring.Slots.First(s => s.id == "gallery");
+            var galleryDoc = gallerySlot.pane.GetComponent<UIDocument>();
+            Check(Pick(galleryDoc, galleryDoc.rootVisualElement.Q<Button>("bowling-card"))?.name == "bowling-card",
                 "Bowling card cannot be selected by a ray");
             Commit(menu, "bowling-card");
             while (SceneManager.GetActiveScene().name != bowling.Scene || ActivityNavigation.Instance.Busy) yield return null;

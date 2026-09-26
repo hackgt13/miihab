@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 
-// One headset app with every activity: golf, bowling and the rehab studio. Regenerates both Quest scenes from the current Mac scenes, bakes this Mac's
+// One headset app with the plaza and every activity: golf, bowling and the rehab studio. Regenerates both Quest scenes from the current Mac scenes, bakes this Mac's
 // address and pairing token, then builds. QuestActivityFollower switches scenes to whatever the Mac is hosting.
 public static class QuestCombinedBuild
 {
@@ -18,9 +18,11 @@ public static class QuestCombinedBuild
         QuestSceneSetup.Create();            // QuestGolf from the current AdaptiveGolf, host config, OpenXR
         BowlingSceneSetup.CreateQuest();     // QuestBowling from the current bowling setup
         QuestRehabSetup.Create();            // QuestRehab: the studio first person, mirror left, coach right
+        QuestMenuSetup.Create();             // QuestMenu: the plaza, its doorways, and the menu's boards as replicas
         QuestSceneSetup.WriteHostConfig();
         QuestSceneSetup.ConfigureAndroidXR();
-        var scenes = new[] { QuestSceneSetup.ScenePath, BowlingSceneSetup.QuestScenePath, QuestRehabSetup.ScenePath };   // index 0 boots
+        // The plaza boots: the headset waits there, on the board, for the Mac; every activity is entered through a door.
+        var scenes = new[] { QuestMenuSetup.ScenePath, QuestSceneSetup.ScenePath, BowlingSceneSetup.QuestScenePath, QuestRehabSetup.ScenePath };
         var output = Path.GetFullPath(Output);
         Directory.CreateDirectory(Path.GetDirectoryName(output));
         // The Mac build settings (menu first) and app identifier stay as they are; only this build differs.

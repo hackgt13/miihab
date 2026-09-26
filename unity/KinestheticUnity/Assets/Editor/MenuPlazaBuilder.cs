@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using Kinesthetic;
+using Kinesthetic.Menu;
 using UnityEngine;
 
 // Resort plaza diorama that sits behind the main menu. All dimensions are metres.
@@ -11,7 +13,8 @@ public static class MenuPlazaBuilder
 {
     const string Root = "Assets/Kinesthetic/Menu/Plaza";
     static readonly Dictionary<string, Mesh> Meshes = new();
-    static Material stucco, trim, terracotta, paving, shade, teak, sea, sand, fairway, rough, canopy, accent, cream;
+    static readonly Color HeadFadeShade = Kinesthetic.Shell.HeadFade.Shade;
+    static Material stucco, trim, terracotta, paving, shade, shadeDark, teak, sea, sand, fairway, rough, canopy, accent, cream;
 
     public static GameObject Build()
     {
@@ -33,6 +36,10 @@ public static class MenuPlazaBuilder
         fairway = Material("Fairway grass", "8CC46B", .05f);
         rough = Material("Course rough", "6FA855", .05f);
         sea = Material("Lagoon water", "56B7C8", unlit: true);
+        // Every doorway's vestibule is painted the colour the view fades to (HeadFade.Shade), so the dark of
+        // the corridor and the dark of the fade are one dark, and the cut between them is not a cut.
+        // Unlit, so the corridor is exactly the fade's colour rather than that colour under the plaza sun.
+        shadeDark = Material("Doorway shade", ColorUtility.ToHtmlStringRGB(HeadFadeShade), unlit: true);
 
         var plaza = new GameObject("Resort plaza");
 
@@ -41,12 +48,21 @@ public static class MenuPlazaBuilder
         Horizon(Group("Sea and sky", plaza.transform));
         Pavilion(Group("Movement studio pavilion", plaza.transform));
         ProShop(Group("Golf pro shop", plaza.transform));
+        // One building with a door per catalog venue, because an activity is entered by walking through its
+        // door (PlazaApproach). The studio has the pavilion's; golf and bowling get a hut each, out at the ends
+        // of the deck, turned to face the viewpoint.
+        Hut("First tee gatehouse", plaza.transform, new(13.4f, 0, -2.6f), 74, "resort-course", "first tee", cream, new Color(.42f, .34f, .27f));
+        Hut("Bowling lanes hut", plaza.transform, new(-13f, 0, -4.2f), -72, "bowling-alley", "bowling lanes", stucco, new Color(.27f, .50f, .52f));
+        // The clinic is a small one, front-left between the pavilion's corner and the overlook, so the
+        // therapist is a short walk from the board and the course stays in view past it.
+        Hut("Therapist clinic hut", plaza.transform, new(-3.9f, 0, 4.4f), -16, "clinic", "your therapist", cream, new Color(.27f, .50f, .52f), w: 2.8f, d: 2.4f, h: 2.5f);
         Furnishings(Group("Plaza furnishings", plaza.transform));
         Anchors(Group("Anchors", plaza.transform));
 
-        // Anything MenuSway rotates must drop the static flag, or batching freezes it in place.
+        // Anything MenuSway rotates, and every door leaf a Portal swings, must drop the static flag, or
+        // batching freezes it in place.
         foreach (var t in plaza.GetComponentsInChildren<Transform>())
-            if (t.name.StartsWith("Sway "))
+            if (t.name.StartsWith("Sway ") || t.name == "Hinge")
                 foreach (var child in t.GetComponentsInChildren<Transform>())
                     child.gameObject.isStatic = false;
 
@@ -186,11 +202,8 @@ public static class MenuPlazaBuilder
         Box("East wall", pavilion, new(w / 2, h / 2 + .18f, 0), new(.28f, h, d), stucco);
         Box("Front wall lower", pavilion, new(-2.55f, h / 2 + .18f, -d / 2), new(2.1f, h, .28f), stucco);
         Box("Front wall east", pavilion, new(2.2f, h / 2 + .18f, -d / 2), new(2.8f, h, .28f), stucco);
-        Box("Front header", pavilion, new(-.35f, 2.86f, -d / 2), new(2.5f, .96f, .28f), stucco);
-        Box("Door reveal", pavilion, new(-.35f, 1.28f, -d / 2 + .04f), new(1.62f, 2.2f, .2f), Material("Doorway shade", "6E6257"));
-        Box("Door leaf", pavilion, new(-.35f, 1.24f, -d / 2 - .03f), new(1.5f, 2.12f, .08f), teak);
-        Box("Door glazing", pavilion, new(-.35f, 1.72f, -d / 2 - .09f), new(1.16f, 1.02f, .04f), accent);
-        Box("Door frame head", pavilion, new(-.35f, 2.38f, -d / 2 - .06f), new(1.86f, .16f, .14f), trim);
+        Box("Front header", pavilion, new(-.35f, 2.86f, -d / 2), new(2.5f, .96f, .28f), stucco);   // underside at 2.38
+        Doorway(pavilion, "studio", -.35f, .18f, -d / 2, .28f, 2.3f, stucco, jambHeight: 2.38f - .18f);
 
         var window = Group("Front window", pavilion); window.localPosition = new(2.2f, 1.72f, -d / 2 - .02f);
         Box("Window shade", window, new(0, 0, .12f), new(1.7f, 1.34f, .12f), Material("Window interior", "8CA8AE"));
@@ -243,19 +256,78 @@ public static class MenuPlazaBuilder
         Box("Scorecard board", shop, new(-w / 2 - .16f, 1.55f, -.3f), new(.07f, 1.1f, 1.5f), trim);
     }
 
+    // A door and the dark corridor behind it: every venue's entrance is this one recipe, so the walk in
+    // (PlazaApproach) is the same walk everywhere. `x` is the door's centre along the front wall, `floorY`
+    // the top of the plinth, `wallZ` the wall's centre plane and `wallThickness` its depth; `opening` is the
+    // gap the building left in that wall, and jambs in the wall's own material close it down to the frame.
+    //
+    // The leaf hangs on a Hinge at its west edge and swings inward, so it ends up flat along the west wall
+    // of the vestibule rather than in the walker's face. The vestibule is a shade-painted box a little wider
+    // than the leaf and 1.2 m deep, closed on every side but the doorway: once a head is inside it, the view
+    // is dark everywhere except behind, and HeadFade finishes the job. Stop is where the walker rests.
+    // `jambHeight` is the building's header underside above `floorY`: the jambs stop exactly there, so
+    // jamb and header never share a front face to fight over.
+    static void Doorway(Transform building, string venue, float x, float floorY, float wallZ, float wallThickness, float opening, Material wall,
+                        float jambHeight, float width = 1.5f, float height = 2.12f, float depth = 1.2f)
+    {
+        float front = wallZ - wallThickness / 2;            // the wall's outer face
+        var doorway = Group("Doorway " + venue, building); doorway.localPosition = new(x, floorY, front);
+        float w = width + .2f, h = height + .1f;            // the corridor, a little larger than the leaf
+        float jamb = (opening - w - .2f) / 2;
+        if (jamb > .01f)
+            for (int i = -1; i <= 1; i += 2)
+                Box("Jamb " + (i < 0 ? "west" : "east"), doorway, new(i * (w / 2 + .1f + jamb / 2), jambHeight / 2, wallThickness / 2), new(jamb, jambHeight, wallThickness), wall);
+        // A threshold slightly proud of the plinth: a slab flush with it z-fights along its whole length.
+        Box("Vestibule floor", doorway, new(0, .005f, depth / 2), new(w + .2f, .05f, depth), shadeDark);
+        Box("Vestibule ceiling", doorway, new(0, h + .05f, depth / 2), new(w + .2f, .1f, depth), shadeDark);
+        Box("Vestibule back", doorway, new(0, h / 2, depth + .05f), new(w + .2f, h + .2f, .1f), shadeDark);
+        Box("Vestibule west", doorway, new(-w / 2 - .05f, h / 2, depth / 2), new(.1f, h + .2f, depth), shadeDark);
+        Box("Vestibule east", doorway, new(w / 2 + .05f, h / 2, depth / 2), new(.1f, h + .2f, depth), shadeDark);
+        var hinge = Group("Hinge", doorway); hinge.localPosition = new(-width / 2, height / 2 + .02f, .06f);
+        Box("Door leaf", hinge, new(width / 2, 0, 0), new(width, height, .08f), teak);
+        Box("Door glazing", hinge, new(width / 2, .48f, -.06f), new(width - .34f, 1.02f, .04f), accent);
+        Box("Door frame head", doorway, new(0, height + .12f, -.02f), new(width + .36f, .16f, .14f), trim);
+        // Half way in: dark on every side.
+        var stop = Group("Stop", doorway); stop.localPosition = new(0, 0, depth * .5f);
+        var portal = doorway.gameObject.AddComponent<Portal>();
+        portal.venue = venue; portal.hinge = hinge; portal.stop = stop;
+    }
+
+    // A small building whose whole purpose is its door: the first-tee gatehouse and the lanes hut.
+    static void Hut(string name, Transform parent, Vector3 position, float yaw, string venue, string sign, Material wall, Color signColor,
+                    float w = 3.6f, float d = 3.2f, float h = 2.7f)
+    {
+        var hut = Group(name, parent); hut.localPosition = position; hut.localRotation = Quaternion.Euler(0, yaw, 0);
+        const float opening = 2f, door = 2f;
+        float side = (w - opening) / 2;
+        Box("Plinth", hut, new(0, .09f, 0), new(w + .6f, .18f, d + .6f), paving);
+        Box("Rear wall", hut, new(0, h / 2 + .18f, d / 2), new(w, h, .26f), wall);
+        Box("West wall", hut, new(-w / 2, h / 2 + .18f, 0), new(.26f, h, d), wall);
+        Box("East wall", hut, new(w / 2, h / 2 + .18f, 0), new(.26f, h, d), wall);
+        Box("Front wall west", hut, new(-(opening + side) / 2, h / 2 + .18f, -d / 2), new(side, h, .26f), wall);
+        Box("Front wall east", hut, new((opening + side) / 2, h / 2 + .18f, -d / 2), new(side, h, .26f), wall);
+        // The header's underside meets the corridor ceiling's top, so nothing shows through above it.
+        float lintel = .18f + door + .2f, top = h + .18f;
+        Box("Front header", hut, new(0, (lintel + top) / 2, -d / 2), new(opening, top - lintel, .26f), wall);
+        Roof("Hut roof", hut, new(0, h + .18f, 0), w + 1.2f, d + 1.2f, 1.1f, 1f, terracotta);
+        Box("Hut fascia", hut, new(0, h + .24f, -(d + 1.2f) / 2), new(w + 1.3f, .14f, .12f), trim);
+        WallText("Hut sign", hut, sign, new(0, h + .18f - .16f, -d / 2 - .15f), .04f, signColor);
+        Doorway(hut, venue, 0, .18f, -d / 2, .26f, opening, wall, jambHeight: door + .2f, height: door);
+    }
+
     // ---------------------------------------------------------------- props
 
     static void Furnishings(Transform props)
     {
-        Palm("Palm west", props, new(-5.4f, 0, 5.9f), 1.25f, 9, 6);
+        Palm("Palm west", props, new(-7.2f, 0, 1.6f), 1.25f, 9, 6);
         Palm("Palm east", props, new(6.2f, 0, 6.2f), 1.1f, 8, -7);
-        Palm("Palm far west", props, new(-13.4f, 0, -1.4f), 1.35f, 9, -4);
-        Palm("Palm far east", props, new(13.6f, 0, -.6f), 1.2f, 8, 5);
+        Palm("Palm far west", props, new(-10.2f, 0, -1f), 1.35f, 9, -4);
+        Palm("Palm far east", props, new(10.6f, 0, -5.4f), 1.2f, 8, 5);
         Palm("Palm terrace", props, new(-4.4f, -.95f, 10.4f), .95f, 8, 9);
 
-        Bench("Overlook bench west", props, new(-2.4f, 0, 4.9f), 0);
+        Bench("Overlook bench west", props, new(-1.4f, 0, 5f), 0);
         Bench("Overlook bench east", props, new(2.6f, 0, 5.1f), 0);
-        Bench("Shade bench", props, new(-10.4f, 0, -3.6f), 30);
+        Bench("Shade bench", props, new(-8f, 0, -5f), 40);
         Parasol("Cafe parasol west", props, new(-6.2f, 0, -3.8f), 1);
         Parasol("Cafe parasol east", props, new(4.8f, 0, .9f), -1);
         Plant("Plaza planter west", props, new(-9.6f, 0, -3.2f), 1.3f, 11);

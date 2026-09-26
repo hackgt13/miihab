@@ -1,37 +1,42 @@
-.studio-screen { flex-grow: 1; }
-.exercise-card { position: absolute; left: 32px; top: 30px; width: 370px; }
-.intro { margin-top: 16px; margin-bottom: 2px; }
-.exercise-meta { flex-direction: row; align-items: center; margin-top: 16px; }
-.plan { flex-shrink: 1; }
-.side-tag { margin-right: 12px; }
-.sensor-status { position: absolute; right: 32px; top: 30px; }
-.progress-card { position: absolute; right: 32px; top: 98px; width: 196px; align-items: center; }
-.rep-ring { width: 140px; height: 140px; margin-top: 14px; }
-.progress-note { margin-top: 12px; }
-.angle-details { width: 100%; margin-top: 18px; align-items: center; }
-.angle-meter { width: 100%; margin-top: 10px; }
-.angle-note { margin-top: 10px; }
-.coaching-dock { position: absolute; bottom: 64px; align-self: center; width: 810px; max-width: 82%; flex-direction: row; align-items: center; }
-.cue-step { align-self: center; margin-right: 20px; }
+/* Layout for the studio's boards (RehabDock, RehabMeasure, RehabFocus). Each board lays out
+   at its station's density — px/m = 1000 / distance — so these widths are what fits the board it is on,
+   not a 1600x900 screen. Layout only: the look is the components'. */
+.board { flex-grow: 1; }
+
+/* Dock, 667 x 283 px at 1.2 m. */
+.dock-chrome { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.view-toggle { flex-shrink: 0; }
+.coaching-dock { flex-direction: row; align-items: center; }
+.cue-step { align-self: center; margin-right: 20px; align-items: center; }
+.hold-ring { width: 72px; height: 72px; margin-top: 8px; }
 .coaching-copy { flex-grow: 1; flex-shrink: 1; }
 .status { margin-top: 4px; }
 .session-action { margin-left: 22px; flex-shrink: 0; }
-.voice-caption { position: absolute; bottom: 195px; align-self: center; width: 620px; max-width: 65%; }
+.voice-caption { margin-top: 8px; }
 .voice-line { margin-top: 6px; }
-.summary-overlay { position: absolute; left: 0; right: 0; top: 0; bottom: 0; align-items: center; justify-content: center; }
-.summary-card { width: 680px; max-width: 90%; max-height: 88%; align-items: center; }
-.summary-badge { align-self: center; margin-bottom: 18px; }
-.summary-subtitle, .summary-plan, .summary-progress { margin-top: 10px; }
-.summary-metrics { flex-direction: row; width: 100%; margin-top: 24px; margin-bottom: 24px; }
-.summary-metric { flex-grow: 1; align-items: center; }
-.summary-notes { max-height: 145px; width: 100%; }
-.summary-saved { margin-top: 16px; }
-.summary-actions { flex-direction: row; margin-top: 24px; }
-.summary-close { margin-left: 14px; }
-.studio-screen.playing .intro { display: none; }
-.studio-screen.playing .exercise-card { width: 330px; }
-.studio-screen.compact .exercise-card { width: 310px; }
-.studio-screen.compact .coaching-dock { width: 730px; bottom: 56px; }
-.studio-screen.compact .cue-step { display: none; }
 
-.view-toggle { position: absolute; bottom: 10px; left: 140px; }
+/* Measure, 320 x 400 px at 1.5 m. */
+.progress-card { flex-grow: 1; align-items: center; }
+.rep-ring { width: 136px; height: 136px; margin-top: 10px; }
+.progress-note { margin-top: 10px; }
+.form-row { flex-direction: row; width: 100%; margin-top: 8px; justify-content: space-around; }
+.form-metric { align-items: center; }
+.form-note { margin-top: 6px; }
+.angle-details { width: 100%; margin-top: 12px; align-items: center; }
+.angle-meter { width: 100%; margin-top: 10px; }
+.angle-note { margin-top: 10px; }
+
+/* Brief, 727 x 836 px at 0.55 m. Inside arm's reach, so the sheet reads as held rather than mounted.
+   The host centres it; the sheet is as tall as what is on it. */
+.briefing-host { flex-grow: 1; justify-content: center; }
+
+/* Focus, 657 x 486 px at 1.4 m. The card is the board. */
+.summary-card { flex-grow: 1; align-items: center; }
+.summary-badge { align-self: center; margin-bottom: 12px; }
+.summary-subtitle, .summary-plan, .summary-progress, .summary-form { margin-top: 6px; }
+.summary-metrics { flex-direction: row; width: 100%; margin-top: 16px; margin-bottom: 12px; }
+.summary-metric { flex-grow: 1; align-items: center; }
+.summary-notes { max-height: 72px; width: 100%; flex-shrink: 1; }
+.summary-saved { margin-top: 10px; }
+.summary-actions { flex-direction: row; margin-top: 16px; }
+.summary-close { margin-left: 14px; }

@@ -31,6 +31,9 @@ namespace Kinesthetic
             if (HeadsetPresent()) return;
             var found = Object.FindAnyObjectByType<EyeAnchor>();
             if (!found) return;
+            // A scene that drives its own eye view still needs the own-body layering — StudioCamera culls that
+            // layer from inside the head — but not a second eye camera on a second toggle key.
+            if (found.sceneOwnsView) { HideOwnBody(found); return; }
             var spectator = Camera.main;                        // the view the scene shipped with
 
             var go = new GameObject("Patient eye view");

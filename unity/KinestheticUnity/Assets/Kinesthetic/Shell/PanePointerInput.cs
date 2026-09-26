@@ -27,7 +27,8 @@ namespace Kinesthetic.Shell
     {
         public float maxDistance = 12;
 
-        /// The element under the cursor changed. The subscriber decides what hovering means.
+        /// The element under the cursor changed; null when the cursor left the last one. The subscriber
+        /// decides what hovering means.
         public event Action<string> Entered;
 
         /// The element under the cursor was pressed.
@@ -52,17 +53,17 @@ namespace Kinesthetic.Shell
             if (under != hot)
             {
                 hot = under;
-                if (under != null)
-                {
-                    // Focus is the hover: this project's stylesheets pair :hover with :focus on everything
-                    // that reacts, so focusing what the cursor is over restores the highlight a world-space
-                    // panel cannot produce on its own — and it is the same highlight the keyboard gives.
-                    button?.Focus();
-                    Entered?.Invoke(under);
-                }
+                // Focus is the hover: this project's stylesheets pair :hover with :focus on everything
+                // that reacts, so focusing what the cursor is over restores the highlight a world-space
+                // panel cannot produce on its own — and it is the same highlight the keyboard gives.
+                button?.Focus();
+                Entered?.Invoke(under);
             }
 
-            if (under != null && mouse.leftButton.wasPressedThisFrame) Committed?.Invoke(under);
+            if (under == null || !mouse.leftButton.wasPressedThisFrame) return;
+            // A replica board (UI/Remote) has no handlers of its own: its press crosses to the Mac instead.
+            if (Kinesthetic.UI.Remote.RemoteBoard.Intercepts(gameObject, button)) return;
+            Committed?.Invoke(under);
         }
 
         /// The name of the Button under this screen point on this pane, or null.

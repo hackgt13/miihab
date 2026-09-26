@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../Palette.uss" />
+    <Style src="../UI/Base.uss" />
+    <Style src="Visit.uss" />
+    <!-- What the therapist is saying, in a balloon over their head. The board stands directly above the
+         therapist (TherapistVisitSetup.SpeechStation), so the centred tail points down at them. One line at a
+         time; `quiet` hides the balloon between lines and before the first. -->
+    <ui:VisualElement name="speech" class="board visit-speech quiet" picking-mode="Ignore">
+        <k:KBubble name="speech-bubble" tail="Center" class="visit-bubble">
+            <k:KText name="speech-name" text="ALEX" size="Caption" tone="Soft" />
+            <k:KText name="speech-line" text="" class="visit-line" />
+        </k:KBubble>
+    </ui:VisualElement>
+</ui:UXML>

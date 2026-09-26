@@ -10,6 +10,8 @@ import { PlanStore } from './plans.ts';
 import { FriendStore } from './friends.ts';
 import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
 import { spotlight, recap, daysSince } from './social-ai.ts';
+import { weeksSince, type Profile, type FriendActivity } from './matching.ts';
+import { IntroductionStore, LocalDirectory } from './introductions.ts';
 import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, type RepParams, type RepSession } from './exercise/registry.ts';
@@ -21,6 +23,7 @@ import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from '.
 import { LIBRARY } from './exercises.ts';
 import { buildDashboard, golfUnlock } from './dashboard.ts';
 import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
+import { applyProgramUpdate, buildVisit, therapistFromEnv, VisitStore } from './visit.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const captureRoot = resolve(root, 'spikes/pose-capture');
@@ -41,6 +44,27 @@ const cameraMeasurement = process.env.KINESTHETIC_CAMERA_MEASUREMENT === '1';
 const socialDir = resolve(process.env.KINESTHETIC_SOCIAL_DIRECTORY ?? resolve(root, 'local-data/social'));
 const friends = new FriendStore(socialDir);
 const messages = new MessageStore(socialDir);
+// Notes the therapist leaves for the patient's visit (visit.ts). Kept beside the plans: they are clinical.
+const visit = new VisitStore(resolve(process.env.KINESTHETIC_VISIT_DIRECTORY ?? resolve(root, 'local-data/visit')));
+const therapist = therapistFromEnv();
+const introductions = new IntroductionStore(socialDir);
+// Local today. When a shared backend exists this is the only line that changes.
+const directory = new LocalDirectory(socialDir);
+
+/// This patient, as the matcher sees them: what they are working toward and
+/// what they practise. Never a measurement — see the note at the top of
+/// matching.ts for why a score built from degrees would be the wrong thing.
+function myProfile(): Profile {
+  const plan = plans.active();
+  return {
+    personId: friends.me().id,
+    goalComponents: plan?.goal?.components ?? [],
+    exerciseKinds: [...new Set((plan?.activities ?? [])
+      .map(a => a.exerciseKind).filter((k): k is string => !!k))],
+    ageBand: null,          // nobody is asked for this yet; null is "no signal"
+    programWeek: weeksSince(plan?.approvedAt),
+  };
+}
 
 /// Reads a bounded request body. Photos are the only binary upload here.
 function readBytes(request: import('node:http').IncomingMessage, limit: number): Promise<Buffer> {
@@ -56,8 +80,8 @@ function readBytes(request: import('node:http').IncomingMessage, limit: number):
   });
 }
 const portalRoot = resolve(root, 'coordinator/portal');
-const historyFixture = resolve(root, 'coordinator/fixtures/history.json');
-const allowedOrigins = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:8765', 'http://127.0.0.1:8765']);
+// 5173 is the wiirehab clinician web app's Vite dev server, which writes visit notes.
+const allowedOrigins = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:8765', 'http://127.0.0.1:8765', 'http://localhost:5173', 'http://127.0.0.1:5173']);
 const mime: Record<string,string> = { '.html':'text/html', '.js':'text/javascript', '.mjs':'text/javascript', '.css':'text/css', '.wasm':'application/wasm', '.task':'application/octet-stream' };
 let producer: WebSocket | null = null;
 let latest: any = null;
@@ -91,7 +115,8 @@ function exerciseBroadcast(message: any) {
 function feed(events: RepEvent[], sourceSessionId: string | null) {
   if (!exercise) return;
   const sample = exercise.samples.at(-1);
-  if (sample) exerciseBroadcast({type:'exercise.sample', payload:{...sample, phase:exercise.phase, rep:exercise.currentRep}});
+  // `quality` is the rep qualities' live readout (hold timer, tempo pace, hitches) while a rep runs; null between reps.
+  if (sample) exerciseBroadcast({type:'exercise.sample', payload:{...sample, phase:exercise.phase, rep:exercise.currentRep, quality:exercise.live}});
   for (const event of events) { exerciseBroadcast({type:'exercise.event', payload:event}); exerciseLog?.write(JSON.stringify({type:'exercise.event', exerciseId, sourceSessionId, payload:event})+'\n'); }
 }
 // IMU exercises read an AirPod from the motion relay while they run: the club's (Club Motion app, /golf) by default,
@@ -211,13 +236,16 @@ const server = createServer(async (request, response) => {
         prescribedReps: Number(body.prescribedReps ?? x.targetCount),
         holdMs: Number(body.holdMs ?? p.holdMs ?? 400),
         ...(compensation != null ? {maxCompensationDeg: Number(compensation)} : {}),
-        planVersion: plan.version});
+        planVersion: plan.version},
+        // The prescription's params tune the qualities the exercise is coached on (holdTargetMs, lowerMs, …).
+        {...p, ...body});
       exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; lastImuMs = -Infinity;
       if (kind.requires.includes('imu')) watchMotion(p.imuSource === 'wrist' ? 'wrist' : 'club');
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
       exerciseStartedAt = new Date().toISOString();
       exerciseLog = createWriteStream(resolve(recordings, `exercise-${exerciseId}.jsonl`));
-      const started = {exerciseId, prescriptionId: x.id, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', imuSource: kind.requires.includes('imu') ? motionSource : null, config: exercise.params};
+      const started = {exerciseId, prescriptionId: x.id, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', imuSource: kind.requires.includes('imu') ? motionSource : null, config: exercise.params,
+        qualities: exercise.qualities.configs};
       exerciseBroadcast({type:'exercise.started', payload: started});
       response.writeHead(200, {'Content-Type':'application/json'}).end(JSON.stringify(started));
     } catch (error) { response.writeHead(400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }
@@ -263,6 +291,32 @@ const server = createServer(async (request, response) => {
           .map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
         return json(200, buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes}));
       }
+      // The therapist visit (Unity: Kinesthetic/Visit, coordinator/visit.ts): the whiteboard's program updates
+      // since the patient last visited and what the therapist says about them. The therapist changes the
+      // program through program-update (a plan version plus a note to the patient); Unity marks it seen.
+      if (request.method === 'GET' && url.pathname === '/api/visit')
+        return json(200, buildVisit({plans: plans.list(), notes: visit.list(), seen: visit.seen, therapist}));
+      if (request.method === 'POST' && url.pathname === '/api/visit/program-update')
+        return json(201, applyProgramUpdate(plans, visit, await readJson(request)));
+      if (request.method === 'POST' && url.pathname === '/api/visit/seen') {
+        const body = await readJson(request);
+        const version = Number(body.planVersion);
+        if (!plans.get(version)) return json(404, {error:`Plan v${body.planVersion} does not exist`});
+        return json(200, visit.markSeen(version));
+      }
+      // What the patient relays at the end of a visit, for the clinician; the reply carries what Alex says back.
+      if (request.method === 'GET' && url.pathname === '/api/visit/replies') return json(200, visit.replies());
+      if (request.method === 'POST' && url.pathname === '/api/visit/replies') {
+        const body = await readJson(request);
+        return json(201, visit.addReply({kind: body.kind, text: body.text, planVersion: body.planVersion ?? plans.active().version}));
+      }
+      if (request.method === 'GET' && url.pathname === '/api/visit/notes') return json(200, visit.list());
+      if (request.method === 'POST' && url.pathname === '/api/visit/notes') {
+        const body = await readJson(request);   // text and author only: seeded and planVersion are not the client's to set
+        return json(201, visit.add({text: body.text, author: body.author}));
+      }
+      const note = url.pathname.match(/^\/api\/visit\/notes\/([0-9a-f-]{36})$/i);
+      if (request.method === 'DELETE' && note) return visit.remove(note[1]) ? json(200, {removed: note[1]}) : json(404, {error:'No such note'});
       if (request.method === 'GET' && url.pathname === '/api/proposals') return json(200, proposals.list().slice(0, 50));
       if (request.method === 'POST' && url.pathname === '/api/progression/evaluate') {
         const body = await readJson(request);
@@ -281,7 +335,6 @@ const server = createServer(async (request, response) => {
           changes: {[proposal.prescriptionId]: {params: {targetDeg: proposal.to.targetDeg}}}});
         return json(200, {proposal: proposals.save({...proposal, status:'approved', appliedPlanVersion: plan.version}), plan});
       }
-      if (request.method === 'GET' && url.pathname === '/api/history') return json(200, JSON.parse(await readFile(historyFixture, 'utf8')));
       if (url.pathname.startsWith('/api/friends')) {
         const me = friends.me().id;
         if (request.method === 'GET' && url.pathname === '/api/friends') {
@@ -324,6 +377,64 @@ const server = createServer(async (request, response) => {
         // Both AI routes answer 200 with empty values when the model is not
         // configured or declines, so the panel treats it as "no opinion today"
         // rather than an error it has to handle.
+        // Discovery, on a double opt-in. An open introduction carries a reason and
+        // nothing that identifies anyone; only a mutual yes exchanges names, and
+        // from there it is the ordinary invite path.
+        if (request.method === 'GET' && url.pathname === '/api/friends/introductions') {
+          const already = new Set(friends.list().map(p => p.id));
+          const kind = url.searchParams.get('kind') === 'mentor' ? 'mentor' : 'peer';
+          await introductions.suggest(myProfile(), directory, already, kind);
+          return json(200, {
+            introductions: introductions.open(me, kind).map(i => ({
+              id: i.id, kind: i.kind, reason: i.reasons[me] ?? '',
+              // Deliberately no id, name or Mii for the other side.
+              waitingOnThem: i.answers[me] === 'yes',
+            })),
+          });
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/introductions/answer') {
+          const body = await readJson(request) as {id?: string; yes?: boolean};
+          const id = String(body.id ?? '');
+          let answered = introductions.answer(id, me, body.yes ? 'yes' : 'no');
+          // The local stand-in for the other side. Every profile in the local
+          // directory is synthetic — there is no second coordinator to answer —
+          // so a yes here completes the pair instead of waiting forever. With a
+          // real backend this whole branch goes away and the wait is real; the
+          // double opt-in in introductions.ts is untouched either way.
+          if (body.yes && !IntroductionStore.joined(answered)) {
+            const other = answered.pair[0] === me ? answered.pair[1] : answered.pair[0];
+            const synthetic = (await directory.profiles()).some(p => p.personId === other);
+            if (synthetic) answered = introductions.answer(id, other, 'yes');
+          }
+          if (!IntroductionStore.joined(answered)) return json(200, {joined: false});
+          // Both said yes. Mint a code and redeem it, which is exactly what two
+          // people who exchanged one by hand would have done.
+          const other = answered.pair[0] === me ? answered.pair[1] : answered.pair[0];
+          const profiles = await directory.profiles();
+          const known = profiles.find(p => p.personId === other);
+          const person = friends.has(other) ? friends.person(other)
+            : friends.accept(friends.invite(), known?.displayName || 'A friend');
+          return json(201, {joined: true, person});
+        }
+        // A friend's profile. Activity only: friends.ts holds that one patient's
+        // measurements are not another's business, so nothing here carries a
+        // degree, a rep count or how close to target they got — only whether they
+        // turned up. `measured: false` is how the panel knows not to imply more.
+        if (request.method === 'GET' && url.pathname === '/api/friends/profile') {
+          const other = url.searchParams.get('id') ?? '';
+          if (!friends.has(other)) return json(404, {error:'Unknown person'});
+          const known = (await directory.profiles()).find(p => p.personId === other);
+          const thread = messages.thread(me, other);
+          const theirs = [...thread].reverse().find(m => m.from === other);
+          return json(200, {
+            person: friends.person(other),
+            // Absent for someone whose coordinator we cannot reach, which today is
+            // anyone not in the local directory.
+            activity: known?.activity ?? null,
+            lastActiveDays: daysSince(friends.person(other)?.lastActiveAt ?? theirs?.at),
+            goalComponents: known?.goalComponents ?? [],
+          });
+        }
         if (request.method === 'GET' && url.pathname === '/api/friends/spotlight') {
           const people = friends.list();
           const unread = messages.unread(me, people.map(p => p.id));

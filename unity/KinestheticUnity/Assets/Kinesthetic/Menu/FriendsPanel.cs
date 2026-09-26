@@ -5,6 +5,8 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UIElements;
+using Kinesthetic;
+using Kinesthetic.UI;
 
 namespace Kinesthetic.Menu
 {
@@ -30,6 +32,11 @@ namespace Kinesthetic.Menu
         [Serializable] class Roster { public Person me; public Person[] friends; }
         [Serializable] class Message { public string id, from, to, at, kind, text, photoId; }
         [Serializable] class Thread { public Person person; public Message[] messages; }
+        [Serializable] class Activity {
+            public int streakDays, bestStreakDays, weekSessionsDone, weekSessionsGoal, programDay, programTotalDays;
+            public string[] daysActive;
+        }
+        [Serializable] class ProfileView { public Person person; public Activity activity; public int lastActiveDays; public string[] goalComponents; }
         [Serializable] class Code { public string code; }
         [Serializable] class PhotoId { public string photoId; }
         [Serializable] class ActivityLine { public string id, line; }
@@ -40,8 +47,9 @@ namespace Kinesthetic.Menu
         [Serializable] class Recap { public string recap; }
 #pragma warning restore 0649
 
-        // Fixed vocabulary. A tap is a whole message, which is the point: on a bad
-        // day, typing is a barrier and a chip is not.
+        // The stored vocabulary, kept for reading rather than sending: a message
+        // already in a thread carries a `kind`, and this is what turns it back into
+        // words. See LabelFor.
         static readonly (string kind, string label)[] Quick =
         {
             ("nice_one", "Nice one"),
@@ -63,46 +71,123 @@ namespace Kinesthetic.Menu
             new(.28f,.20f,.16f), new(.52f,.33f,.18f), new(.15f,.13f,.12f), new(.72f,.58f,.34f),
             new(.35f,.24f,.20f), new(.20f,.16f,.15f), new(.62f,.42f,.24f), new(.30f,.28f,.30f),
         };
+        // The field behind the head. Chrome, so these come from Palette.cs.
+        static readonly Color[] Disc =
+        {
+            Palette.Cerulean20, Palette.Sand30, Palette.Jungle20, Palette.Coral20,
+            Palette.Cerulean10, Palette.Sand20, Palette.Jungle10, Palette.Coral10,
+        };
+        static readonly Color Ink = Palette.Prussian70;
+
         static readonly Color[] Shirt =
         {
             new(.28f,.62f,.80f), new(.93f,.66f,.36f), new(.45f,.72f,.52f), new(.85f,.51f,.55f),
             new(.55f,.55f,.82f), new(.35f,.74f,.74f), new(.88f,.74f,.41f), new(.62f,.52f,.75f),
         };
 
-        /// A small Mii-ish face. Pseudonymous by design: no photographs of patients.
+        /// A flat cartoon face in the Mii idiom rather than a copy of one: a big
+        /// rounded head on a plain disc, no shading anywhere, and the tall oval
+        /// eyes that style is really made of. Everything is drawn from the variant
+        /// index, so a person's face is the same in the roster, the thread and the
+        /// landing page.
+        ///
+        /// Pseudonymous by design: no photographs of patients.
+        ///
+        /// Skin and hair stay their own colours. They are representational, not
+        /// chrome, and flattening real skin tones into the five brand hues would
+        /// erase the only variety these faces carry. The disc behind the head is
+        /// chrome, so that one comes from the palette.
         static void DrawFace(MeshGenerationContext ctx, int variant, float size)
         {
             var p = ctx.painter2D;
             int v = Mathf.Abs(variant) % Skin.Length;
-            float c = size * .5f, r = size * .42f;
+            float c = size * .5f;
 
-            // shoulders, so the avatar reads as a person rather than a dot
+            // The disc. A face on a plain field is what makes these read as
+            // portraits rather than stickers dropped on whatever is behind them.
+            p.fillColor = Disc[v % Disc.Length];
+            p.BeginPath();
+            p.Arc(new Vector2(c, c), size * .5f, Angle.Degrees(0), Angle.Degrees(360));
+            p.Fill();
+
+            // Shoulders, cut off by the disc, so the head sits on a body.
             p.fillColor = Shirt[v];
             p.BeginPath();
-            p.Arc(new Vector2(c, size * 1.02f), size * .42f, Angle.Degrees(180), Angle.Degrees(360));
+            p.Arc(new Vector2(c, size * 1.08f), size * .42f, Angle.Degrees(180), Angle.Degrees(360));
+            p.Fill();
+
+            float headY = size * .47f, headW = size * .30f, headH = size * .35f;
+
+            // Hair behind the head, but only over the scalp: an ellipse tall enough
+            // to wrap the jaw turns every face into a hood. This one ends around the
+            // temples and leaves the cheeks and chin clear, which is what makes the
+            // head read as a head.
+            p.fillColor = Hair[v];
+            Ellipse(p, c, headY - headH * .28f, headW * 1.09f, headH * .78f);
             p.Fill();
 
             p.fillColor = Skin[v];
-            p.BeginPath(); p.Arc(new Vector2(c, c * .96f), r, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
-
-            // hair: a cap, with a side part on odd variants
-            p.fillColor = Hair[v];
-            p.BeginPath();
-            p.Arc(new Vector2(c, c * .96f), r, Angle.Degrees(v % 2 == 0 ? 190 : 205), Angle.Degrees(v % 2 == 0 ? 350 : 335));
+            Ellipse(p, c, headY, headW, headH);
             p.Fill();
 
-            p.fillColor = new Color(.16f, .18f, .22f);
-            float eyeY = c * .98f, eyeDx = r * .38f, eyeR = Mathf.Max(1.2f, size * .045f);
-            p.BeginPath(); p.Arc(new Vector2(c - eyeDx, eyeY), eyeR, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
-            p.BeginPath(); p.Arc(new Vector2(c + eyeDx, eyeY), eyeR, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
-
-            // a smile, because this surface should feel welcoming
-            p.strokeColor = new Color(.42f, .27f, .24f);
-            p.lineWidth = Mathf.Max(1.1f, size * .045f);
-            p.lineCap = LineCap.Round;
+            // The fringe: a lid over the top of the face, straight across on even
+            // variants and swept to one side on odd ones. Two faces in a row should
+            // not look like the same person.
+            p.fillColor = Hair[v];
             p.BeginPath();
-            p.Arc(new Vector2(c, c * 1.02f), r * .46f, Angle.Degrees(25), Angle.Degrees(155));
+            p.MoveTo(new Vector2(c - headW, headY - headH * .35f));
+            p.BezierCurveTo(
+                new Vector2(c - headW, headY - headH * 1.2f),
+                new Vector2(c + headW, headY - headH * 1.2f),
+                new Vector2(c + headW, headY - headH * .35f));
+            p.BezierCurveTo(
+                new Vector2(c + headW * .45f, headY - headH * (v % 2 == 0 ? .62f : .40f)),
+                new Vector2(c - headW * .45f, headY - headH * (v % 2 == 0 ? .62f : .78f)),
+                new Vector2(c - headW, headY - headH * .35f));
+            p.ClosePath();
+            p.Fill();
+
+            // The eyes carry the style: tall ovals, not dots.
+            float eyeDx = headW * .42f, eyeY = headY + headH * .08f;
+            float eyeW = Mathf.Max(.9f, size * .052f), eyeH = Mathf.Max(1.4f, size * .082f);
+            p.fillColor = Ink;
+            Ellipse(p, c - eyeDx, eyeY, eyeW, eyeH); p.Fill();
+            Ellipse(p, c + eyeDx, eyeY, eyeW, eyeH); p.Fill();
+
+            // Brows, set high — a Mii's face is mostly forehead.
+            p.strokeColor = Hair[v];
+            p.lineWidth = Mathf.Max(1f, size * .038f);
+            p.lineCap = LineCap.Round;
+            float browY = eyeY - eyeH * 1.7f, browW = eyeW * 1.5f;
+            p.BeginPath();
+            p.MoveTo(new Vector2(c - eyeDx - browW, browY));
+            p.LineTo(new Vector2(c - eyeDx + browW, browY));
+            p.MoveTo(new Vector2(c + eyeDx - browW, browY));
+            p.LineTo(new Vector2(c + eyeDx + browW, browY));
             p.Stroke();
+
+            // A small mouth, low on the face, closed and easy. This surface has to
+            // look welcoming on the days someone has not shown up.
+            p.strokeColor = Ink;
+            p.lineWidth = Mathf.Max(1.2f, size * .046f);
+            p.BeginPath();
+            p.Arc(new Vector2(c, headY + headH * .30f), headW * .34f,
+                Angle.Degrees(20), Angle.Degrees(160));
+            p.Stroke();
+        }
+
+        /// Painter2D draws circles but not ellipses, and every rounded shape in this
+        /// face is taller than it is wide. Four beziers, the usual circle constant.
+        static void Ellipse(Painter2D p, float cx, float cy, float rx, float ry)
+        {
+            const float K = .5523f;
+            p.BeginPath();
+            p.MoveTo(new Vector2(cx, cy - ry));
+            p.BezierCurveTo(new Vector2(cx + rx * K, cy - ry), new Vector2(cx + rx, cy - ry * K), new Vector2(cx + rx, cy));
+            p.BezierCurveTo(new Vector2(cx + rx, cy + ry * K), new Vector2(cx + rx * K, cy + ry), new Vector2(cx, cy + ry));
+            p.BezierCurveTo(new Vector2(cx - rx * K, cy + ry), new Vector2(cx - rx, cy + ry * K), new Vector2(cx - rx, cy));
+            p.BezierCurveTo(new Vector2(cx - rx, cy - ry * K), new Vector2(cx - rx * K, cy - ry), new Vector2(cx, cy - ry));
+            p.ClosePath();
         }
 
         static VisualElement Face(int variant, float size, string cssClass)
@@ -113,7 +198,8 @@ namespace Kinesthetic.Menu
             return element;
         }
 
-        VisualElement root, overlay, facesRow, list, threadView, quickRow, threadFace;
+        VisualElement root, overlay, facesRow, list, threadView, threadFace;
+        ScrollView threadScroll;
         VisualElement spotlight, spotlightFace;
         Label badge, threadName, threadHint, inviteCode, notice, spotlightName, spotlightLine;
         Button spotlightReply;
@@ -126,6 +212,9 @@ namespace Kinesthetic.Menu
         string pendingPhotoId;
         string spotlightId;
         SpotlightInfo insight;
+        IntroductionsCard introductions;
+        VisualElement pageMessages, pageMeet, profileCard, profileFace, profileStats, profileDays, threadHead;
+        Button tabMessages, tabMeet;
 
         public void Attach(VisualElement tree, ActivityNavigation nav)
         {
@@ -136,8 +225,8 @@ namespace Kinesthetic.Menu
             badge = root.Q<Label>("friends-badge");
             closeButton = root.Q<Button>("friends-close");
             list = root.Q<ScrollView>("friends-list")?.contentContainer;
-            threadView = root.Q<ScrollView>("thread")?.contentContainer;
-            quickRow = root.Q("quick-row");
+            threadScroll = root.Q<ScrollView>("thread");
+            threadView = threadScroll?.contentContainer;
             threadFace = root.Q("thread-face");
             threadName = root.Q<Label>("thread-name");
             inviteButton = root.Q<Button>("friends-invite");
@@ -151,13 +240,28 @@ namespace Kinesthetic.Menu
             spotlightName = root.Q<Label>("spotlight-name");
             spotlightLine = root.Q<Label>("spotlight-line");
             spotlightReply = root.Q<Button>("spotlight-reply");
+            pageMessages = root.Q("page-messages");
+            pageMeet = root.Q("page-meet");
+            tabMessages = root.Q<Button>("tab-messages");
+            tabMeet = root.Q<Button>("tab-meet");
+            profileCard = root.Q("friend-profile");
+            threadHead = root.Q(className: "thread-head");
+            profileFace = root.Q("profile-face");
+            profileStats = root.Q("profile-stats");
+            profileDays = root.Q("profile-days");
             composer = root.Q<TextField>("composer-text");
             sendButton = root.Q<Button>("composer-send");
             photoButton = root.Q<Button>("composer-photo");
-            if (overlay == null || openButton == null) return;
+            // The pane carries no modal shade, no open button and, since the Back
+            // buttons went, no close button either: the ring turns to this screen
+            // and MainMenu owns the button that turns it. All three were required
+            // here before the panes landed, so Attach returned early on Friends.uxml
+            // and nothing at all was wired — no roster, no chips, no send. The list
+            // is the one thing this screen cannot do without.
+            if (list == null) return;
 
-            openButton.clicked += Open;
-            closeButton.clicked += Close;
+            if (openButton != null) openButton.clicked += Open;
+            if (closeButton != null) closeButton.clicked += Close;
             inviteButton.clicked += () => StartCoroutine(Invite());
             acceptButton.clicked += () => StartCoroutine(Accept());
             sendButton.clicked += () => StartCoroutine(Send(null));
@@ -166,39 +270,170 @@ namespace Kinesthetic.Menu
                 spotlightReply.clicked += () => { Open(); if (spotlightId != null) SelectPerson(spotlightId); };
             composer.RegisterCallback<KeyDownEvent>(e =>
             { if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { StartCoroutine(Send(null)); e.StopPropagation(); } });
-            root.RegisterCallback<NavigationCancelEvent>(e =>
-            { if (!overlay.ClassListContains("hidden")) { Close(); e.StopPropagation(); } });
+            if (overlay != null)
+                root.RegisterCallback<NavigationCancelEvent>(e =>
+                { if (!overlay.ClassListContains("hidden")) { Close(); e.StopPropagation(); } });
 
-            BuildQuickChips();
+            root.Q<Button>("profile-close")?.RegisterCallback<ClickEvent>(_ => CloseProfile());
+            if (tabMessages != null) tabMessages.clicked += () => ShowPage(false);
+            if (tabMeet != null) tabMeet.clicked += () => ShowPage(true);
+
+            // Mounted only where the tree offers a home for it, so a screen that
+            // has not adopted the card is not broken by its absence.
+            var introMount = root.Q("introductions");
+            if (introMount != null)
+                introductions = new IntroductionsCard(this, introMount, () => StartCoroutine(LoadRoster()), ShowMeetEmpty);
             StartCoroutine(LoadRoster());
         }
 
-        void BuildQuickChips()
+        /// One page at a time. The tabs are KButtons, so the look of the chosen one
+        /// is a tone rather than a class this screen paints.
+        void ShowPage(bool meet)
         {
-            quickRow.Clear();
-            foreach (var (kind, label) in Quick)
+            if (pageMessages == null || pageMeet == null) return;
+            navigation?.PlaySelect();
+            pageMessages.EnableInClassList("hidden", meet);
+            pageMeet.EnableInClassList("hidden", !meet);
+            if (tabMessages is KButton a) a.tone = meet ? KButton.Tone.Quiet : KButton.Tone.Primary;
+            if (tabMeet is KButton b) b.tone = meet ? KButton.Tone.Primary : KButton.Tone.Quiet;
+            // Ask again on arrival: someone may have become a friend since the last look.
+            if (meet) introductions?.Refresh();
+        }
+
+        /// The meet page is a column of its own, so it says when there is nobody
+        /// rather than leaving the space blank — unlike the card on a shared page,
+        /// which simply goes away.
+        void ShowMeetEmpty(bool empty)
+        {
+            root?.Q<Label>("meet-empty")?.EnableInClassList("hidden", !empty);
+        }
+
+        /// Clicking a face opens the person, not the conversation. Everything here
+        /// is activity — whether they turned up, and how often — because friends.ts
+        /// keeps one patient's measurements away from another and a degree on this
+        /// card would be exactly the comparison it warns about.
+        IEnumerator LoadProfile(string id)
+        {
+            if (profileCard == null) yield break;
+            using var request = UnityWebRequest.Get(
+                Bridge + "/api/friends/profile?id=" + UnityWebRequest.EscapeURL(id));
+            request.timeout = 5;
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success) yield break;
+
+            var view = JsonUtility.FromJson<ProfileView>(request.downloadHandler.text);
+            if (view?.person == null) yield break;
+            PaintProfile(view);
+        }
+
+        void PaintProfile(ProfileView view)
+        {
+            root.Q<Label>("profile-name").text = view.person.displayName
+                + (view.person.sample ? "  ·  sample friend" : "");
+            root.Q<Label>("profile-goal").text = view.goalComponents is {Length: > 0}
+                ? "Working toward " + string.Join(" and ", view.goalComponents)
+                : "";
+
+            profileFace.generateVisualContent = null;
+            int variant = view.person.mii;
+            profileFace.generateVisualContent += ctx => DrawFace(ctx, variant, 40f);
+            profileFace.MarkDirtyRepaint();
+
+            profileStats.Clear();
+            var note = root.Q<Label>("profile-note");
+            if (view.activity == null)
             {
-                var chip = new Button { text = label };
-                chip.AddToClassList("quick-chip");
-                string captured = kind;
-                chip.clicked += () => StartCoroutine(Send(captured));
-                quickRow.Add(chip);
+                // Someone whose coordinator we cannot reach. Say so rather than
+                // drawing zeroes, which would read as "they have done nothing".
+                note.text = view.lastActiveDays == 0 ? "Here today. Nothing else to show yet."
+                    : "Nothing to show yet. Last here " + Days(view.lastActiveDays) + ".";
+                profileDays.generateVisualContent = null;
+                profileDays.MarkDirtyRepaint();
+                ShowProfile(true);
+                return;
             }
+
+            var a = view.activity;
+            Stat(a.streakDays.ToString(), a.streakDays == 1 ? "day streak" : "day streak");
+            Stat(a.bestStreakDays.ToString(), "best so far");
+            Stat(a.weekSessionsDone + "/" + a.weekSessionsGoal, "this week");
+            Stat(a.programDay.ToString(), "of " + a.programTotalDays + " days");
+            note.text = view.lastActiveDays == 0 ? "Here today." : "Last here " + Days(view.lastActiveDays) + ".";
+
+            // Four weeks of turning up, one square a day. No numbers on it: this is
+            // a rhythm, not a score.
+            var active = new HashSet<string>(a.daysActive ?? new string[0]);
+            profileDays.generateVisualContent = null;
+            profileDays.generateVisualContent += ctx => DrawDays(ctx, active, profileDays.contentRect);
+            profileDays.MarkDirtyRepaint();
+            ShowProfile(true);
+        }
+
+        /// The profile and the conversation are two views of one person, so only
+        /// one is up at a time.
+        void ShowProfile(bool on)
+        {
+            profileCard?.EnableInClassList("hidden", !on);
+            threadHead?.EnableInClassList("hidden", on);
+            threadScroll?.EnableInClassList("hidden", on);
+            root.Q(className: "composer")?.EnableInClassList("hidden", on);
+        }
+
+        static string Days(int n) => n == 0 ? "today" : n == 1 ? "yesterday" : n + " days ago";
+
+        void Stat(string value, string caption)
+        {
+            var tile = new VisualElement();
+            tile.AddToClassList("profile-stat");
+            var v = new KText { text = value, size = KText.Size.Title, tone = KText.Tone.Ink };
+            var c = new KText { text = caption, size = KText.Size.Caption, tone = KText.Tone.Soft };
+            tile.Add(v); tile.Add(c);
+            profileStats.Add(tile);
+        }
+
+        /// Four weeks back, oldest first, a filled square for a day they moved.
+        static void DrawDays(MeshGenerationContext ctx, HashSet<string> active, Rect box)
+        {
+            if (box.width <= 1) return;
+            var p = ctx.painter2D;
+            const int Days28 = 28;
+            float gap = 3f, cell = Mathf.Max(4f, (box.width - gap * (Days28 - 1)) / Days28);
+            var today = DateTime.Now.Date;
+            for (int i = 0; i < Days28; i++)
+            {
+                var day = today.AddDays(-(Days28 - 1 - i));
+                bool moved = active.Contains(day.ToString("yyyy-MM-dd"));
+                p.fillColor = moved ? Palette.Jungle40 : Palette.Slate30;
+                float x = i * (cell + gap);
+                p.BeginPath();
+                p.MoveTo(new Vector2(x, 0));
+                p.LineTo(new Vector2(x + cell, 0));
+                p.LineTo(new Vector2(x + cell, cell));
+                p.LineTo(new Vector2(x, cell));
+                p.ClosePath();
+                p.Fill();
+            }
+        }
+
+        void CloseProfile()
+        {
+            navigation?.PlayBack();
+            ShowProfile(false);
         }
 
         public void Open()
         {
             navigation?.PlaySelect();
-            overlay.RemoveFromClassList("hidden");
-            closeButton.Focus();
+            overlay?.RemoveFromClassList("hidden");
+            (closeButton ?? inviteButton)?.Focus();
             StartCoroutine(LoadRoster());
         }
 
         void Close()
         {
-            overlay.AddToClassList("hidden");
+            overlay?.AddToClassList("hidden");
             navigation?.PlayBack();
-            openButton.Focus();
+            openButton?.Focus();
         }
 
         // ---- data ------------------------------------------------------------
@@ -224,6 +459,8 @@ namespace Kinesthetic.Menu
             // Deliberately not awaited: a model call is seconds, and the panel is
             // already correct without it. It repaints if and when it lands.
             StartCoroutine(LoadInsight());
+            // After the roster, so anyone already a friend is excluded from it.
+            introductions?.Refresh();
         }
 
         /// Asks the coordinator who deserves the spotlight and what each person has
@@ -258,6 +495,7 @@ namespace Kinesthetic.Menu
             request.timeout = 5;
             yield return request.SendWebRequest();
             if (request.result != UnityWebRequest.Result.Success) yield break;
+            ShowProfile(false);
             PaintThread(JsonUtility.FromJson<Thread>(request.downloadHandler.text));
             yield return LoadRecap(id);
         }
@@ -373,14 +611,17 @@ namespace Kinesthetic.Menu
 
         void PaintFaces()
         {
-            facesRow.Clear();
+            // The stacked faces and the count live on the button that opens this, which
+            // the pane does not have.
+            facesRow?.Clear();
             int unread = 0, shown = 0;
             foreach (var person in roster.friends)
             {
                 unread += person.unread;
                 if (shown++ >= 3) continue;
-                facesRow.Add(Face(person.mii, 26f, "friend-face"));
+                facesRow?.Add(Face(person.mii, 26f, "friend-face"));
             }
+            if (badge == null) return;
             if (unread > 0) { badge.text = unread.ToString(); badge.RemoveFromClassList("hidden"); }
             else badge.AddToClassList("hidden");
         }
@@ -394,7 +635,17 @@ namespace Kinesthetic.Menu
                 row.AddToClassList("friend-row");
                 row.EnableInClassList("selected", person.id == selectedId);
 
-                row.Add(Face(person.mii, 34f, "friend-row-face"));
+                // The face opens the person; the rest of the row opens the thread.
+                var portrait = Face(person.mii, 34f, "friend-row-face");
+                portrait.pickingMode = PickingMode.Position;
+                portrait.tooltip = "See how " + person.displayName + " is doing";
+                string portraitId = person.id;
+                // Down, not click: the row selects on PointerDown and repaints the
+                // whole list, so this element is gone before a click could finish on
+                // it. Stopping here also keeps the press from selecting the person.
+                portrait.RegisterCallback<PointerDownEvent>(e =>
+                { StartCoroutine(LoadProfile(portraitId)); e.StopPropagation(); });
+                row.Add(portrait);
 
                 var copy = new VisualElement();
                 copy.AddToClassList("friend-row-copy");
@@ -576,6 +827,29 @@ namespace Kinesthetic.Menu
                 threadView.Add(bubble);
             }
             threadView.schedule.Execute(() => threadView.parent?.Focus());
+            ScrollToEnd();
+        }
+
+        /// A repaint leaves the view where it was, which on a long thread is the
+        /// top — so the message you just sent lands off-screen below. End at the
+        /// newest one instead.
+        ///
+        /// Past the end clamps to the end, so the content's own height is "the
+        /// bottom" and the maximum never has to be worked out. The bubbles have no
+        /// layout on the frame they are added, though, so this also waits for the
+        /// geometry pass: that is the signal a delay would only be guessing at.
+        void ScrollToEnd()
+        {
+            if (threadScroll == null || threadView == null) return;
+            threadScroll.scrollOffset = new Vector2(0, threadView.layout.height);
+            threadView.UnregisterCallback<GeometryChangedEvent>(SettleToEnd);
+            threadView.RegisterCallback<GeometryChangedEvent>(SettleToEnd);
+        }
+
+        void SettleToEnd(GeometryChangedEvent _)
+        {
+            threadView.UnregisterCallback<GeometryChangedEvent>(SettleToEnd);
+            threadScroll.scrollOffset = new Vector2(0, threadView.layout.height);
         }
 
         IEnumerator LoadPhoto(string photoId, VisualElement target)
@@ -587,6 +861,12 @@ namespace Kinesthetic.Menu
             if (request.result != UnityWebRequest.Result.Success) yield break;
             var texture = DownloadHandlerTexture.GetContent(request);
             target.style.backgroundImage = new StyleBackground(texture);
+            // The photo lands after the scroll and grows the thread beneath it, so
+            // the newest message slips below the fold again unless we follow it.
+            // The thread may have been repainted for someone else while this was in
+            // flight, which is why the last bubble is re-read rather than captured.
+            if (threadView != null && threadView.childCount > 0
+                && target.parent == threadView[threadView.childCount - 1]) ScrollToEnd();
         }
 
         static string LabelFor(string kind)

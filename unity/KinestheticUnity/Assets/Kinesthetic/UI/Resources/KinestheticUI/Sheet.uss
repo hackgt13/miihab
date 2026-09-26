@@ -1,0 +1,27 @@
+/* A sheet is handed to you. It comes in from the side whoever is handing it stands on, overshoots a few
+   millimetres and settles, and the slight angle it travels at straightens as it lands. It leaves faster,
+   straight and downward — set down rather than deleted.
+
+   The landed state carries the entrance timing and the offstage state carries the exit timing, because a
+   transition is read from the style being moved to. */
+.k-sheet {
+    translate: 0 0;
+    rotate: 0;
+    opacity: 1;
+    transition-property: translate, rotate, opacity;
+    transition-duration: 420ms, 420ms, 160ms;
+    transition-timing-function: ease-out-back, ease-out-back, ease-out;
+}
+
+.k-sheet.k-sheet--offstage {
+    opacity: 0;
+    transition-duration: 260ms, 260ms, 200ms;
+    transition-timing-function: ease-in, ease-in, ease-in;
+}
+
+.k-sheet.k-sheet--right.k-sheet--offstage { translate: 116% 4%; rotate: 5deg; }
+.k-sheet.k-sheet--left.k-sheet--offstage { translate: -116% 4%; rotate: -5deg; }
+.k-sheet.k-sheet--below.k-sheet--offstage { translate: 0 60%; rotate: 2deg; }
+
+/* Out of layout once it has left, so a sheet that is down never takes a press meant for the room. */
+.k-sheet.k-sheet--gone { display: none; }

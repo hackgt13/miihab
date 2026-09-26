@@ -8,12 +8,28 @@
       "tagline": "Gentle raises. Personal progress.",
       "category": "therapy",
       "scene": "Rehab",
+      "questScene": "QuestRehab",
       "venue": "studio",
       "exerciseKinds": [
         "shoulder-raise.v1",
         "trunk-rotation.v1",
         "arm-elevation.v1",
-        "elbow-flexion.v1"
+        "elbow-flexion.v1",
+        "neck-flexion.v1",
+        "neck-extension.v1",
+        "neck-lateral-flexion.v1",
+        "shoulder-abduction.v1",
+        "scaption.v1",
+        "arm-hold.v1",
+        "forearm-rotation.v1",
+        "shoulder-external-rotation.v1",
+        "trunk-flexion.v1",
+        "trunk-lateral-flexion.v1",
+        "trunk-extension.v1",
+        "knee-extension.v1",
+        "straight-leg-raise.v1",
+        "hip-abduction.v1",
+        "seated-march.v1"
       ],
       "requires": [
         "imu"
@@ -45,6 +61,7 @@
       "tagline": "Fresh air. Friendly competition.",
       "category": "play",
       "scene": "AdaptiveGolf",
+      "questScene": "QuestGolf",
       "venue": "resort-course",
       "exerciseKinds": [],
       "requires": [
@@ -79,6 +96,7 @@
       "tagline": "Line up. Swing. Watch them fall.",
       "category": "play",
       "scene": "Bowling",
+      "questScene": "QuestBowling",
       "venue": "bowling-alley",
       "exerciseKinds": [],
       "requires": [
@@ -102,6 +120,37 @@
           {
             "step": "Swing forward",
             "copy": "Swing gently to roll. Press Pause to rest or return to the menu."
+          }
+        ]
+      }
+    },
+    {
+      "id": "therapist.visit",
+      "displayName": "Visit your physical therapist",
+      "tagline": "What changed in your program, and why.",
+      "category": "therapy",
+      "scene": "TherapistVisit",
+      "questScene": null,
+      "venue": "clinic",
+      "exerciseKinds": [],
+      "requires": [],
+      "subjects": 1,
+      "prescribable": false,
+      "loadingMessage": "Heading to your therapist\u2026",
+      "help": {
+        "title": "Your therapist will walk you through your program.",
+        "steps": [
+          {
+            "step": "Listen",
+            "copy": "Alex talks you through what changed. Each update is written on the whiteboard as it comes up."
+          },
+          {
+            "step": "Take your time",
+            "copy": "Press Next to move on, or Hear it again to go over everything once more."
+          },
+          {
+            "step": "Questions",
+            "copy": "Anything unclear? Your therapist sees your sessions and can answer at your next appointment."
           }
         ]
       }

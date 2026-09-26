@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../Palette.uss" />
+    <Style src="../UI/Base.uss" />
+    <Style src="Visit.uss" />
+    <!-- The whiteboard beside the therapist: program updates, written up as the therapist talks about them.
+         The panel is transparent; the white is the board it stands on. TherapistVisit fills the rows. -->
+    <ui:VisualElement name="whiteboard" class="board visit-board" picking-mode="Ignore">
+        <k:KEyebrow name="board-attribution" text="FROM YOUR LICENSED THERAPIST" />
+        <k:KText name="board-title" text="Program updates" size="Title" class="visit-title" />
+        <ui:VisualElement name="board-updates" class="visit-updates" picking-mode="Ignore" />
+        <k:KText name="board-date" text="" size="Caption" tone="Soft" class="visit-date" />
+    </ui:VisualElement>
+</ui:UXML>

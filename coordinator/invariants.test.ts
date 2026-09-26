@@ -86,7 +86,12 @@ test("the gallery's cards say what the catalog says, and cover every activity", 
       `tagline is "${activity.tagline}". The catalog is the source of truth.`);
   }
 
-  const shown = new Set(cards.map(c => c.title));
+  // The coaching pane's call to action is the other way in: the therapist visit is reached from the plan it
+  // talks about, not from the games. Its title is the activity's displayName, the same join as a card's.
+  const coaching = resolve(import.meta.dirname, '../unity/KinestheticUnity/Assets/Kinesthetic/Menu/Coaching.uxml');
+  const calls = existsSync(coaching)
+    ? [...readFileSync(coaching, 'utf8').matchAll(/<ui:Label([^>]*class="[^"]*\bcta-title\b[^"]*")/g)].map(m => text(m[1])) : [];
+  const shown = new Set([...cards.map(c => c.title), ...calls]);
   const invisible = ACTIVITIES.filter(a => !shown.has(a.displayName));
   assert.deepEqual(invisible.map(a => a.id), [],
     `these activities exist and can be prescribed but have no card in the gallery, so nobody can ` +

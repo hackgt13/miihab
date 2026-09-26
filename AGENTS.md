@@ -42,3 +42,4 @@ Dormant only because `QuestSceneSetup` sets `game.enabled = false`; all return t
 
 - Commit and merge to main. ALWAYS flag conflicts first.
 - DO NOT, under ANY CIRCUMSTANCES, add CLAUDE as an AUTHOR TO THE COMMITS
+- USE SEMANTIC COMMITS

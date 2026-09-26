@@ -22,6 +22,7 @@ namespace Kinesthetic
     ///
     /// Previews composition and sightlines only: one eye, Metal, editor scripting backend. It is not
     /// evidence that anything works on the headset.
+    [DefaultExecutionOrder(1000)]   // after scene camera drivers (StudioCamera, golf LookAt) so the drag composes on top
     public sealed class DevFreeLook : MonoBehaviour
     {
         public float degreesPerPixel = .15f;
@@ -30,6 +31,10 @@ namespace Kinesthetic
         float yaw, pitch;
         Quaternion baseRotation, lastWritten;
         bool written;
+
+        /// The view is off its rest pose because someone dragged it there — the one sign on a Mac that the
+        /// centre of the view is being aimed rather than parked by a script. Middle-click clears it.
+        public bool Steered => enabled && (yaw != 0 || pitch != 0);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Install()

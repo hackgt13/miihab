@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../Palette.uss" />
+    <Style src="../UI/Base.uss" />
+    <Style src="Rehab.uss" />
+    <!-- Reading station: the prescription, handed over on arrival and read before anything starts. It
+         stands inside arm's reach rather than across the room, because a page is held to be read, and it
+         is empty air for the rest of the session. ActivityBriefing builds the sheet into the host; the
+         venue only says where it stands. -->
+    <ui:VisualElement name="brief-board" class="board" picking-mode="Ignore">
+        <ui:VisualElement name="briefing" class="briefing-host" picking-mode="Ignore" />
+    </ui:VisualElement>
+</ui:UXML>

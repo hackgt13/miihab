@@ -1,8 +1,9 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:Style src="../Palette.uss" />
     <ui:Style src="MainMenu.uss" />
-    <!-- The activity gallery, standing one quarter-turn to the left of the board. It was a modal sheet
-         over the board; as a pane it needs no shade behind it, because nothing is behind it. -->
+    <!-- The activity gallery, standing two turns to the left of the board — coaching took the slot next to
+         it. It was a modal sheet over the board; as a pane it needs no shade behind it, because nothing is
+         behind it. The board's own button reaches it in one press whatever the angle. -->
     <ui:VisualElement name="gallery-pane" class="pane-screen">
         <ui:VisualElement class="sheet">
             <ui:Label text="What would you like to play?" class="sheet-title" />
@@ -45,7 +46,6 @@
                 <ui:VisualElement class="selection-dot" picking-mode="Ignore" />
                 <ui:Label name="selection-caption" text="" class="selection-caption" picking-mode="Ignore" />
             </ui:VisualElement>
-            <ui:Button name="activity-close" text="Back" class="sheet-close" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

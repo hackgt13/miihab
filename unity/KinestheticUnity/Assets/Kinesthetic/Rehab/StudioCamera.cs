@@ -3,11 +3,18 @@ using UnityEngine.InputSystem;
 
 namespace Kinesthetic.Rehab
 {
-    /// The studio's camera, like golf and bowling: third person from behind the patient's chair to set the
-    /// scene, then a glide into their own eyes when the session starts — mirror ahead-left, coach ahead-right,
-    /// your own arm in front of you. Back to third person when the set ends. C toggles by hand.
+    /// The studio's camera. It opens in the patient's own eyes — mirror ahead-left, coach ahead-right, your
+    /// own arm in front of you — because that is what the headset shows and what the exercise is about: the
+    /// mirror is where you watch your body, not a shot of it from behind. C glides out to the wide shot
+    /// behind the chair, and back.
     ///
-    /// It drives the scene's own view camera, so the teammate's V toggle (ViewDirector) keeps working.
+    /// Unlike golf and bowling, the studio does not open wide. Their spectator framing sets up a ball and a
+    /// lane; here the wide shot would land its glide exactly when calibration and the coach's demonstration
+    /// are asking to be watched.
+    ///
+    /// It drives the scene's one view camera. Because EyeAnchor.sceneOwnsView keeps FirstPersonView from
+    /// building a second, there is nothing for ViewDirector to toggle between here: the studio has one eye
+    /// view on C, not two on two keys. Its !view.enabled guard still stands down for the headset's rig.
     public sealed class StudioCamera : MonoBehaviour
     {
         public RehabSession session;
@@ -25,6 +32,7 @@ namespace Kinesthetic.Rehab
             head = System.Array.Find(rig.avatar.GetComponentsInChildren<Transform>(true), t => t.name == "head");
             var named = GameObject.Find("Patient view camera");
             view = named ? named.GetComponent<Camera>() : Camera.main;
+            blend = 1; manual = true; manualFirstPerson = true;   // seated from the first frame, no opening glide
         }
 
         void LateUpdate()

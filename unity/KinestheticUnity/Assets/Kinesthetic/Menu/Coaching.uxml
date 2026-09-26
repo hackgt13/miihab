@@ -1,0 +1,116 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <ui:Style src="../Palette.uss" />
+    <ui:Style src="MainMenu.uss" />
+    <!-- Coaching: the plan itself, as the patient's own copy of it. The board next door answers "what do I do
+         today". This answers the three things a person actually wants from a plan:
+
+           how long is this, and when am I done   — the whole program as a calendar, every day of it,
+           what am I working on right now         — one movement, one target, one step to the next,
+           what am I supposed to do               — everything prescribed, as prescribed.
+
+         It used to answer none of them. It carried a reach trend, a reps-in-band percentage, a level, a week
+         count and a bar chart of reps — five readings that all measured the same two sessions from different
+         angles, and not one of them said when the program ends or what this week is for.
+
+         Tiles, like the board, because a pane is the same kind of surface: a transparent world-space panel of
+         exactly the board's 1600x900 (Editor/MainMenuSetup.Pane), with the plaza behind it. The arrangement is
+         its own — the calendar takes the height of the block because it is the thing worth looking at, and the
+         two answers beside it stack in a column a third as wide.
+
+         The same frame as the board, on purpose: the board's greeting rides above its tiles, and this pane's
+         title rides at exactly that height above its own — the same .splash-row, so the two line up as the
+         ring turns — while the tiles below it fill the same bento block the gallery and friends panes are
+         cut to. -->
+    <ui:VisualElement name="coaching-pane" class="menu-screen">
+        <ui:VisualElement class="menu-content">
+
+            <ui:VisualElement class="splash-row">
+                <ui:VisualElement class="splash-copy">
+                    <ui:Label text="Your rehab plan" class="splash-greeting" />
+                    <!-- Whose plan this is, stated rather than implied: a demo plan that reads as a real one
+                         is the mistake this surface cannot make, so the version and the badge are read first. -->
+                    <ui:Label name="plan-provenance" text="" class="splash-sub" />
+                </ui:VisualElement>
+                <ui:VisualElement class="splash-side">
+                    <ui:VisualElement class="plan-source-slot">
+                        <k:KTag name="plan-source" text="" tone="Info" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="plan-bento">
+
+                <ui:VisualElement class="plan-row plan-row-tall">
+
+                    <!-- Every day of the program in one block: weeks across, days down, so the width is time
+                         and the last faint column is the week it ends. A day is filled once it has work in it,
+                         today is ringed, and the final day carries the same mark as a target elsewhere in the
+                         product. Twelve weeks of it beats the four the board shows, which can only ever say
+                         "recently". -->
+                    <ui:VisualElement class="tile tile-program">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="THE WHOLE PROGRAM" class="tile-label" />
+                            <ui:Label name="program-note" text="" class="tile-note accent" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="program-body" picking-mode="Ignore">
+                            <!-- One letter per row and one number per week column, both filled in code: a
+                                 column is a week OF THE PROGRAM, so row 0 is whatever weekday the program
+                                 started on and the letters rotate to match. They are laid out by the same flex
+                                 rule the painted grid divides its rect by, so the three line up without either
+                                 side knowing the other's cell size. -->
+                            <ui:VisualElement name="program-days" class="program-days" picking-mode="Ignore" />
+                            <ui:VisualElement class="program-plot" picking-mode="Ignore">
+                                <ui:VisualElement name="program-weeks" class="program-weeks" picking-mode="Ignore" />
+                                <ui:VisualElement name="program-grid" class="program-grid" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="plan-column last">
+
+                        <!-- What this week is for: the one movement the plan is pushing, the number it is
+                             pushing it to, and where that sits on the ladder the clinician approved. -->
+                        <ui:VisualElement class="tile tile-focus">
+                            <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                                <ui:Label text="WORKING ON NOW" class="tile-label" />
+                                <ui:Label name="focus-where" text="" class="tile-note" />
+                            </ui:VisualElement>
+                            <ui:Label name="focus-movement" text="" class="focus-movement" picking-mode="Ignore" />
+                            <ui:VisualElement class="focus-readout" picking-mode="Ignore">
+                                <ui:Label name="focus-target" text="—" class="focus-target" />
+                                <ui:Label name="focus-caption" text="" class="task-detail focus-caption" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="envelope-ladder" class="envelope-ladder" picking-mode="Ignore" />
+                            <ui:Label name="focus-step" text="" class="task-detail focus-step" picking-mode="Ignore" />
+                        </ui:VisualElement>
+
+                        <!-- Everything prescribed, as prescribed: the movement, its dose, and where it is done.
+                             The clinician's note sits under the list once rather than on every row. -->
+                        <ui:VisualElement class="tile tile-prescription last">
+                            <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                                <ui:Label text="PRESCRIBED" class="tile-label" />
+                                <ui:Label name="prescription-note" text="" class="tile-note accent" />
+                            </ui:VisualElement>
+                            <ui:ScrollView name="prescription-list" class="prescription-list"
+                                           horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Hidden" />
+                            <ui:Label name="coaching-note" text="" class="task-detail coaching-note" picking-mode="Ignore" />
+                        </ui:VisualElement>
+
+                    </ui:VisualElement>
+
+                </ui:VisualElement>
+
+                <!-- The one thing a patient might want to DO about what they have just read, so it takes the
+                     primary treatment and the full width of the panel, under everything it is about. -->
+                <ui:Button name="visit-therapist" class="cta cta-visit">
+                    <ui:VisualElement class="cta-copy" picking-mode="Ignore">
+                        <ui:Label text="Visit your physical therapist" class="cta-title" picking-mode="Ignore" />
+                        <ui:Label name="visit-sub" text="" class="cta-sub" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label text="›" class="cta-arrow" picking-mode="Ignore" />
+                </ui:Button>
+
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

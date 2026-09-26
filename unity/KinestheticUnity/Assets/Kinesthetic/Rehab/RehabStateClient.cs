@@ -8,19 +8,18 @@ using UnityEngine;
 namespace Kinesthetic.Rehab
 {
     /// Headset: renders the rehab studio the Mac is running (RehabStatePublisher). Poses the patient and the
-    /// coach from the published bones, feeds the mirror window, and shows reps and the cue on a world-space
-    /// panel (screen-space UI does not render in a headset). It measures nothing and decides nothing.
+    /// coach from the published bones and feeds the mirror window. Reps, the cue and every button are the
+    /// Mac's boards, mirrored by UI/Remote onto the same world-space boards this scene carries — so this
+    /// draws no text of its own. It measures nothing and decides nothing.
     public sealed class RehabStateClient : MonoBehaviour, IRehabView
     {
         public PoseRig rig;
-        public TextMesh hud;
-        [Tooltip("Where the coach sits in first person (in view to the right). The Mac's placement suits its own camera, not the patient's eyes.")]
+        [Tooltip("Where the coach sits: seated from this scene's patient (CoachDemonstrator.SeatPose), so the Mac's world position is not trusted across two scenes.")]
         public Transform coachSeat;
         public string url = "ws://127.0.0.1:8767/rehab-state?role=client";
         LatestSocket socket; List<Transform> patientBones, coachBones; Kinesthetic.Coach.CoachDemonstrator coach;
         float lastStateAt = -99;
-        string side = "right", kind = "arm-elevation.v1", cue = ""; float target = 80, band = 15; float? angle; bool handoff;
-        int valid, prescribed;
+        string side = "right", kind = "arm-elevation.v1"; float target = 80, band = 15; float? angle; bool handoff;
 
         public PoseRig Rig => rig;
         public string Side => side;
@@ -45,17 +44,15 @@ namespace Kinesthetic.Rehab
             {
                 try { Apply(JObject.Parse(text)); lastStateAt = Time.unscaledTime; } catch (Exception) { }
             }
-            if (hud) hud.text = Time.unscaledTime - lastStateAt > 2 ? "Waiting for the RehabMii studio on the Mac…"
-                : $"{valid} of {prescribed}\n{cue}";
         }
 
         void Apply(JObject s)
         {
             if ((string)s["type"] != "rehab.state") return;
-            side = (string)s["side"] ?? side; kind = (string)s["kind"] ?? kind; cue = (string)s["cue"] ?? "";
+            side = (string)s["side"] ?? side; kind = (string)s["kind"] ?? kind;
             target = (float?)s["target"] ?? target; band = (float?)s["band"] ?? band;
             angle = s["angle"]?.Type is JTokenType.Float or JTokenType.Integer ? (float)s["angle"] : null;
-            valid = (int?)s["valid"] ?? 0; prescribed = (int?)s["prescribed"] ?? 0; handoff = (bool?)s["handoff"] ?? false;
+            handoff = (bool?)s["handoff"] ?? false;
             Pose(s["patient"], patientBones);
             if (s["coach"] is JObject c)
             {

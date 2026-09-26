@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../Palette.uss" />
+    <Style src="../UI/Base.uss" />
+    <Style src="Rehab.uss" />
+    <!-- Focus station: the session summary, a modal at reading distance. The whole board is the card; it
+         is hidden until a set ends, so the station is empty air the rest of the time. The briefing is the
+         session's other document and stands nearer, on its own board — a page handed to you is held, not
+         looked at across the room. No scrim: a board standing in a room does not dim the room. -->
+    <ui:VisualElement name="focus-board" class="board" picking-mode="Ignore">
+        <k:KSheet name="summary-card" class="summary-card" entrance="Below" density="Comfortable">
+            <k:KTag text="SESSION SAVED" tone="Good" class="summary-badge" />
+            <k:KText name="summary-title" text="Your set is complete" size="Title" />
+            <k:KText name="summary-subtitle" text="Your session summary." tone="Soft" class="summary-subtitle" />
+            <k:KText name="summary-plan" text="" size="Caption" tone="Soft" class="summary-plan" />
+            <k:KText name="summary-progress" text="" tone="Success" class="summary-progress hidden" />
+            <k:KText name="summary-form" text="" size="Caption" tone="Soft" class="summary-form hidden" />
+            <ui:VisualElement class="summary-metrics">
+                <k:KReadout name="summary-valid" value="—" caption="Counted reps" class="summary-metric" />
+                <k:KReadout name="summary-attempted" value="—" caption="Attempts" class="summary-metric" />
+                <k:KReadout name="summary-peak" value="—" caption="Median peak" class="summary-metric" />
+            </ui:VisualElement>
+            <ui:ScrollView class="summary-notes" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto"><k:KText name="summary" text="" size="Caption" tone="Soft" /></ui:ScrollView>
+            <k:KText name="summary-saved" text="Session saved" size="Caption" tone="Soft" class="summary-saved" />
+            <ui:VisualElement class="summary-actions">
+                <k:KButton name="summary-menu" text="Choose activity" />
+                <ui:VisualElement class="summary-close"><k:KButton name="summary-close" text="Back to studio" tone="Primary" /></ui:VisualElement>
+            </ui:VisualElement>
+        </k:KSheet>
+    </ui:VisualElement>
+</ui:UXML>

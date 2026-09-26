@@ -24,9 +24,5 @@
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
-        <ui:VisualElement name="transition" class="transition hidden">
-            <ui:Label text="rehabmii" class="transition-brand" />
-            <ui:Label name="loading-label" text="Let's play…" class="loading-label" />
-        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>
