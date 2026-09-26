@@ -35,7 +35,25 @@ public static class QuestRigBuilder
         // First person: keep the tracked eyes at the patient's seated eyes, whatever the wearer's room.
         var seated = originGo.AddComponent<Kinesthetic.SeatedHeadset>();
         seated.seat = anchor; seated.head = camGo.transform; seated.eyeHeight = seatedEyeHeight;
+        // The headset is a sensor too: its head pose goes to the Mac, which leans the patient's torso with it.
+        var sender = originGo.AddComponent<Kinesthetic.HeadPoseSender>();
+        sender.seat = anchor; sender.head = camGo.transform; sender.eyeHeight = seatedEyeHeight;
         return camera;
+    }
+
+    /// How far above `seat` the patient's eyes are: the centre of the Mii's own eye meshes. A fixed 1.15 m put
+    /// the headset about 18 cm above a seated Mii's eyes, looking down on its own head. Falls back to 40% up the
+    /// head (skull base to top of the hair) for a model without eye meshes.
+    public static float EyeHeight(Transform avatar, Transform seat)
+    {
+        float sum = 0; int n = 0;
+        foreach (var r in avatar.GetComponentsInChildren<Renderer>(true))
+            if (r.name.StartsWith("Mii_eye.")) { sum += r.bounds.center.y; n++; }
+        if (n > 0) return sum / n - seat.position.y;
+        float skull = 0, top = float.MinValue;
+        foreach (var t in avatar.GetComponentsInChildren<Transform>(true)) if (t.name == "head") skull = t.position.y;
+        foreach (var r in avatar.GetComponentsInChildren<Renderer>(true)) top = Mathf.Max(top, r.bounds.max.y);
+        return skull + (top - skull) * .4f - seat.position.y;
     }
 
     /// You are the patient: their head would sit in front of the headset camera. Everything of the avatar

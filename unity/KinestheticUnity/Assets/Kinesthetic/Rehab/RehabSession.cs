@@ -77,6 +77,9 @@ namespace Kinesthetic.Rehab
         [Header("Clinician-approved plan (demo fixture)")]
         public string side = "right";
         public float targetDeg = 80, bandDeg = 20;
+        /// Counts the moments the patient sits still and upright to begin a set. The headset re-zeroes its head
+        /// there (SeatedHeadset.Recenter), so trunk lean during the set is measured from how they sat at its start.
+        public int UprightCount { get; private set; }
         public int prescribedReps = 8, planVersion = 1;
 
         LivePoseClient pose => SensorHub.Instance?.Pose;
@@ -617,6 +620,8 @@ namespace Kinesthetic.Rehab
         void DriveFromImu()
         {
             rig.Apply(null);
+            // The headset, when one is worn: the torso leans and the head turns with the wearer's, before the arm.
+            if (HeadPoseFeed.Ensure().TryGet(out var headOffset, out var headRotation)) rig.ApplyHeadPose(headOffset, headRotation);
             // At rest the Mii still takes the movement's posture (arm out for 90/90, standing for a leg raise), so
             // the patient can see how to set up before the first rep.
             bool live = running && Fresh && liveAngle.HasValue;
@@ -639,6 +644,7 @@ namespace Kinesthetic.Rehab
                 {
                     case "exercise.started":
                         exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0;
+                        UprightCount++;   // the patient is sitting still and upright: the headset zeroes its head here
                         // Which qualities this set is judged on, so a mechanic with nothing to answer to can hide.
                         if (p["qualities"] is JArray qualities)
                             qualityIds = new System.Collections.Generic.HashSet<string>(qualities.OfType<JObject>().Select(q => (string)q["id"]).Where(id => id != null));

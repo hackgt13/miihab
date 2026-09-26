@@ -32,6 +32,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Kinesthetic/Visit/TherapistVisit.unity
     guid: 4ab53d85d64c24a64af48cd516a55ce5
+  - enabled: 1
+    path: Assets/Kinesthetic/Tutorial/Tutorial.unity
+    guid: cc7f7edba6aa42f49b94957c8e206e6f
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: 223d7e26084774c21949ad74f66c502f, type: 2}

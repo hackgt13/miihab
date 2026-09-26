@@ -151,14 +151,14 @@ public static class MainMenuSetup
     {
         var scenes = EditorBuildSettings.scenes.Where(s => s.path != ScenePath).ToList();
         scenes.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
-        foreach (string required in new[] { AdaptiveGolfSceneSetup.ScenePath, RehabSceneSetup.ScenePath, BowlingSceneSetup.ScenePath })
+        foreach (string required in new[] { AdaptiveGolfSceneSetup.ScenePath, RehabSceneSetup.ScenePath, BowlingSceneSetup.ScenePath, TutorialSceneSetup.ScenePath })
         {
             var entry = scenes.FirstOrDefault(s => s.path == required);
             if (entry == null) scenes.Add(new EditorBuildSettingsScene(required, true)); else entry.enabled = true;
         }
         EditorBuildSettings.scenes = scenes.ToArray();
         AssetDatabase.SaveAssets();
-        return "Mac build scenes configured. MainMenu boots first; Golf, Movement Studio and Bowling are enabled.";
+        return "Mac build scenes configured. MainMenu boots first; Golf, Movement Studio, Bowling and the intro are enabled.";
     }
 
     // Late afternoon on the plaza: one warm key, a cool bounce off the lagoon, and just

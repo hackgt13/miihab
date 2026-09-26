@@ -60,6 +60,7 @@ namespace Kinesthetic.Rehab
             }
         }
 
+        int lastUpright = -1;
         void Apply(JObject s)
         {
             if ((string)s["type"] != "rehab.state") return;
@@ -67,6 +68,13 @@ namespace Kinesthetic.Rehab
             target = (float?)s["target"] ?? target; band = (float?)s["band"] ?? band;
             angle = s["angle"]?.Type is JTokenType.Float or JTokenType.Integer ? (float)s["angle"] : null;
             handoff = (bool?)s["handoff"] ?? false;
+            // A set is starting with the patient sitting still and upright: zero the headset's head there, so the
+            // lean the Mac draws (and measures) is from how they sat at the start of the set.
+            if ((int?)s["upright"] is int upright && upright != lastUpright)
+            {
+                if (lastUpright >= 0) FindAnyObjectByType<SeatedHeadset>()?.RecenterNow();
+                lastUpright = upright;
+            }
             if (s["feel"] is JObject f)
                 feel = new RepFeel
                 {

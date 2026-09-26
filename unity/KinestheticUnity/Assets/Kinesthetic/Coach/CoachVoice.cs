@@ -60,18 +60,34 @@ namespace Kinesthetic.Coach
         }
 
         /// Opens a conversation with Alex. `patientId` is stable per patient so Alex remembers them.
-        public async void Begin(string patientId)
+        /// Optional `mode` overrides the agent behaviour (e.g. "tutorial").
+        public async void Begin(string patientId, string mode = null)
         {
             if (socket != null) return;
+
+            // The voice server listens on the Mac only (it holds the ElevenLabs key), so the Mac connects to
+            // localhost. A headset reaches it over the USB cable: `adb reverse tcp:8769 tcp:8769` makes the
+            // headset's own loopback the Mac, as the relay's does for 8767.
+            var connectUrl = url;
+
             cancel = new CancellationTokenSource();
             socket = new ClientWebSocket();
             try
             {
-                await socket.ConnectAsync(new Uri(url), cancel.Token);
-                await Send(new JObject { ["type"] = "session_start", ["patient_id"] = patientId }.ToString());
+                await socket.ConnectAsync(new Uri(connectUrl), cancel.Token);
+                var msg = new JObject { ["type"] = "session_start", ["patient_id"] = patientId };
+                if (!string.IsNullOrEmpty(mode)) msg["mode"] = mode;
+                await Send(msg.ToString());
                 _ = Task.Run(Receive);
             }
             catch (Exception e) { Debug.LogWarning("Coach voice unavailable: " + e.Message); Close(); }
+        }
+
+        /// Tells the server to speak a scripted line (tutorial mode).
+        public void Cue(string step)
+        {
+            if (socket?.State == WebSocketState.Open)
+                _ = Send(new JObject { ["type"] = "cue", ["step"] = step }.ToString());
         }
 
         public async void End()

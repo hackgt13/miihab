@@ -48,7 +48,7 @@ public static class QuestSceneSetup
 
         var anchor = new GameObject("Patient seat anchor").transform;
         anchor.SetPositionAndRotation(game.players[0].position, game.players[0].rotation);
-        QuestRigBuilder.Build(anchor, 1.15f, 800, CameraClearFlags.Skybox, ~((1 << LocalHeadLayer) | (1 << MinimapLayer)));
+        QuestRigBuilder.Build(anchor, QuestRigBuilder.EyeHeight(game.rigs[0].avatar, anchor), 800, CameraClearFlags.Skybox, ~((1 << LocalHeadLayer) | (1 << MinimapLayer)));
 
         var hudGo = new GameObject("Headset HUD");
         var hud = hudGo.AddComponent<TextMesh>();

@@ -43,6 +43,7 @@ namespace Kinesthetic.Rehab
              .Append(",\"band\":").Append(view.BandDeg.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))
              .Append(",\"valid\":").Append(session.Valid).Append(",\"prescribed\":").Append(session.prescribedReps)
              .Append(",\"handoff\":").Append(view.CoachHandingOff ? "true" : "false")
+             .Append(",\"upright\":").Append(session.UprightCount)
              .Append(",\"cue\":").Append(Newtonsoft.Json.JsonConvert.ToString(session.Cue ?? ""))
              .Append(",\"feel\":"); Feel(b, view.Feel);
             b.Append(",\"patient\":");

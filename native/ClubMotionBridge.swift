@@ -58,11 +58,16 @@ enum MotionActivity {
     // Holds the AirPods as the active audio output; without it macOS hands output
     // back to the speakers when a bud leaves the ear and motion silently stops.
     private let route = AudioRouteKeeper(nameMatch: "AirPods")
+    /// Play the Mac's sound (the coach's voice) on its speakers as well as the AirPods it must hold for motion.
+    @Published var speakersToo = UserDefaults.standard.object(forKey: "speakersToo") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(speakersToo, forKey: "speakersToo"); route.speakersToo = speakersToo; reclaimRoute() }
+    }
 
     func startAutomatically() {
         monitoring = true
         DistributedNotificationCenter.default().postNotificationName(MotionActivity.activeNotification,
             object: MotionActivity.game, userInfo: nil, deliverImmediately: true)
+        route.speakersToo = speakersToo
         route.watch { [weak self] in Task { @MainActor in self?.reclaimRoute() } }
         if discoveryTimer == nil {
             discoveryTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
@@ -229,6 +234,7 @@ final class ClubAppDelegate: NSObject, NSApplicationDelegate {
                 Text(bridge.status).fixedSize(horizontal:false,vertical:true)
                 Text("Reporting AirPod: \(bridge.source)")
 if bridge.routeHeld {Text("Holding the AirPods audio route so motion continues off-ear.").font(.caption).foregroundStyle(.secondary)}
+                Toggle("Also play this Mac's sound on its speakers",isOn:$bridge.speakersToo).font(.caption)
                 Text(String(format:"Angular speed: %.2f rad/s · %d samples",bridge.speed,bridge.samples)).monospacedDigit()
                 HStack {
                     Button(bridge.monitoring ? "Pause motion" : "Start motion") {if bridge.monitoring {bridge.pause()} else {bridge.startAutomatically()}}

@@ -29,6 +29,14 @@ namespace Kinesthetic
             if (seatMoved || (head.position - eye).sqrMagnitude > driftMetres * driftMetres) Recenter(eye, facing);
         }
 
+        /// Zero the head where it is now: the eyes back at the seated eye point, facing the seat's way. Asked for when
+        /// a set starts, with the patient sitting still and upright.
+        public void RecenterNow()
+        {
+            if (!seat || !head) return;
+            Recenter(seat.position + Vector3.up * eyeHeight, Flat(seat.forward));
+        }
+
         /// Turn the rig about the head so the head looks along the seat's facing, then carry the head to the eyes.
         public void Recenter(Vector3 eye, Quaternion facing)
         {
