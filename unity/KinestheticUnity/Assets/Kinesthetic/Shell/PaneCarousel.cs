@@ -87,13 +87,29 @@ namespace Kinesthetic.Shell
         /// Raised for the slot being left, as the turn begins.
         public event Action<Slot> Leaving;
 
-        readonly List<Slot> slots = new();
+        // Serialized, because Adopt is called by the scene builder at edit time and the ring has to still
+        // know its panes when the scene is loaded. Leaving this runtime-only left a carousel that stood its
+        // panes in the right places and then woke up believing it had none, so every Show and every arrow
+        // was a no-op against an empty list.
+        [SerializeField] List<Slot> slots = new();
         Transform ring;
         int index;
         float from, to, elapsed;
         bool turning;
 
-        void Awake() => EnsureRing();
+        void Awake()
+        {
+            EnsureRing();
+            // Panes authored into the scene keep their transforms, but the ring's own angle is not saved.
+            // Put it back where the facing slot says it should be, before anything renders.
+            if (slots.Count > 0) { index = Mathf.Clamp(index, 0, slots.Count - 1); Snap(); Cull(); }
+        }
+
+        // After every Awake, so chrome and scope start out agreeing with what is actually facing.
+        void Start()
+        {
+            if (slots.Count > 0) { Changed?.Invoke(Current); Settled?.Invoke(Current); }
+        }
 
         void EnsureRing()
         {

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace Kinesthetic.Shell
@@ -22,9 +23,39 @@ namespace Kinesthetic.Shell
 
         void Start() => Bind();
 
+        /// A world-space panel never receives pointer events — UI Toolkit's `panel.Pick` returns null on one,
+        /// which is why the board is driven by dwell rather than by clicks. So the arrows would answer a gaze
+        /// and ignore a mouse, which is not what anyone sitting at a Mac expects. This is the pointer half:
+        /// a ray from the camera through the cursor, resolved against this panel's own collider.
+        ///
+        /// The element maths is GazeDwell's, deliberately: a world-space panel lays its elements out in the
+        /// panel's own units, centred and y-up, which is exactly the space the hit point lands in once it is
+        /// put back into the collider's local space. Both paths end at Press, so neither can drift.
+        void Clicked()
+        {
+            var mouse = Mouse.current;
+            var cam = Camera.main;
+            if (mouse == null || cam == null || !mouse.leftButton.wasPressedThisFrame) return;
+
+            var ray = cam.ScreenPointToRay(mouse.position.ReadValue());
+            if (!Physics.Raycast(ray, out var hit, 40f)) return;
+            if (!hit.collider.transform.IsChildOf(transform)) return;
+
+            var root = GetComponent<UIDocument>()?.rootVisualElement;
+            if (root == null) return;
+            var local = hit.collider.transform.InverseTransformPoint(hit.point);
+            var point = new Vector2(local.x, local.y);
+            foreach (var button in root.Query<Button>().ToList())
+                if (!string.IsNullOrEmpty(button.name) && button.worldBound.Contains(point)) { Press(button.name); return; }
+        }
+
         // The document rebuilds its tree when it is enabled, and the carousel may adopt its windows after
         // this runs, so keep trying until both ends exist. Same shape as MainMenuController.
-        void Update() { if (previous == null || dots == null || dots.childCount == 0) Bind(); }
+        void Update()
+        {
+            if (previous == null || dots == null || dots.childCount == 0) Bind();
+            Clicked();
+        }
 
         void Bind()
         {
@@ -107,12 +138,20 @@ namespace Kinesthetic.Shell
 
         static readonly Vector2 Reference = new(1600, 900);
 
-        /// What a dwell commits. Takes the element name `GazeDwell` reports, so the head path and the pointer
-        /// path run the same two lines and cannot drift apart.
+        /// Every way of pressing an arrow ends here: the button's own clicked event, the raycast above, and
+        /// a dwell commit. That is three paths into two actions, and they are not mutually exclusive — a
+        /// mouse click that UI Toolkit does deliver arrives as both a clicked event and a ray hit, which is
+        /// one press turning the ring twice.
+        ///
+        /// Rather than trying to pick a single true input, the guard is on the outcome: the ring is already
+        /// turning, so asking it to turn again is not a second instruction, it is the same one arriving by
+        /// another road. It also stops a press being counted twice while the ring is mid-flight, which is
+        /// exactly when an impatient second click lands.
         public void Press(string element)
         {
-            if (element == "carousel-prev") carousel?.Previous();
-            else if (element == "carousel-next") carousel?.Next();
+            if (carousel == null || carousel.IsTurning) return;
+            if (element == "carousel-prev") carousel.Previous();
+            else if (element == "carousel-next") carousel.Next();
         }
     }
 }
