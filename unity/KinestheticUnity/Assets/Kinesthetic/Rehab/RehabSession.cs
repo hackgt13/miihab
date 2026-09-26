@@ -617,6 +617,8 @@ namespace Kinesthetic.Rehab
         void DriveFromImu()
         {
             rig.Apply(null);
+            // The headset, when one is worn: the torso leans and the head turns with the wearer's, before the arm.
+            if (HeadPoseFeed.Ensure().TryGet(out var headOffset, out var headRotation)) rig.ApplyHeadPose(headOffset, headRotation);
             // At rest the Mii still takes the movement's posture (arm out for 90/90, standing for a leg raise), so
             // the patient can see how to set up before the first rep.
             bool live = running && Fresh && liveAngle.HasValue;

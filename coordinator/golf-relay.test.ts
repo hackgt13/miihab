@@ -177,3 +177,31 @@ test('in a group session the second Mac is the other person, whatever is running
     assert.deepEqual(wrist.filter(p=>p.type==='bowling.motion').map(p=>p.playerId),['patient']);
   } finally { for(const ws of clients)ws.terminate(); await stop(proc); coordinator.close(); }
 });
+
+test('the headset sends its head pose; this Mac reads it; nothing else may send or read it', {timeout:15000}, async()=>{
+  const lan=Object.values(networkInterfaces()).flat().find(a=>a && a.family==='IPv4' && !a.internal)?.address;
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18840',KINESTHETIC_GOLF_HOST:'0.0.0.0',KINESTHETIC_PAIR_TOKEN:'pair-secret',
+      KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-head-')),KINESTHETIC_HEAD_RECORDINGS:mkdtempSync(join(tmpdir(),'head-'))}});
+  const clients:WebSocket[]=[];
+  const open=(url:string)=>{const ws=new WebSocket(url);clients.push(ws);return new Promise<WebSocket|null>(r=>{ws.once('open',()=>r(ws));ws.once('error',()=>r(null));});};
+  try {
+    await ready(proc);
+    const viewer=(await open('ws://127.0.0.1:18840/head?role=viewer'))!;
+    const headset=(await open('ws://127.0.0.1:18840/head?role=producer'))!;   // over the USB cable: loopback
+    const got=new Promise<any>(r=>viewer.on('message',m=>r(JSON.parse(String(m)))));
+    headset.send(JSON.stringify({type:'head.pose',seq:1,p:[0.02,-0.01,0.06],q:[0,0.1,0,0.995]}));
+    const pose=await got;
+    assert.equal(pose.type,'head.pose'); assert.deepEqual(pose.p,[0.02,-0.01,0.06]); assert.ok(Number.isFinite(pose.hostMonotonicMs));
+    const second=(await open('ws://127.0.0.1:18840/head?role=producer'))!;
+    const [code]=await once(second,'close'); assert.equal(code,1008,'one headset at a time');
+    const health=await (await fetch('http://127.0.0.1:18840/')).json();
+    assert.equal(health.head.connected,true); assert.equal(health.head.seq,1);
+    if(lan){
+      assert.equal(await open(`ws://${lan}:18840/head?role=producer`),null,'no token from the network');
+      assert.equal(await open(`ws://${lan}:18840/head?role=viewer&token=pair-secret`),null,'reading stays on this Mac');
+    }
+    // A malformed pose closes the sender rather than reaching the Mac.
+    const closed=once(headset,'close'); headset.send(JSON.stringify({type:'head.pose',seq:2,p:[99,0,0],q:[0,0,0,1]})); await closed;
+  } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
+});

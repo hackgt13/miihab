@@ -35,6 +35,9 @@ public static class QuestRigBuilder
         // First person: keep the tracked eyes at the patient's seated eyes, whatever the wearer's room.
         var seated = originGo.AddComponent<Kinesthetic.SeatedHeadset>();
         seated.seat = anchor; seated.head = camGo.transform; seated.eyeHeight = seatedEyeHeight;
+        // The headset is a sensor too: its head pose goes to the Mac, which leans the patient's torso with it.
+        var sender = originGo.AddComponent<Kinesthetic.HeadPoseSender>();
+        sender.seat = anchor; sender.head = camGo.transform; sender.eyeHeight = seatedEyeHeight;
         return camera;
     }
 

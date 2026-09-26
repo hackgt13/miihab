@@ -75,7 +75,7 @@ const paired=(req:import('node:http').IncomingMessage)=>pairToken!=='' &&
 const server=createServer((req,res)=>{
   if(!loopback(req.socket.remoteAddress) && !paired(req)){res.writeHead(403).end();return;}
   res.writeHead(200,{'Content-Type':'application/json'}).end(JSON.stringify({
-    ready:true,players:[...golfMotion.producers.keys()].map(named),viewers:golfMotion.viewers.size,stateHost:!!golfState.host,stateClients:golfState.clients.size,
+    ready:true,head:headLast?{connected:true,ageMs:Date.now()-headLast.at,seq:headLast.seq}:{connected:!!headProducer},players:[...golfMotion.producers.keys()].map(named),viewers:golfMotion.viewers.size,stateHost:!!golfState.host,stateClients:golfState.clients.size,
     bowlingPlayers:[...bowlingMotion.producers.keys()].map(named),bowlingViewers:bowlingMotion.viewers.size,
     bowlingHost:!!channels.get('/bowling-state')!.host,uiHost:!!ui.host,uiClients:ui.clients.size,
     samples:Object.fromEntries([...golfMotion.received].map(([id,s])=>[named(id),{ageMs:Date.now()-s.at,sequence:s.sequence,sourceId:s.sourceId}])),
@@ -159,6 +159,13 @@ server.on('upgrade',(req,socket,head)=>{
     const wss=u.pathname!=='/ui'?stateSockets:role==='host'?uiHostSockets:uiClientSockets;
     wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,role,u.pathname));return;
   }
+  if(u.pathname==='/head'){
+    const local=loopback(req.socket.remoteAddress);
+    const ok=role==='producer' ? !req.headers.origin && (local || paired(req))
+      : role==='viewer' && local && (!req.headers.origin || viewerOrigins.has(req.headers.origin));
+    if(!ok){socket.destroy();return;}
+    headSockets.handleUpgrade(req,socket,head,ws=>headSockets.emit('connection',ws,role));return;
+  }
   if(!loopback(req.socket.remoteAddress) && !(role==='producer' && paired(req))){socket.destroy();return;}
   // Browsers always send Origin. Only the local capture page may watch motion, read-only, from the Mac itself.
   const browserViewer=role==='viewer' && loopback(req.socket.remoteAddress) && viewerOrigins.has(req.headers.origin??'');
@@ -167,6 +174,38 @@ server.on('upgrade',(req,socket,head)=>{
   const remote=role==='producer'&&paired(req);
   sockets.handleUpgrade(req,socket,head,ws=>sockets.emit('connection',ws,role,player,u.pathname,remote));
 });
+// The headset's head pose: position and orientation relative to the patient's seated eye point, in the seat's own
+// frame (x right, y up, z forward), sent by the headset about 30 times a second. The Mac leans and turns the torso
+// with it and measures trunk lean from it — the headset is the third sensor, beside the two AirPods. One headset
+// sends (from this Mac over the USB cable, or from the network with the pairing token); only this Mac reads.
+const headDir=resolve(process.env.KINESTHETIC_HEAD_RECORDINGS ?? resolve(import.meta.dirname,'../local-data/head'));
+mkdirSync(headDir,{recursive:true});
+const headSockets=new WebSocketServer({noServer:true,maxPayload:1024});
+const headViewers=new Set<WebSocket>();
+let headProducer:WebSocket|null=null,headLast:{at:number,seq:number}|null=null;
+headSockets.on('connection',(ws,role)=>{
+  if(role==='viewer'){headViewers.add(ws);ws.on('close',()=>headViewers.delete(ws));ws.on('error',()=>ws.close());return;}
+  if(headProducer){ws.close(1008,'A headset is already sending its head pose');return;}
+  headProducer=ws;let seq=-1;
+  const log=createWriteStream(resolve(headDir,`head-${Date.now()}.jsonl`));
+  log.on('error',e=>console.error('head recording:',e.message));
+  ws.on('message',bytes=>{
+    try{
+      const p=JSON.parse(bytes.toString());
+      if(p.type!=='head.pose' || !Number.isSafeInteger(p.seq) || !finiteArray(p.p,3) || !finiteArray(p.q,4) ||
+        p.p.some((v:number)=>Math.abs(v)>5))throw Error();
+      const norm=p.q.reduce((a:number,v:number)=>a+v*v,0);
+      if(norm<.5 || norm>1.5)throw Error();
+      if(p.seq<=seq)return;
+      seq=p.seq;headLast={at:Date.now(),seq};
+      const pose={type:'head.pose',seq,p:p.p,q:p.q,hostMonotonicMs:hostMonotonicMs()};
+      broadcast(headViewers,pose);log.write(JSON.stringify({...pose,receivedAt:Date.now()})+'\n');
+    }catch{ws.close(1008,'Invalid head pose');}
+  });
+  ws.on('close',()=>{if(headProducer===ws){headProducer=null;headLast=null;broadcast(headViewers,{type:'head.disconnected'});}log.end();});
+  ws.on('error',()=>ws.close());
+});
+
 function broadcast(viewers:Set<WebSocket>,p:unknown){const text=JSON.stringify(p);for(const ws of viewers)if(ws.readyState===WebSocket.OPEN && ws.bufferedAmount<16384)ws.send(text);}
 const finiteArray=(x:unknown,n:number):x is number[]=>Array.isArray(x)&&x.length===n&&x.every(Number.isFinite);
 sockets.on('connection',(ws,role,player,path,remote)=>{
@@ -231,7 +270,7 @@ if(bindHost!=='127.0.0.1'){
 // that vanished without one (a terminated test client, a Quest that dropped off the network) holds its
 // handle open, so server.close() never completes and the process hangs instead of exiting.
 function shutdown(){
-  for(const ws of sockets.clients)ws.terminate();for(const ws of stateSockets.clients)ws.terminate();
+  for(const ws of sockets.clients)ws.terminate();for(const ws of stateSockets.clients)ws.terminate();for(const ws of headSockets.clients)ws.terminate();
   for(const ws of uiHostSockets.clients)ws.terminate();for(const ws of uiClientSockets.clients)ws.terminate();
   sockets.close();stateSockets.close();uiHostSockets.close();uiClientSockets.close();server.close(()=>process.exit(0));
   setTimeout(()=>process.exit(0),500).unref();

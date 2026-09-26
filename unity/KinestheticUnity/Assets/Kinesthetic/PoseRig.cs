@@ -408,6 +408,23 @@ namespace Kinesthetic
         }
         /// The patient's frame in the world: x out to the working side, y up, z forward. The authored Mii faces
         /// local -Z; its anatomical left is local +X.
+        /// The headset's head pose (HeadPoseFeed): an offset from the seated eye point and an orientation, both in the
+        /// seat's frame (x right, y up, z forward). The torso leans from the hips toward where the head is and the head
+        /// turns as the wearer's does. Call after Apply(null) and before ApplyMovement, so the measured arm hangs from
+        /// the leaning shoulder; the arm's own angle stays referenced to gravity, as it is measured.
+        public void ApplyHeadPose(Vector3 offset, Quaternion rotation)
+        {
+            Initialize();
+            if (!mii) return;
+            var seatFrame = Quaternion.LookRotation(transform.TransformDirection(new Vector3(0, 0, -1)), transform.TransformDirection(Vector3.up));
+            var spine = Bone("spine.001"); var neck = Bone("neck"); var head = Bone("head");
+            if (!spine || !neck || !head) return;
+            var headRest = head.rotation;
+            var shift = seatFrame * Vector3.ClampMagnitude(offset, .35f);   // a lean, never a walk
+            Aim(spine, neck, neck.position - spine.position + shift);
+            head.rotation = seatFrame * rotation * Quaternion.Inverse(seatFrame) * headRest;
+        }
+
         /// A Mii's shoulder joint sits inside its round body, so an arm hanging straight down from it is drawn through
         /// the torso. Near rest the arm swings out just enough to clear the body; the swing fades to nothing by 40
         /// degrees of elevation, so from there up — and at every target — the drawn angle is exactly the measured one.
