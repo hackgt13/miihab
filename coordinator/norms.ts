@@ -68,6 +68,10 @@ export const EXERCISE_MOVEMENT: Readonly<Record<string, string | null>> = {
   'arm-elevation.v1': 'shoulder_flexion',
   'shoulder-raise.v1': 'shoulder_flexion',
   'trunk-rotation.v1': null,          // no comparable normative table gathered yet
+  // AAOS gives elbow flexion about 150 degrees, but agents/form-reference-data.md only surveyed
+  // shoulder norms, so there is no age-banded table to compare against and inventing one would
+  // repeat the mistake this file warns about. Explicitly none until an elbow table is gathered.
+  'elbow-flexion.v1': null,
 };
 
 export function ageBandFor(years: number): AgeBandId | null {
