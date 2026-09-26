@@ -314,6 +314,34 @@ namespace Kinesthetic
             Aim(upper,lower,elbow-upper.position);
             Aim(lower,hand,upper.position+direction*d-lower.position);
         }
+        /// Presents an IMU-measured arm (no camera): call after Apply(null), which leaves the authored seated
+        /// rest pose, and only the measured segment moves. `elevationDeg` is straight-arm elevation, drawn in the
+        /// scapular plane (30° forward of the side); `elbowFlexionDeg` is a curl with the upper arm at the side.
+        /// The angles are the coordinator's measurement, so what the patient sees is what is scored.
+        public void ApplyImuArm(bool left, float? elevationDeg, float? elbowFlexionDeg)
+        {
+            Initialize();
+            if (!mii) return;
+            string side = left ? ".L" : ".R";
+            Transform upper = Bone("bicep" + side), lower = Bone("forearm" + side), hand = Bone("hand" + side);
+            // The authored Mii faces local -Z and its anatomical left is local +X.
+            var down = transform.TransformDirection(Vector3.down);
+            var forward = transform.TransformDirection(new Vector3(0, 0, -1));
+            var outward = transform.TransformDirection(new Vector3(left ? 1 : -1, 0, 0));
+            if (elevationDeg is float elevation)
+            {
+                var plane = (outward * Mathf.Cos(30 * Mathf.Deg2Rad) + forward * Mathf.Sin(30 * Mathf.Deg2Rad)).normalized;
+                float r = Mathf.Clamp(elevation, 0, 180) * Mathf.Deg2Rad;
+                var arm = down * Mathf.Cos(r) + plane * Mathf.Sin(r);
+                Aim(upper, lower, arm); Aim(lower, hand, arm);
+            }
+            else if (elbowFlexionDeg is float flexion)
+            {
+                Aim(upper, lower, (down + outward * .12f).normalized);
+                float r = Mathf.Clamp(flexion, 0, 150) * Mathf.Deg2Rad;
+                Aim(lower, hand, down * Mathf.Cos(r) + forward * Mathf.Sin(r));
+            }
+        }
         void DriveLeg(PoseFrame frame, bool left)
         {
             string side = left ? ".L" : ".R";

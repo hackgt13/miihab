@@ -14,6 +14,8 @@ namespace Kinesthetic.Rehab
     public sealed class RehabSession : MonoBehaviour
     {
         public PoseRig rig;
+        [Tooltip("Drive the Mii from camera pose (MediaPipe). Off: measurement is IMU-only and the Mii's arm follows the AirPod angle.")]
+        public bool useCameraPose;
         public Transform targetOrb, liveMarker;
         public LineRenderer targetBand, armGuide;
         public string poseUrl = "ws://127.0.0.1:8766/pose?role=viewer";
@@ -33,6 +35,9 @@ namespace Kinesthetic.Rehab
         public bool IsBusy => startingSession || stoppingSession;
         int attempted, valid;
         float? liveAngle; string phase = "idle";
+        float lastSampleAt = -99, shownAngle; string exerciseKind = "arm-elevation.v1";
+        // Whether the measurement stream is live: camera frames, or AirPod-driven samples from the coordinator.
+        bool Fresh => useCameraPose ? LivePoseClient.Fresh(poseTicks) : Time.unscaledTime - lastSampleAt < .5f;
         string status = "Rest your arms. Press Start session.";
         float flashUntil; Color flash;
         Label title, reps, angle, statusLabel, planLabel, summaryLabel; Button start; VisualElement summaryCard;
@@ -48,7 +53,7 @@ namespace Kinesthetic.Rehab
         {
             Application.runInBackground = true;
             rig.Initialize(); rig.Apply(null);
-            pose = new LivePoseClient(poseUrl);
+            if (useCameraPose) pose = new LivePoseClient(poseUrl);
             exercise = new ExerciseClient(exerciseUrl);
             BindUI();
         }
@@ -94,10 +99,10 @@ namespace Kinesthetic.Rehab
         {
             startingSession = true; sessionError = false; summaryReceived = false;
             start.SetEnabled(false); summaryCard.AddToClassList("hidden");
-            status = "Starting camera…";
+            status = useCameraPose ? "Starting camera…" : "Connecting to your AirPod…";
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
             var script = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../scripts/start_camera_session.sh"));
-            if (File.Exists(script))
+            if (useCameraPose && File.Exists(script))
             {
                 System.Diagnostics.Process process = null;
                 try { process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
@@ -115,10 +120,10 @@ namespace Kinesthetic.Rehab
             yield return request.SendWebRequest();
             startingSession = false;
             start.SetEnabled(true);
-            if (request.result != UnityWebRequest.Result.Success) { sessionError = true; status = "Check that camera capture is open, then press Start to try again."; yield break; }
+            if (request.result != UnityWebRequest.Result.Success) { sessionError = true; status = useCameraPose ? "Check that camera capture is open, then press Start to try again." : "Check the measurement service is running, then press Start to try again."; yield break; }
             sessionError = false;
             running = true; calibrated = false; attempted = valid = 0; liveAngle = null;
-            status = "Hold still with your arms relaxed · calibrating";
+            status = useCameraPose ? "Hold still with your arms relaxed · calibrating" : "Hold the handle still, arm resting · calibrating";
             start.text = "Finish set";
         }
 
@@ -180,24 +185,25 @@ namespace Kinesthetic.Rehab
             ReadExercise();
             DrawGuides();
             reps.text = valid.ToString();
-            angle.text = running && LivePoseClient.Fresh(poseTicks) && liveAngle.HasValue ? $"{liveAngle.Value:0}°" : "—";
+            angle.text = running && Fresh && liveAngle.HasValue ? $"{liveAngle.Value:0}°" : "—";
             statusLabel.text = status;
             UpdateStudioUI();
         }
 
         void UpdateStudioUI()
         {
-            bool fresh = LivePoseClient.Fresh(poseTicks);
+            bool fresh = Fresh;
             cameraChip.EnableInClassList("connected", fresh);
-            cameraStatus.text = fresh ? "Camera connected" : running ? "Looking for you…" : "Camera on standby";
+            cameraStatus.text = useCameraPose ? (fresh ? "Camera connected" : running ? "Looking for you…" : "Camera on standby")
+                : fresh ? "AirPod connected" : running ? "Waiting for your AirPod…" : "AirPod on standby";
             angleMeter.value = fresh && liveAngle.HasValue && running ? Mathf.Clamp01(liveAngle.Value / Mathf.Max(1, targetDeg)) * 100 : 0;
-            angleNote.text = !running ? "Your range appears when you begin" : !fresh || !liveAngle.HasValue ? "Waiting for a clear view of your arm" : "Measured from your live movement";
+            angleNote.text = !running ? "Your range appears when you begin" : !fresh || !liveAngle.HasValue ? (useCameraPose ? "Waiting for a clear view of your arm" : "Waiting for the AirPod on your handle") : "Measured from your live movement";
             progressNote.text = valid >= prescribedReps ? "Your set is complete" : valid == 0 ? "Take your time." : $"{prescribedReps - valid} more · take your time";
             bool attention = sessionError || running && !fresh;
             bool reached = running && fresh && liveAngle.HasValue && liveAngle.Value >= targetDeg;
             cueIcon.EnableInClassList("attention", attention);
             cueIcon.EnableInClassList("good", reached || valid >= prescribedReps);
-            cueTitle.text = stoppingSession ? "Saving your session" : startingSession ? "Getting ready…" : sessionError ? (running ? "Let's finish saving your session" : "Let's get you connected") : !running ? (valid >= prescribedReps ? "Set complete." : "Sit comfortably.") : attention ? "Let's get you in view" : !calibrated ? "Rest your arm." : reached ? "Hold gently, then lower" : "Raise, hold, lower.";
+            cueTitle.text = stoppingSession ? "Saving your session" : startingSession ? "Getting ready…" : sessionError ? (running ? "Let's finish saving your session" : "Let's get you connected") : !running ? (valid >= prescribedReps ? "Set complete." : "Sit comfortably.") : attention ? (useCameraPose ? "Let's get you in view" : "Let's find your AirPod") : !calibrated ? "Rest your arm." : reached ? "Hold gently, then lower" : "Raise, hold, lower.";
             cueSymbol.text = attention ? "!" : reached || valid >= prescribedReps ? "✓" : !running || !calibrated ? "1" : phase == "rep" ? "2" : "3";
             if (paintedReps != valid || paintedGoal != prescribedReps)
             {
@@ -228,6 +234,7 @@ namespace Kinesthetic.Rehab
 
         void ReadPose()
         {
+            if (!useCameraPose) { DriveFromImu(); return; }
             if (pose != null && pose.Take(out var text, out var ticks))
             {
                 try
@@ -247,6 +254,17 @@ namespace Kinesthetic.Rehab
             { pose?.Dispose(); pose = new LivePoseClient(poseUrl); retryPoseAt = Time.unscaledTime + 3; }
         }
 
+        // IMU-only: the Mii rests, and during a session the measured arm follows the AirPod angle (smoothed for
+        // display; the scored value is the coordinator's).
+        void DriveFromImu()
+        {
+            rig.Apply(null);
+            if (!running || !Fresh || !liveAngle.HasValue) return;
+            shownAngle = Mathf.Lerp(shownAngle, liveAngle.Value, 1 - Mathf.Exp(-12 * Time.unscaledDeltaTime));
+            bool curl = exerciseKind == "elbow-flexion.v1";
+            rig.ApplyImuArm(side == "left", curl ? null : shownAngle, curl ? shownAngle : null);
+        }
+
         void ReadExercise()
         {
             while (exercise != null && exercise.Take(out var text))
@@ -255,9 +273,11 @@ namespace Kinesthetic.Rehab
                 var p = m["payload"] as JObject; if (p == null) continue;
                 switch ((string)m["type"])
                 {
+                    case "exercise.started": exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0; break;
                     case "exercise.sample":
                         phase = (string)p["phase"] ?? phase;
                         liveAngle = p["valid"]?.Value<bool>() == true && p["angleDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? p["angleDeg"].Value<float>() : null;
+                        if (liveAngle.HasValue) lastSampleAt = Time.unscaledTime;
                         break;
                     case "exercise.event": OnEvent(p); break;
                     case "exercise.summary": ShowSummary(p); break;
@@ -274,7 +294,7 @@ namespace Kinesthetic.Rehab
                 case "calibration.complete": calibrated = true; status = $"Raise your {side} arm to the glowing target"; break;
                 case "rep.started": status = "Keep going — up to the target"; break;
                 case "target.reached": status = "Hold it there… good"; Flash(Good); break;
-                case "tracking.lost": status = "Move back into view — shoulders, elbows and hips"; Flash(Bad); break;
+                case "tracking.lost": status = useCameraPose ? "Move back into view — shoulders, elbows and hips" : "Lost your AirPod for a moment — keep it on the handle"; Flash(Bad); break;
                 case "tracking.recovered": if (calibrated) status = "Back in view · continue when ready"; break;
                 case "rep.completed":
                     attempted++;
@@ -306,7 +326,7 @@ namespace Kinesthetic.Rehab
             {
                 string reason = r.Key switch {
                     "did_not_reach_target" => "Below the target range", "trunk_compensation" => "Chest moved from resting position",
-                    "tracking_lost" => "Camera view interrupted", "too_fast" => "Movement was too quick",
+                    "tracking_lost" => useCameraPose ? "Camera view interrupted" : "AirPod signal interrupted", "too_fast" => "Movement was too quick",
                     _ => r.Key.Replace('_', ' ') };
                 notes.Append($"{r.Value} · {reason}\n");
             }
@@ -375,7 +395,7 @@ namespace Kinesthetic.Rehab
             for (int i = 0; i < n; i++) targetBand.SetPosition(i, At(targetDeg + bandDeg * i / (n - 1), reach));
             armGuide.positionCount = 2; armGuide.SetPosition(0, shoulder);
             armGuide.SetPosition(1, At(liveAngle ?? 0, reach * .95f));
-            bool showMeasured = liveAngle.HasValue && running && LivePoseClient.Fresh(poseTicks);
+            bool showMeasured = liveAngle.HasValue && running && Fresh;
             armGuide.enabled = showMeasured;
             targetOrb.position = At(targetDeg + bandDeg * .5f, reach);
             targetOrb.localScale = Vector3.one * (.08f + .008f * Mathf.Sin(Time.unscaledTime * 4));
