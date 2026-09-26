@@ -1,0 +1,111 @@
+# Voice Service Architecture
+
+## Layer map
+
+```
+┌──────────────────────────────────────────────────────┐
+│                   Unity (client)                     │
+│  Mic PCM → WS /voice                                │
+│  WS /voice → speaker PCM + events                  │
+└─────────────────────┬────────────────────────────────┘
+                      │ WebSocket  ws://localhost:8768/voice
+┌─────────────────────▼────────────────────────────────┐
+│               server.ts  (entry point)               │
+│  http.createServer + WebSocketServer                 │
+│  Routes /health → healthController                   │
+│  Routes /voice  → sessionController                  │
+└──────┬─────────────────────────────────┬─────────────┘
+       │ controllers/                    │ services/
+┌──────▼──────────────┐   ┌─────────────▼─────────────┐
+│ sessionController   │   │ PatientService  (Supabase) │
+│  – handshake        │   │  patients, sessions        │
+│  – audio relay      │   │  pain_logs, exercise_logs  │
+│  – session lifecycle│   │  milestones                │
+├─────────────────────┤   ├───────────────────────────┤
+│ healthController    │   │ AnalyticsService           │
+│  – GET /health      │   │  pain trend, progression   │
+└──────┬──────────────┘   │  streak, session summary   │
+       │                  ├───────────────────────────┤
+       │                  │ ToolService                │
+       │                  │  dispatches ElevenLabs     │
+       │                  │  tool calls to the above   │
+       │                  └─────────────┬─────────────┘
+       │                                │
+┌──────▼────────────────────────────────▼─────────────┐
+│                 conversation.ts                      │
+│  ElevenLabs Conversational AI WebSocket bridge       │
+│  Unity audio → ElevenLabs (user_audio_chunk)         │
+│  ElevenLabs audio → Unity (audio event)              │
+│  Tool calls ↔ ToolService.dispatch()                 │
+└──────────────────────────┬───────────────────────────┘
+                           │ wss://api.elevenlabs.io/v1/convai/conversation
+┌──────────────────────────▼───────────────────────────┐
+│              ElevenLabs Conversational AI             │
+│  STT → LLM (Alex PT persona) → TTS                  │
+│  Client-tool calls → backend executes → Supabase     │
+└──────────────────────────────────────────────────────┘
+```
+
+## Layer responsibilities
+
+| Layer | File(s) | Owns |
+|---|---|---|
+| Entry | `server.ts` | HTTP + WS server creation, service wiring |
+| Config | `backend/config/index.ts` | All `process.env` reads, typed config object |
+| Controllers | `backend/controllers/` | Protocol handling, request/session lifecycle |
+| Services | `backend/services/` | Business logic, Supabase I/O, tool dispatch |
+| Conversation | `backend/conversation.ts` | ElevenLabs WS wire protocol |
+| Prompts | `backend/prompts.ts` | PT system prompt + first message |
+| Types | `backend/types.ts` | Shared TypeScript interfaces |
+
+## Session lifecycle
+
+```
+Unity                        server.ts              ElevenLabs
+  │── WS connect ──────────────▶│
+  │── session_start ────────────▶│ createSession()
+  │                              │── WS connect ──▶│
+  │◀── session_started ──────────│◀─ conv open ────│
+  │── audio chunks ─────────────▶│── audio ───────▶│ STT→LLM→TTS
+  │◀── audio chunks ─────────────│◀─ audio ────────│
+  │◀── transcript ───────────────│◀─ transcript ───│
+  │                              │◀─ tool_call ────│
+  │                              │   dispatch()
+  │                              │   Supabase write
+  │                              │── tool_result ─▶│
+  │◀── milestone / summary ──────│                 │
+  │── session_end ──────────────▶│ endSession()
+  │── WS close ─────────────────▶│── WS close ────▶│
+```
+
+## WebSocket contract (Unity side)
+
+### Unity → server
+```jsonc
+{ "type": "session_start",  "patient_id": "<uuid>" }
+{ "type": "audio",          "data": "<base64 16kHz mono PCM>" }
+{ "type": "session_end" }
+```
+
+### server → Unity
+```jsonc
+{ "type": "session_started" }
+{ "type": "audio",          "data": "<base64 PCM>" }
+{ "type": "transcript",     "role": "agent"|"user", "text": "..." }
+{ "type": "interrupt" }
+{ "type": "milestone",      "data": { "description": "...", "category": "..." } }
+{ "type": "session_summary","data": { "exercises": [...], "pain_delta": -1.2 } }
+{ "type": "error",          "message": "..." }
+```
+
+## First-time setup
+
+```bash
+cd voice
+npm ci
+cp .env.example .env      # fill in ELEVENLABS_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY
+# Run supabase/schema.sql in the Supabase SQL editor
+node --env-file=.env backend/agent.ts   # creates the agent, prints ELEVENLABS_AGENT_ID
+# Add ELEVENLABS_AGENT_ID to .env
+npm start
+```

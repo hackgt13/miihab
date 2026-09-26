@@ -1,0 +1,199 @@
+/**
+ * Session controller — owns the WebSocket session lifecycle.
+ *
+ * Responsibilities:
+ *   - Handshake (session_start / session_started)
+ *   - Supabase session creation / teardown
+ *   - Wiring PatientService + AnalyticsService + ToolService per session
+ *   - Bridging Unity audio ↔ ElevenLabs conversation
+ *   - Emitting structured events back to Unity
+ */
+
+import { WebSocket } from "ws";
+import type { Config } from "../config/index.ts";
+import { ElevenLabsConversation } from "../conversation.ts";
+import type { PatientService } from "../services/patientService.ts";
+import type { AnalyticsService } from "../services/analyticsService.ts";
+import { ToolService } from "../services/toolService.ts";
+
+interface SessionControllerDeps {
+  config: Config;
+  patientService: PatientService;
+  analyticsService: AnalyticsService;
+}
+
+/** Returns a handler function to pass to WebSocketServer's 'connection' event. */
+export function createSessionController(deps: SessionControllerDeps) {
+  return function onConnection(unity: WebSocket): void {
+    console.log("Unity client connected");
+    handleSession(unity, deps).catch((err) => {
+      console.error("Session error:", err);
+      safeClose(unity, 1011, "Internal error");
+    });
+  };
+}
+
+// ── Session lifecycle ─────────────────────────────────────────────────────────
+
+async function handleSession(
+  unity: WebSocket,
+  deps: SessionControllerDeps,
+): Promise<void> {
+  const { config, patientService, analyticsService } = deps;
+
+  // 1. Handshake ─────────────────────────────────────────────────────────────
+  const raw = await waitForMessage(unity, 30_000);
+  if (raw === null) {
+    safeClose(unity, 1008, "Timeout waiting for session_start");
+    return;
+  }
+
+  let init: Record<string, unknown>;
+  try {
+    init = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    safeClose(unity, 1003, "Invalid JSON");
+    return;
+  }
+
+  if (init["type"] !== "session_start") {
+    safeClose(unity, 1002, "First message must be type=session_start");
+    return;
+  }
+
+  const patientId = String(init["patient_id"] ?? "").trim();
+  if (!patientId) {
+    safeClose(unity, 1002, "session_start missing patient_id");
+    return;
+  }
+
+  // 2. Create session record ─────────────────────────────────────────────────
+  let sessionId: string;
+  try {
+    sessionId = await patientService.createSession(patientId);
+  } catch (err) {
+    emit(unity, { type: "error", message: `DB error: ${JSON.stringify(err)}` });
+    console.error("DB error detail:", err);
+    safeClose(unity);
+    return;
+  }
+  console.log(`Session started — patient=${patientId} session=${sessionId}`);
+
+  // 3. Wire up services ──────────────────────────────────────────────────────
+  const emitEvent = (event: Record<string, unknown>) => emit(unity, event);
+
+  const toolService = new ToolService(
+    patientService,
+    analyticsService,
+    patientId,
+    sessionId,
+    emitEvent,
+  );
+
+  const conv = new ElevenLabsConversation({
+    agentId: config.elevenlabs.agentId,
+    apiKey: config.elevenlabs.apiKey,
+    onAudio: (chunk) =>
+      emit(unity, { type: "audio", data: chunk.toString("base64") }),
+    onTranscript: (role, text) =>
+      emit(unity, { type: "transcript", role, text }),
+    onToolCall: (_id, name, params) => toolService.dispatch(name, params),
+    onInterrupt: () => emit(unity, { type: "interrupt" }),
+    onError: (msg) => {
+      console.error("ElevenLabs error:", msg);
+      emit(unity, { type: "error", message: msg });
+    },
+    onClose: () => {},
+  });
+
+  // 4. Start ElevenLabs conversation ─────────────────────────────────────────
+  try {
+    await conv.start();
+  } catch (err) {
+    emit(unity, {
+      type: "error",
+      message: `Failed to start conversation: ${err}`,
+    });
+    safeClose(unity);
+    return;
+  }
+  emit(unity, { type: "session_started" });
+
+  // 5. Relay audio until session_end or disconnect ───────────────────────────
+  await new Promise<void>((resolve) => {
+    unity.on("message", (data: Buffer) => {
+      let msg: Record<string, unknown>;
+      try {
+        msg = JSON.parse(data.toString()) as Record<string, unknown>;
+      } catch {
+        return;
+      }
+
+      if (msg["type"] === "audio") {
+        const pcm = Buffer.from(String(msg["data"]), "base64");
+        conv.sendAudio(pcm);
+      } else if (msg["type"] === "session_end") {
+        console.log("session_end received");
+        resolve();
+      }
+    });
+    unity.on("close", resolve);
+    unity.on("error", (err: Error) => {
+      console.error("Unity WS error:", err.message);
+      resolve();
+    });
+  });
+
+  // 6. Teardown ──────────────────────────────────────────────────────────────
+  conv.end();
+  try {
+    await patientService.endSession(sessionId);
+  } catch (err) {
+    console.warn("Failed to stamp ended_at:", err);
+  }
+
+  console.log(`Session closed — session=${sessionId}`);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function emit(ws: WebSocket, msg: Record<string, unknown>): void {
+  if (ws.readyState === WebSocket.OPEN) {
+    try {
+      ws.send(JSON.stringify(msg));
+    } catch {}
+  }
+}
+
+function safeClose(ws: WebSocket, code?: number, reason?: string): void {
+  try {
+    ws.close(code, reason);
+  } catch {}
+}
+
+function waitForMessage(
+  ws: WebSocket,
+  timeoutMs: number,
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      off();
+      resolve(null);
+    }, timeoutMs);
+    function off() {
+      ws.off("message", onMsg);
+      ws.off("close", onClose);
+      clearTimeout(timer);
+    }
+    function onMsg(data: Buffer) {
+      off();
+      resolve(data.toString());
+    }
+    function onClose() {
+      off();
+      resolve(null);
+    }
+    ws.once("message", onMsg);
+    ws.once("close", onClose);
+  });
+}

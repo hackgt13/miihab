@@ -1,0 +1,26 @@
+{
+  "name": "kinesthetic-voice",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file=.env server.ts",
+    "create-agent": "node --env-file=.env --experimental-strip-types backend/agent.ts create",
+    "update-agent": "node --env-file=.env --experimental-strip-types backend/agent.ts update",
+    "typecheck": "tsc --noEmit",
+    "test:cli": "node --env-file=.env --experimental-strip-types test/cli.ts",
+    "migrate":  "node --env-file=.env --input-type=module --eval \"import {execSync} from 'node:child_process'; execSync('psql ' + process.env.DATABASE_URL + ' -f supabase/schema.sql', {stdio:'inherit'})\""
+  },
+  "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.69.0",
+    "@supabase/supabase-js": "^2.117.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@types/ws": "^8.18.1"
+  }
+}
