@@ -32,7 +32,6 @@ public static class RehabSceneSetup
     {
         new("Dock board",    "rehab.dock",    Root + "/RehabDock.uxml",    Stations.Dock,           new Vector2(.80f, .34f)),
         new("Focus board",   "rehab.focus",   Root + "/RehabFocus.uxml",   Stations.Focus,          new Vector2(.92f, .68f)),
-        new("Plan board",    "rehab.plan",    Root + "/RehabPlan.uxml",    Stations.Score.Mirrored, new Vector2(.88f, .44f)),
         new("Measure board", "rehab.measure", Root + "/RehabMeasure.uxml", Stations.Measure,        new Vector2(.48f, .60f)),
     };
 

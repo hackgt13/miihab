@@ -155,11 +155,13 @@ public static class RehabBoardsVerification
         return $"QuestRehab: {boards.Length} boards enabled as Replicas on the seat's XR origin, dock waiting for the Mac, no TextMesh HUD";
     }
 
-    /// Every `Q<T>("name")` and `Q("name")` in RehabSession.cs.
+    /// Every `Q<T>("name")` and `Q("name")` in RehabSession.cs, plus the names it asks for through a
+    /// constant. Scraping literals is what keeps this check honest as the session changes, but a name
+    /// held somewhere else is still a name some board has to answer.
     static List<string> QueriedNames()
     {
         string source = File.ReadAllText(Path.GetFullPath(SessionSource));
-        var names = new HashSet<string>();
+        var names = new HashSet<string> { ActivityBriefing.HostName };
         foreach (Match m in Regex.Matches(source, @"\.Q(?:<[\w.]+>)?\(\s*""([^""]+)""")) names.Add(m.Groups[1].Value);
         return names.OrderBy(n => n).ToList();
     }

@@ -152,6 +152,37 @@ Shared surfaces for compact HUDs and summaries. Tones: `Paper`, `Glass`, `Scrim`
 owns its padding, background, edge and radius. A scrim's blocking behavior and visibility remain
 with the screen. These variants and `KText` are also shown in `Specimen.uxml`.
 
+### `KSheet` — `entrance`, plus everything `KSurface` has
+
+A surface that is handed to you and taken away again: the briefing a venue opens with and the summary
+it closes on are the same object at two ends of a session, so they are one component. Entrances:
+`Right`, `Left`, `Below` — chosen for where the giver stands in the room, not for the layout, so in the
+studio the briefing arrives from the coach's side. `Present()`, `Dismiss()` and `Hide()` (no exit, for a
+reset or a rebuilt tree) drive it; `Presented` is where it is heading, not whether the motion has
+finished.
+
+It is the first animation in the library, and the reason motion belongs to a component: `transition` is
+paint, so a sealed screen may not write it. `Sheet.uss` carries the entrance (ease-out-back, a few
+millimetres of overshoot, a slight angle that straightens as it lands) and the faster straight exit, and
+every sheet in every venue moves the same way.
+
+### Briefings — `UI/Boards/ActivityBriefing.cs`
+
+What an activity hands you before it begins. `Briefing` is a value — eyebrow, title, subtitle, a
+`BriefingLine[]` of label-and-figure rows, a note someone wrote, and what the button says — so an
+activity describes itself and lays nothing out. A venue adopts it with one element on its Focus board:
+
+```xml
+<ui:VisualElement name="briefing" class="briefing-host" />
+```
+
+and a `Bind(host, onBegin)` from wherever it binds its boards; `Describe(briefing)` rewrites the sheet
+in place when numbers arrive late. **Dismissing it is the point**: an activity gates its own start on
+`Dismissed`, so a set begins because someone decided to begin it.
+
+Every field is content the activity already has. A briefing that invented a clinician, a date or a
+signature would be a fabricated record, so an empty field is left off the sheet instead of filled in.
+
 ### Panes — `UI/Panes/`
 
 A pane is a whole surface standing in a venue: a `Pane` `MonoBehaviour` with its own `UIDocument`,

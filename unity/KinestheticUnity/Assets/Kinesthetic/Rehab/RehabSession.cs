@@ -75,7 +75,7 @@ namespace Kinesthetic.Rehab
         float lastSampleAt = -99, shownAngle; string exerciseKind = "arm-elevation.v1";
         Kinesthetic.Coach.CoachDemonstrator coach;
         bool voiceOn; string currentExerciseId;
-        VisualElement screen, hudCoach, angleDetails; Label hudCoachLine; Button viewToggle, summaryClose, summaryMenu;
+        VisualElement hudCoach, angleDetails; Label hudCoachLine; Button viewToggle, summaryClose, summaryMenu;
         int boundGeneration = -1;
         // Held, so a rebind after one board rebuilds can take them off the boards that did not (-= then +=):
         // a handler added twice fires twice, and a toggle that fires twice does nothing.
@@ -94,8 +94,11 @@ namespace Kinesthetic.Rehab
         bool Fresh => useCameraPose ? LivePoseClient.Fresh(poseTicks) : MotionFresh && Time.unscaledTime - lastSampleAt < .5f;
         string status = "Secure your AirPod. Rest your arm.";
         float flashUntil; Color flash;
-        Label title, statusLabel, planLabel, summaryLabel; Button start; VisualElement summaryCard;
-        Label sideLabel, progressNote, angleNote, cueTitle;
+        Label statusLabel, summaryLabel; Button start; KSheet summaryCard;
+        Label progressNote, angleNote, cueTitle;
+        // The prescription, handed over on arrival. What it says lives in the plan; when it is put down is
+        // what starts the set.
+        readonly ActivityBriefing briefing = new();
         KReadout repCount, angleReadout;
         KChip sensorStatus; KTag cueStep;
         KArc repRing; KMeter angleMeter;
@@ -118,7 +121,9 @@ namespace Kinesthetic.Rehab
             if (!GetComponent<StudioCamera>()) gameObject.AddComponent<StudioCamera>().session = this;
             // A headset renders this studio from what it publishes (RehabStateClient in QuestRehab).
             if (!GetComponent<RehabStatePublisher>()) gameObject.AddComponent<RehabStatePublisher>().session = this;
-            autoArmed = autoStartSession; enteredAt = Time.unscaledTime;
+            // Not armed yet. The set begins when the patient puts the briefing down, not when the sensor
+            // happens to hold still for a second and a half.
+            autoArmed = false; enteredAt = Time.unscaledTime;
             if (startServices) StartCoroutine(ConnectServices());
             BindUI();
         }
@@ -175,16 +180,16 @@ namespace Kinesthetic.Rehab
             if (button == null) return false;
             if (button == start && boundGeneration == boards.Generation) return true;
             boundGeneration = boards.Generation;
-            title = root.Q<Label>("title"); repCount = root.Q<KReadout>("rep-count"); angleReadout = root.Q<KReadout>("angle-readout");
-            statusLabel = root.Q<Label>("status"); planLabel = root.Q<Label>("plan"); summaryLabel = root.Q<Label>("summary");
-            summaryCard = root.Q("summary-card");
-            sideLabel = root.Q<Label>("side-label"); progressNote = root.Q<Label>("progress-note");
+            repCount = root.Q<KReadout>("rep-count"); angleReadout = root.Q<KReadout>("angle-readout");
+            statusLabel = root.Q<Label>("status"); summaryLabel = root.Q<Label>("summary");
+            summaryCard = root.Q<KSheet>("summary-card");
+            progressNote = root.Q<Label>("progress-note");
             angleNote = root.Q<Label>("angle-note"); sensorStatus = root.Q<KChip>("sensor-status");
             cueTitle = root.Q<Label>("cue-title"); cueStep = root.Q<KTag>("cue-step");
-            screen = root.Q("studio-screen"); hudCoach = root.Q("hud-coach"); angleDetails = root.Q("angle-details");
+            hudCoach = root.Q("hud-coach"); angleDetails = root.Q("angle-details");
             hudCoachLine = root.Q<Label>("hud-coach-line");
             repRing = root.Q<KArc>("rep-ring"); angleMeter = root.Q<KMeter>("angle-meter");
-            onSummaryClose ??= () => summaryCard.AddToClassList("hidden");
+            onSummaryClose ??= () => summaryCard.Dismiss();
             onSummaryMenu ??= () => Kinesthetic.Menu.ActivityNavigation.Ensure().OpenReturn();
             onViewToggle ??= () => GetComponent<StudioCamera>()?.ToggleView();   // the Mac's camera only
             onStart ??= () => {
@@ -193,7 +198,7 @@ namespace Kinesthetic.Rehab
                 else if (ReadyToBegin && exercise?.connected == true) StartCoroutine(Begin());
                 else {
                     sessionError = false; summaryReceived = false; valid = attempted = 0;
-                    summaryCard.AddToClassList("hidden"); autoArmed = true; enteredAt = Time.unscaledTime;
+                    summaryCard.Hide(); autoArmed = true; enteredAt = Time.unscaledTime;
                     StartCoroutine(ConnectServices());
                 }
             };
@@ -201,8 +206,12 @@ namespace Kinesthetic.Rehab
             summaryMenu = Rebind(summaryMenu, root.Q<Button>("summary-menu"), onSummaryMenu);
             viewToggle = Rebind(viewToggle, root.Q<Button>("view-toggle"), onViewToggle);
             start = Rebind(start, button, onStart);
+            // Mounted after every rebuild, in whatever state it was already in — a board that remade its
+            // tree must not hand a dismissed sheet back to someone mid-set. A venue with no briefing host
+            // has nothing waiting to be read, so it arms straight away instead of never starting.
+            if (!briefing.Bind(root.Q(ActivityBriefing.HostName), BeginFromBriefing)) BeginFromBriefing();
             UpdatePlanLabels();
-            summaryCard.AddToClassList("hidden");
+            summaryCard.Hide();
             StartCoroutine(RefreshPlan());
             return true;
         }
@@ -228,7 +237,7 @@ namespace Kinesthetic.Rehab
         {
             autoArmed = false; startingSession = true; sessionError = false; summaryReceived = false;
             currentExerciseId = "pending";   // ignore the stream until the coordinator says which session is ours
-            start.SetEnabled(false); summaryCard.AddToClassList("hidden");
+            start.SetEnabled(false); summaryCard.Hide();
             status = useCameraPose ? "Starting camera…" : "Connecting to your AirPod…";
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
             var script = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../scripts/start_camera_session.sh"));
@@ -286,12 +295,40 @@ namespace Kinesthetic.Rehab
 
         void UpdatePlanLabels()
         {
-            title.text = exerciseKind == "elbow-flexion.v1" ? "Elbow bends" : "Shoulder raises";
-            sideLabel.text = $"{side.ToUpperInvariant()} ARM";
-            planLabel.text = $"{prescribedReps} reps · {targetDeg:0}° target";
-            planLabel.tooltip = string.IsNullOrWhiteSpace(coachingNote) ? $"Prescribed plan v{planVersion}" : coachingNote;
             repCount.caption = $"of {prescribedReps} reps";
             angleReadout.caption = $"Target {targetDeg:0}°";
+            briefing.Describe(Prescription());
+        }
+
+        /// The plan as a sheet of paper, which is what it is. Every line is a field the coordinator sent;
+        /// the coaching note is the only copy on it written by a person, and it used to live in a tooltip
+        /// on a world-space board, where nothing hovers and nobody ever read it.
+        ///
+        /// There is deliberately no clinician name, clinic, date or signature. None of those is measured,
+        /// and a prescription that invents them is a forged record rather than a nice touch.
+        Briefing Prescription() => new()
+        {
+            eyebrow = $"PRESCRIBED PLAN · V{planVersion}",
+            title = exerciseKind == "elbow-flexion.v1" ? "Elbow bends" : "Shoulder raises",
+            subtitle = string.IsNullOrEmpty(side) ? "Seated" : $"{char.ToUpperInvariant(side[0])}{side.Substring(1)} arm, seated",
+            lines = new[]
+            {
+                new BriefingLine("Repetitions", prescribedReps.ToString()),
+                new BriefingLine("Raise to", $"{targetDeg:0}°"),
+                new BriefingLine("Stay under", $"{targetDeg + bandDeg:0}°"),
+                new BriefingLine("Measured by", useCameraPose ? "Camera" : $"AirPod on your {SensorPlacement}"),
+            },
+            note = coachingNote,
+            noteFrom = "FROM YOUR CARE TEAM",
+            action = "Begin my set",
+        };
+
+        /// The sheet is down. Only from here may the studio start itself, once the sensor is ready.
+        void BeginFromBriefing()
+        {
+            briefing.Dismiss();
+            autoArmed = autoStartSession;
+            enteredAt = Time.unscaledTime;
         }
 
         IEnumerator Stop() { yield return FinishSession(); }
@@ -340,7 +377,6 @@ namespace Kinesthetic.Rehab
             var voice = Kinesthetic.Coach.CoachVoice.Instance;
             if (voice && running && calibrated && !voiceOn) { voice.Begin(PatientId); voiceOn = true; }
             else if (voice && !running && voiceOn) { voice.End(); voiceOn = false; }
-            screen.EnableInClassList("playing", running);
             var said = running && voice ? voice.Line : "";
             hudCoachLine.text = said;
             hudCoach.EnableInClassList("hidden", string.IsNullOrEmpty(said));
@@ -489,7 +525,7 @@ namespace Kinesthetic.Rehab
             root.Q<Label>("summary-progress")?.AddToClassList("hidden");   // filled by the progression verdict that follows
             summaryLabel.text = notes.Length > 0 ? notes.ToString().TrimEnd() : attempted == 0 ? "Return to the studio when you're ready to begin." : "Nice work.";
             root.Q<Label>("summary-saved").text = s["simulated"]?.Value<bool>() == true ? "Demo session · simulated movement" : "Session saved · available to your care team";
-            summaryCard.RemoveFromClassList("hidden");
+            summaryCard.Present();
             root.Q<Button>("summary-close").Focus();
             Kinesthetic.Menu.ActivityNavigation.Ensure().PlaySelect();
             status = "Session saved";

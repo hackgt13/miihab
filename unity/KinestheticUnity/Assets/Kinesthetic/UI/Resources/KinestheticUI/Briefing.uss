@@ -1,0 +1,40 @@
+/* The briefing sheet: a form, read once. Narrower than the board it stands on, because a document has a
+   measure and a board does not, and ruled between its lines so the dose reads as a prescription rather
+   than as a row of statistics. */
+.k-briefing {
+    max-width: 520px;
+    align-self: center;
+    flex-grow: 0;
+    flex-shrink: 1;
+}
+
+.k-briefing .hidden { display: none; }
+
+.k-briefing__subtitle { margin-top: 4px; }
+
+/* The dose. One ruled row per line, label left and figure right, the way a form is read. */
+.k-briefing__lines { margin-top: 18px; }
+.k-briefing__line {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--sand-30);
+}
+.k-briefing__line-label { flex-shrink: 1; }
+.k-briefing__line-value { flex-shrink: 0; margin-left: 16px; }
+
+/* Words a person wrote, set apart from the figures and marked down the edge like a margin note. */
+.k-briefing__note {
+    margin-top: 16px;
+    padding: 12px 14px;
+    background-color: var(--sand-10);
+    border-left-width: 3px;
+    border-left-color: var(--cerulean-40);
+    border-radius: 8px;
+}
+.k-briefing__note-from { margin-bottom: 4px; }
+
+.k-briefing__action { margin-top: 20px; align-self: flex-end; }
