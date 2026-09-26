@@ -23,8 +23,12 @@ const channels=new Map(['/state','/bowling-state','/rehab-state'].map(path=>[pat
   type:({'/state':'golf','/bowling-state':'bowling','/rehab-state':'rehab'} as Record<string,string>)[path]
 }]));
 const golfState=channels.get('/state')!;
+// A motion app on another Mac (a second AirPod pair, e.g. on a wrist strap) may send motion here, and read this
+// status to confirm it, when it carries the pairing token. Viewing motion stays on this Mac.
+const paired=(req:import('node:http').IncomingMessage)=>pairToken!=='' &&
+  new URL(req.url??'/','http://relay').searchParams.get('token')===pairToken;
 const server=createServer((req,res)=>{
-  if(!loopback(req.socket.remoteAddress)){res.writeHead(403).end();return;}
+  if(!loopback(req.socket.remoteAddress) && !paired(req)){res.writeHead(403).end();return;}
   res.writeHead(200,{'Content-Type':'application/json'}).end(JSON.stringify({
     ready:true,players:[...golfMotion.producers.keys()],viewers:golfMotion.viewers.size,stateHost:!!golfState.host,stateClients:golfState.clients.size,
     bowlingPlayers:[...bowlingMotion.producers.keys()],bowlingViewers:bowlingMotion.viewers.size,
@@ -63,7 +67,7 @@ server.on('upgrade',(req,socket,head)=>{
     if(!ok){socket.destroy();return;}
     stateSockets.handleUpgrade(req,socket,head,ws=>stateSockets.emit('connection',ws,role,u.pathname));return;
   }
-  if(!loopback(req.socket.remoteAddress)){socket.destroy();return;}
+  if(!loopback(req.socket.remoteAddress) && !(role==='producer' && paired(req))){socket.destroy();return;}
   // Browsers always send Origin. Only the local capture page may watch motion, read-only, from the Mac itself.
   const browserViewer=role==='viewer' && loopback(req.socket.remoteAddress) && viewerOrigins.has(req.headers.origin??'');
   if(!motions.has(u.pathname) || !['producer','viewer'].includes(role??'') ||

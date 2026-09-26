@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocket } from 'ws';
 
@@ -69,4 +69,23 @@ test('only the local capture page may watch motion from a browser, and never pro
     assert.equal(await open('/golf?role=viewer','https://example.com'),false);
     assert.equal(await open('/golf?role=producer&player=patient','http://127.0.0.1:8766'),false);
   }finally{for(const ws of clients)ws.terminate();proc.kill('SIGTERM');}
+});
+
+test('a second Mac may send motion with the pairing token; nothing else reaches the relay from the network', {timeout:10000}, async()=>{
+  const lan=Object.values(networkInterfaces()).flat().find(a=>a && a.family==='IPv4' && !a.internal)?.address;
+  if(!lan) return;   // no network interface on this machine: nothing to test
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18785',KINESTHETIC_GOLF_HOST:'0.0.0.0',KINESTHETIC_PAIR_TOKEN:'pair-secret',
+      KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-lan-'))}});
+  const clients:WebSocket[]=[];
+  const open=(query:string)=>{const ws=new WebSocket(`ws://${lan}:18785/bowling-motion?${query}`);clients.push(ws);
+    return new Promise<boolean>(r=>{ws.once('open',()=>r(true));ws.once('error',()=>r(false));});};
+  try {
+    await once(proc.stdout,'data');
+    assert.equal(await open('role=producer&player=patient&token=pair-secret'),true,'wrist AirPod on the teammate\'s Mac');
+    assert.equal(await open('role=producer&player=friend'),false,'no token');
+    assert.equal(await open('role=viewer&token=pair-secret'),false,'watching motion stays on this Mac');
+    assert.equal((await fetch(`http://${lan}:18785/?token=pair-secret`)).status,200);
+    assert.equal((await fetch(`http://${lan}:18785/`)).status,403);
+  } finally { for(const ws of clients)ws.terminate(); proc.kill('SIGTERM'); await once(proc,'exit'); }
 });

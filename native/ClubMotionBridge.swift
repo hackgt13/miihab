@@ -30,6 +30,14 @@ enum MotionActivity {
 // Native motion requires a supported paired AirPods set; no simulated fallback.
 @MainActor final class ClubMotionBridge: ObservableObject {
     @Published var player = "patient"
+    // The relay runs on the Mac that runs Unity. A second AirPod pair (e.g. a wrist strap) lives on another Mac,
+    // so its app points at that Mac's LAN address and carries the pairing token from local-data/pair-token.txt.
+    @Published var relayHost = UserDefaults.standard.string(forKey: "relayHost") ?? "127.0.0.1" {
+        didSet { UserDefaults.standard.set(relayHost, forKey: "relayHost") }
+    }
+    @Published var pairToken = UserDefaults.standard.string(forKey: "pairToken") ?? "" {
+        didSet { UserDefaults.standard.set(pairToken, forKey: "pairToken") }
+    }
     @Published var status = "Looking for paired AirPods…"
     @Published var source = "Waiting"
     @Published var samples = 0
@@ -81,10 +89,20 @@ enum MotionActivity {
         else { status = "Waiting for paired AirPods with motion tracking…" }
     }
 
+    private func relayURL(_ scheme: String, path: String = "", query: [URLQueryItem] = []) -> URL? {
+        var parts = URLComponents()
+        let host = relayHost.trimmingCharacters(in: .whitespaces)
+        parts.scheme = scheme; parts.host = host.isEmpty ? "127.0.0.1" : host; parts.port = 8767; parts.path = "/" + path
+        let token = pairToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        let items = query + (token.isEmpty ? [] : [URLQueryItem(name: "token", value: token)])
+        parts.queryItems = items.isEmpty ? nil : items
+        return parts.url
+    }
+
     private func verifyRelay(_ task: URLSessionWebSocketTask) async {
         guard running, socket === task else { return }
         do {
-            let (data, _) = try await URLSession.shared.data(from: URL(string: "http://127.0.0.1:8767/")!)
+            let (data, _) = try await URLSession.shared.data(from: relayURL("http")!)
             let health = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             let players = health?[MotionActivity.healthKey] as? [String] ?? []
             guard running, socket === task else { return }
@@ -95,7 +113,7 @@ enum MotionActivity {
             else { status = "AirPod motion detected; reconnecting to Unity…"; stop(keepStatus: true) }
         } catch {
             guard running, socket === task else { return }
-            status = "Local motion relay unavailable. Retrying…"
+            status = "Motion relay at \(relayHost) unavailable. Retrying…"
             stop(keepStatus: true)
         }
     }
@@ -105,7 +123,7 @@ enum MotionActivity {
         let manager = CMHeadphoneMotionManager()
         guard manager.isDeviceMotionAvailable else {status="AirPod motion is unavailable. Pair a supported set and try again.";return}
         self.manager=manager
-        let url=URL(string:"ws://127.0.0.1:8767/\(MotionActivity.path)?role=producer&player=\(player)")!
+        guard let url=relayURL("ws",path:MotionActivity.path,query:[URLQueryItem(name:"role",value:"producer"),URLQueryItem(name:"player",value:player)]) else {status="Relay address is not valid.";return}
         let task=URLSession.shared.webSocketTask(with:url)
         socket=task;task.resume()
         session=UUID().uuidString;lastTime = -1;samples=0;running=true
@@ -190,6 +208,10 @@ final class ClubAppDelegate: NSObject, NSApplicationDelegate {
                         Text("Patient").tag("patient");Text("Friend").tag("friend")
                     }.disabled(bridge.running)
                 }
+                HStack {
+                    TextField("Relay Mac (127.0.0.1 for this Mac)",text:$bridge.relayHost)
+                    SecureField("Pairing token (another Mac only)",text:$bridge.pairToken)
+                }.textFieldStyle(.roundedBorder).onSubmit { if bridge.monitoring { bridge.start() } }
                 Text(bridge.status).fixedSize(horizontal:false,vertical:true)
                 Text("Reporting AirPod: \(bridge.source)")
 if bridge.routeHeld {Text("Holding the AirPods audio route so motion continues off-ear.").font(.caption).foregroundStyle(.secondary)}

@@ -88,18 +88,26 @@ function feed(events: RepEvent[], sourceSessionId: string | null) {
   if (sample) exerciseBroadcast({type:'exercise.sample', payload:{...sample, phase:exercise.phase, rep:exercise.currentRep}});
   for (const event of events) { exerciseBroadcast({type:'exercise.event', payload:event}); exerciseLog?.write(JSON.stringify({type:'exercise.event', exerciseId, sourceSessionId, payload:event})+'\n'); }
 }
-// IMU exercises read the handle AirPod (Club Motion app) from the motion relay while they run.
-const motionUrl = process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767/golf?role=viewer';
+// IMU exercises read an AirPod from the motion relay while they run: the club's (Club Motion app, /golf) by default,
+// or a wrist strap's (Bowling Motion app, /bowling-motion) when the prescription says imuSource: 'wrist'. The wrist
+// pair is usually a second pair on another Mac, sending to this relay with the pairing token.
+const MOTION_SOURCES = {
+  club: {url: process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767/golf?role=viewer', type: 'club.motion'},
+  wrist: {url: process.env.KINESTHETIC_WRIST_MOTION_URL ?? 'ws://127.0.0.1:8767/bowling-motion?role=viewer', type: 'bowling.motion'},
+} as const;
+type MotionSource = keyof typeof MOTION_SOURCES;
 const motionPlayer = process.env.KINESTHETIC_MOTION_PLAYER ?? 'patient';
-let motion: WebSocket | null = null;
-function watchMotion() {
-  if (motion) return;
-  const ws = new WebSocket(motionUrl); motion = ws;
+let motion: WebSocket | null = null, motionSource: MotionSource = 'club';
+function watchMotion(source: MotionSource = motionSource) {
+  if (motion && source === motionSource) return;
+  if (motion) { const old = motion; motion = null; old.close(); }
+  motionSource = source;
+  const ws = new WebSocket(MOTION_SOURCES[source].url); motion = ws;
   ws.on('message', data => {
-    if (!exercise?.kind.requires.includes('imu')) return;
+    if (!exercise?.kind.requires.includes('imu') || motion !== ws) return;
     let p: any; try { p = JSON.parse(String(data)); } catch { return; }
-    if (p.type !== 'club.motion' || p.playerId !== motionPlayer) return;
-    exerciseSource ??= `airpod:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only
+    if (p.type !== MOTION_SOURCES[source].type || p.playerId !== motionPlayer) return;
+    exerciseSource ??= `airpod:${source}:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only
     exerciseLog?.write(JSON.stringify({type:'motion.sample', exerciseId, payload:p})+'\n');
     // Both relays stamp the shared host clock (hostclock.ts); older relays did not, so fall back to local time.
     const t = Number.isFinite(p.hostMonotonicMs) ? Number(p.hostMonotonicMs) : hostMonotonicMs();
@@ -113,7 +121,8 @@ function watchMotion() {
     const pose = lastPose && Math.abs(t - lastPose.hostMs) < 250 ? lastPose.frame : null;
     feed(exercise.pushFused({tMs: t, imu, pose}), p.sessionId);
   });
-  ws.on('close', () => { motion = null; if (exercise?.kind.requires.includes('imu')) setTimeout(watchMotion, 1000); });
+  // A socket replaced by another source is not reconnected; the current one is, while an IMU exercise runs.
+  ws.on('close', () => { if (motion !== ws) return; motion = null; if (exercise?.kind.requires.includes('imu')) setTimeout(() => watchMotion(), 1000); });
   ws.on('error', () => {});
 }
 async function readJson(request: import('node:http').IncomingMessage) {
@@ -198,11 +207,11 @@ const server = createServer(async (request, response) => {
         ...(compensation != null ? {maxCompensationDeg: Number(compensation)} : {}),
         planVersion: plan.version});
       exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; lastImuMs = -Infinity;
-      if (kind.requires.includes('imu')) watchMotion();
+      if (kind.requires.includes('imu')) watchMotion(p.imuSource === 'wrist' ? 'wrist' : 'club');
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
       exerciseStartedAt = new Date().toISOString();
       exerciseLog = createWriteStream(resolve(recordings, `exercise-${exerciseId}.jsonl`));
-      const started = {exerciseId, prescriptionId: x.id, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', config: exercise.params};
+      const started = {exerciseId, prescriptionId: x.id, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', imuSource: kind.requires.includes('imu') ? motionSource : null, config: exercise.params};
       exerciseBroadcast({type:'exercise.started', payload: started});
       response.writeHead(200, {'Content-Type':'application/json'}).end(JSON.stringify(started));
     } catch (error) { response.writeHead(400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }

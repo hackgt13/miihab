@@ -92,7 +92,7 @@ export const GOLF_ACTIVITY = 'golf.adaptive';
 const UNMEASURED_LIMITS = { targetCount: [1, 200] } as const;
 /** v1 spelled the compensation bound after the shoulder; RepParams spells it generically. */
 const LEGACY_KEYS: Readonly<Record<string, string>> = { maxTrunkDeviationDeg: 'maxCompensationDeg', maxSafeDeg: 'targetMaxDeg' };
-const STRING_PARAMS: Readonly<Record<string, readonly string[]>> = { side: ['left', 'right'], assistance: ['assisted', 'active', 'resisted'] };
+const STRING_PARAMS: Readonly<Record<string, readonly string[]>> = { side: ['left', 'right'], assistance: ['assisted', 'active', 'resisted'], imuSource: ['club', 'wrist'] };
 const DEFAULT_GOAL = { text: 'Play golf again with their best friend', components: ['shoulder elevation', 'elbow flexion', 'grip'] };
 
 // Day 1 for the demo patient: graded exposure starts low, with room to climb toward a full golf
