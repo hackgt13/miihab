@@ -16,10 +16,11 @@ namespace Kinesthetic.Menu
         public static ActivityNavigation Instance { get; private set; }
         public bool MusicEnabled { get; private set; }
         public bool Busy { get; private set; }
+        public bool OverlayOpen => Busy || (dialog != null && !dialog.ClassListContains("hidden")) || (help != null && !help.ClassListContains("hidden"));
         public event Action<bool> MusicChanged;
         AudioSource musicSource, effects;
-        VisualElement root, dialog, curtain;
-        Button returnButton, confirm, cancel;
+        VisualElement root, dialog, curtain, help;
+        Button returnButton, confirm, cancel, helpButton, helpClose, helpMusic;
         Label detail, title, loading;
         bool menuActive, supported, showMusic;
         float lastHover = -1;
@@ -54,12 +55,16 @@ namespace Kinesthetic.Menu
         {
             var tree = GetComponent<UIDocument>().rootVisualElement;
             if (tree?.Q<Button>("return-menu") == null) return false;
-            if (root == tree) return true;
+            if (returnButton == tree.Q<Button>("return-menu")) return true;
             root = tree; root.pickingMode = PickingMode.Ignore;
             returnButton = root.Q<Button>("return-menu"); dialog = root.Q("return-dialog"); curtain = root.Q("transition");
             confirm = root.Q<Button>("return-confirm"); cancel = root.Q<Button>("return-cancel");
             detail = root.Q<Label>("return-detail"); title = root.Q<Label>("return-title"); loading = root.Q<Label>("loading-label");
             returnButton.clicked += OpenReturn;
+            help = root.Q("activity-help-panel"); helpButton = root.Q<Button>("activity-help");
+            helpClose = root.Q<Button>("activity-help-close"); helpMusic = root.Q<Button>("activity-music");
+            helpButton.clicked += OpenHelp; helpClose.clicked += CloseHelp; helpMusic.clicked += ToggleMusic;
+            helpButton.EnableInClassList("hidden", menuActive || !supported);
             cancel.clicked += CloseReturn;
             confirm.clicked += () => { if (!Busy) StartCoroutine(ReturnToMenu()); };
             returnButton.EnableInClassList("hidden", menuActive || !supported);
@@ -73,6 +78,8 @@ namespace Kinesthetic.Menu
             if (Bind())
             {
                 returnButton.EnableInClassList("hidden", menuActive || !supported);
+                helpButton.EnableInClassList("hidden", menuActive || !supported);
+                help.AddToClassList("hidden");
                 dialog.AddToClassList("hidden");
             }
             if (menuActive && MusicEnabled && !musicSource.isPlaying) musicSource.Play();
@@ -84,14 +91,30 @@ namespace Kinesthetic.Menu
             musicSource.volume = Mathf.MoveTowards(musicSource.volume, target, Time.unscaledDeltaTime * 1.8f);
             if (target == 0 && musicSource.volume == 0 && musicSource.isPlaying) musicSource.Pause();
             if (Keyboard.current?.escapeKey.wasPressedThisFrame == true && !menuActive && supported && !Busy)
-            { if (dialog.ClassListContains("hidden")) OpenReturn(); else CloseReturn(); }
+            { if (!help.ClassListContains("hidden")) CloseHelp(); else if (dialog.ClassListContains("hidden")) OpenReturn(); else CloseReturn(); }
         }
         public void ToggleMusic()
         {
             MusicEnabled = !MusicEnabled; PlayerPrefs.SetInt(MusicPreference, MusicEnabled ? 1 : 0); PlayerPrefs.Save();
             if (MusicEnabled && menuActive) { if (musicSource.time > 0) musicSource.UnPause(); else musicSource.Play(); }
             MusicChanged?.Invoke(MusicEnabled); PlaySelect();
+            if (helpMusic != null) helpMusic.text = MusicEnabled ? "Menu music: On" : "Menu music: Off";
         }
+        void OpenHelp()
+        {
+            if (Busy || !dialog.ClassListContains("hidden")) return;
+            bool golf = SceneManager.GetActiveScene().name == GolfScene;
+            root.Q<Label>("activity-help-title").text = golf ? "Your round, at a glance" : "Find your studio rhythm";
+            root.Q<Label>("help-step-one").text = golf ? "Get connected" : "Make yourself comfortable";
+            root.Q<Label>("help-copy-one").text = golf ? "Open Setup to connect the camera and AirPods. Keep both hands, elbows and shoulders in view." : "Sit with your shoulders, elbows and hips in view. Start session opens the camera and loads your prescribed set.";
+            root.Q<Label>("help-step-two").text = golf ? "Settle, aim, swing" : "Reach, hold, return";
+            root.Q<Label>("help-copy-two").text = golf ? "Use the aim arrows. Rest the club at the mat until calibration finishes, then make a controlled swing." : "Rest your arm while calibration finishes. Follow the glowing target, hold gently, and lower slowly.";
+            root.Q<Label>("help-step-three").text = golf ? "Take turns together" : "Follow your own pace";
+            root.Q<Label>("help-copy-three").text = golf ? "Turns change after each shot. Recalibrate at each new lie. Both players finish the hole to see the scorecard." : "The ring fills with counted repetitions. Finish set ends early and shows your session summary. Your session continues while this guide is open.";
+            helpMusic.text = MusicEnabled ? "Menu music: On" : "Menu music: Off";
+            help.RemoveFromClassList("hidden"); helpClose.Focus(); PlaySelect();
+        }
+        void CloseHelp() { help.AddToClassList("hidden"); helpButton.Focus(); PlayBack(); }
         public void PlayHover() { if (Time.unscaledTime - lastHover < .09f) return; lastHover = Time.unscaledTime; if (hoverSound) effects.PlayOneShot(hoverSound); }
         public void PlaySelect() { if (selectSound) effects.PlayOneShot(selectSound); }
         public void PlayBack() { if (backSound) effects.PlayOneShot(backSound); }
@@ -104,6 +127,7 @@ namespace Kinesthetic.Menu
         public void OpenReturn()
         {
             if (Busy || menuActive || !supported || !Bind()) return;
+            help.AddToClassList("hidden");
             var rehab = FindAnyObjectByType<RehabSession>();
             title.text = "Back to the menu?";
             detail.text = rehab && rehab.IsRunning ? "We'll finish your exercise session before returning to the activity menu." : "Your current activity will close. You can choose another activity from the menu.";
@@ -123,6 +147,11 @@ namespace Kinesthetic.Menu
             if (!Application.CanStreamedLevelBeLoaded(MenuScene)) { ShowUnavailable(); yield break; }
             Busy = true; confirm.SetEnabled(false); cancel.SetEnabled(false);
             var rehab = FindAnyObjectByType<RehabSession>();
+            if (rehab && rehab.IsBusy)
+            {
+                detail.text = "Waiting for your session to finish connecting…";
+                while (rehab && rehab.IsBusy) yield return null;
+            }
             if (rehab && rehab.IsRunning)
             {
                 bool ended = false;

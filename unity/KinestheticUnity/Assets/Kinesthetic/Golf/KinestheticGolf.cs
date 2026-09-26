@@ -39,6 +39,13 @@ namespace Kinesthetic.Golf
         const float MinSwingRadPerSec=2f, FullSwingRadPerSec=16f;
         public static float SwingPower(float radPerSec)=>Mathf.InverseLerp(MinSwingRadPerSec,FullSwingRadPerSec,radPerSec);
         GolfHud hud;
+        GolfScreens screens;
+        public bool CaptureRequested => captureRequested;
+        public bool StartingCapture => startingCapture;
+        public bool MotionReady => IMUReady;
+        public bool ClubCalibrated => swing.Calibrated;
+        public string CaptureStatus => captureStatus;
+        public bool InterfaceOpen => screens?.SetupVisible == true || Kinesthetic.Menu.ActivityNavigation.Instance?.OverlayOpen == true;
         GroundAimGuide groundAim;
         readonly ClubSwingGate swing = new();
         readonly ContactCueGate contact = new();
@@ -48,6 +55,8 @@ namespace Kinesthetic.Golf
         public bool StrikePoseReady=>PoseReady && rigs[activePlayer].LeftArmTracked && rigs[activePlayer].RightArmTracked;
         Vector3 Grip(int player)=>rigs[player].GolfGripCenter; // same point the rendered club attaches to
         GolfImpactAudio impactAudio;
+        AudioSource hitAudio;
+        AudioClip hitClip;
         Label audioStatus;
         Button soundToggle;
         bool audioCorroborated;
@@ -90,14 +99,21 @@ namespace Kinesthetic.Golf
             groundAim=new GameObject("Ground aim guidance").AddComponent<GroundAimGuide>();
             foreach(var rig in rigs)if(!rig.GetComponent<MiiIdleLife>())rig.gameObject.AddComponent<MiiIdleLife>();
             impactAudio=gameObject.AddComponent<GolfImpactAudio>();
+            hitClip=Resources.Load<AudioClip>("GolfAudio/GolfHit");
+            hitAudio=gameObject.AddComponent<AudioSource>();
+            hitAudio.playOnAwake=false; hitAudio.spatialBlend=0;
             impactAudio.Transient+=(at,peak)=>{if(Phase=="Address" && PoseReady && IMUReady && swing.Calibrated)contact.ObserveAudio(at);};
             // Headsets render this host's state; they never run their own shot simulation.
             if(!GetComponent<GolfStatePublisher>())gameObject.AddComponent<GolfStatePublisher>();
             BindUI(); BeginTurn(0);
         }
-        void BindUI()
+        bool BindUI()
         {
             var root=GetComponent<UIDocument>().rootVisualElement;
+            var button=root?.Q<Button>("camera-start");
+            if(button==null)return false;
+            if(button==cameraStart)return true;
+            hud?.Dispose();
             heading=root.Q<Label>("heading"); score=root.Q<Label>("score");
             distance=root.Q<Label>("distance"); guidance=root.Q<Label>("guidance");
             cameraStart=root.Q<Button>("camera-start");
@@ -108,6 +124,8 @@ namespace Kinesthetic.Golf
             audioStatus=root.Q<Label>("audio-status");soundToggle=root.Q<Button>("sound-toggle");
             if(soundToggle!=null)soundToggle.clicked+=()=>{enableSoundAssist=!enableSoundAssist;ResetSwing();};
             hud=new GolfHud(root,this);
+            screens=new GolfScreens(root,this);
+            return true;
         }
         void ChangeClub(int delta)
         {
@@ -195,6 +213,7 @@ namespace Kinesthetic.Golf
         }
         void Update()
         {
+            if(!BindUI())return;
             if(captureRequested) ReadPose();
             impactAudio.Listen(enableSoundAssist && PoseReady);
             impactAudio.Poll();
@@ -224,7 +243,8 @@ namespace Kinesthetic.Golf
                 }
             }
             if(contact.Pending && GolfImpactAudio.Now-motionContactAt>.25){ResetSwing();Message="Tracking delayed. Return to address and recalibrate.";}
-            if(Phase=="Address" && StrikePoseReady && IMUReady &&
+            if(InterfaceOpen) { contact.Reset(); pendingSpatial=false; }
+            if(!InterfaceOpen && Phase=="Address" && StrikePoseReady && IMUReady &&
                 contact.Commit(GolfImpactAudio.Now,out var contactSpeed,out var heard,out var deltaMs))
             {
                 audioCorroborated=heard;audioOffsetMs=heard?(double?)deltaMs:null;
@@ -310,6 +330,10 @@ namespace Kinesthetic.Golf
             ball.isKinematic=false;ball.linearVelocity=direction*(Mathf.Cos(loft)*speed)+Vector3.up*(Mathf.Sin(loft)*speed);
             ball.angularVelocity=Vector3.zero;
             Strokes[activePlayer]++;AcceptedShots++;Phase="Flight";shotAt=Time.time;stillSince=-1;
+            if(hitClip) {
+                hitAudio.pitch=clubIndex==2?1.3f:clubIndex==1?1.08f:1f;
+                hitAudio.PlayOneShot(hitClip,Mathf.Lerp(.45f,.8f,power)*(clubIndex==2?.45f:1f));
+            }
             Message=clubNames[clubIndex]+" · "+Mathf.RoundToInt(power*100)+"% virtual power";
             Log("shot",source,angularSpeed,power);ResetSwing(false);return true;
         }
@@ -381,6 +405,7 @@ namespace Kinesthetic.Golf
             if(audioStatus!=null)audioStatus.text=enableSoundAssist && !PoseReady?"Sound assist waiting for camera":impactAudio.Status;
             if(soundToggle!=null)soundToggle.text=enableSoundAssist?"Sound assist: on":"Sound assist: off";
             hud?.Update();
+            screens?.Update();
         }
         void Log(string kind,string source="unity",float rate=0,float power=0)
         {

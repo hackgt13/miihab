@@ -2,6 +2,17 @@
     <ui:Style src="Navigation.uss" />
     <ui:VisualElement class="navigation-root" picking-mode="Ignore">
         <ui:Button name="return-menu" text="‹  Menu" class="return-menu hidden" />
+        <ui:Button name="activity-help" text="?  How to play" class="activity-help hidden" />
+        <ui:VisualElement name="activity-help-panel" class="return-shade hidden">
+            <ui:VisualElement class="activity-help-card">
+                <ui:Label text="A LITTLE GUIDANCE" class="help-eyebrow" />
+                <ui:Label name="activity-help-title" text="Find your rhythm" class="return-title" />
+                <ui:VisualElement class="help-step"><ui:Label text="1" class="help-number" /><ui:VisualElement class="help-step-copy"><ui:Label name="help-step-one" class="help-step-title" /><ui:Label name="help-copy-one" class="help-copy" /></ui:VisualElement></ui:VisualElement>
+                <ui:VisualElement class="help-step"><ui:Label text="2" class="help-number" /><ui:VisualElement class="help-step-copy"><ui:Label name="help-step-two" class="help-step-title" /><ui:Label name="help-copy-two" class="help-copy" /></ui:VisualElement></ui:VisualElement>
+                <ui:VisualElement class="help-step"><ui:Label text="3" class="help-number" /><ui:VisualElement class="help-step-copy"><ui:Label name="help-step-three" class="help-step-title" /><ui:Label name="help-copy-three" class="help-copy" /></ui:VisualElement></ui:VisualElement>
+                <ui:VisualElement class="help-bottom"><ui:Button name="activity-music" text="Menu music: On" /><ui:Button name="activity-help-close" text="Got it  ›" class="primary" /></ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
         <ui:VisualElement name="return-dialog" class="return-shade hidden">
             <ui:VisualElement class="return-card">
                 <ui:Label name="return-title" text="Back to the menu?" class="return-title" />
