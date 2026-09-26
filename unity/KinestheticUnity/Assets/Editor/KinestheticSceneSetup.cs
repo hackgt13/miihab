@@ -47,6 +47,8 @@ public static class KinestheticSceneSetup
         Surface("Floor", PrimitiveType.Plane, Vector3.zero, Vector3.one, Material("Floor", new Color(.07f, .11f, .14f)));
         var target = Surface("Shoulder test target", PrimitiveType.Sphere,
             rig.RightUpperArm.position + new Vector3(-.5f, .3f, 0), Vector3.one * .12f, Material("Target", Color.gray));
+        var eyes = actor.AddComponent<EyeAnchor>();
+        eyes.ownBody = model.transform; eyes.lookAt = target.transform;
         var camera = new GameObject("Spectator camera").AddComponent<Camera>();
         camera.transform.position = new Vector3(1.5f, 1.3f, -3.3f);
         camera.transform.LookAt(new Vector3(0, .69f, 0));

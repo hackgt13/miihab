@@ -433,6 +433,9 @@ public static class MenuPlazaBuilder
         // ahead the course over the balustrade, right the pro shop — the look input owns
         // the rotation, this only fixes where the eyes are.
         Anchor(rail, "Viewpoint", new(0, 1.62f, -6.4f), new(0, 1.35f, 8));
+        // The menu hangs here as world-space geometry, square to the viewpoint, close enough to read and
+        // far enough that the plaza still reads as a place behind it.
+        Anchor(rail, "MenuBoard", new(0, 1.58f, -3.45f), new(0, 1.62f, -6.4f));
         Anchor(rail, "MiiStand", new(-4.6f, 0, .4f), new(-1f, 1f, -7f));
     }
 
