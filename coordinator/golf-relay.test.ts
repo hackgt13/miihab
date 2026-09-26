@@ -91,3 +91,57 @@ test('on the network the relay announces itself with a proof only the pairing to
     assert.ok(!JSON.stringify(msg).includes('pair-secret'),'the token itself is never broadcast');
   } finally { listener.close(); await stop(proc); }
 });
+
+test('the second Mac is read by the activity: golf makes it the friend, anything else the patient\'s second AirPod',{timeout:40000},async()=>{
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18791',KINESTHETIC_PAIR_TOKEN:'pair-secret',
+      KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-route-'))}});
+  const clients:WebSocket[]=[];
+  const connect=async(path:string)=>{const ws=new WebSocket('ws://127.0.0.1:18791'+path);clients.push(ws);await once(ws,'open');return ws;};
+  const settle=()=>new Promise(r=>setTimeout(r,80));
+  try {
+    await ready(proc);
+    const club:any[]=[],wrist:any[]=[];
+    (await connect('/golf?role=viewer')).on('message',b=>club.push(JSON.parse(b.toString())));
+    (await connect('/bowling-motion?role=viewer')).on('message',b=>wrist.push(JSON.parse(b.toString())));
+    // Whatever its picker says — here "friend", on the club path — the paired Mac's stream is placed by the activity.
+    const second=await connect('/golf?role=producer&player=friend&token=pair-secret');
+    let n=0;const send=()=>{n++;second.send(JSON.stringify({type:'club.motion',playerId:'friend',sourceId:'Left',
+      sessionId:'route-fixture',sequence:n,sensorTime:n,quaternion:[0,0,0,1],rotationRate:[0,1,0]}));};
+
+    send();await settle();   // nothing running: one person, so this is the patient's second AirPod
+    assert.deepEqual(wrist.filter(p=>p.type==='bowling.motion').map(p=>p.playerId),['patient']);
+    assert.equal(club.filter(p=>p.type==='club.motion').length,0);
+
+    const golf=await connect('/state?role=host');   // golf is up: two people
+    send();await settle();
+    assert.deepEqual(club.filter(p=>p.type==='club.motion').map(p=>p.playerId),['friend']);
+    assert.ok(wrist.some(p=>p.type==='bowling.disconnected'&&p.playerId==='patient'),'the old reading is told it ended');
+
+    golf.close();await once(golf,'close');await settle();   // back to the studio
+    send();await settle();
+    assert.equal(wrist.filter(p=>p.type==='bowling.motion').length,2);
+
+    // A stream from this Mac is untouched: its own path, its own player.
+    const local=await connect('/golf?role=producer&player=patient');
+    local.send(JSON.stringify({type:'club.motion',playerId:'patient',sourceId:'Right',sessionId:'local',sequence:1,sensorTime:1,quaternion:[0,0,0,1],rotationRate:[0,0,0]}));
+    await settle();
+    assert.deepEqual(club.filter(p=>p.type==='club.motion').map(p=>p.playerId),['friend','patient']);
+
+    // …and if this Mac's own AirPod is the wrist one, the second Mac's reading takes the club path instead.
+    const localWrist=await connect('/bowling-motion?role=producer&player=patient');
+    localWrist.send(JSON.stringify({type:'bowling.motion',playerId:'patient',sourceId:'Right',sessionId:'local-wrist',sequence:1,sensorTime:1,quaternion:[0,0,0,1],rotationRate:[0,0,0]}));
+    send();await settle();
+    assert.deepEqual(club.filter(p=>p.type==='club.motion').map(p=>p.playerId),['friend','patient','patient']);
+    assert.equal(club.filter(p=>p.type==='club.motion').at(-1).sessionId,'route-fixture');
+
+    // Both Macs on the same app with the same picker is fine: the second is registered apart, and still reports
+    // as "patient" on the status page its app reads.
+    const twin=await connect('/golf?role=producer&player=patient&token=pair-secret');
+    twin.send(JSON.stringify({type:'club.motion',playerId:'patient',sourceId:'Left',sessionId:'twin',sequence:1,sensorTime:1,quaternion:[0,0,0,1],rotationRate:[0,0,0]}));
+    await settle();
+    assert.equal(twin.readyState,WebSocket.OPEN);
+    const health=await (await fetch('http://127.0.0.1:18791/')).json();
+    assert.ok(health.players.includes('patient') && !health.players.some((p:string)=>p.includes('@')));
+  } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
+});

@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { createSocket } from 'node:dgram';
 import { createHmac } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
-import { mkdirSync, createWriteStream } from 'node:fs';
+import { mkdirSync, createWriteStream, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
 import { hostMonotonicMs } from './hostclock.ts';
@@ -26,6 +26,36 @@ const channels=new Map(['/state','/bowling-state','/rehab-state'].map(path=>[pat
   type:({'/state':'golf','/bowling-state':'bowling','/rehab-state':'rehab'} as Record<string,string>)[path]
 }]));
 const golfState=channels.get('/state')!;
+
+// Which activity is running, read off the state channel whose host is connected: every venue's Unity hosts its
+// own channel for as long as the scene is up (GolfStatePublisher, BowlingStatePublisher, RehabStatePublisher).
+const channelActivity:Record<string,string>={'/state':'golf.adaptive','/bowling-state':'bowling.adaptive','/rehab-state':'rehab.studio'};
+// How many people an activity is for, from the catalog. Read once and leniently: a catalog the relay cannot read
+// makes every activity one person, which is the reading that never mixes a second person into a patient's record.
+const subjects:Record<string,number>=(()=>{
+  try{const c=JSON.parse(readFileSync(resolve(import.meta.dirname,'activities.json'),'utf8'));
+    return Object.fromEntries((c.activities??c).map((a:any)=>[a.id,Number(a.subjects)||1]));}catch{return {};}
+})();
+const runningFor=()=>{for(const [path,ch] of channels)if(ch.host?.readyState===WebSocket.OPEN)return (subjects[channelActivity[path]]??1);return 1;};
+
+// A motion app on the second Mac (the one that carries the pairing token) is read by what is running, not by the
+// player its picker says. In an activity for two people it is the second person, on /golf as `friend` — golf is
+// the one that takes two. In anything else it is the patient's second AirPod, on /bowling-motion as `patient` —
+// the second sensor the two-AirPod movements and bowling already read. A demo convenience: the second Mac needs
+// no setting at all. KINESTHETIC_REMOTE_MOTION=tagged restores the picker's word.
+const remoteMotion=process.env.KINESTHETIC_REMOTE_MOTION??'auto';
+const remoteProducers=new WeakSet<WebSocket>();
+// The second Mac is registered apart from this one, so both may run the same app with the same picker; the status
+// page still names it by its picker, which is what that app checks to say it is streaming.
+const remoteKey='@second-mac',named=(key:string)=>key.replace(remoteKey,'');
+// This Mac's own patient stream, wherever it is. The second AirPod takes the other path, so two sensors are never
+// interleaved as one — whichever app this Mac happens to be running.
+const localPatientOn=(path:string)=>{const ws=motions.get(path)!.producers.get('patient');return !!ws&&!remoteProducers.has(ws);};
+function route(path:string,player:string,remote:boolean):{path:string,player:string}{
+  if(!remote||remoteMotion==='tagged')return {path,player};
+  if(runningFor()>=2)return {path:'/golf',player:'friend'};
+  return {path:localPatientOn('/bowling-motion')?'/golf':'/bowling-motion',player:'patient'};
+}
 // A motion app on another Mac (a second AirPod pair, e.g. on a wrist strap) may send motion here, and read this
 // status to confirm it, when it carries the pairing token. Viewing motion stays on this Mac.
 const paired=(req:import('node:http').IncomingMessage)=>pairToken!=='' &&
@@ -33,11 +63,11 @@ const paired=(req:import('node:http').IncomingMessage)=>pairToken!=='' &&
 const server=createServer((req,res)=>{
   if(!loopback(req.socket.remoteAddress) && !paired(req)){res.writeHead(403).end();return;}
   res.writeHead(200,{'Content-Type':'application/json'}).end(JSON.stringify({
-    ready:true,players:[...golfMotion.producers.keys()],viewers:golfMotion.viewers.size,stateHost:!!golfState.host,stateClients:golfState.clients.size,
-    bowlingPlayers:[...bowlingMotion.producers.keys()],bowlingViewers:bowlingMotion.viewers.size,
+    ready:true,players:[...golfMotion.producers.keys()].map(named),viewers:golfMotion.viewers.size,stateHost:!!golfState.host,stateClients:golfState.clients.size,
+    bowlingPlayers:[...bowlingMotion.producers.keys()].map(named),bowlingViewers:bowlingMotion.viewers.size,
     bowlingHost:!!channels.get('/bowling-state')!.host,uiHost:!!ui.host,uiClients:ui.clients.size,
-    samples:Object.fromEntries([...golfMotion.received].map(([id,s])=>[id,{ageMs:Date.now()-s.at,sequence:s.sequence,sourceId:s.sourceId}])),
-    bowlingSamples:Object.fromEntries([...bowlingMotion.received].map(([id,s])=>[id,{ageMs:Date.now()-s.at,sequence:s.sequence,sourceId:s.sourceId}]))}));
+    samples:Object.fromEntries([...golfMotion.received].map(([id,s])=>[named(id),{ageMs:Date.now()-s.at,sequence:s.sequence,sourceId:s.sourceId}])),
+    bowlingSamples:Object.fromEntries([...bowlingMotion.received].map(([id,s])=>[named(id),{ageMs:Date.now()-s.at,sequence:s.sequence,sourceId:s.sourceId}]))}));
 });
 const sockets=new WebSocketServer({noServer:true,maxPayload:8192});
 // Game-state channel for the Quest client. Unity on the Mac is the only host; headsets only render.
@@ -122,15 +152,18 @@ server.on('upgrade',(req,socket,head)=>{
   const browserViewer=role==='viewer' && loopback(req.socket.remoteAddress) && viewerOrigins.has(req.headers.origin??'');
   if(!motions.has(u.pathname) || !['producer','viewer'].includes(role??'') ||
     (role==='producer' && !['patient','friend'].includes(player??'')) || (req.headers.origin && !browserViewer)){socket.destroy();return;}
-  sockets.handleUpgrade(req,socket,head,ws=>sockets.emit('connection',ws,role,player,u.pathname));
+  const remote=role==='producer'&&paired(req);
+  sockets.handleUpgrade(req,socket,head,ws=>sockets.emit('connection',ws,role,player,u.pathname,remote));
 });
 function broadcast(viewers:Set<WebSocket>,p:unknown){const text=JSON.stringify(p);for(const ws of viewers)if(ws.readyState===WebSocket.OPEN && ws.bufferedAmount<16384)ws.send(text);}
 const finiteArray=(x:unknown,n:number):x is number[]=>Array.isArray(x)&&x.length===n&&x.every(Number.isFinite);
-sockets.on('connection',(ws,role,player,path)=>{
+sockets.on('connection',(ws,role,player,path,remote)=>{
   const {viewers,producers,received,type,dir}=motions.get(path)!;
+  let routedTo:{path:string,player:string}|null=null;   // where this producer's samples went last, to say goodbye there
   if(role==='viewer'){viewers.add(ws);ws.on('close',()=>viewers.delete(ws));ws.on('error',()=>ws.close());return;}
-  if(producers.has(player)){ws.close(1008,'This player already has a motion source');return;}
-  producers.set(player,ws);
+  const key=remote?player+remoteKey:player;
+  if(producers.has(key)){ws.close(1008,'This player already has a motion source');return;}
+  producers.set(key,ws);if(remote)remoteProducers.add(ws);
   let session='',sequence=-1,time=-1;
   const log=createWriteStream(resolve(dir,`${player}-${Date.now()}.jsonl`));
   log.on('error',e=>console.error(type+' motion recording:',e.message));
@@ -144,14 +177,20 @@ sockets.on('connection',(ws,role,player,path)=>{
       if(p.sequence<=sequence || p.sensorTime<=time)return;
       const norm=p.quaternion.reduce((s:number,v:number)=>s+v*v,0);
       if(norm<.5 || norm>1.5 || p.rotationRate.some((v:number)=>Math.abs(v)>100))throw Error();
-      sequence=p.sequence;time=p.sensorTime;received.set(player,{at:Date.now(),sequence,sourceId:p.sourceId});
-      const sample={type:type+'.motion',playerId:player,sourceId:p.sourceId,sessionId:session,
+      sequence=p.sequence;time=p.sensorTime;received.set(key,{at:Date.now(),sequence,sourceId:p.sourceId});
+      // Routed per sample, not per connection: the second Mac keeps streaming across a walk from golf to the studio.
+      const to=route(path,player,remote),target=motions.get(to.path)!;
+      if(routedTo&&(routedTo.path!==to.path||routedTo.player!==to.player))
+        broadcast(motions.get(routedTo.path)!.viewers,{type:motions.get(routedTo.path)!.type+'.disconnected',playerId:routedTo.player});
+      routedTo=to;
+      const sample={type:target.type+'.motion',playerId:to.player,sourceId:p.sourceId,sessionId:session,
         sequence,sensorTime:time,quaternion:p.quaternion,rotationRate:p.rotationRate,
         hostMonotonicMs:hostMonotonicMs()};
-      broadcast(viewers,sample);log.write(JSON.stringify({...sample,receivedAt:Date.now()})+'\n');
+      broadcast(target.viewers,sample);log.write(JSON.stringify({...sample,receivedAs:{path,player},receivedAt:Date.now()})+'\n');
     }catch{ws.close(1008,'Invalid motion');}
   });
-  ws.on('close',()=>{if(producers.get(player)===ws){producers.delete(player);received.delete(player);broadcast(viewers,{type:type+'.disconnected',playerId:player});}log.end();});
+  ws.on('close',()=>{if(producers.get(key)===ws){producers.delete(key);received.delete(key);
+    const last=routedTo??{path,player};broadcast(motions.get(last.path)!.viewers,{type:motions.get(last.path)!.type+'.disconnected',playerId:last.player});}log.end();});
   ws.on('error',()=>ws.close());
 });
 // LAN game-state channels require a pairing token; sensor streams stay loopback-only.
