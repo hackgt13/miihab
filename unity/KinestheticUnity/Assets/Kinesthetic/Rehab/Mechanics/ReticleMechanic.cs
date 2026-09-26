@@ -22,6 +22,9 @@ namespace Kinesthetic.Rehab.Mechanics
         Material bubbleMaterial;
         Vector3 place; Quaternion facing; bool placed;
         Vector2 offset; float knock, knockVelocity, outsideFor, alpha; int hitches; bool wasInRep;
+        // Juice: the moments a rep is earned and a hold is met, felt once each, briefly, and then still again.
+        int lastValid = -1; float countedAt = -9, metAt = -9; bool wasMet;
+        static float Pulse(float since, float length) => since < 0 || since > length ? 0 : Mathf.Sin(Mathf.Clamp01(since / length) * Mathf.PI);
         static readonly Color Chrome = Palette.Sand00, Bubble = Palette.Cerulean40, Good = Palette.Jungle40, Off = Palette.Coral40;
 
         void Start()
@@ -69,32 +72,46 @@ namespace Kinesthetic.Rehab.Mechanics
             bool centred = offset.magnitude * Travel < CentreRadius;
             outsideFor = centred || !feel.InRep ? 0 : outsideFor + dt;
 
+            // The moments. A rep counted: the ring settles outward and back, and its new segment pops. A hold met:
+            // the bubble swells and the arc flares. Each lasts a third of a second and then everything is still,
+            // which is what keeps it serious — the reticle rewards, it never celebrates.
+            float now = Time.unscaledTime;
+            if (lastValid >= 0 && feel.Valid > lastValid) countedAt = now;
+            lastValid = feel.Valid;
+            if (feel.HoldMet && !wasMet) metAt = now;
+            wasMet = feel.HoldMet;
+            float counted = Pulse(now - countedAt, .36f), met = Pulse(now - metAt, .4f);
+
             // Draw. The chrome is faint; the bubble carries the colour: cerulean in play, jungle when centred at the
-            // top or the hold is met, coral when it has been out of the centre for a moment.
+            // top or the hold is met, coral when it has been out of the centre for a moment. A run of three or
+            // more reps made well warms the outer ring, for as long as the run lasts.
             bubble.position = bubbleAt;
-            float scale = .022f + (feel.HoldMet ? .006f : 0);
+            float scale = .022f + (feel.HoldMet ? .006f : 0) + .014f * met;
             bubble.localScale = Vector3.one * scale;
             var bubbleColor = feel.HoldMet || (centred && feel.Holding) ? Good : outsideFor > .35f ? Off : Bubble;
             bubbleMaterial.color = Fade(bubbleColor, alpha * (feel.InRep ? .95f : .5f));
 
-            Ring(centre, place, normal, up, CentreRadius, 1);
+            Ring(centre, place, normal, up, CentreRadius * (1 + .12f * met), 1);
             centre.startColor = centre.endColor = Fade(centred && feel.InRep ? Good : Chrome, alpha * (feel.InRep ? .75f : .35f));
-            Ring(outer, place, normal, up, OuterRadius, 1);
-            outer.startColor = outer.endColor = Fade(Chrome, alpha * .22f);
+            float onARun = feel.Streak >= 3 ? 1 : 0;
+            Ring(outer, place, normal, up, OuterRadius * (1 + .06f * counted), 1);
+            outer.startColor = outer.endColor = Fade(Color.Lerp(Chrome, Good, onARun * .8f), alpha * (.22f + .16f * onARun + .3f * counted));
 
             bool showHold = feel.HasHold && feel.InRep && (feel.Holding || feel.HoldMet) && feel.HoldFraction > 0;
             holdArc.enabled = showHold;
             if (showHold)
             {
-                Ring(holdArc, place, normal, up, HoldRadius, feel.HoldMet ? 1 : feel.HoldFraction);
-                holdArc.startColor = holdArc.endColor = Fade(feel.HoldMet ? Good : Bubble, alpha * .9f);
+                Ring(holdArc, place, normal, up, HoldRadius * (1 + .08f * met), feel.HoldMet ? 1 : feel.HoldFraction);
+                holdArc.widthMultiplier = .009f + .008f * met;
+                holdArc.startColor = holdArc.endColor = Fade(feel.HoldMet ? Good : Bubble, alpha * (.9f + .1f * met));
             }
-            Reps(feel, normal, up, right);
+            Reps(feel, normal, up, right, counted);
             Visible(true);
         }
 
-        /// The set's count as segments of the outer ring: one per prescribed rep, lit as they are counted.
-        void Reps(RepFeel feel, Vector3 normal, Vector3 up, Vector3 right)
+        /// The set's count as segments of the outer ring: one per prescribed rep, lit as they are counted. The
+        /// segment just earned pops — wider and brighter for a moment — and the ring it sits on settles with it.
+        void Reps(RepFeel feel, Vector3 normal, Vector3 up, Vector3 right, float counted)
         {
             int n = Mathf.Clamp(feel.Prescribed, 0, 30);
             if (repSegments.Length != n)
@@ -107,14 +124,17 @@ namespace Kinesthetic.Rehab.Mechanics
             for (int i = 0; i < n; i++)
             {
                 float span = 360f / n, start = -90 + i * span + gapDeg * .5f, end = start + span - gapDeg;
+                bool lit = i < feel.Valid, newest = lit && i == feel.Valid - 1;
+                float pop = newest ? counted : 0;
                 var line = repSegments[i]; line.positionCount = 6;
+                float radius = OuterRadius * (1 + .06f * counted) + .012f * pop;
                 for (int k = 0; k < 6; k++)
                 {
                     float a = Mathf.Lerp(start, end, k / 5f);
-                    line.SetPosition(k, place + Quaternion.AngleAxis(-a, normal) * up * OuterRadius);
+                    line.SetPosition(k, place + Quaternion.AngleAxis(-a, normal) * up * radius);
                 }
-                bool lit = i < feel.Valid;
-                line.startColor = line.endColor = Fade(lit ? Good : Chrome, alpha * (lit ? .95f : .3f));
+                line.widthMultiplier = .012f + .014f * pop;
+                line.startColor = line.endColor = Fade(lit ? Color.Lerp(Good, Chrome, pop * .6f) : Chrome, alpha * (lit ? .95f : .3f));
                 line.enabled = true;
             }
         }

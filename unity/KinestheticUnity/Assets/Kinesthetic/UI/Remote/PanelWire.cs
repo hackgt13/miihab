@@ -140,16 +140,18 @@ namespace Kinesthetic.UI.Remote
                     if (E(a, "state", out KChip.State state)) c.state = state;
                 }),
             new Entry("KReadout", typeof(KReadout), () => new KReadout(), Children.None,
-                new[] { "value", "caption", "size", "tone" },
+                new[] { "value", "caption", "size", "tone", "punch" },
                 (e, a) =>
                 {
                     var r = (KReadout)e;
                     a["value"] = r.value ?? ""; a["caption"] = r.caption ?? "";
-                    a["size"] = r.size.ToString(); a["tone"] = r.tone.ToString();
+                    a["size"] = r.size.ToString(); a["tone"] = r.tone.ToString(); a["punch"] = r.punch;
                 },
                 (e, a) =>
                 {
                     var r = (KReadout)e;
+                    // punch before value, so a replica's first increase punches as the host's did.
+                    if (a["punch"] != null) r.punch = (bool?)a["punch"] ?? false;
                     if (S(a, "value", out var value)) r.value = value;
                     if (S(a, "caption", out var caption)) r.caption = caption;
                     if (E(a, "size", out KReadout.Size size)) r.size = size;

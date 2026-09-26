@@ -1,0 +1,18 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../Palette.uss" />
+    <Style src="../UI/Base.uss" />
+    <Style src="Rehab.uss" />
+    <!-- Crown: the count, above the eyeline and riding with the view (ViewFollow). Glass, so the studio shows
+         through it. It says the number, and beside it the two things about the set that the arm's own band
+         cannot: the run of reps made well, and the best hold. The angle is the band's job; the hold in
+         progress and the pace are the reticle's (Mechanics/). -->
+    <ui:VisualElement name="crown-board" class="board" picking-mode="Ignore">
+        <k:KSurface class="crown" tone="Glass" density="Compact" picking-mode="Ignore">
+            <k:KReadout name="rep-count" value="0" caption="of 8" size="Large" punch="true" class="crown-count" />
+            <ui:VisualElement class="crown-side">
+                <k:KTag name="streak-tag" text="" tone="Good" class="hidden" />
+                <k:KReadout name="best-hold" value="—" caption="best hold" size="Compact" punch="true" />
+            </ui:VisualElement>
+        </k:KSurface>
+    </ui:VisualElement>
+</ui:UXML>

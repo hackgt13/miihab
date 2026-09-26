@@ -26,7 +26,7 @@ public static class RemoteUiVerification
     {
         "Assets/Kinesthetic/Golf/Golf.uxml",
         "Assets/Kinesthetic/Rehab/RehabDock.uxml",
-        "Assets/Kinesthetic/Rehab/RehabMeasure.uxml",
+        "Assets/Kinesthetic/Rehab/RehabCrown.uxml",
         "Assets/Kinesthetic/Rehab/RehabFocus.uxml",
         "Assets/Kinesthetic/Rehab/RehabBrief.uxml",
         "Assets/Kinesthetic/Menu/Navigation.uxml",

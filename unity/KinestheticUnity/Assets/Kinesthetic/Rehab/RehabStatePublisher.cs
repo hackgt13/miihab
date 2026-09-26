@@ -19,13 +19,15 @@ namespace Kinesthetic.Rehab
 
         void Start()
         {
+            // Nothing to publish without a session and its rig; say so once rather than once a frame.
+            if (!session || !session.rig) { Debug.LogWarning("RehabStatePublisher has no session or rig to publish; disabled."); enabled = false; return; }
             patientBones = GolfStateFormat.Bones(session.rig);
             socket = new LatestSocket(url);
         }
 
         void LateUpdate()
         {
-            if (Time.unscaledTime < next || !socket.connected) return;
+            if (socket == null || Time.unscaledTime < next || !socket.connected) return;
             next = Time.unscaledTime + 1f / 30;
             if (!coach && (coach = FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>()))
                 coachBones = coach.model.GetComponentsInChildren<Transform>(true).ToList();
