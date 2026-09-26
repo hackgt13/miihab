@@ -12,11 +12,11 @@ import type { VisitReply } from '../data/types'
 // worth interrupting a page for.
 
 const TONE: Record<VisitReply['kind'], { border: string; text: string; label: string }> = {
-  hurt:    { border: '#E08585', text: '#E08585', label: 'Reported pain' },
-  hard:    { border: '#E3A86B', text: '#E3A86B', label: 'Too hard' },
-  message: { border: '#6FB8C4', text: '#6FB8C4', label: 'Message' },
-  easy:    { border: '#6FB8C4', text: '#6FB8C4', label: 'Too easy' },
-  fine:    { border: '#7CC49A', text: '#7CC49A', label: 'All good' },
+  hurt:    { border: '#C62828', text: '#C62828', label: 'Reported pain' },
+  hard:    { border: '#C67C1A', text: '#C67C1A', label: 'Too hard' },
+  message: { border: '#1666C0', text: '#1666C0', label: 'Message' },
+  easy:    { border: '#1666C0', text: '#1666C0', label: 'Too easy' },
+  fine:    { border: '#166534', text: '#166534', label: 'All good' },
 }
 
 function when(at: string): string {
@@ -36,19 +36,19 @@ export function PatientRelay({ replies }: { replies: VisitReply[] }) {
         return (
           <div
             key={reply.id}
-            className="border-l-2 bg-[#2A3337] border border-[#3D484E] px-4 py-3"
+            className="border-l-2 bg-white border border-[#DDE2E8] rounded-md shadow-sm px-4 py-3"
             style={{ borderLeftColor: tone.border }}
           >
             <div className="flex items-baseline justify-between gap-3">
               <p className="text-[9px] uppercase tracking-[0.18em]" style={{ color: tone.text }}>
                 {tone.label} · from the patient
               </p>
-              <p className="text-[#A3B0B6] text-[10px] font-mono">
+              <p className="text-[#5A6472] text-[10px] font-mono">
                 said at a visit {when(reply.at)}
                 {reply.planVersion != null && ` · on plan v${reply.planVersion}`}
               </p>
             </div>
-            <p className="text-[#E4E9EB] text-sm mt-1">“{reply.text}”</p>
+            <p className="text-[#1A1D23] text-sm mt-1">“{reply.text}”</p>
           </div>
         )
       })}

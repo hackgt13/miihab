@@ -50,10 +50,10 @@ export function VisitNotes() {
   }
 
   return (
-    <div className="bg-[#2A3337] border border-[#3D484E] p-4">
+    <div className="bg-white border border-[#DDE2E8] rounded-md shadow-sm p-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[#A3B0B6] text-[9px] uppercase tracking-[0.18em]">Visit whiteboard</p>
-        <span className="text-[10px] text-[#A3B0B6] font-mono">
+        <p className="text-[#5A6472] text-[9px] uppercase tracking-[0.18em]">Visit whiteboard</p>
+        <span className="text-[10px] text-[#5A6472] font-mono">
           {offline ? 'Coordinator offline' : `${board.length} on the board`}
         </span>
       </div>
@@ -61,13 +61,13 @@ export function VisitNotes() {
       {/* What the patient relayed at the end of their visits, newest first. "Something hurt" leads the eye. */}
       {!offline && replies.length > 0 && (
         <div className="mb-4">
-          <p className="text-[#A3B0B6] text-[9px] uppercase tracking-[0.18em] mb-1.5">From the patient</p>
+          <p className="text-[#5A6472] text-[9px] uppercase tracking-[0.18em] mb-1.5">From the patient</p>
           <ul className="space-y-1">
             {replies.slice().reverse().slice(0, 5).map(r => (
-              <li key={r.id} className="text-xs text-[#E4E9EB]">
-                <span className="font-mono text-[10px] uppercase mr-2" style={{ color: r.kind === 'hurt' ? '#E08585' : '#9CC2B5' }}>{r.kind}</span>
+              <li key={r.id} className="text-xs text-[#1A1D23]">
+                <span className="font-mono text-[10px] uppercase mr-2" style={{ color: r.kind === 'hurt' ? '#C62828' : '#0D9488' }}>{r.kind}</span>
                 {r.text}
-                <span className="text-[#A3B0B6] font-mono text-[10px]"> · {new Date(r.at).toLocaleDateString()}</span>
+                <span className="text-[#5A6472] font-mono text-[10px]"> · {new Date(r.at).toLocaleDateString()}</span>
               </li>
             ))}
           </ul>
@@ -77,9 +77,9 @@ export function VisitNotes() {
       {!offline && (
         <ul className="mb-4 space-y-1">
           {board.map((u, i) => (
-            <li key={i} className="text-xs text-[#E4E9EB]">
-              <span className="font-mono text-[10px] text-[#6FB8C4] uppercase mr-2">{u.kind}</span>
-              {u.heading}<span className="text-[#A3B0B6]"> · {u.detail}</span>
+            <li key={i} className="text-xs text-[#1A1D23]">
+              <span className="font-mono text-[10px] text-[#1666C0] uppercase mr-2">{u.kind}</span>
+              {u.heading}<span className="text-[#5A6472]"> · {u.detail}</span>
             </li>
           ))}
         </ul>
@@ -90,20 +90,20 @@ export function VisitNotes() {
         onChange={e => setText(e.target.value.slice(0, LIMIT))}
         placeholder="A note for the patient's next visit, e.g. Ice your shoulder after golf."
         rows={2}
-        className="w-full bg-[#232B2F] border border-[#3D484E] text-[#E4E9EB] text-sm p-2 mb-2 focus:outline-none focus:border-[#6FB8C4]"
+        className="w-full bg-[#F4F6F8] border border-[#DDE2E8] text-[#1A1D23] text-sm p-2 mb-2 focus:outline-none focus:border-[#1666C0]"
       />
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[10px] text-[#A3B0B6] font-mono">{text.length} / {LIMIT}</span>
+        <span className="text-[10px] text-[#5A6472] font-mono">{text.length} / {LIMIT}</span>
         <Button size="sm" disabled={busy || offline || !text.trim()} onClick={post}>Add to whiteboard</Button>
       </div>
-      {error && <p className="text-xs text-[#E08585] mb-2">{error}</p>}
+      {error && <p className="text-xs text-[#C62828] mb-2">{error}</p>}
 
       {notes.length > 0 && (
-        <ul className="space-y-1 border-t border-[#3D484E] pt-3">
+        <ul className="space-y-1 border-t border-[#DDE2E8] pt-3">
           {notes.slice().reverse().map(n => (
             <li key={n.id} className="flex items-start justify-between gap-3 text-xs">
-              <span className="text-[#E4E9EB]">{n.text}
-                <span className="text-[#A3B0B6] font-mono text-[10px]"> · {new Date(n.at).toLocaleDateString()}</span>
+              <span className="text-[#1A1D23]">{n.text}
+                <span className="text-[#5A6472] font-mono text-[10px]"> · {new Date(n.at).toLocaleDateString()}</span>
               </span>
               <Button size="sm" variant="ghost" onClick={() => remove(n.id)}>Remove</Button>
             </li>

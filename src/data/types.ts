@@ -15,6 +15,13 @@ export interface Patient {
   weeksActive: number
   nextScheduled: string
   activePlanVersion: number
+  dob: string
+  sex: string
+  mrn: string
+  icd10: string
+  referringPhysician: string
+  dateOfInjury: string
+  photoUrl?: string
 }
 
 export interface SessionEvent {

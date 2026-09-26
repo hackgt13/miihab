@@ -366,6 +366,14 @@ export async function fetchLivePatient(): Promise<PatientData> {
       // work outstanding on it, and tomorrow once it does not.
       nextScheduled: dayKey(dashboard.today.some(t => !t.done) ? today : new Date(today.getTime() + 86_400_000)),
       activePlanVersion: plans[plans.length - 1]?.version ?? 1,
+      // The coordinator keeps no chart: a headset knows its patient by display name, not by MRN or
+      // diagnosis code. The banner says "not on file" for these rather than showing an invented record.
+      dob: '',
+      sex: '',
+      mrn: 'Not on file',
+      icd10: 'Not on file',
+      referringPhysician: 'Not on file',
+      dateOfInjury: 'Not on file',
     },
     sessions,
     latestHandoff: handoff,
