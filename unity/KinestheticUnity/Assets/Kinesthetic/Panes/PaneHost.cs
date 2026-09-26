@@ -16,6 +16,9 @@ namespace Kinesthetic.Panes
     /// Content is ticked only while its pane is the one being faced, which is what the carousel's
     /// Settled event exists for: a clip should not play, and a bridge should not be polled, from a
     /// pane that is edge-on and unreadable.
+    ///
+    /// Opening and closing go through the ring's Add and Remove rather than a full Adopt, so nobody
+    /// standing in the ring moves and the person is never spun away from what they were reading.
     public sealed class PaneHost : MonoBehaviour
     {
         public static PaneHost Instance { get; private set; }
@@ -75,11 +78,11 @@ namespace Kinesthetic.Panes
         /// full, rather than quietly costing frames.
         public Pane Open(string id, IPaneContent content)
         {
-            if (content == null || string.IsNullOrEmpty(id) || panes.Count >= maxPanes) return null;
+            if (!carousel || content == null || string.IsNullOrEmpty(id) || panes.Count >= maxPanes) return null;
             if (Find(id)) return null;                       // ids are how the ring is addressed
 
             var go = new GameObject("Pane · " + content.Title);
-            go.transform.SetParent(transform, false);         // Adopt reparents it into the ring
+            go.transform.SetParent(transform, false);         // Add reparents it into the ring
             var document = go.AddComponent<UIDocument>();
             document.panelSettings = panelSettings;
             document.visualTreeAsset = paneTree;
@@ -88,7 +91,11 @@ namespace Kinesthetic.Panes
 
             panes.Add(pane);
             pane.Bind(content);
-            Restand();
+
+            carousel.Add(new PaneCarousel.Slot(id, content.Title, pane.transform));
+            // Add deliberately announces nothing — opening a pane in the background should not move
+            // the furniture — so the first one has to be adopted as the faced pane here.
+            if (string.IsNullOrEmpty(facing)) { facing = carousel.Current.id; Focus(Find(facing)); }
             return pane;
         }
 
@@ -96,23 +103,7 @@ namespace Kinesthetic.Panes
         {
             if (!panes.Remove(pane)) return;
             if (dragging == pane) dragging = null;
-            Restand();
-        }
-
-        /// Hand the whole list to the ring. Adopt rebuilds it by contract, and it also resets to
-        /// slot 0 — so whatever was being faced is turned back to rather than yanked away. That
-        /// restore is a visible turn, which is the open question with the carousel's owner: an
-        /// Add(Slot) that appends without resetting would make this a no-op instead.
-        void Restand()
-        {
-            if (!carousel) return;
-            var slots = new PaneCarousel.Slot[panes.Count];
-            for (int i = 0; i < panes.Count; i++)
-                slots[i] = new PaneCarousel.Slot(panes[i].Id, panes[i].Content?.Title ?? panes[i].Id, panes[i].transform);
-
-            string wasFacing = facing;
-            carousel.Adopt(slots);
-            if (!string.IsNullOrEmpty(wasFacing) && wasFacing != carousel.Current.id) carousel.Show(wasFacing);
+            if (carousel) carousel.Remove(pane.Id);      // the ring closes the gap and keeps the view still
         }
 
         public void Focus(Pane pane)
@@ -140,7 +131,7 @@ namespace Kinesthetic.Panes
             if (pointer.PressedThisFrame && hitPane.IsGrip(element))
             {
                 // Dragging a pane off its slot is a deliberate exception to the ring owning
-                // placement: the person moved it, so it stops being furniture until Restand.
+                // placement: the person moved it, so it stops being furniture until the ring restands it.
                 dragging = hitPane;
                 dragDistance = Vector3.Distance(pointer.Ray.origin, hitPane.transform.position);
                 return;

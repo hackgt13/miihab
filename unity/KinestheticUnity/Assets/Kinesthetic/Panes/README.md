@@ -38,9 +38,9 @@ pane rather than failing silently.
   agrees for a 1:1 panel. One of the two is wrong. A pane that highlights its close button when you
   look at its corner will say which, and then `GazeDwell` should adopt this helper — a three-line
   change that deletes the duplicate.
-- **`PaneCarousel.Adopt` resets to slot 0**, so `PaneHost.Restand` turns back to whatever was being
-  faced. That restore is a visible turn. An `Add(Slot)` that appends without resetting would make it
-  a no-op; raised with the carousel's owner, not decided here.
+- **Resolved:** the carousel's owner answered the `Adopt` index-reset question in code
+  (`3dacf36`) with `Add`/`Remove` and an `Adopt` that holds its ground. `PaneHost` uses `Add` and
+  `Remove`, so opening a pane never spins the person away from what they were reading.
 - **`AssetPane` paths are editor-correct only.** `local-data/` resolves relative to
   `Application.dataPath`; a built player needs the coordinator on 8766 to serve the files instead.
 - **Quest is unproven.** `QuestSceneSetup.cs:40` disables the UIDocument on device, so UI Toolkit
