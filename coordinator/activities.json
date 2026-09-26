@@ -3,6 +3,41 @@
   "note": "The activity catalog: one source of truth for both halves of the app. The coordinator reads this file directly; Unity reads a generated copy under Resources. Adding an activity is an entry here, not a code change.",
   "activities": [
     {
+      "id": "onboarding.tutorial",
+      "displayName": "Getting Started",
+      "tagline": "Meet Alex. Learn the basics.",
+      "category": "therapy",
+      "scene": "Tutorial",
+      "venue": "studio",
+      "exerciseKinds": [],
+      "requires": [],
+      "subjects": 1,
+      "prescribable": false,
+      "navigation": "activity",
+      "loadingMessage": "Welcome aboard\u2026",
+      "help": {
+        "title": "Meet Alex, your coach.",
+        "steps": [
+          {
+            "step": "Watch",
+            "copy": "Alex shows you an arm lift, first on the right, then on the left."
+          },
+          {
+            "step": "Copy",
+            "copy": "Lift your arm the same way. If Alex does not see it, Alex shows you again."
+          },
+          {
+            "step": "Look around",
+            "copy": "Turn your head to look around the room. Then you are ready to begin."
+          }
+        ]
+      },
+      "card": {
+        "tag": "START HERE",
+        "caption": "Meet Alex and learn the basics in two minutes."
+      }
+    },
+    {
       "id": "rehab.studio",
       "displayName": "Movement Studio",
       "tagline": "Gentle raises. Personal progress.",

@@ -77,13 +77,13 @@ test('a second AirPod that goes quiet mid-rep is tracking loss, never a silent p
 });
 
 test('server: a two-AirPod movement reads both relay streams, the wrist pair as the limb', { timeout: 30000 }, async () => {
-  const relay = new WebSocketServer({ port: 18793, host: '127.0.0.1' });
+  const relay = new WebSocketServer({ port: 18830, host: '127.0.0.1' });
   const viewers = new Set<WebSocket>(); relay.on('connection', ws => viewers.add(ws));
-  const dir = mkdtempSync(join(tmpdir(), 'two-imu-')), port = 18794, base = `http://127.0.0.1:${port}`;
+  const dir = mkdtempSync(join(tmpdir(), 'two-imu-')), port = 18831, base = `http://127.0.0.1:${port}`;
   const child = spawn(process.execPath, ['server.ts'], { cwd: join(import.meta.dirname, '..'), stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, KINESTHETIC_PORT: String(port), KINESTHETIC_RECORDINGS_DIRECTORY: join(dir, 'rec'), KINESTHETIC_PLANS_DIRECTORY: join(dir, 'plans'),
       KINESTHETIC_PROPOSALS_DIRECTORY: join(dir, 'prop'), KINESTHETIC_SOCIAL_DIRECTORY: join(dir, 'social'),
-      KINESTHETIC_MOTION_URL: 'ws://127.0.0.1:18793/golf?role=viewer', KINESTHETIC_WRIST_MOTION_URL: 'ws://127.0.0.1:18793/bowling-motion?role=viewer' } });
+      KINESTHETIC_MOTION_URL: 'ws://127.0.0.1:18830/golf?role=viewer', KINESTHETIC_WRIST_MOTION_URL: 'ws://127.0.0.1:18830/bowling-motion?role=viewer' } });
   const post = (path: string, body?: unknown) => fetch(base + path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
   try {
     await ready(child);
