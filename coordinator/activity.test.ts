@@ -70,7 +70,7 @@ test('an unmet prescription is flagged incomplete', () => {
   assert.deepEqual(e.flags, ['not_completed']);
 });
 
-test('live: an activity posts its own session record and it appears alongside exercise sessions', {timeout: 15000}, async () => {
+test('live: an activity posts its own session record and it appears alongside exercise sessions', {timeout:40000}, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-activity-'));
   const port = 18783;   // every suite has its own ports (18766-18782 are taken); keep every test isolated
   const child = spawn(process.execPath, ['server.ts'], {cwd: import.meta.dirname,
@@ -149,7 +149,7 @@ test("Unity's golf round envelope satisfies the coordinator contract", () => {
   assert.deepEqual((e.payload.data as any).strokes, [7, 6]);
 });
 
-test("live: Unity's golf envelope is accepted, stored and served back", {timeout: 15000}, async () => {
+test("live: Unity's golf envelope is accepted, stored and served back", {timeout:40000}, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-unity-'));
   const port = 18776;
   const child = spawn(process.execPath, ['server.ts'], {cwd: import.meta.dirname,

@@ -32,9 +32,11 @@ export interface Activity {
   exerciseKinds: string[];
   /** Hard channel requirements, used to gate the gallery. Not the in-activity readiness check. */
   requires: ChannelId[];
-  /** Golf and bowling record two people; a therapy session records one. */
+  /** Number of people participating in one session. */
   subjects: number;
   prescribable: boolean;
+  /** Whether the shell or the activity owns pause, help and return controls. */
+  navigation: 'shell' | 'activity';
   /** Curtain text while the scene loads. */
   loadingMessage: string;
   /** Resources path of the activity's background music, or null for none. */
@@ -68,6 +70,8 @@ function parse(raw: any, source: string): Activity[] {
       if (!CHANNELS.includes(channel as ChannelId)) throw Error(`${where}: unknown channel "${channel}"`);
     const subjects = Number(a.subjects);
     if (!Number.isInteger(subjects) || subjects < 1 || subjects > 8) throw Error(`${where}: subjects must be 1-8`);
+    const navigation = a.navigation ?? 'shell';
+    if (navigation !== 'shell' && navigation !== 'activity') throw Error(`${where}: navigation must be shell or activity`);
     const help = a.help ?? {};
     const steps = Array.isArray(help.steps) ? help.steps : [];
     if (!String(help.title ?? '').trim()) throw Error(`${where}: help.title is required`);
@@ -82,7 +86,7 @@ function parse(raw: any, source: string): Activity[] {
       music: a.music == null ? null : String(a.music),
       help: {title: String(help.title), steps: steps.map((s: any) => ({step: String(s.step), copy: String(s.copy)}))},
       category: a.category, scene: String(a.scene), venue: String(a.venue),
-      exerciseKinds, requires: requires as ChannelId[], subjects, prescribable: !!a.prescribable,
+      exerciseKinds, requires: requires as ChannelId[], subjects, prescribable: !!a.prescribable, navigation,
     };
   });
 }

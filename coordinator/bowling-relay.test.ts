@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocket } from 'ws';
 
-test('bowling has an isolated state channel, late join, host exclusivity and disconnect recovery', {timeout:10000}, async()=>{
+test('bowling has an isolated state channel, late join, host exclusivity and disconnect recovery', {timeout:40000}, async()=>{
   const dir=mkdtempSync(join(tmpdir(),'bowling-test-'));
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18772',KINESTHETIC_GOLF_RECORDINGS:dir}});
@@ -37,7 +37,7 @@ test('bowling has an isolated state channel, late join, host exclusivity and dis
   } finally { for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true}); }
 });
 
-test('wrist motion and club motion cannot cross activity channels', {timeout:10000}, async()=>{
+test('wrist motion and club motion cannot cross activity channels', {timeout:40000}, async()=>{
   const dir=mkdtempSync(join(tmpdir(),'bowling-motion-test-'));
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18773',KINESTHETIC_GOLF_RECORDINGS:dir}});

@@ -28,6 +28,7 @@ namespace Kinesthetic.Activities
         public string[] Requires = new string[0];
         public int Subjects = 1;
         public bool Prescribable;
+        public bool UsesSharedNavigation = true;
         public bool NeedsPose => Requires.Contains("pose");
         public bool NeedsImu => Requires.Contains("imu");
     }
@@ -59,6 +60,7 @@ namespace Kinesthetic.Activities
                         Requires = item["requires"]?.Select(k => (string)k).ToArray() ?? new string[0],
                         Subjects = (int?)item["subjects"] ?? 1,
                         Prescribable = (bool?)item["prescribable"] ?? false,
+                        UsesSharedNavigation = (string)item["navigation"] != "activity",
                         LoadingMessage = (string)item["loadingMessage"] ?? "",
                         Music = (string)item["music"],
                         HelpTitle = (string)item["help"]?["title"] ?? "",

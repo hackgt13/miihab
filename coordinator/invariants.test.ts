@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { ACTIVITIES } from './activities.ts';
 import { EXERCISES } from './exercise/registry.ts';
@@ -69,4 +69,42 @@ test('activity ids are stable identifiers, not display text', () => {
     assert.match(a.id, /^[a-z][a-z0-9]*(\.[a-z0-9-]+)+$/, `${a.id} is not a stable id`);
     assert.notEqual(a.id, a.displayName.toLowerCase(), `${a.id} looks derived from display text`);
   }
+});
+
+test("the gallery's cards say what the catalog says, and cover every activity", () => {
+  // Three places hold an activity's display copy: activities.json, the card in Gallery.uxml, and the
+  // caption MainMenuController picks by card index. Nothing joined them, and bowling's card had
+  // already drifted from its catalog tagline -- the menu described the activity one way while the
+  // record the coordinator keeps described it another.
+  //
+  // Asserted here rather than fixed in Unity because the markup is the presentation layer's business;
+  // what must not vary is what it says. If this fails, edit activities.json and make the card match,
+  // not the other way round.
+  const gallery = resolve(import.meta.dirname, '../unity/KinestheticUnity/Assets/Kinesthetic/Menu/Gallery.uxml');
+  if (!existsSync(gallery)) return;   // coordinator can be checked out without the Unity project
+  const markup = readFileSync(gallery, 'utf8');
+
+  const text = (attributes: string) => /\btext="([^"]*)"/.exec(attributes)?.[1] ?? '';
+  const cards = [...markup.matchAll(/<ui:Button name="([a-z-]+-card)"[\s\S]*?<\/ui:Button>/g)].map(([block, name]) => ({
+    name,
+    title: text(/<ui:Label([^>]*class="[^"]*\bcard-title\b[^"]*")/.exec(block)?.[1] ?? ''),
+    description: text(/<ui:Label([^>]*class="[^"]*\bcard-description\b[^"]*")/.exec(block)?.[1] ?? ''),
+  }));
+  assert.ok(cards.length, 'found no activity cards in Gallery.uxml -- has the markup been restructured?');
+
+  const byName = new Map(ACTIVITIES.map(a => [a.displayName, a]));
+  for (const card of cards) {
+    const activity = byName.get(card.title);
+    assert.ok(activity, `the "${card.name}" card is titled "${card.title}", which is no activity's ` +
+      `displayName. Known: ${[...byName.keys()].join(', ')}`);
+    assert.equal(card.description, activity.tagline,
+      `the "${card.name}" card describes ${activity.id} as "${card.description}", but the catalog's ` +
+      `tagline is "${activity.tagline}". The catalog is the source of truth.`);
+  }
+
+  const shown = new Set(cards.map(c => c.title));
+  const invisible = ACTIVITIES.filter(a => !shown.has(a.displayName));
+  assert.deepEqual(invisible.map(a => a.id), [],
+    `these activities exist and can be prescribed but have no card in the gallery, so nobody can ` +
+    `reach them from the menu: ${invisible.map(a => a.id).join(', ')}.`);
 });

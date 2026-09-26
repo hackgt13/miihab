@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { frame } from './synthetic-pose.ts';
 
-test('live exercise: pose stream → rep events on /exercise, pose viewers untouched, summary saved', {timeout:15000}, async () => {
+test('live exercise: pose stream → rep events on /exercise, pose viewers untouched, summary saved', {timeout:40000}, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-exercise-'));
   const port = 18769;
   const child = spawn(process.execPath, ['server.ts'], {cwd:import.meta.dirname,

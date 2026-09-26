@@ -1,0 +1,17 @@
+/* What every screen used to write for itself. A screen links it straight after the palette:
+
+       <Style src="../Palette.uss" />
+       <Style src="../UI/Base.uss" />
+
+   Linking it is also what puts a screen under the seal: scripts/check_ui.py holds any screen that links
+   Base.uss to layout-only stylesheets. See UI.md. */
+
+:root {
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf");
+    -unity-font-style: normal;
+    color: var(--slate-70);
+}
+
+Label { margin: 0; padding: 0; }
+
+.hidden { display: none; }

@@ -1,0 +1,37 @@
+/* KEyebrow and KTag: the two pieces of small lettering. */
+
+/* ---------------------------------------------------------------- eyebrow */
+
+.k-eyebrow.k-eyebrow--light, .k-eyebrow.k-eyebrow--dark {
+    margin: 0;
+    padding: 0;
+    font-size: 11px;
+    letter-spacing: 2px;
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf");
+    -unity-font-style: normal;
+    white-space: normal;
+}
+.k-eyebrow.k-eyebrow--light { color: var(--slate-50); }
+.k-eyebrow.k-eyebrow--dark  { color: var(--sand-30); }
+
+/* ---------------------------------------------------------------- tag */
+
+/* Lettering on a tint pairs <family>-60 on <family>-10, the pairing Palette.uss documents as clearing
+   4.5:1. Neutral has no -10, so it takes slate on sand-20. */
+.k-tag.k-tag--neutral, .k-tag.k-tag--info, .k-tag.k-tag--good, .k-tag.k-tag--trouble {
+    align-self: flex-start;
+    margin: 0;
+    padding: 5px 12px;
+    border-radius: 12px;
+    border-width: 0;
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf");
+    -unity-font-style: normal;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+}
+.k-tag.k-tag--neutral { background-color: var(--sand-20);     color: var(--slate-60); }
+.k-tag.k-tag--info    { background-color: var(--cerulean-10); color: var(--cerulean-60); }
+.k-tag.k-tag--good    { background-color: var(--jungle-10);   color: var(--jungle-60); }
+.k-tag.k-tag--trouble { background-color: var(--coral-10);    color: var(--coral-60); }

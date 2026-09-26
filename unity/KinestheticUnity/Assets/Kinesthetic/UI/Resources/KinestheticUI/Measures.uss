@@ -1,0 +1,13 @@
+/* KArc and KMeter are painted in code with Palette.cs; this sheet only fixes their geometry. */
+
+/* Whatever sits inside a ring — usually a KReadout — is centred in it. The screen sizes the ring. */
+.k-arc.k-arc--continuous, .k-arc.k-arc--segmented {
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+}
+
+/* The screen sets a meter's width; its height is the component's. */
+.k-meter.k-meter--pips { height: 15px; min-height: 15px; max-height: 15px; margin: 0; padding: 0; }
+.k-meter.k-meter--bar  { height: 8px;  min-height: 8px;  max-height: 8px;  margin: 0; padding: 0; }

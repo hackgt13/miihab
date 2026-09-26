@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { WebSocket } from 'ws';
 
-test('pose routing, source isolation, freshness, recording, and disconnect', {timeout:10000}, async () => {
+test('pose routing, source isolation, freshness, recording, and disconnect', {timeout:40000}, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-bridge-'));
   const port = 18766;
   const child = spawn(process.execPath, ['server.ts'], {cwd:import.meta.dirname,

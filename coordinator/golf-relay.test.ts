@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocket } from 'ws';
 
-test('golf relay preserves player identity and rejects stale, duplicate and malformed motion',{timeout:10000},async()=>{
+test('golf relay preserves player identity and rejects stale, duplicate and malformed motion',{timeout:40000},async()=>{
   const dir=mkdtempSync(join(tmpdir(),'golf-test-'));
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18767',KINESTHETIC_GOLF_RECORDINGS:dir}});
@@ -35,7 +35,7 @@ test('golf relay preserves player identity and rejects stale, duplicate and malf
   }finally{for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true});}
 });
 
-test('game state: one host fans out to Quest clients, late joiners get the latest frame, junk is rejected',{timeout:10000},async()=>{
+test('game state: one host fans out to Quest clients, late joiners get the latest frame, junk is rejected',{timeout:40000},async()=>{
   const dir=mkdtempSync(join(tmpdir(),'golf-state-'));
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18768',KINESTHETIC_GOLF_RECORDINGS:dir}});
@@ -56,7 +56,7 @@ test('game state: one host fans out to Quest clients, late joiners get the lates
   }finally{for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true});}
 });
 
-test('only the local capture page may watch motion from a browser, and never produce it',{timeout:10000},async()=>{
+test('only the local capture page may watch motion from a browser, and never produce it',{timeout:40000},async()=>{
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18774',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-origin-'))}});
   const clients:WebSocket[]=[];

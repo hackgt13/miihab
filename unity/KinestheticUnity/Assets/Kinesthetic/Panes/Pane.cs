@@ -104,5 +104,27 @@ namespace Kinesthetic.Panes
         }
 
         void OnDestroy() { Content?.Dispose(); Content = null; }
+
+        /// Where a world point lands on this pane, in panel coordinates and as a 0..1 fraction.
+        ///
+        /// Carried over from the world-panel-integration work upstream, which is also the answer to the
+        /// question Panes/README left open about WorldPanelPick and GazeDwell disagreeing. Neither guess was
+        /// right: a world-space panel already scales and flips its own root transform, so the fix is to undo
+        /// that transform once with WorldToLocal rather than to assume element bounds are pixels (GazeDwell)
+        /// or to normalise a second time against declared metres (the earlier WorldPanelPick).
+        public bool TryProject(Vector3 worldPoint, out Vector2 panelPoint, out Vector2 normalised)
+        {
+            panelPoint = normalised = default;
+            var root = ContentRoot;
+            if (!isActiveAndEnabled || document == null || !document.enabled || root?.panel == null) return false;
+            var local = document.transform.InverseTransformPoint(worldPoint);
+            panelPoint = new Vector2(local.x, local.y);
+            var point = root.WorldToLocal(panelPoint);
+            var rect = root.contentRect;
+            if (rect.width <= 0 || rect.height <= 0 || !rect.Contains(point)) return false;
+            normalised = new Vector2((point.x - rect.x) / rect.width, 1 - (point.y - rect.y) / rect.height);
+            return true;
+        }
+
     }
 }

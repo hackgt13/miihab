@@ -34,7 +34,7 @@ namespace Kinesthetic.Menu
             if (Supports(SceneManager.GetActiveScene().name)) Ensure();
         }
         static bool Supports(string scene) =>
-            scene == MenuScene || ActivityCatalog.All.Any(a => a.Scene == scene);
+            scene == MenuScene || ActivityCatalog.All.Any(a => a.Scene == scene && a.UsesSharedNavigation);
         /// <summary>The activity whose scene is loaded, or null in the menu.</summary>
         static ActivityEntry Current() => ActivityCatalog.All.FirstOrDefault(a => a.Scene == SceneManager.GetActiveScene().name);
         /// <summary>Whatever the shell is driving right now, without knowing what kind of thing it is.</summary>

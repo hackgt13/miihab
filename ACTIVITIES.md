@@ -107,6 +107,17 @@ One connection per channel lives for the app's lifetime, so navigating between a
 tear down the camera or the AirPods. The hub also counts reconnects, so report tracking quality as the
 delta across your own session rather than by owning the socket.
 
+**7. Give it a card in `Menu/Gallery.uxml`, and wire it in `MainMenuController`.** Without one the
+activity exists everywhere but the menu, and nobody can reach it. This step is still manual: the cards
+are markup, and the controller holds a positional list of element names and ids alongside a caption
+chosen by card index.
+
+**The card's title and description must be the catalog's `displayName` and `tagline`, verbatim.**
+They are the same copy in a second place, and bowling's card had already drifted from its catalog
+tagline before anything checked. `invariants.test.ts` now asserts the match and that every activity
+has a card, so the drift fails at the source — but it can only tell you they disagree, not which one
+is right. **The catalog is right.** Change the markup to match it.
+
 ---
 
 ## To add an exercise
@@ -171,6 +182,7 @@ must launch on the swing — but that prediction is discardable and never the re
 - every activity names a real exercise
 - every activity's scene exists on disk
 - ids are stable identifiers, not display text
+- every activity has a gallery card, and the card says what the catalog says
 
 If you add a thing in one place and forget the other, these fail at the source rather than at a
 patient's session.

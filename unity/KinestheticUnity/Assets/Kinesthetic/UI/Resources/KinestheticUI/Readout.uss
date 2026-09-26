@@ -1,0 +1,41 @@
+/* KReadout. Four sizes, named for the distance they are read from. Tone is a verdict: Good when the figure
+   passes the plan, Target for what is being reached for — lettering, so the -60 steps. */
+
+.k-readout.k-readout--hero, .k-readout.k-readout--large, .k-readout.k-readout--regular, .k-readout.k-readout--compact {
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}
+
+.k-readout .k-readout__value {
+    margin: 0;
+    padding: 0;
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf");
+    -unity-font-style: normal;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+}
+
+.k-readout .k-readout__caption {
+    margin: 2px 0 0 0;
+    padding: 0;
+    color: var(--slate-50);
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf");
+    -unity-font-style: normal;
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+.k-readout .k-readout__caption.k-readout__caption--empty { display: none; }
+
+.k-readout.k-readout--hero    .k-readout__value   { font-size: 78px; letter-spacing: -3px; }
+.k-readout.k-readout--hero    .k-readout__caption { font-size: 16px; }
+.k-readout.k-readout--large   .k-readout__value   { font-size: 56px; letter-spacing: -2px; }
+.k-readout.k-readout--large   .k-readout__caption { font-size: 16px; }
+.k-readout.k-readout--regular .k-readout__value   { font-size: 42px; letter-spacing: -1px; }
+.k-readout.k-readout--regular .k-readout__caption { font-size: 15px; }
+.k-readout.k-readout--compact .k-readout__value   { font-size: 28px; letter-spacing: 0; }
+.k-readout.k-readout--compact .k-readout__caption { font-size: 12px; }
+
+.k-readout.k-readout--ink    .k-readout__value { color: var(--prussian-50); }
+.k-readout.k-readout--good   .k-readout__value { color: var(--jungle-60); }
+.k-readout.k-readout--target .k-readout__value { color: var(--coral-60); }

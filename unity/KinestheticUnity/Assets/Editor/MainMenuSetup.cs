@@ -81,7 +81,7 @@ public static class MainMenuSetup
         GameObject Pane(string label, string uxml, bool board_)
         {
             var go = board_
-                ? new GameObject(label, typeof(UIDocument), typeof(MainMenuController), typeof(GazeDwell))
+                ? new GameObject(label, typeof(UIDocument), typeof(MainMenuController), typeof(Kinesthetic.Panes.Pane), typeof(GazeDwell))
                 : new GameObject(label, typeof(UIDocument), typeof(GazeDwell));
             var d = go.GetComponent<UIDocument>();
             d.panelSettings = panel;

@@ -26,7 +26,7 @@ namespace Kinesthetic.Golf
         public int EyeCount=>eyeMaterials.Length;
         void Start()
         {
-            rig=GetComponent<PoseRig>();phase=rig.seated?0:2.1f;
+            rig=GetComponent<PoseRig>();rig.Initialize();phase=rig.seated?0:2.1f;
             foreach(var t in rig.avatar.GetComponentsInChildren<Transform>())
             {if(t.name=="spine.002")chest=t;if(t.name=="neck")neck=t;}
             if(chest)chestScale=chest.localScale;
