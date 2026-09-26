@@ -26,13 +26,19 @@ namespace Kinesthetic.Golf
         public string token = "";
 
         /// The relay URL for `path` (which may carry its own query), resolved at each connection attempt: the Mac
-        /// that announced itself on this network if one has, else the address baked into the build. So changing
-        /// networks (venue Wi-Fi to a phone hotspot) needs no rebuild.
+        /// that announced itself on this network if one has. Until one has, attempts alternate between the address
+        /// baked into the build and the headset's own loopback, which reaches the Mac over the USB cable after
+        /// `adb reverse tcp:8767 tcp:8767` — the way in on venue Wi-Fi that keeps devices apart.
         public Func<string> Url(string path)
         {
             RelayDiscovery.Listen(token);
             var separator = path.Contains("?") ? "&" : "?";
-            return () => $"ws://{RelayDiscovery.Host ?? host}:{port}{path}{separator}token={Uri.EscapeDataString(token ?? "")}";
+            int attempt = 0;
+            return () =>
+            {
+                var target = RelayDiscovery.Host ?? (attempt++ % 2 == 0 ? host : "127.0.0.1");
+                return $"ws://{target}:{port}{path}{separator}token={Uri.EscapeDataString(token ?? "")}";
+            };
         }
     }
 

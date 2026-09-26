@@ -30,9 +30,11 @@ namespace Kinesthetic.Golf
         readonly object gate = new();
         string outgoing, incoming;
         public volatile bool connected;
-        public LatestSocket(string url) : this(() => url) { }
-        /// `url` is asked again before every connection attempt, so a relay found at a new address is picked up.
-        public LatestSocket(Func<string> url) { _ = Task.Run(() => Run(url)); }
+        readonly bool followDiscovery;
+        public LatestSocket(string url) { _ = Task.Run(() => Run(() => url)); }
+        /// `url` (QuestHostConfig.Url) is asked again before every connection attempt, and a connected socket moves
+        /// when the relay announces itself at a different address (the Mac changed networks).
+        public LatestSocket(Func<string> url) { followDiscovery = true; _ = Task.Run(() => Run(url)); }
         public void Send(string text) { lock (gate) outgoing = text; }
         public bool Take(out string text) { lock (gate) { text = incoming; incoming = null; return text != null; } }
         async Task Run(Func<string> url)
@@ -67,7 +69,12 @@ namespace Kinesthetic.Golf
                         else await Task.Delay(5, cancel.Token).ConfigureAwait(false);
                         if (receive.IsCompleted) break;
                         // The relay announced itself somewhere else (the Mac changed networks): move there.
-                        if ((DateTime.UtcNow - checkedAt).TotalSeconds > 1) { checkedAt = DateTime.UtcNow; if (url() != target) break; }
+                        if (followDiscovery && (DateTime.UtcNow - checkedAt).TotalSeconds > 1)
+                        {
+                            checkedAt = DateTime.UtcNow;
+                            var announced = RelayDiscovery.Host;
+                            if (announced != null && !target.Contains("//" + announced + ":")) break;
+                        }
                     }
                 }
                 catch (Exception) { }
