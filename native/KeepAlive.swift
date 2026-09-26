@@ -41,6 +41,14 @@ final class AudioRouteKeeper {
     /// True while this process holds the route and the tone is running.
     private(set) var holding = false
 
+    /// Also play the Mac's own sound on its built-in speakers. Holding the AirPods as the output sends every sound
+    /// the Mac makes to them — the coach's voice included, into an AirPod clipped to a club. With this on, the
+    /// output held is a combined (multi-output) device: the speakers, with the AirPods added, so the AirPods keep
+    /// the audio route motion needs and the room still hears the Mac.
+    var speakersToo = true
+    static let combinedUID = "org.kinesthetic.airpods-plus-speakers"
+    static let combinedName = "Kinesthetic: speakers + earbuds"
+
     init(nameMatch: String = "AirPods") {
         self.nameMatch = nameMatch
     }
@@ -90,6 +98,71 @@ final class AudioRouteKeeper {
             result.append((id, name as String))
         }
         return result
+    }
+
+    private static func stringProperty(_ id: AudioObjectID, _ selector: AudioObjectPropertySelector) -> String? {
+        var addr = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var value: CFString? = nil
+        var size = UInt32(MemoryLayout<CFString?>.size)
+        let ok = withUnsafeMutablePointer(to: &value) { AudioObjectGetPropertyData(id, &addr, 0, nil, &size, $0) == noErr }
+        return ok ? value as String? : nil
+    }
+
+    private static func transport(_ id: AudioDeviceID) -> UInt32 {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyTransportType, mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var value: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &value)
+        return value
+    }
+
+    private static func device(withUID uid: String) -> AudioDeviceID? {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyTranslateUIDToDevice,
+                                              mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var cfUID = uid as CFString
+        var id: AudioDeviceID = 0
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let status = withUnsafeMutablePointer(to: &cfUID) {
+            AudioObjectGetPropertyData(systemObject(), &addr, UInt32(MemoryLayout<CFString>.size), $0, &size, &id)
+        }
+        return status == noErr && id != 0 ? id : nil
+    }
+
+    private static func subDeviceUIDs(_ id: AudioDeviceID) -> [String] {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioAggregateDevicePropertyFullSubDeviceList,
+                                              mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var list: CFArray? = nil
+        var size = UInt32(MemoryLayout<CFArray?>.size)
+        let ok = withUnsafeMutablePointer(to: &list) { AudioObjectGetPropertyData(id, &addr, 0, nil, &size, $0) == noErr }
+        return ok ? (list as? [String] ?? []) : []
+    }
+
+    /// The speakers-plus-AirPods output, made once and reused (by its UID) while it holds these AirPods. The
+    /// speakers are the main device, so they set the clock; the AirPods are drift-corrected against them.
+    private static func combinedDevice(airPods: AudioDeviceID) -> AudioDeviceID? {
+        guard let speakers = outputDevices().first(where: { transport($0.id) == kAudioDeviceTransportTypeBuiltIn }),
+              let speakersUID = stringProperty(speakers.id, kAudioDevicePropertyDeviceUID),
+              let airPodsUID = stringProperty(airPods, kAudioDevicePropertyDeviceUID) else { return nil }
+        if let existing = device(withUID: combinedUID) {
+            let subs = subDeviceUIDs(existing)
+            if subs.contains(speakersUID) && subs.contains(airPodsUID) { return existing }
+            AudioHardwareDestroyAggregateDevice(existing)   // made for another pair of AirPods
+        }
+        let description: [String: Any] = [
+            kAudioAggregateDeviceNameKey: combinedName,
+            kAudioAggregateDeviceUIDKey: combinedUID,
+            kAudioAggregateDeviceIsStackedKey: 1,          // multi-output: every sub-device plays everything
+            kAudioAggregateDeviceIsPrivateKey: 0,          // public, or it could not be the system output
+            kAudioAggregateDeviceMainSubDeviceKey: speakersUID,
+            kAudioAggregateDeviceSubDeviceListKey: [
+                [kAudioSubDeviceUIDKey: speakersUID],
+                [kAudioSubDeviceUIDKey: airPodsUID, kAudioSubDeviceDriftCompensationKey: 1],
+            ],
+        ]
+        var id: AudioDeviceID = 0
+        return AudioHardwareCreateAggregateDevice(description as CFDictionary, &id) == noErr ? id : nil
     }
 
     private static func defaultOutputDevice() -> AudioDeviceID {
@@ -165,8 +238,10 @@ final class AudioRouteKeeper {
     /// Returns a status line only when something changed, otherwise nil.
     @discardableResult
     func claim() -> String? {
+        // The AirPods themselves, never a combined device that includes them.
         guard let target = AudioRouteKeeper.outputDevices()
-                .first(where: { $0.name.localizedCaseInsensitiveContains(nameMatch) })
+                .first(where: { $0.name.localizedCaseInsensitiveContains(nameMatch)
+                                && AudioRouteKeeper.transport($0.id) != kAudioDeviceTransportTypeAggregate })
         else {
             if holding || heldDeviceID != 0 {
                 heldDeviceID = 0
@@ -181,12 +256,14 @@ final class AudioRouteKeeper {
 
         let isNewDevice = target.id != heldDeviceID
         heldDeviceID = target.id
+        let output = speakersToo ? (AudioRouteKeeper.combinedDevice(airPods: target.id) ?? target.id) : target.id
+        let outputName = output == target.id ? target.name : "\(target.name) and this Mac's speakers"
 
-        if AudioRouteKeeper.defaultOutputDevice() != target.id {
-            if AudioRouteKeeper.setDefaultOutputDevice(target.id) {
+        if AudioRouteKeeper.defaultOutputDevice() != output {
+            if AudioRouteKeeper.setDefaultOutputDevice(output) {
                 restartTone()
                 holding = toneRunning
-                return "Holding \(target.name) as the audio output so motion continues off-ear."
+                return "Holding \(outputName) as the audio output so motion continues off-ear."
             }
             holding = false
             return "Could not claim \(target.name) as the audio output."
