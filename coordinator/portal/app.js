@@ -1,4 +1,4 @@
-// Clinician review: all numbers come from saved exercise summaries (engine output) or the labeled synthetic
+// Clinician review: every number here comes from a saved exercise summary (engine output). There is no
 // fixture. The narrative sentences here are deterministic templates over those numbers, not model output.
 const $ = s => document.querySelector(s);
 const get = async p => { const r = await fetch(p, { cache: 'no-store' }); if (!r.ok) throw Error(await r.text()); return r.json(); };
@@ -6,7 +6,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const deg = v => v == null ? '—' : `${Math.round(v)}°`;
 const REASONS = { did_not_reach_target: 'short of target', trunk_compensation: 'trunk compensation', tracking_lost: 'tracking lost', too_fast: 'too fast' };
 
-let state = { plans: [], active: null, history: null, sessions: [], proposals: [], library: {} };
+let state = { plans: [], active: null, sessions: [], proposals: [], library: {} };
 // This portal view follows the first measured prescription (the shoulder raise); the rest are listed in the plan card.
 const primary = plan => plan.activities.find(a => a.exerciseKind) ?? plan.activities[0];
 const label = a => a.exerciseKind ? state.library[a.exerciseKind]?.label ?? a.exerciseKind : ({ 'golf.adaptive': 'Golf with a friend' }[a.activityId] ?? a.activityId);
@@ -15,50 +15,58 @@ const sensorOf = a => state.library[a.exerciseKind]?.sensor ?? 'Camera';
 const sessionFor = (s, a) => s.prescriptionId ? s.prescriptionId === a.id : a.exerciseKind === 'shoulder-raise.v1' || s.exercise === 'seated_shoulder_raise' && a.id.startsWith('shoulder-raise');
 
 async function load() {
-  const [plans, active, history, sessions, proposals, library] = await Promise.all([get('/api/plans'), get('/api/plans/active'),
-    get('/api/history'), get('/api/sessions'), get('/api/proposals'), get('/api/exercises')]);
-  state = { plans, active, history, sessions: sessions.filter(s => s.calibrated && s.attempted > 0), proposals, library };
+  const [plans, active, sessions, proposals, library] = await Promise.all([get('/api/plans'), get('/api/plans/active'),
+    get('/api/sessions'), get('/api/proposals'), get('/api/exercises')]);
+  state = { plans, active, sessions: sessions.filter(s => s.calibrated && s.attempted > 0), proposals, library };
   render();
 }
 
 function rows() {
-  const synthetic = state.history.sessions.map(s => ({ ...s, synthetic: true, when: s.label, trunk: s.trunkCompensationReps }));
   // The chart and table follow the plan's shoulder raise; older summaries have no plan exercise id.
   const x = primary(state.active);
-  const real = [...state.sessions].reverse().filter(s => sessionFor(s, x)).map(s => ({
-    synthetic: false, when: new Date(s.endedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+  return [...state.sessions].reverse().filter(s => sessionFor(s, x)).map(s => ({
+    when: new Date(s.endedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
     planVersion: s.planVersion, attempted: s.attempted, valid: s.valid, prescribed: s.prescribed, medianValidPeakDeg: s.medianValidPeakDeg,
     trunk: s.invalidReasons?.trunk_compensation ?? 0, simulated: s.simulated !== false, reasons: s.invalidReasons ?? {}, tracking: s.validFrameRatio, id: s.exerciseId, targetDeg: s.config?.targetDeg,
     sensor: s.sensor ?? 'pose',
   }));
-  return [...synthetic, ...real];
 }
 
 function render() {
-  const { history, active } = state, all = rows();
-  $('#patient-summary').textContent = history.patient.summary;
-  $('#patient-goal').textContent = history.patient.goal;
-  const baseline = all[0], latest = all[all.length - 1], latestReal = all.filter(r => !r.synthetic).at(-1);
+  const { active } = state, all = rows();
+  $('#patient-goal').textContent = active.goal?.text ?? '—';
+  const baseline = all[0], latest = all.at(-1);
+
+  // Every tile, sentence and rule below reads a measured session. With none recorded there is nothing
+  // to say, and saying it plainly is the point: this page used to fill the gap with authored history,
+  // which read exactly like evidence and was the first thing anyone looked at.
+  $('#trigger').hidden = true;
+  if (!all.length) {
+    $('#change-sentence').textContent =
+      'No sessions recorded yet. Nothing on this page is estimated or filled in — it stays empty until a session is measured.';
+    $('#tiles').innerHTML = '';
+    $('#sessions tbody').innerHTML = '<tr><td colspan="7" class="muted">No measured sessions yet.</td></tr>';
+    $('#chart').innerHTML = '';
+    renderPlan();
+    return;
+  }
 
   // Functional-change review request: explicit, deterministic rule inputs.
-  const reported = history.sessions.at(-1)?.patientReport ?? '';
   const reachUp = latest.medianValidPeakDeg != null && baseline.medianValidPeakDeg != null && latest.medianValidPeakDeg - baseline.medianValidPeakDeg >= 10;
-  const compensation = latest.trunk > 0;
-  const stiffness = /stiff|tight|spasm/i.test(reported);
   const trigger = $('#trigger');
-  if (reachUp && compensation && stiffness) {
+  if (reachUp && latest.trunk > 0) {
     trigger.hidden = false;
     trigger.innerHTML = `<strong>Functional change · review requested</strong>This is a request to review, not a diagnosis.<ul>
       <li>Reach up ${Math.round(latest.medianValidPeakDeg - baseline.medianValidPeakDeg)}° since ${esc(baseline.when)}</li>
-      <li>Trunk compensation on ${latest.trunk} of ${latest.attempted} attempts in the latest session</li>
-      <li>Patient reports: “${esc(reported)}”</li></ul>`;
-  } else trigger.hidden = true;
+      <li>Trunk compensation on ${latest.trunk} of ${latest.attempted} attempts in the latest session</li></ul>`;
+  }
 
-  $('#change-sentence').textContent = latest === baseline ? 'No sessions recorded yet.' :
+  $('#change-sentence').textContent = latest === baseline ?
+    `One session recorded. Median reach ${deg(latest.medianValidPeakDeg)}, ${latest.valid} of ${latest.attempted} reps counted. ` +
+    'A trend needs a second session.' :
     `Median reach is ${deg(latest.medianValidPeakDeg)}, up from ${deg(baseline.medianValidPeakDeg)} at ${baseline.when}. ` +
     `${latest.valid} of ${latest.attempted} attempted reps met the plan in the latest session` +
-    (latest.trunk ? `; ${latest.trunk} ${latest.trunk === 1 ? 'was' : 'were'} not counted for trunk compensation.` : '.') +
-    (latestReal ? '' : ' No live session yet — all points shown are synthetic history.');
+    (latest.trunk ? `; ${latest.trunk} ${latest.trunk === 1 ? 'was' : 'were'} not counted for trunk compensation.` : '.');
 
   const tiles = [
     ['Median reach', deg(latest.medianValidPeakDeg), `baseline ${deg(baseline.medianValidPeakDeg)}`],
@@ -68,14 +76,21 @@ function render() {
   ];
   $('#tiles').innerHTML = tiles.map(([l, v, s]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
 
-  $('#sessions tbody').innerHTML = [...all].reverse().map(r => `<tr class="${r.synthetic ? 'synthetic' : ''}">
-    <td>${esc(r.when)}${r.synthetic ? ' <span class="muted">(synthetic)</span>' : r.simulated ? ' <span class="muted">(simulated input)</span>' : ''}</td><td>v${r.planVersion}</td>
+  $('#sessions tbody').innerHTML = [...all].reverse().map(r => `<tr>
+    <td>${esc(r.when)}${r.simulated ? ' <span class="muted">(simulated input)</span>' : ''}</td><td>v${r.planVersion}</td>
     <td class="num">${r.valid}/${r.attempted}</td><td class="num">${deg(r.medianValidPeakDeg)}</td>
-    <td>${r.synthetic ? (r.trunk ? `${r.trunk} × trunk compensation` : '—') : Object.entries(r.reasons).map(([k, n]) => `${n} × ${REASONS[k] ?? k}`).join(', ') || '—'}</td>
+    <td>${Object.entries(r.reasons).map(([k, n]) => `${n} × ${REASONS[k] ?? k}`).join(', ') || '—'}</td>
     <td>${r.tracking != null ? Math.round(r.tracking * 100) + '%' : '—'}</td>
-    <td>${r.synthetic ? '' : r.sensor === 'imu' ? '<span class="muted small">AirPod</span>' : `<button type="button" class="small-btn" data-replay="${esc(r.id)}">Replay</button>`}</td></tr>`).join('');
+    <td>${r.sensor === 'imu' ? '<span class="muted small">AirPod</span>' : `<button type="button" class="small-btn" data-replay="${esc(r.id)}">Replay</button>`}</td></tr>`).join('');
   document.querySelectorAll('[data-replay]').forEach(b => b.addEventListener('click', () => openReplay(b.dataset.replay)));
 
+  renderPlan();
+  drawChart(all);
+}
+
+/** The plan card and its editor. Independent of the evidence: a new plan is set up before any session exists. */
+function renderPlan() {
+  const active = state.active;
   $('#plan-version').textContent = `v${active.version}`;
   const e = primary(active);
   $('#plan').innerHTML = [['Goal', esc(active.goal.text)],
@@ -104,8 +119,8 @@ function render() {
     `${p.origin === 'auto-progression' ? ' <span class="tag">auto</span>' : ''} · ${esc(label(x))} ${x.params.targetDeg}–${x.params.targetMaxDeg ?? '?'}°, ${x.targetCount} reps
     <div class="why">${esc(p.rationale)}</div><div class="muted small">${new Date(p.approvedAt).toLocaleString()} · ${esc(p.approvedBy)}</div></li>`; }).join('');
 
-  drawChart(all);
 }
+
 
 function drawChart(all) {
   const svg = $('#chart'), tip = $('#tooltip');
@@ -125,8 +140,8 @@ function drawChart(all) {
     <text x="${W - m.r}" y="${y(target) - 6}" text-anchor="end" font-size="11.5" fill="${c('--text-2')}">plan target ${target}°</text>`;
   g += `<polyline fill="none" stroke="${c('--series-1')}" stroke-width="2" stroke-linejoin="round" points="${pts.map((p, i) => `${x(i)},${y(p.medianValidPeakDeg)}`).join(' ')}"/>`;
   pts.forEach((p, i) => {
-    g += `<circle cx="${x(i)}" cy="${y(p.medianValidPeakDeg)}" r="5" fill="${p.synthetic ? c('--surface') : c('--series-1')}" stroke="${c('--series-1')}" stroke-width="2"/>
-      <text x="${x(i)}" y="${H - 12}" text-anchor="middle" font-size="11.5" fill="${c('--muted')}">${esc(p.synthetic ? p.when : 'S' + (i - state.history.sessions.length + 1))}</text>
+    g += `<circle cx="${x(i)}" cy="${y(p.medianValidPeakDeg)}" r="5" fill="${c('--series-1')}" stroke="${c('--series-1')}" stroke-width="2"/>
+      <text x="${x(i)}" y="${H - 12}" text-anchor="middle" font-size="11.5" fill="${c('--muted')}">${esc('S' + (i + 1))}</text>
       <rect data-i="${i}" x="${x(i) - 14}" y="${m.t}" width="28" height="${H - m.t - m.b}" fill="transparent"/>`;
   });
   const last = pts.at(-1);
@@ -134,7 +149,7 @@ function drawChart(all) {
   svg.innerHTML = g;
   svg.querySelectorAll('rect[data-i]').forEach(r => {
     r.addEventListener('mouseenter', () => { const p = pts[+r.dataset.i];
-      tip.innerHTML = `<strong>${esc(p.when)}</strong>${p.synthetic ? ' · synthetic' : ''}<br>Median peak ${deg(p.medianValidPeakDeg)} · counted ${p.valid}/${p.attempted} · plan v${p.planVersion}`;
+      tip.innerHTML = `<strong>${esc(p.when)}</strong><br>Median peak ${deg(p.medianValidPeakDeg)} · counted ${p.valid}/${p.attempted} · plan v${p.planVersion}`;
       tip.hidden = false; tip.style.left = `${Math.min(x(+r.dataset.i) + 12, W - 240)}px`; tip.style.top = `${y(p.medianValidPeakDeg) - 10}px`; });
     r.addEventListener('mouseleave', () => { tip.hidden = true; });
   });
@@ -165,7 +180,7 @@ $('#plan-form').addEventListener('submit', async ev => {
   finally { button.disabled = false; }
 });
 
-addEventListener('resize', () => state.history && drawChart(rows()));
+addEventListener('resize', () => state.active && drawChart(rows()));
 load().then(async () => {
   // Deep link: /portal/?replay=<exerciseId>&rep=<n> opens that session's replay at that repetition.
   const q = new URLSearchParams(location.search);

@@ -15,8 +15,7 @@
 <main class="layout">
   <section class="patient">
     <div>
-      <h1>Demo patient <span class="tag">Fictional case</span></h1>
-      <p id="patient-summary" class="muted"></p>
+      <h1 id="patient-name">Patient</h1>
       <p class="goal">Goal: <strong id="patient-goal"></strong></p>
     </div>
     <div id="trigger" class="trigger" hidden></div>
@@ -33,7 +32,7 @@
       <section class="card">
         <div class="card-head">
           <h2>Shoulder elevation, median of counted reps</h2>
-          <span class="muted small">Dashed line: current plan target · hollow points: synthetic history</span>
+          <span class="muted small">Dashed line: current plan target</span>
         </div>
         <div class="chart-wrap"><svg id="chart" role="img" aria-label="Median shoulder elevation per session"></svg><div id="tooltip" class="tooltip" hidden></div></div>
       </section>

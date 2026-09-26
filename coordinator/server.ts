@@ -50,7 +50,6 @@ function readBytes(request: import('node:http').IncomingMessage, limit: number):
   });
 }
 const portalRoot = resolve(root, 'coordinator/portal');
-const historyFixture = resolve(root, 'coordinator/fixtures/history.json');
 const allowedOrigins = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:8765', 'http://127.0.0.1:8765']);
 const mime: Record<string,string> = { '.html':'text/html', '.js':'text/javascript', '.mjs':'text/javascript', '.css':'text/css', '.wasm':'application/wasm', '.task':'application/octet-stream' };
 let producer: WebSocket | null = null;
@@ -273,7 +272,6 @@ const server = createServer(async (request, response) => {
           changes: {[proposal.prescriptionId]: {params: {targetDeg: proposal.to.targetDeg}}}});
         return json(200, {proposal: proposals.save({...proposal, status:'approved', appliedPlanVersion: plan.version}), plan});
       }
-      if (request.method === 'GET' && url.pathname === '/api/history') return json(200, JSON.parse(await readFile(historyFixture, 'utf8')));
       if (url.pathname.startsWith('/api/friends')) {
         const me = friends.me().id;
         if (request.method === 'GET' && url.pathname === '/api/friends') {

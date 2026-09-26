@@ -80,7 +80,7 @@ the simulators are marked "simulated input"), the functional-change review flag 
 baseline, trunk compensation in the latest session, reported stiffness), and plan approval with a required rationale.
 
 API: `GET /api/plans`, `GET /api/plans/active`, `POST /api/plans {exercise, rationale, coachingNote, expectedActiveVersion}`,
-`GET /api/sessions`, `GET /api/history`. Unity's `Rehab.unity` fetches the active plan when a session starts.
+`GET /api/sessions`. Unity's `Rehab.unity` fetches the active plan when a session starts.
 
 ## Movement replay (portal)
 

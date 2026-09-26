@@ -69,7 +69,7 @@ namespace Kinesthetic.Menu
         const string PlanUrl = "http://127.0.0.1:8766/api/plans/active";
         JObject dashboard;   // the last reply; null until one arrives
 
-        MenuDashboardModel BuildModel() => dashboard != null ? MenuDashboardModel.FromCoordinator(dashboard) : MenuDashboardModel.Placeholder();
+        MenuDashboardModel BuildModel() => dashboard != null ? MenuDashboardModel.FromCoordinator(dashboard) : MenuDashboardModel.Empty();
 
         IEnumerator LoadDashboard()
         {
