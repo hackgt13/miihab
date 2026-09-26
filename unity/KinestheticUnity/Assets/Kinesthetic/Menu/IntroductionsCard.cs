@@ -54,6 +54,11 @@ namespace Kinesthetic.Menu
 
         void Build()
         {
+            // Attach can run again — a pane rebinding its tree, a second call from
+            // the menu — and each run built another card on top of the last, so an
+            // empty one sat above the live one.
+            mount.Clear();
+
             card = new KSurface { tone = KSurface.Tone.Paper, density = KSurface.Density.Comfortable };
             card.AddToClassList("introduction-card");
 
