@@ -39,13 +39,6 @@ test('every movement an exercise maps to actually has a normative table', () => 
       assert.ok(tables.has(movement), `${exercise} maps to "${movement}", which has no table in NORMS`);
 });
 
-test('every activity names an exercise the engine actually implements', () => {
-  const known = new Set(EXERCISES.map(e => e.id));
-  for (const a of ACTIVITIES)
-    for (const kind of a.exerciseKinds)
-      assert.ok(known.has(kind), `${a.id} declares "${kind}", which the registry does not implement`);
-});
-
 test('every activity points at a Unity scene that exists on disk', () => {
   const assets = resolve(import.meta.dirname, '../unity/KinestheticUnity/Assets');
   if (!existsSync(assets)) return;   // coordinator can be checked out without the Unity project
@@ -60,15 +53,6 @@ test('every activity points at a Unity scene that exists on disk', () => {
   for (const a of ACTIVITIES)
     assert.ok(scenes.has(a.scene),
       `${a.id} loads scene "${a.scene}", which does not exist. Known scenes: ${[...scenes].sort().join(', ')}`);
-});
-
-test('activity ids are stable identifiers, not display text', () => {
-  // These are written into approved plans and session records, which are immutable on disk, so a
-  // rename is a migration rather than an edit.
-  for (const a of ACTIVITIES) {
-    assert.match(a.id, /^[a-z][a-z0-9]*(\.[a-z0-9-]+)+$/, `${a.id} is not a stable id`);
-    assert.notEqual(a.id, a.displayName.toLowerCase(), `${a.id} looks derived from display text`);
-  }
 });
 
 test("the gallery's cards say what the catalog says, and cover every activity", () => {

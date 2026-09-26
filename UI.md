@@ -152,6 +152,27 @@ Shared surfaces for compact HUDs and summaries. Tones: `Paper`, `Glass`, `Scrim`
 owns its padding, background, edge and radius. A scrim's blocking behavior and visibility remain
 with the screen. These variants and `KText` are also shown in `Specimen.uxml`.
 
+### Panes — `UI/Panes/`
+
+A pane is a whole surface standing in a venue: a `Pane` `MonoBehaviour` with its own `UIDocument`,
+collider, chrome and focus, placed by `Shell/PaneCarousel` and driven by a ray from a mouse, head gaze or
+a tracked wrist. It sits a layer above the other components — they live inside a panel, a pane *holds*
+one — and it is in the library so the chrome every pane draws is owned here, once. The namespace is
+still `Kinesthetic.Panes`; `UI/Panes/README.md` covers the lifecycle, content types and sandbox.
+
+Moved in from `Assets/Kinesthetic/Panes/` with every `.meta`, so scene and prefab references survive.
+Two things are still to do before panes meet the bar the other components hold:
+
+- **Selectors.** `Panes.uss` uses single classes (`.pane-frame`), which a screen's stylesheet can
+  outrank. They want the two-class form every other component uses.
+- **Chrome from components.** The close button is a raw `Button` with its hover toggled by hand
+  (`.pane-hot`); it should be `KButton tone="Ghost" size="Small" shape="Round"` driven through `Hot`.
+  The title is a candidate for `KText`, and the frame for `KSurface`.
+
+Three ray-to-element resolvers still exist — `UI/Panes/WorldPanelPick`, `UI/Panes/PanePointer` and
+`Shell/PanePointerInput` — and the menu boards are not yet real panes. Unifying them touches the
+menu's files, so it waits on that work.
+
 ## What a screen may do
 
 A screen's own stylesheet keeps its own classes, and they set **layout only**: `position`, the insets,

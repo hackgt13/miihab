@@ -210,12 +210,38 @@ namespace Kinesthetic.Shell
         public List<int> LeftToRight => Enumerable.Range(0, slots.Count)
             .OrderBy(i => Mathf.DeltaAngle(0, Yaw(i))).ToList();
 
+        /// True when the panes go all the way round, so stepping past the last one is a short turn onto the
+        /// first rather than a trip across an empty back.
+        public bool IsClosedRing
+        {
+            get
+            {
+                var order = LeftToRight;
+                if (order.Count < 2) return false;
+                for (int i = 0; i < order.Count; i++)
+                {
+                    float here = Yaw(order[i]), next = Yaw(order[(i + 1) % order.Count]);
+                    if (Mathf.Abs(Mathf.DeltaAngle(here, next)) > Mathf.Abs(spacingDegrees) + 1f) return false;
+                }
+                return true;
+            }
+        }
+
+        /// Whether there is anywhere to go in that direction. An arrow with nothing to fetch should say so.
+        public bool CanStep(int by) => slots.Count > 1 && Step(by) != index;
+
+        /// Three panes at -90, 0 and +90 are an arc, not a circle: there is 180 degrees of nothing behind the
+        /// person. Wrapping across it turns "one step right" into a half-turn through an empty wall and lands
+        /// you at the far left, which reads as the ring jumping rather than stepping. So the ends hold unless
+        /// the panes actually close the ring.
         int Step(int by)
         {
             if (slots.Count == 0) return 0;
             var order = LeftToRight;
             int at = order.IndexOf(index);
-            return order[((at + by) % order.Count + order.Count) % order.Count];
+            int wanted = at + by;
+            if (IsClosedRing) return order[((wanted % order.Count) + order.Count) % order.Count];
+            return order[Mathf.Clamp(wanted, 0, order.Count - 1)];
         }
 
         /// Out along the slot's heading, turned to face back down it.

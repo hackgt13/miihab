@@ -164,7 +164,7 @@ correctness.
 
 ### Scoring is server-side. Written rule.
 
-`measurement.ts` is pure, versioned and replayable, so a recorded session can be re-scored when an
+The measurement engine (`coordinator/exercise/`) is pure, versioned and replayable, so a recorded session can be re-scored when an
 algorithm version changes. Client-side scoring cannot be replayed, and IL2CPP strips the reflection
 that C#-side JSON deserialisation depends on, so it is the code most likely to silently return null on
 the headset. The one carve-out: a game may *predict* anything needing sub-100ms response — golf's ball

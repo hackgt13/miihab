@@ -20,6 +20,7 @@ namespace Kinesthetic.Shell
 
         VisualElement dots;
         Button previous, next;
+        readonly PressGate press = new();
 
         void Start() => Bind();
 
@@ -67,9 +68,10 @@ namespace Kinesthetic.Shell
                 previous = root.Q<Button>("carousel-prev");
                 next = root.Q<Button>("carousel-next");
                 if (previous == null || next == null) { previous = null; return; }
-                previous.clicked += carousel.Previous;
-                next.clicked += carousel.Next;
+                previous.clicked += () => Press("carousel-prev");
+                next.clicked += () => Press("carousel-next");
                 carousel.Changed += _ => Mark();
+                carousel.Settled += _ => Mark();
             }
 
             dots = root.Q("carousel-dots");
@@ -98,6 +100,10 @@ namespace Kinesthetic.Shell
             var order = carousel.LeftToRight;
             for (int i = 0; i < dots.childCount && i < order.Count; i++)
                 dots[i].EnableInClassList("here", order[i] == carousel.CurrentIndex);
+
+            // An arrow pointing at nothing is worse than no arrow: it invites a press and then appears broken.
+            previous?.SetEnabled(carousel.CanStep(-1));
+            next?.SetEnabled(carousel.CanStep(1));
         }
 
         /// Stand the chrome in a scene that already has a ring. One call, because wiring arrows should not
@@ -110,8 +116,13 @@ namespace Kinesthetic.Shell
         /// there is no pane to answer first. Nothing needs to know about anything else.
         ///
         /// It hangs off the carousel's own transform rather than the ring inside it, so it does not turn.
+        ///
+        /// The width is what places the arrows. At 4.9 m on a panel 0.18 m behind the ring, they land about
+        /// 30 degrees off centre — past the board's own edge at 27.9, and against the neighbouring pane's
+        /// edge as it comes into view. That is the right place for them: the control sits on the thing it
+        /// fetches. They stay in front of that edge in depth, so they keep the ray.
         public static CarouselChrome Stand(PaneCarousel carousel, PanelSettings panel, VisualTreeAsset tree,
-                                           float widthMetres = 5.4f, float behindPanes = .18f)
+                                           float widthMetres = 4.9f, float behindPanes = .18f)
         {
             if (carousel == null || panel == null || tree == null) return null;
 
@@ -153,7 +164,7 @@ namespace Kinesthetic.Shell
         /// exactly when an impatient second click lands.
         public void Press(string element)
         {
-            if (carousel == null || carousel.IsTurning) return;
+            if (carousel == null || carousel.IsTurning || !press.Accept(element)) return;
             if (element == "carousel-prev") carousel.Previous();
             else if (element == "carousel-next") carousel.Next();
         }

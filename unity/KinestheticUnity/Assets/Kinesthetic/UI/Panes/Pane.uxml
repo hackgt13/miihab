@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:Style src="../Palette.uss" />
+    <ui:Style src="../../Palette.uss" />
     <ui:Style src="Panes.uss" />
     <!-- Every name here is contract: Pane.Bind queries pane-frame, pane-grip, pane-title,
          pane-close and pane-content, and PaneHost decides what a hit on the grip means. -->

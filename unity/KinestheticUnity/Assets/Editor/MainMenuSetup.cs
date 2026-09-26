@@ -102,14 +102,21 @@ public static class MainMenuSetup
         // behind: a seated person should never be asked to turn around, and the ring brings panes to them.
         var rig = new GameObject("Menu carousel", typeof(PaneCarousel));
         var carousel = rig.GetComponent<PaneCarousel>();
+        // 60 degrees, not 90, so the neighbours show an edge instead of hiding behind the board — and not
+        // 45, which looks closer but is worse: the board fills +/-27.9 deg of a +/-38.2 deg view, so a
+        // neighbour at 45 puts its near edge at 17 deg, inside the board's silhouette and further away, and
+        // the board simply covers it. An edge only clears the board past twice the pane's own half-angle
+        // (55.7 deg) and leaves the screen past 66.1, so the window is narrow and 60 sits in the middle of
+        // it with about 6 degrees of pane showing either side.
+        carousel.spacingDegrees = 60;
         var menu = Pane("RehabMii activity menu", "MainMenu.uxml", true);
         var gallery = Pane("Activity gallery", "Gallery.uxml", false);
         var friendsPane = Pane("Friends", "Friends.uxml", false);
         carousel.Frame(eye.position, board.position);
         carousel.Adopt(
             new PaneCarousel.Slot("home", "Today", menu.transform, 0),
-            new PaneCarousel.Slot("gallery", "Activities", gallery.transform, -90),
-            new PaneCarousel.Slot("friends", "Friends", friendsPane.transform, 90));
+            new PaneCarousel.Slot("gallery", "Activities", gallery.transform, -60),
+            new PaneCarousel.Slot("friends", "Friends", friendsPane.transform, 60));
 
         // The arrows ride their own panel, wider than the panes and a little further out, so the facing pane
         // answers the gaze everywhere in front of it and the arrows answer only past its edge.

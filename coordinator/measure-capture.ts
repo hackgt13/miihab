@@ -1,7 +1,7 @@
 // Run the shoulder-raise engine over a saved capture (pose-capture JSON export or a coordinator session .jsonl).
 // Usage: node measure-capture.ts <file> [--side right|left] [--target 80] [--prescribed 8] [--events]
 import { readFile } from 'node:fs/promises';
-import { ShoulderRaiseSession, type Frame } from './measurement.ts';
+import { ShoulderRaiseSession, type Frame } from './exercise/shoulder-raise.ts';
 
 const args = process.argv.slice(2);
 const file = args.find(a => !a.startsWith('--'));

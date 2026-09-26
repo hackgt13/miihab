@@ -3,7 +3,7 @@
 // and the rep boundaries from the saved summary. Nothing here is re-scored; it only shows what was measured.
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { ShoulderRaiseSession, type Frame } from './measurement.ts';
+import { ShoulderRaiseSession, type Frame } from './exercise/shoulder-raise.ts';
 
 export async function loadReplay(recordings: string, exerciseId: string) {
   if (!/^[0-9a-f-]{36}$/i.test(exerciseId)) throw Error('Invalid session id');

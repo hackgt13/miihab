@@ -15,7 +15,7 @@ using UnityEngine.UIElements;
 /// the failure that ships a broken player.
 public static class PaneSandboxSetup
 {
-    const string Root = "Assets/Kinesthetic/Panes";
+    const string Root = "Assets/Kinesthetic/UI/Panes";
     const string PanelPath = Root + "/PanesPanel.asset";
     public const string ScenePath = Root + "/PaneSandbox.unity";
 

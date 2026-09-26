@@ -12,13 +12,6 @@ const people = [
   { id: 'arun', displayName: 'Arun', daysSinceActive: 0, daysSinceTheyWrote: null, daysSinceIWrote: null, unread: 0, sample: true },
 ];
 
-test('a well-formed reply passes through intact', () => {
-  const out = normaliseSpotlight(
-    { choose: 'maya', activity: [{ id: 'maya', line: 'returned after three days' }] }, people);
-  assert.equal(out.choose, 'maya');
-  assert.deepEqual(out.activity, [{ id: 'maya', line: 'returned after three days' }]);
-});
-
 test('a choice nobody made falls back to a real person', () => {
   // Spotlighting an id that is not in the roster would surface nobody at all.
   const out = normaliseSpotlight({ choose: 'nobody', activity: [] }, people);

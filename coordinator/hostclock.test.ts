@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { hostMonotonicMs, interleave, parseChannel, stamped, HOST_EPOCH_UTC } from './hostclock.ts';
 import { frame } from './synthetic-pose.ts';
+import { ready, stop } from './test-process.ts';
 
 test('the host axis advances monotonically and sits on the wall clock', () => {
   const a = hostMonotonicMs(), b = hostMonotonicMs();
@@ -41,7 +42,7 @@ test('live: both relays stamp their recordings on the same axis', {timeout: 2000
     stdio: ['ignore', 'pipe', 'pipe']});
   const sockets: WebSocket[] = [];
   try {
-    await Promise.all([once(bridge.stdout, 'data'), once(relay.stdout, 'data')]);
+    await Promise.all([ready(bridge), ready(relay)]);
     const open = async (url: string) => { const ws = new WebSocket(url); sockets.push(ws); await once(ws, 'open'); return ws; };
 
     const sessionId = randomUUID();
@@ -82,8 +83,7 @@ test('live: both relays stamp their recordings on the same axis', {timeout: 2000
     assert.ok(spread >= 0 && spread < 20_000, `both processes agree to within the test window, spread ${spread}ms`);
   } finally {
     for (const ws of sockets) ws.close();
-    bridge.kill(); relay.kill();
-    await Promise.all([once(bridge, 'exit'), once(relay, 'exit')]);
+    await Promise.all([stop(bridge), stop(relay)]);
     await rm(directory, {recursive: true, force: true});
   }
 });

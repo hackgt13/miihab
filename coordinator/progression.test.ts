@@ -10,6 +10,7 @@ import { WebSocket } from 'ws';
 import { PlanStore, type Plan } from './plans.ts';
 import { evaluate, type SessionEvidence } from './progression.ts';
 import { frame } from './synthetic-pose.ts';
+import { ready, stop } from './test-process.ts';
 
 // Plan history for the pure-rule tests: v1 at 45° (band 45–60), approved before any session.
 function plans(changes: Parameters<PlanStore['approve']>[0]['changes'] = undefined): Plan[] {
@@ -85,7 +86,7 @@ test('server: auto-progression inside the envelope, overshoot step-back, and cli
       KINESTHETIC_PLANS_DIRECTORY:join(dir, 'plans'), KINESTHETIC_PROPOSALS_DIRECTORY:join(dir, 'proposals'), KINESTHETIC_SOCIAL_DIRECTORY:join(dir, 'social')}});
   const post = (path: string, body?: unknown) => fetch(base + path, {method:'POST', body: body ? JSON.stringify(body) : undefined});
   try {
-    await once(child.stdout, 'data');
+    await ready(child);
     const producer = new WebSocket(`ws://127.0.0.1:${port}/pose?role=producer`); await once(producer, 'open');
     const poseSession = randomUUID(); let seq = 0, t = 0;
     const send = (arm: number) => producer.send(JSON.stringify({schemaVersion:'kinesthetic.session.v1', type:'pose.frame', sessionId:poseSession,
@@ -125,5 +126,5 @@ test('server: auto-progression inside the envelope, overshoot step-back, and cli
     assert.equal(approved.proposal.status, 'approved');
     assert.equal((await post(`/api/proposals/${waiting.id}/approve`)).status, 409, 'a proposal applies once');
     producer.close();
-  } finally { child.kill(); await once(child, 'exit'); }
+  } finally { await stop(child); }
 });
