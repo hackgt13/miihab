@@ -140,9 +140,12 @@ namespace Kinesthetic.Menu
             foreach (var slot in carousel.Slots)
             {
                 var dwell = slot.pane.GetComponent<GazeDwell>();
-                if (dwell == null) continue;
-                dwell.Entered += Gazed;
-                dwell.Committed += Commit;
+                if (dwell != null) { dwell.Entered += Gazed; dwell.Committed += Commit; }
+
+                // The mouse speaks the same two events, so a click and a dwell reach the same action and
+                // the hover a world-space panel cannot raise on its own arrives through Gazed like any other.
+                var pointer = slot.pane.GetComponent<PanePointerInput>();
+                if (pointer != null) { pointer.Entered += Gazed; pointer.Committed += Commit; }
             }
 
             // What the gaze may commit follows whichever pane is facing, which is what the scope list used

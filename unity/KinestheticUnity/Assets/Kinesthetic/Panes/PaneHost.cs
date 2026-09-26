@@ -70,7 +70,12 @@ namespace Kinesthetic.Panes
         void OnDestroy() { if (Instance == this) Instance = null; }
 
         void Settled(PaneCarousel.Slot slot) { facing = slot.id; Focus(Find(slot.id)); }
-        void Leaving(PaneCarousel.Slot slot) { if (facing == slot.id) facing = null; }
+        void Leaving(PaneCarousel.Slot slot)
+        {
+            var left = Find(slot.id);
+            if (left) left.Ticking = false;           // edge-on and unreadable until the turn ends
+            if (facing == slot.id) facing = null;
+        }
 
         Pane Find(string id) => panes.Find(p => p.Id == id);
 
@@ -90,12 +95,13 @@ namespace Kinesthetic.Panes
             pane.Id = id;
 
             panes.Add(pane);
-            pane.Bind(content);
+            pane.SetContent(content);
 
             carousel.Add(new PaneCarousel.Slot(id, content.Title, pane.transform));
             // Add deliberately announces nothing — opening a pane in the background should not move
             // the furniture — so the first one has to be adopted as the faced pane here.
-            if (string.IsNullOrEmpty(facing)) { facing = carousel.Current.id; Focus(Find(facing)); }
+            if (string.IsNullOrEmpty(facing)) facing = carousel.Current.id;
+            Focus(Find(facing));                              // a pane opened behind the person does not tick
             return pane;
         }
 
@@ -106,17 +112,14 @@ namespace Kinesthetic.Panes
             if (carousel) carousel.Remove(pane.Id);      // the ring closes the gap and keeps the view still
         }
 
+        /// Focus and ticking follow the faced pane together: the one being read runs, the rest stand idle.
         public void Focus(Pane pane)
         {
-            foreach (var p in panes) p.SetFocused(p == pane);
+            foreach (var p in panes) { p.SetFocused(p == pane); p.Ticking = p == pane; }
         }
 
         void Update()
         {
-            // Only the pane being faced runs. Everything else is standing there, drawn but idle.
-            var current = Find(facing);
-            if (current) current.Tick();
-
             if (pointer == null || !carousel || carousel.IsTurning) return;
 
             var element = WorldPanelPick.Under<VisualElement>(
@@ -137,7 +140,8 @@ namespace Kinesthetic.Panes
                 return;
             }
 
-            if (hitPane.Content is IPanePointerTarget target) target.OnPointer(normalised, pointer.Pressed);
+            if (Pane.Inside(normalised) && hitPane.Content is IPanePointerTarget target)
+                target.OnPointer(normalised, pointer.Pressed);
         }
 
         void Drag()

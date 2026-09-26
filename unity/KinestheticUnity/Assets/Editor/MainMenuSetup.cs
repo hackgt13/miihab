@@ -78,11 +78,15 @@ public static class MainMenuSetup
         // width the plaza wants. Element rects are in those same units, which is how GazeDwell resolves them.
         const float pixelsPerUnit = 100f, wantedWidth = 3.7f;
 
+        // Deliberately NOT carrying Kinesthetic.Panes.Pane onto these. It reuses whatever BoxCollider is
+        // already on the object — which here is the 16x9 one UIDocument maintains for its own panel — and
+        // resizes it to its worldSize, 1.2 x 0.78 m. That would shrink the board's pickable area to a patch
+        // in the middle, and both the dwell and the pointer resolve elements through that collider.
         GameObject Pane(string label, string uxml, bool board_)
         {
             var go = board_
-                ? new GameObject(label, typeof(UIDocument), typeof(MainMenuController), typeof(Kinesthetic.Panes.Pane), typeof(GazeDwell))
-                : new GameObject(label, typeof(UIDocument), typeof(GazeDwell));
+                ? new GameObject(label, typeof(UIDocument), typeof(MainMenuController), typeof(GazeDwell), typeof(PanePointerInput))
+                : new GameObject(label, typeof(UIDocument), typeof(GazeDwell), typeof(PanePointerInput));
             var d = go.GetComponent<UIDocument>();
             d.panelSettings = panel;
             d.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;

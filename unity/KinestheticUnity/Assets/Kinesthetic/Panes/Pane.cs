@@ -1,87 +1,118 @@
+using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Kinesthetic.Panes
 {
-    /// One floating surface in a venue: a rectangle of UI standing in the world, with chrome and
-    /// a content area. It owns everything spatial — transform, size, collider, focus — and knows
-    /// nothing about what is inside it.
+    /// One floating surface in a venue: a world-space UIDocument that owns the lifetime of the content
+    /// shown on it. This is the only pane type in the project. Where it stands is PaneCarousel's job;
+    /// what it shows is IPaneContent's; everything between — size, settings, binding, ticking, chrome,
+    /// focus, and turning a world point into a panel point — is here.
     ///
-    /// Chrome is authored in UXML rather than as 3D meshes, which is only safe because picking
-    /// belongs to PanePointer and never to UI Toolkit's event system. Dragging by the grip is a
-    /// raycast against this pane's collider, so it cannot be broken by the panel.Pick hole that
-    /// world-space panels have.
+    /// Size. A world-space panel lays its pixels out first and its transform maps them to metres, at
+    /// 100 panel pixels per unit (MainMenuSetup measured this from the collider UIDocument maintains).
+    /// So a pane lays out at PixelsPerMetre and scales itself down; handing metres straight to
+    /// worldSpaceSize lays the panel out a pixel wide.
     ///
-    /// The collider is ours rather than the one UIDocument maintains for its panel: sizing a box
-    /// to WorldSize is deterministic, and it means picking does not depend on undocumented
-    /// behaviour of a feature that shipped one Unity version ago.
+    /// Settings. Content changes worldSpaceSize and scale mode, so a pane works on its own copy of the
+    /// PanelSettings it was given and never on the shared asset.
+    ///
+    /// Lifetime. Supplying content hands its lifetime to the pane: replacing it disposes the old one
+    /// exactly once, destroying the pane disposes the last. Disabling the pane or its document keeps the
+    /// content, and it is bound again when the tree comes back — a UIDocument that is disabled throws
+    /// its visual tree away.
+    ///
+    /// Chrome is optional. With Pane.uxml the content goes into pane-content under a title bar; with no
+    /// tree asset it fills the root, which is how an authored document or a test uses a pane.
     [RequireComponent(typeof(UIDocument))]
     public sealed class Pane : MonoBehaviour
     {
-        public const float Thickness = .02f;               // metres; gives the grip something to hit
-
-        [SerializeField] Vector2 worldSize = new(1.2f, .78f);
-
-        public Vector2 WorldSize => worldSize;
-        public IPaneContent Content { get; private set; }
-        public string Id { get; set; }
-        public bool Focused { get; private set; }
-
-        /// The panel root, including chrome — the pointer picks against all of it.
-        public VisualElement ContentRoot { get; private set; }
+        const float PixelsPerMetre = 1000f;
+        const float PanelPixelsPerUnit = 100f;
 
         UIDocument document;
-        VisualElement frame, contentArea, grip;
-        Label title;
+        PanelSettings ownedSettings, originalSettings;
+        VisualElement boundRoot, contentHost, frame, grip;
         Button close;
-        BoxCollider box;
 
-        void Awake()
+        UIDocument Document => document ? document : document = GetComponent<UIDocument>();
+
+        public string Id { get; set; }
+        public IPaneContent Content { get; private set; }
+        public string Title => Content?.Title ?? gameObject.name;
+        public bool Focused { get; private set; }
+
+        /// Whether content ticks. A host turns this off for panes nobody is facing; unlike disabling the
+        /// component, it keeps the bound tree, so nothing is rebuilt when the pane is faced again.
+        public bool Ticking { get; set; } = true;
+
+        /// The whole panel, chrome included — what the pointer picks against.
+        public VisualElement ContentRoot => Document.rootVisualElement;
+
+        /// The size the pane is actually drawn at, in metres, including any scale above it.
+        public Vector2 WorldSize
         {
-            document = GetComponent<UIDocument>();
-            box = gameObject.GetComponent<BoxCollider>();
-            if (!box) box = gameObject.AddComponent<BoxCollider>();
+            get
+            {
+                var size = ContentRoot?.worldBound.size ?? Vector2.zero;
+                return new Vector2(Document.transform.TransformVector(Vector3.right * size.x).magnitude,
+                                   Document.transform.TransformVector(Vector3.up * size.y).magnitude);
+            }
         }
 
-        /// Called by the host once the UIDocument has a panel and a tree. Separate from Awake
-        /// because rootVisualElement is not reliably available until the document is enabled.
-        /// Upstream's world-panel work calls this SetContent; this half has always called it Bind. Same
-        /// operation, two names that met in a merge — aliased rather than renamed, because renaming would
-        /// break whichever side was not looking.
-        public void SetContent(IPaneContent content) => Bind(content);
-
-        public void Bind(IPaneContent content)
+        public void SetContent(IPaneContent next)
         {
-            Content = content;
-            if (content != null) worldSize = content.PreferredSize;
-            Resize(worldSize);
-
-            ContentRoot = document.rootVisualElement;
-            if (ContentRoot == null) return;
-
-            frame = ContentRoot.Q("pane-frame") ?? ContentRoot;
-            contentArea = ContentRoot.Q("pane-content");
-            grip = ContentRoot.Q("pane-grip");
-            title = ContentRoot.Q<Label>("pane-title");
-            close = ContentRoot.Q<Button>("pane-close");
-
-            if (title != null && content != null) title.text = content.Title;
-            if (close != null) close.clicked += Close;
-
-            // Chrome must not swallow the pick: the pointer resolves elements by rect, so an
-            // area that reports itself as hittable would shadow the content underneath it.
-            if (contentArea != null) contentArea.pickingMode = PickingMode.Ignore;
-
-            content?.Bind(contentArea ?? ContentRoot);
-            SetFocused(false);
+            if (ReferenceEquals(Content, next)) return;
+            if (next != null)
+            {
+                var size = next.PreferredSize;
+                if (!float.IsFinite(size.x) || !float.IsFinite(size.y) || size.x <= 0 || size.y <= 0)
+                    throw new ArgumentOutOfRangeException(nameof(next), "Pane content must request a positive finite size.");
+                if (!Document.panelSettings) throw new InvalidOperationException("Assign the pane's PanelSettings first.");
+                if (!ownedSettings)
+                {
+                    originalSettings = Document.panelSettings;
+                    ownedSettings = Instantiate(Document.panelSettings);
+                    ownedSettings.name = "Pane settings";
+                    ownedSettings.renderMode = PanelRenderMode.WorldSpace;
+                    ownedSettings.scaleMode = PanelScaleMode.ConstantPixelSize;
+                    Document.panelSettings = ownedSettings;
+                }
+                Document.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;
+                Document.worldSpaceSize = size * PixelsPerMetre;
+                transform.localScale = Vector3.one * (PanelPixelsPerUnit / PixelsPerMetre);
+            }
+            ReleaseContent();
+            contentHost?.Clear();
+            Content = next;
+            Bind();
         }
 
-        public void Resize(Vector2 metres)
+        /// Attach chrome and content to the current tree, once per tree. Runs again after the document
+        /// has thrown its tree away and built a new one.
+        void Bind()
         {
-            worldSize = new Vector2(Mathf.Max(.1f, metres.x), Mathf.Max(.1f, metres.y));
-            document.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;
-            document.worldSpaceSize = worldSize;
-            if (box) { box.size = new Vector3(worldSize.x, worldSize.y, Thickness); box.center = Vector3.zero; }
+            var root = ContentRoot;
+            if (Content == null || root == null || root.panel == null || root == boundRoot) return;
+
+            frame = root.Q("pane-frame");
+            grip = root.Q("pane-grip");
+            contentHost = root.Q("pane-content") ?? root;
+            var title = root.Q<Label>("pane-title");
+            if (title != null) title.text = Content.Title;
+            close = root.Q<Button>("pane-close");
+            if (close != null) { close.clicked -= Close; close.clicked += Close; }
+
+            contentHost.Clear();
+            Content.Bind(contentHost);
+            boundRoot = root;
+            SetFocused(Focused);
+        }
+
+        void Update()
+        {
+            Bind();
+            if (Ticking && boundRoot?.panel != null) Content?.Tick();
         }
 
         public void SetFocused(bool focused)
@@ -90,56 +121,66 @@ namespace Kinesthetic.Panes
             frame?.EnableInClassList("pane-focused", focused);
         }
 
-        /// Highlight whatever the pointer is over, so dwell has something to aim at.
+        /// Hover comes from the raycast, not from :hover, which never fires on a world-space panel.
         public void Highlight(VisualElement element)
         {
             grip?.EnableInClassList("pane-hot", element != null && element == grip);
             close?.EnableInClassList("pane-hot", element != null && element == close);
         }
 
-        public bool IsGrip(VisualElement element) => element != null && element == grip;
-
-        public void Tick() => Content?.Tick();
+        public bool IsGrip(VisualElement element) => element != null && grip != null && element == grip;
 
         public void Close()
         {
-            Content?.Dispose(); Content = null;
             if (PaneHost.Instance) PaneHost.Instance.Forget(this);
             Destroy(gameObject);
         }
 
-        void OnDestroy() { Content?.Dispose(); Content = null; }
-
-        /// Hand a world point to content that wants raw pointer input, as a 0..1 fraction of the pane.
-        /// Content that does not implement IPanePointerTarget simply does not hear about it.
-        public bool SendPointer(Vector3 worldPoint, bool pressed)
-        {
-            if (ContentRoot == null || Content is not IPanePointerTarget target ||
-                !TryProject(worldPoint, out _, out var point)) return false;
-            target.OnPointer(point, pressed);
-            return true;
-        }
-
-        /// Where a world point lands on this pane, in panel coordinates and as a 0..1 fraction.
+        /// Where a world point lands on this pane: in panel coordinates, and as a 0..1 fraction of the
+        /// content area from the bottom-left (outside 0..1 when the point is on the chrome).
         ///
-        /// Carried over from the world-panel-integration work upstream, which is also the answer to the
-        /// question Panes/README left open about WorldPanelPick and GazeDwell disagreeing. Neither guess was
-        /// right: a world-space panel already scales and flips its own root transform, so the fix is to undo
-        /// that transform once with WorldToLocal rather than to assume element bounds are pixels (GazeDwell)
-        /// or to normalise a second time against declared metres (the earlier WorldPanelPick).
+        /// A world-space panel already scales and flips its root, so the world point is taken into the
+        /// document's space and then through the root's own transform once. Assuming element bounds are
+        /// metres, or pixels, is what both earlier guesses in this project got wrong.
         public bool TryProject(Vector3 worldPoint, out Vector2 panelPoint, out Vector2 normalised)
         {
             panelPoint = normalised = default;
             var root = ContentRoot;
-            if (!isActiveAndEnabled || document == null || !document.enabled || root?.panel == null) return false;
-            var local = document.transform.InverseTransformPoint(worldPoint);
+            if (!isActiveAndEnabled || !Document.enabled || root?.panel == null) return false;
+            var local = Document.transform.InverseTransformPoint(worldPoint);
             panelPoint = new Vector2(local.x, local.y);
-            var point = root.WorldToLocal(panelPoint);
-            var rect = root.contentRect;
-            if (rect.width <= 0 || rect.height <= 0 || !rect.Contains(point)) return false;
+            if (!root.contentRect.Contains(root.WorldToLocal(panelPoint))) return false;
+
+            var host = contentHost ?? root;
+            var point = host.WorldToLocal(panelPoint);
+            var rect = host.contentRect;
+            if (rect.width <= 0 || rect.height <= 0) return false;
             normalised = new Vector2((point.x - rect.x) / rect.width, 1 - (point.y - rect.y) / rect.height);
             return true;
         }
 
+        /// Hand a world point to content that wants raw pointer input. Only points on the content area
+        /// are sent; chrome is the pane's, not the content's.
+        public bool SendPointer(Vector3 worldPoint, bool pressed)
+        {
+            if (boundRoot == null || Content is not IPanePointerTarget target ||
+                !TryProject(worldPoint, out _, out var point) || !Inside(point)) return false;
+            target.OnPointer(point, pressed);
+            return true;
+        }
+
+        internal static bool Inside(Vector2 normalised) =>
+            normalised.x >= 0 && normalised.x <= 1 && normalised.y >= 0 && normalised.y <= 1;
+
+        void OnDisable() => boundRoot = null;
+
+        void ReleaseContent() { var previous = Content; Content = null; boundRoot = null; previous?.Dispose(); }
+
+        void OnDestroy()
+        {
+            ReleaseContent();
+            if (document && document.panelSettings == ownedSettings) document.panelSettings = originalSettings;
+            if (ownedSettings) Destroy(ownedSettings);
+        }
     }
 }
