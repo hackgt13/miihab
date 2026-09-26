@@ -223,12 +223,13 @@ menu, not opened by a host. Making them full panes is a change to the menu's own
 
 A screen in a venue is not one document any more but a few **boards** standing at fixed **stations**
 around the seated patient: `Dock` (0° yaw, −22° pitch, 1.2 m: what to do now), `Focus` (0°, 0°, 1.4 m:
-modals), `Score` (−25°, +12°, 2.0 m), `Measure` (+25°, −5°, 1.5 m: live figures) and `Reading` (0°, −45°,
-0.42 m, tilted 10°: a page held, not a card mounted — only a document passing through occupies it) — all within ±30° of
+modals), `Score` (−25°, +12°, 2.0 m), `Measure` (+25°, −5°, 1.5 m: live figures) and `Reading` (0°, −40°,
+0.48 m, tilted −18° to 22° off vertical: a page held, not a card mounted — only a document passing through occupies it) — all within ±30° of
 yaw so nobody is asked to turn, and a venue that reserves a side takes a station's `Mirrored` image. A
 board lays out at **px/m = 1000 / distance**, so a 19px body line subtends the same angle at every
-station. A station may also carry a `tiltDegrees`, which leans the board's face back toward the reader
-without moving it: a mounted board is square to the eye at 0°, and only a page in your hands is not.
+station. A station may also carry a `tiltDegrees`, which turns the board's face off square to the eye
+without moving it — positive lies it back toward level, negative brings it up toward vertical. A mounted
+board is square at 0°; a page you hold is looked down at and held up, so it is neither.
 `SeatRig` is the seat anchor and stands boards at stations; `BoardSet` is the venue's boards as
 one query root (`boards.Q<Label>("status")`, names unchanged) and lands a gaze or pointer press on the
 button's own `clicked`; `Assets/Editor/BoardBuilder.cs` is the recipe — a world-space `UIDocument` on

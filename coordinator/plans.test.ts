@@ -7,7 +7,8 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
-import { PlanStore } from './plans.ts';
+import { PlanStore, prescriptionForActivity } from './plans.ts';
+import { requireActivity } from './activities.ts';
 import { frame } from './synthetic-pose.ts';
 import { ready, stop } from './test-process.ts';
 
@@ -177,4 +178,15 @@ test('a v1 plan file on disk still loads, unrewritten, and reads as v2', () => {
   const stored = JSON.parse(readFileSync(join(dir, 'plan-v2.json'), 'utf8'));
   assert.equal(stored.schema, 'kinesthetic.plan.v2');
   assert.equal(stored.exercise, undefined, 'the compatibility view is computed, never persisted');
+});
+
+test('a movement tile runs the plan\'s prescription for its kind, or a practice set at the library defaults', () => {
+  const plan = new PlanStore(mkdtempSync(join(tmpdir(), 'plans-'))).active();
+  const planned = prescriptionForActivity(plan, requireActivity('movement.elbow-flexion'));
+  assert.equal(planned.practice, false); assert.equal(planned.prescription?.id, 'elbow-flexion-right');
+  const practice = prescriptionForActivity(plan, requireActivity('movement.neck-flexion'));
+  assert.equal(practice.practice, true);
+  assert.deepEqual(practice.prescription, { id: 'practice-neck-flexion-right', activityId: 'movement.neck-flexion', exerciseKind: 'neck-flexion.v1',
+    order: 0, targetCount: 8, params: { side: 'right', targetDeg: 30, targetMaxDeg: 40, holdMs: 500 }, note: 'Practice: not part of your plan.', progression: null });
+  assert.equal(prescriptionForActivity(plan, requireActivity('rehab.studio')).prescription?.id, 'arm-elevation-right', 'the studio is unchanged');
 });

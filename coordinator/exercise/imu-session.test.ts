@@ -131,7 +131,16 @@ test('server: an IMU prescription reads the patient\'s handle AirPod from the mo
     const curl = await (await post('/exercise/start', {prescriptionId:'elbow-flexion-right'})).json();
     assert.equal(curl.sensor, 'imu'); assert.equal(curl.exerciseKind, 'elbow-flexion.v1'); assert.equal(curl.config.restMaxDeg, 20);
     await post('/exercise/stop');
+    // A gallery movement the plan does not prescribe: a practice set at the library defaults, never progressed.
+    const brief = await (await fetch(base + '/api/prescription?activityId=movement.neck-flexion')).json();
+    assert.equal(brief.practice, true); assert.equal(brief.label, 'Seated neck flexion'); assert.equal(brief.prescription.params.targetDeg, 30);
+    const neck = await (await post('/exercise/start', {activityId:'movement.neck-flexion'})).json();
+    assert.equal(neck.exerciseKind, 'neck-flexion.v1'); assert.equal(neck.practice, true); assert.equal(neck.config.targetDeg, 30);
+    const neckDone = await (await post('/exercise/stop')).json();
+    assert.equal(neckDone.practice, true); assert.equal(neckDone.progression, null);
+    assert.equal((await post('/exercise/start', {activityId:'movement.nope'})).status, 400);
     const sessions = await (await fetch(base + '/api/activity-sessions')).json();
+    assert.ok(sessions.some((s: any) => s.activityId === 'movement.neck-flexion'), 'a practice set is recorded under its own tile');
     assert.ok(sessions.some((s: any) => s.exerciseKinds.includes('elbow-flexion.v1')), 'every session also lands in the activity record');
   } finally { await stop(child); relay.close(); }
 });

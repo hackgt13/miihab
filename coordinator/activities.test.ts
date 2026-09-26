@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activityById, parseCatalog, requireActivity } from './activities.ts';
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { ACTIVITIES, activityById, parseCatalog, requireActivity } from './activities.ts';
+import { LIBRARY } from './exercises.ts';
+import { movementActivityId } from './movement-activities.ts';
+import { regenerate, UNITY_COPY } from './write-catalog.ts';
 
 const base = () => JSON.parse(JSON.stringify({
   schema: 'kinesthetic.activities.v1',
@@ -33,4 +38,22 @@ test('a malformed catalog fails at load rather than at the patient', () => {
 test('an unknown id names the ones that exist instead of failing silently', () => {
   assert.equal(activityById('golf.typo'), null);
   assert.throws(() => requireActivity('golf.typo'), /Unknown activity "golf.typo"\. Known: /);
+});
+
+test('every library movement is a gallery activity, and the catalog is what the library derives: run `npm run catalog`', () => {
+  const text = readFileSync(resolve(import.meta.dirname, 'activities.json'), 'utf8');
+  assert.equal(text, regenerate(text), 'activities.json is stale against the exercise library. Run `npm run catalog`.');
+  if (existsSync(UNITY_COPY)) assert.equal(readFileSync(UNITY_COPY, 'utf8'), text, "Unity's catalog copy is stale. Run `npm run catalog`.");
+  for (const kind of Object.keys(LIBRARY)) {
+    const a = requireActivity(movementActivityId(kind));
+    assert.deepEqual([a.group, a.exerciseKinds, a.prescribable], ['movement', [kind], false]);
+  }
+  assert.ok(ACTIVITIES.filter(a => a.group === 'movement').every(a => LIBRARY[a.exerciseKinds[0]]), 'no tile outlives its library entry');
+});
+
+test('a movement measures exactly one kind', () => {
+  const c = base(); Object.assign(c.activities[0], {group: 'movement', exerciseKinds: []});
+  assert.throws(() => parseCatalog(c, 'test'), /exactly one exercise kind/);
+  c.activities[0].group = 'shelf';
+  assert.throws(() => parseCatalog(c, 'test'), /group must be movement/);
 });

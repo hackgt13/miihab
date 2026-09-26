@@ -19,6 +19,8 @@ import { EXERCISES } from './exercise/registry.ts';
 
 export const CATALOG_SCHEMA = 'kinesthetic.activities.v1';
 export type ChannelId = 'pose' | 'imu';
+/** 'movement': one exercise kind as its own gallery tile, generated from the library (movement-activities.ts). */
+export type ActivityGroup = 'movement';
 
 export interface Activity {
   id: string;
@@ -45,6 +47,8 @@ export interface Activity {
   music: string | null;
   /** The three-step guide shown inside the activity. Lives here so a new activity brings its own. */
   help: { title: string; steps: { step: string; copy: string }[] };
+  /** Null for an authored activity with its own gallery card. */
+  group: ActivityGroup | null;
 }
 
 const CHANNELS: readonly ChannelId[] = ['pose', 'imu'];
@@ -82,13 +86,16 @@ function parse(raw: any, source: string): Activity[] {
       if (!String(s?.step ?? '').trim() || !String(s?.copy ?? '').trim())
         throw Error(`${where}: help.steps[${j}] needs both step and copy`);
     if (!String(a.loadingMessage ?? '').trim()) throw Error(`${where}: loadingMessage is required`);
+    const group = a.group ?? null;
+    if (group !== null && group !== 'movement') throw Error(`${where}: group must be movement or absent`);
+    if (group === 'movement' && exerciseKinds.length !== 1) throw Error(`${where}: a movement measures exactly one exercise kind`);
     return {
       id, displayName: String(a.displayName), tagline: String(a.tagline ?? ''),
       loadingMessage: String(a.loadingMessage),
       music: a.music == null ? null : String(a.music),
       help: {title: String(help.title), steps: steps.map((s: any) => ({step: String(s.step), copy: String(s.copy)}))},
       category: a.category, scene: String(a.scene), questScene: a.questScene == null ? null : String(a.questScene), venue: String(a.venue),
-      exerciseKinds, requires: requires as ChannelId[], subjects, prescribable: !!a.prescribable, navigation,
+      exerciseKinds, requires: requires as ChannelId[], subjects, prescribable: !!a.prescribable, navigation, group,
     };
   });
 }

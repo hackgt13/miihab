@@ -42,6 +42,9 @@
                     </ui:VisualElement>
                 </ui:Button>
             </ui:VisualElement>
+            <!-- One tile per movement in the exercise library, built by MainMenuController from the catalog's
+                 group "movement" entries. Nothing is authored here, so a new movement needs no markup. -->
+            <ui:VisualElement name="movements" class="movements" />
             <ui:VisualElement class="selection-row" picking-mode="Ignore">
                 <ui:VisualElement class="selection-dot" picking-mode="Ignore" />
                 <ui:Label name="selection-caption" text="" class="selection-caption" picking-mode="Ignore" />

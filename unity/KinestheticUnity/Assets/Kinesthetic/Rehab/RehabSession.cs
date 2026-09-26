@@ -31,7 +31,13 @@ namespace Kinesthetic.Rehab
         public string motionUrl = SensorHub.DefaultMotionUrl;
         public string wristMotionUrl = "ws://127.0.0.1:8767/bowling-motion?role=viewer";
         bool wristMotion;
-        string SensorPlacement => wristMotion ? "wrist" : "handle";
+        string SensorPlacement => movementPlacement ?? (wristMotion ? "wrist" : "handle");
+        // A movement tile from the gallery (activities.json group "movement"): this studio measures that one kind, as
+        // the plan prescribes it or, when the plan does not, as a practice set at the library's defaults. The
+        // coordinator decides which (GET /api/prescription); null when the studio was opened as itself.
+        ActivityEntry movement;
+        string movementLabel, movementSensor, movementPlacement, movementPosture;
+        bool practice;
         bool autoArmed, servicesStarting;
         long motionTicks; float stillSince = -1, enteredAt;
         string motionSession; long motionSequence = -1;
@@ -66,7 +72,7 @@ namespace Kinesthetic.Rehab
         bool startingSession, stoppingSession, sessionError, summaryReceived;
         public bool IsBusy => startingSession || stoppingSession;
         // IActivity. The shell drives this without knowing it is a therapy session.
-        public string ActivityId => "rehab.studio";
+        public string ActivityId => movement?.Id ?? "rehab.studio";
         public event Action<string> Completed;
         /// <summary>Leaving must fail if /exercise/stop does not answer, or the set is lost.</summary>
         public IEnumerator RequestExit(Action<bool> succeeded) => FinishSession(succeeded);
@@ -135,6 +141,9 @@ namespace Kinesthetic.Rehab
             // Not armed yet. The set begins when the patient puts the briefing down, not when the sensor
             // happens to hold still for a second and a half.
             autoArmed = false; enteredAt = Time.unscaledTime;
+            var launched = Kinesthetic.Menu.ActivityNavigation.Current();
+            movement = launched != null && launched.IsMovement ? launched : null;
+            if (movement != null) { exerciseKind = movement.MovementKind ?? exerciseKind; movementLabel = movement.DisplayName; }
             if (startServices) StartCoroutine(ConnectServices());
             BindUI();
         }
@@ -254,6 +263,36 @@ namespace Kinesthetic.Rehab
             planRequest.timeout = 5;
             yield return planRequest.SendWebRequest();
             if (planRequest.result == UnityWebRequest.Result.Success) ApplyPlan(JObject.Parse(planRequest.downloadHandler.text));
+            if (movement == null) yield break;
+            using var request = UnityWebRequest.Get(bridge + "/api/prescription?activityId=" + UnityWebRequest.EscapeURL(movement.Id));
+            request.timeout = 5;
+            yield return request.SendWebRequest();
+            if (request.result == UnityWebRequest.Result.Success) ApplyMovement(JObject.Parse(request.downloadHandler.text));
+        }
+
+        /// The movement's own prescription replaces the plan's first one: its kind, its band, its dose.
+        void ApplyMovement(JObject reply)
+        {
+            if (reply["prescription"] is not JObject x) return;
+            practice = reply["practice"]?.Value<bool>() == true;
+            exerciseKind = (string)x["exerciseKind"] ?? exerciseKind;
+            movementLabel = (string)reply["label"] ?? movementLabel;
+            movementSensor = (string)reply["sensor"];
+            movementPosture = (string)reply["posture"];
+            // "AirPods in your ears" → "ears": the word the status line puts after "your".
+            movementPlacement = movementSensor?.Split(' ').LastOrDefault();
+            var p = x["params"] as JObject;
+            bool nextWrist = (string)p?["imuSource"] == "wrist";
+            if (nextWrist != wristMotion) { wristMotion = nextWrist; motionTicks = 0; motionSequence = -1; motionSession = null; stillSince = -1; }
+            side = (string)p?["side"] ?? side;
+            targetDeg = Num(p?["targetDeg"]) ?? targetDeg;
+            if (Num(p?["targetMaxDeg"]) is float ceiling && ceiling > targetDeg) bandDeg = ceiling - targetDeg;
+            prescribedReps = x["targetCount"]?.Value<int>() ?? prescribedReps;
+            planHoldMs = Num(p?["holdMs"]) ?? 0;
+            holdTargetMs = Num(p?["holdTargetMs"]) ?? holdTargetMs;
+            raiseMs = Num(p?["raiseMs"]) ?? raiseMs; lowerMs = Num(p?["lowerMs"]) ?? lowerMs;
+            if (practice) coachingNote = (string)x["note"] ?? "";
+            UpdatePlanLabels();
         }
 
         IEnumerator Begin()
@@ -277,7 +316,9 @@ namespace Kinesthetic.Rehab
             // The physician's active plan decides the target; this session pins that version.
             yield return RefreshPlan();
             if (!useCameraPose && !ReadyToBegin) { startingSession = false; autoArmed = true; yield break; }
-            var body = new JObject { ["planVersion"] = planVersion }.ToString();
+            var startBody = new JObject { ["planVersion"] = planVersion };
+            if (movement != null) startBody["activityId"] = movement.Id;
+            var body = startBody.ToString();
             using var request = new UnityWebRequest(bridge + "/exercise/start", "POST") {
                 uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)), downloadHandler = new DownloadHandlerBuffer(), timeout = 5 };
             yield return request.SendWebRequest();
@@ -340,9 +381,9 @@ namespace Kinesthetic.Rehab
         /// and a prescription that invents them is a forged record rather than a nice touch.
         Briefing Prescription() => new()
         {
-            eyebrow = $"PRESCRIBED PLAN · V{planVersion}",
-            title = exerciseKind == "elbow-flexion.v1" ? "Elbow bends" : "Shoulder raises",
-            subtitle = string.IsNullOrEmpty(side) ? "Seated" : $"{char.ToUpperInvariant(side[0])}{side.Substring(1)} arm, seated",
+            eyebrow = practice ? "PRACTICE · NOT IN YOUR PLAN" : $"PRESCRIBED PLAN · V{planVersion}",
+            title = movementLabel ?? (exerciseKind == "elbow-flexion.v1" ? "Elbow bends" : "Shoulder raises"),
+            subtitle = movementPosture ?? (string.IsNullOrEmpty(side) ? "Seated" : $"{char.ToUpperInvariant(side[0])}{side.Substring(1)} arm, seated"),
             // The hold and the tempo are what the set is judged on beyond the count, so they are read before it.
             lines = new[]
             {
@@ -351,7 +392,7 @@ namespace Kinesthetic.Rehab
                 new BriefingLine("Stay under", $"{targetDeg + bandDeg:0}°"),
                 new BriefingLine("Hold at the top", HoldPrescribed ? Seconds(HoldTargetMs) : "No hold"),
                 new BriefingLine("Tempo", $"{Seconds(raiseMs)} up · {Seconds(lowerMs)} down"),
-                new BriefingLine("Measured by", useCameraPose ? "Camera" : $"AirPod on your {SensorPlacement}"),
+                new BriefingLine("Measured by", useCameraPose ? "Camera" : movementSensor ?? $"AirPod on your {SensorPlacement}"),
             },
             note = coachingNote,
             noteFrom = "FROM YOUR CARE TEAM",

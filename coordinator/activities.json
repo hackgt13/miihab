@@ -154,6 +154,618 @@
           }
         ]
       }
+    },
+    {
+      "id": "movement.arm-elevation",
+      "displayName": "Seated shoulder raise",
+      "tagline": "AirPod on the handle. Elbow straight.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "arm-elevation.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated shoulder raise.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the handle. Elbow straight. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Sit tall, straight arm, lift the handle and pause at the top. Stop at the line."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.elbow-flexion",
+      "displayName": "Seated biceps curl",
+      "tagline": "AirPod on the handle. Upper arm still at the side.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "elbow-flexion.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated biceps curl.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the handle. Upper arm still at the side. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Elbow stays by your side; curl up slowly and lower with control."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.neck-flexion",
+      "displayName": "Seated neck flexion",
+      "tagline": "AirPods in your ears. Sit tall; only the head moves.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "neck-flexion.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated neck flexion.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPods in your ears. Sit tall; only the head moves. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Sit tall and slowly bring your chin toward your chest. Pause, then return to looking ahead."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.neck-extension",
+      "displayName": "Seated neck extension",
+      "tagline": "AirPods in your ears. Sit tall; only the head moves.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "neck-extension.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated neck extension.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPods in your ears. Sit tall; only the head moves. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Sit tall and slowly look up toward the ceiling. Pause, then return to looking ahead."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.neck-lateral-flexion",
+      "displayName": "Seated neck side bend",
+      "tagline": "AirPods in your ears. Shoulders level and relaxed.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "neck-lateral-flexion.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated neck side bend.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPods in your ears. Shoulders level and relaxed. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Keep your shoulders down and tip your ear toward your shoulder. Pause, then come back to centre."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.shoulder-abduction",
+      "displayName": "Seated side arm raise",
+      "tagline": "AirPod on the wrist. Elbow straight, arm out to the side.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "shoulder-abduction.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated side arm raise.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the wrist. Elbow straight, arm out to the side. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Straight arm, lift it out to the side, thumb up. Pause at the line and lower slowly."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.scaption",
+      "displayName": "Seated scaption raise",
+      "tagline": "AirPod on the wrist. Elbow straight, arm halfway between forward and the side.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "scaption.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated scaption raise.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the wrist. Elbow straight, arm halfway between forward and the side. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Straight arm, thumb up, lift on a diagonal between forward and the side. Pause at the line."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.arm-hold",
+      "displayName": "Seated raise and hold",
+      "tagline": "AirPod on the wrist. Elbow straight.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "arm-hold.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated raise and hold.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the wrist. Elbow straight. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Raise your straight arm to the line and hold it there, steady, until the timer finishes."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.forearm-rotation",
+      "displayName": "Seated forearm turn",
+      "tagline": "AirPod on the wrist. Elbow at your side, bent 90 degrees, forearm level.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "forearm-rotation.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated forearm turn.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the wrist. Elbow at your side, bent 90 degrees, forearm level. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Elbow at your side, thumb up. Turn your palm up or down, pause, and return to thumb up."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.shoulder-external-rotation",
+      "displayName": "Shoulder rotation at 90/90",
+      "tagline": "AirPod on the wrist. Upper arm out at shoulder height, elbow bent 90 degrees.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "shoulder-external-rotation.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: shoulder rotation at 90/90.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the wrist. Upper arm out at shoulder height, elbow bent 90 degrees. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Arm out at shoulder height, elbow bent, hand forward. Rotate your hand up toward the ceiling, pause, and lower."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.trunk-flexion",
+      "displayName": "Seated forward bend",
+      "tagline": "AirPod on the chest. Feet flat, knees still.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "trunk-flexion.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated forward bend.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the chest. Feet flat, knees still. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Sit tall, then bend forward slowly as if reaching for your toes. Pause and sit back up."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.trunk-lateral-flexion",
+      "displayName": "Seated side bend",
+      "tagline": "AirPod on the chest. Both hips on the seat; lean, do not reach.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "trunk-lateral-flexion.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated side bend.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the chest. Both hips on the seat; lean, do not reach. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Sit tall and lean to the side, keeping both hips on the seat. Pause and come back to centre."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.trunk-extension",
+      "displayName": "Standing back bend",
+      "tagline": "AirPod on the chest. Hands on your hips, knees straight.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "trunk-extension.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: standing back bend.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the chest. Hands on your hips, knees straight. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Hands on your hips, gently lean back. Pause and return to standing tall."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.knee-extension",
+      "displayName": "Seated knee straightening",
+      "tagline": "AirPod on the ankle. Thigh stays on the seat.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "knee-extension.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated knee straightening.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the ankle. Thigh stays on the seat. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Sit back, thigh on the seat. Straighten your knee to lift your foot, pause, and lower slowly."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.straight-leg-raise",
+      "displayName": "Straight-leg raise",
+      "tagline": "AirPod on the ankle. Lying on your back, knee straight.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "straight-leg-raise.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: straight-leg raise.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the ankle. Lying on your back, knee straight. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Lying on your back, keep the knee straight and lift the leg to the line. Pause and lower slowly."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.hip-abduction",
+      "displayName": "Standing side leg raise",
+      "tagline": "AirPod on the thigh. Standing tall, holding a support; trunk upright.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "hip-abduction.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: standing side leg raise.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the thigh. Standing tall, holding a support; trunk upright. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Hold a chair, stand tall, and lift your leg out to the side. Pause and lower slowly."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.seated-march",
+      "displayName": "Seated march",
+      "tagline": "AirPod on the thigh. Sitting tall; lift the knee, not the trunk.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "seated-march.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: seated march.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "AirPod on the thigh. Sitting tall; lift the knee, not the trunk. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Sit tall and lift this knee up and down, as if marching. Steady rhythm."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
     }
   ]
 }

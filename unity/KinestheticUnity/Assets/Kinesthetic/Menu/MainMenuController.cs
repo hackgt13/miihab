@@ -7,6 +7,8 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UIElements;
 using Kinesthetic.Shell;
+using Kinesthetic.UI;
+using Kinesthetic.Activities;
 
 namespace Kinesthetic.Menu
 {
@@ -44,6 +46,9 @@ namespace Kinesthetic.Menu
         static readonly string[] ActivityIds = { "golf.adaptive", "rehab.studio", "bowling.adaptive" };
         static readonly string[] HelpScope = { "help-close" };
         static readonly string[] NameScope = { "name-save", "name-cancel" };
+        // The gallery's scope is the three cards plus one tile per movement, built from the catalog in Bind.
+        string[] activityScope = ActivityScope;
+        readonly List<(KButton tile, ActivityEntry entry)> tiles = new();
         string[] baseScope = BoardScope;
         string[] scope = BoardScope;
 
@@ -136,6 +141,7 @@ namespace Kinesthetic.Menu
             nameField = root.Q<TextField>("name-field");
             cards = new[] { galleryRoot.Q<Button>("golf-card"), galleryRoot.Q<Button>("studio-card"), galleryRoot.Q<Button>("bowling-card") };
             caption = galleryRoot.Q<Label>("selection-caption");
+            BuildMovementTiles();
             music = root.Q<Button>("music");
 
             for (int i = 0; i < cards.Length; i++)
@@ -213,7 +219,7 @@ namespace Kinesthetic.Menu
             carousel.Changed += slot => Kinesthetic.UI.Remote.UiCue.SendFace(slot.id);
             carousel.Settled += slot => scope = slot.id switch
             {
-                "gallery" => ActivityScope,
+                "gallery" => activityScope,
                 "friends" => FriendsScope,
                 "coaching" => CoachingScope,
                 _ => baseScope,
@@ -315,6 +321,8 @@ namespace Kinesthetic.Menu
             if (!InScope(name)) return;
             int card = Array.FindIndex(cards, c => c != null && c.name == name);
             if (card >= 0) { Select(card, true); cards[card].Focus(); return; }
+            int tile = tiles.FindIndex(t => t.tile.name == name);
+            if (tile >= 0) { Hover(tile); return; }
             navigation.PlayHover();
         }
 
@@ -368,8 +376,43 @@ namespace Kinesthetic.Menu
             root.Q<Button>(focusName)?.Focus();
         }
 
+        /// One small button per movement in the exercise library (the catalog's group "movement" entries), under the
+        /// cards. Generated rather than authored, so `npm run catalog` is all a new movement needs to appear here.
+        void BuildMovementTiles()
+        {
+            var shelf = galleryRoot.Q("movements");
+            var movements = ActivityCatalog.Movements;
+            if (shelf == null) return;
+            shelf.Clear(); tiles.Clear();
+            if (movements.Length == 0) return;
+            var title = new KEyebrow("MOVEMENTS") { pickingMode = PickingMode.Ignore };
+            title.AddToClassList("movements-title");
+            shelf.Add(title);
+            foreach (var entry in movements)
+            {
+                var tile = new KButton { name = "tile-" + entry.Id, text = entry.DisplayName, size = KButton.Size.Small, tooltip = entry.Tagline };
+                tile.AddToClassList("movement-tile");
+                int index = tiles.Count;
+                tile.RegisterCallback<PointerEnterEvent>(_ => Hover(index));
+                tile.RegisterCallback<FocusInEvent>(_ => Hover(index));
+                string id = entry.Id;
+                Act(tile, () => Launch(id));
+                shelf.Add(tile); tiles.Add((tile, entry));
+            }
+            activityScope = ActivityScope.Concat(tiles.Select(t => t.tile.name)).ToArray();
+        }
+
+        /// A movement tile under the gaze or the pointer: lit, and the caption says where the AirPod goes.
+        void Hover(int index)
+        {
+            for (int i = 0; i < tiles.Count; i++) tiles[i].tile.Hot = i == index;
+            if (caption != null) caption.text = $"{tiles[index].entry.DisplayName} · {tiles[index].entry.Tagline}";
+            navigation.PlayHover();
+        }
+
         void Select(int index, bool sound)
         {
+            foreach (var t in tiles) t.tile.Hot = false;
             bool changed = index != selected; selected = index;
             for (int i = 0; i < cards.Length; i++) cards[i]?.EnableInClassList("selected", i == selected);
             if (caption != null)

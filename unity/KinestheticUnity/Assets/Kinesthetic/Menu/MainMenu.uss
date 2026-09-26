@@ -150,6 +150,9 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .card-description { font-size: 16px; color: var(--slate-50); margin-top: 3px; white-space: normal; }
 .card-arrow { font-size: 38px; color: var(--slate-30); margin-left: 10px; flex-shrink: 0; }
 .selected .card-arrow { color: var(--cerulean-50); }
+.movements { flex-direction: row; flex-wrap: wrap; margin-top: 20px; }
+.movements-title { width: 100%; margin-bottom: 8px; }
+.movement-tile { margin: 0 10px 10px 0; }
 .selection-row { height: 54px; flex-direction: row; align-items: center; justify-content: center; }
 .selection-dot { width: 9px; height: 9px; border-radius: 5px; background-color: var(--cerulean-50); margin-right: 12px; }
 .selection-caption { font-size: 19px; color: var(--slate-60); }
