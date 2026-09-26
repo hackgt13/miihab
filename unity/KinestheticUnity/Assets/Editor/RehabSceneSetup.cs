@@ -44,16 +44,16 @@ public static class RehabSceneSetup
         chair.transform.localRotation = Quaternion.Euler(0, 180, 0);
         actor.gameObject.AddComponent<Kinesthetic.Golf.MiiIdleLife>(); // blink + breathing, paused while arms are tracked
 
-        // Practice room: soft floor, back wall, a mat, a window of light.
-        Solid("Floor", PrimitiveType.Plane, new Vector3(0, 0, 0), new Vector3(2, 1, 2), new Color(.78f, .74f, .66f));
-        Solid("Back wall", PrimitiveType.Cube, new Vector3(0, 2, 3.2f), new Vector3(12, 4, .1f), new Color(.72f, .85f, .9f));
-        Solid("Mat", PrimitiveType.Cube, new Vector3(0, .005f, 0), new Vector3(2.2f, .01f, 1.6f), new Color(.45f, .74f, .56f));
+        RehabStudioBuilder.Build();
+        slot.position = Vector3.up * .062f;
 
         var unlit = Shader.Find("Universal Render Pipeline/Unlit");
-        Material Glow(string name, Color c) { var m = new Material(unlit) { name = name, color = c };
-            AssetDatabase.CreateAsset(m, $"{Root}/{name}.mat"); return m; }
+        Material Glow(string name, Color c) {
+            var m = AssetDatabase.LoadAssetAtPath<Material>($"{Root}/{name}.mat");
+            if (!m) { m = new Material(unlit); AssetDatabase.CreateAsset(m, $"{Root}/{name}.mat"); }
+            m.shader = unlit; m.name = name; m.color = c; EditorUtility.SetDirty(m); return m; }
         var band = new GameObject("Target band").AddComponent<LineRenderer>();
-        band.widthMultiplier = .09f; band.numCapVertices = 6; band.sharedMaterial = Glow("RehabBand", new Color(.85f, .9f, .95f));
+        band.widthMultiplier = .035f; band.numCapVertices = 6; band.sharedMaterial = Glow("RehabBand", Color.white);
         var guide = new GameObject("Measured arm angle").AddComponent<LineRenderer>();
         guide.widthMultiplier = .025f; guide.sharedMaterial = Glow("RehabGuide", new Color(.7f, .9f, 1f));
         var orb = GameObject.CreatePrimitive(PrimitiveType.Sphere); orb.name = "Target orb";
@@ -63,17 +63,28 @@ public static class RehabSceneSetup
         marker.GetComponent<Renderer>().sharedMaterial = Glow("RehabMarker", new Color(.55f, .88f, 1f));
 
         var camera = new GameObject("Patient view camera").AddComponent<Camera>();
-        camera.transform.position = new Vector3(.9f, 1.45f, -2.9f); camera.transform.LookAt(new Vector3(-.15f, .95f, 0));
-        camera.fieldOfView = 42; camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(.72f, .85f, .9f);
+        camera.transform.position = new Vector3(1.7f, 1.95f, -5.2f); camera.transform.LookAt(new Vector3(-.15f, 1.0f, .25f));
+        camera.fieldOfView = 40; camera.nearClipPlane = .1f; camera.farClipPlane = 50;
+        camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(.83f, .92f, .91f);
         camera.tag = "MainCamera";
+        camera.gameObject.AddComponent<AudioListener>();
         var light = new GameObject("Key light").AddComponent<Light>();
-        light.type = LightType.Directional; light.intensity = 1.15f; light.shadows = LightShadows.Soft; light.transform.rotation = Quaternion.Euler(40, -30, 0);
-        RenderSettings.ambientMode = AmbientMode.Flat; RenderSettings.ambientLight = new Color(.62f, .66f, .7f);
+        light.type = LightType.Directional; light.intensity = 1.05f; light.color = new Color(1, .97f, .89f);
+        light.shadows = LightShadows.Soft; light.shadowStrength = .25f; light.shadowBias = .03f;
+        light.transform.rotation = Quaternion.Euler(42, -145, 0);
+        var fill = new GameObject("Soft front fill").AddComponent<Light>();
+        fill.type = LightType.Directional; fill.intensity = .45f; fill.color = new Color(.86f, .94f, 1);
+        fill.transform.rotation = Quaternion.Euler(25, 20, 0);
+        RenderSettings.ambientMode = AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor = new Color(.79f, .85f, .85f);
+        RenderSettings.ambientEquatorColor = new Color(.72f, .77f, .71f);
+        RenderSettings.ambientGroundColor = new Color(.55f, .49f, .39f);
 
         var ui = new GameObject("Rehab session");
         var panel = AssetDatabase.LoadAssetAtPath<PanelSettings>(Root + "/RehabPanel.asset");
         if (!panel) { panel = ScriptableObject.CreateInstance<PanelSettings>(); AssetDatabase.CreateAsset(panel, Root + "/RehabPanel.asset"); }
-        panel.scaleMode = PanelScaleMode.ScaleWithScreenSize; panel.referenceResolution = new Vector2Int(1400, 900); EditorUtility.SetDirty(panel);
+        panel.scaleMode = PanelScaleMode.ScaleWithScreenSize; panel.referenceResolution = new Vector2Int(1600, 900);
+        panel.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight; panel.match = .5f; EditorUtility.SetDirty(panel);
         var doc = ui.AddComponent<UIDocument>(); doc.panelSettings = panel;
         doc.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(Root + "/Rehab.uxml");
         var session = ui.AddComponent<RehabSession>();
@@ -86,12 +97,4 @@ public static class RehabSceneSetup
         return "Rehab scene created at " + ScenePath;
     }
 
-    static void Solid(string name, PrimitiveType type, Vector3 position, Vector3 scale, Color color)
-    {
-        var go = GameObject.CreatePrimitive(type); go.name = name; go.transform.position = position; go.transform.localScale = scale;
-        var m = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = name };
-        m.SetColor("_BaseColor", color); m.SetFloat("_Smoothness", .15f);
-        AssetDatabase.CreateAsset(m, $"{Root}/{name.Replace(' ', '-')}.mat");
-        go.GetComponent<Renderer>().sharedMaterial = m;
-    }
 }

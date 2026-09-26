@@ -1,18 +1,78 @@
-.screen { flex-grow: 1; color: white; -unity-font-style: bold; }
-.outlined { -unity-text-outline-width: 1.4px; -unity-text-outline-color: rgba(20, 40, 48, .85); }
-.banner { position: absolute; left: 28px; top: 28px; background-color: rgba(12, 29, 43, .88); border-top-width: 3px; border-bottom-width: 3px; border-right-width: 7px; border-color: #76d5f6; padding: 12px 22px; border-bottom-right-radius: 22px; }
-.title { font-size: 30px; letter-spacing: 1px; }
-.plan { font-size: 16px; color: #c6eaff; margin-top: 4px; -unity-font-style: normal; }
-.counter { position: absolute; right: 40px; top: 32px; width: 200px; align-items: center; background-color: rgba(12, 29, 43, .82); border-width: 3px; border-color: #76d5f6; border-radius: 18px; padding: 12px; }
-.counter-title { font-size: 15px; letter-spacing: 2px; color: #fff6b0; }
-.counter-value { font-size: 58px; }
-.angle-title { margin-top: 8px; }
-.angle-value { font-size: 40px; color: #b6ecff; }
-.summary-card { position: absolute; left: 30%; right: 30%; top: 26%; background-color: rgba(245, 251, 255, .96); border-width: 4px; border-color: #82ceef; border-radius: 22px; padding: 22px; align-items: center; }
-.summary-title { font-size: 28px; color: #28608b; letter-spacing: 2px; margin-bottom: 10px; }
-.summary-text { font-size: 19px; color: #1d3a4d; white-space: normal; -unity-text-align: middle-center; -unity-font-style: normal; }
-.footer { position: absolute; bottom: 24px; left: 22%; right: 22%; align-items: center; }
-.status { padding: 10px 18px; margin-bottom: 10px; background-color: rgba(14, 38, 53, .85); border-radius: 12px; font-size: 24px; -unity-text-align: middle-center; white-space: normal; }
-Button.start { min-width: 170px; height: 58px; font-size: 24px; background-color: #f5fbff; color: #28608b; border-width: 4px; border-color: #82ceef; border-radius: 22px; -unity-font-style: bold; }
-Button.start:hover { background-color: #d5f3ff; border-color: white; }
-Button.start:active { background-color: #87d1ee; }
+.studio-screen { flex-grow: 1; color: #31545c; -unity-font: url("Fonts/Nunito-SemiBold.ttf"); }
+Label { margin: 0; padding: 0; }
+.studio-header { flex-direction: row; align-items: center; height: 88px; padding: 0 36px; background-color: rgba(255, 255, 255, .96); border-bottom-width: 3px; border-bottom-color: rgba(107, 186, 183, .32); }
+.brand-mark { width: 48px; height: 48px; border-radius: 16px; background-color: #38adba; margin-right: 14px; align-items: center; justify-content: center; }
+.brand-mark Label { font-size: 36px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: white; margin-top: -8px; }
+.brand-name { font-size: 29px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: -1px; margin-top: -3px; }
+.eyebrow { font-size: 11px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: 1.6px; color: #607b80; }
+.brand-copy .eyebrow { font-size: 9px; letter-spacing: 2px; }
+.header-space { flex-grow: 1; }
+.connection-chip { flex-direction: row; align-items: center; padding: 10px 15px; border-radius: 18px; background-color: #f0f5f4; }
+.connection-chip Label { font-size: 12px; color: #607b80; }
+.connection-dot { width: 8px; height: 8px; border-radius: 4px; background-color: #9bb0ac; margin-right: 8px; }
+.connection-chip.connected { background-color: #e9f6ee; }
+.connection-chip.connected .connection-dot { background-color: #4bae78; }
+.connection-chip.connected Label { color: #367a54; }
+.header-note { font-size: 10px; letter-spacing: 1.5px; margin-left: 24px; color: #607b80; }
+.card { background-color: rgba(255, 255, 255, .99); border-width: 1px; border-color: white; border-bottom-width: 4px; border-bottom-color: #d4e5e1; border-radius: 24px; }
+.exercise-card { position: absolute; left: 32px; top: 123px; bottom: 180px; width: 276px; padding: 24px 22px 20px; }
+.section-heading { flex-direction: row; align-items: center; margin-bottom: 16px; }
+.exercise-number { font-size: 14px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #219eac; padding: 6px 9px; background-color: #e9f6f5; border-radius: 9px; margin-right: 11px; }
+.exercise-title { font-size: 34px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; white-space: normal; letter-spacing: -.9px; }
+.side-label { align-self: flex-start; margin-top: 10px; padding: 5px 10px; border-radius: 8px; background-color: #e5f2f6; color: #327f95; font-size: 10px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: 1.4px; }
+.exercise-intro { font-size: 14px; color: #607b80; white-space: normal; margin-top: 12px; }
+.card-divider { height: 1px; background-color: #dfebe8; margin: 16px 0; }
+.instruction-row { flex-direction: row; align-items: flex-start; margin-top: 14px; }
+.step-number { width: 25px; height: 25px; flex-shrink: 0; border-radius: 13px; border-width: 1px; border-color: #cde0d8; color: #589a7c; font-size: 12px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; -unity-text-align: middle-center; margin-right: 10px; }
+.instruction-copy { flex-grow: 1; flex-shrink: 1; }
+.step-title { font-size: 13px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
+.step-detail { font-size: 11px; white-space: normal; margin-top: 4px; color: #607b80; }
+.plan-inset { margin-top: 20px; padding: 13px 12px; border-radius: 12px; background-color: #eef5ee; }
+.plan-inset .eyebrow { font-size: 9px; color: #5b816d; letter-spacing: 1px; }
+.plan { font-size: 13px; margin-top: 5px; color: #456d58; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; white-space: normal; }
+.progress-card { position: absolute; top: 123px; right: 32px; width: 242px; padding: 24px 20px 22px; }
+.progress-card > .eyebrow { -unity-text-align: middle-center; }
+.rep-ring { width: 180px; height: 180px; margin-top: 13px; align-self: center; align-items: center; justify-content: center; }
+.rep-value { font-size: 62px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #219eac; margin-top: -7px; }
+.rep-goal { font-size: 12px; color: #607b80; margin-top: -3px; }
+.progress-note { font-size: 10px; color: #607b80; -unity-text-align: middle-center; margin-top: 12px; white-space: normal; }
+.angle-heading { flex-direction: row; justify-content: space-between; align-items: center; }
+.angle-heading .eyebrow { font-size: 10px; letter-spacing: 1px; }
+.target-label { font-size: 11px; color: #438c97; }
+.angle-value { font-size: 42px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; margin-top: 8px; }
+.angle-meter { height: 8px; margin-top: 6px; margin-bottom: 6px; }
+.angle-meter .unity-progress-bar__container { flex-grow: 1; height: 8px; min-height: 8px; padding: 0; margin: 0; }
+.angle-meter .unity-progress-bar__background { height: 8px; min-height: 8px; border-width: 0; border-radius: 4px; background-color: #e3eeed; }
+.angle-meter .unity-progress-bar__progress { height: 8px; min-height: 8px; margin: 0; border-width: 0; border-radius: 4px; background-color: #72c2c8; }
+.angle-meter .unity-progress-bar__title-container { display: none; }
+.angle-note { font-size: 10px; color: #607b80; margin-top: 10px; white-space: normal; }
+.studio-caption { position: absolute; left: 340px; right: 305px; bottom: 164px; align-items: center; }
+.studio-caption-title { font-size: 10px; letter-spacing: 3px; color: #3c756f; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
+.studio-caption-detail { display: none; }
+.coaching-dock { position: absolute; bottom: 54px; left: 32px; right: 32px; min-height: 98px; flex-direction: row; align-items: center; padding: 18px 22px; background-color: rgba(255, 255, 255, .98); border-radius: 24px; border-width: 1px; border-color: white; border-bottom-width: 4px; border-bottom-color: #d6e6e1; }
+.cue-icon { width: 52px; height: 52px; flex-shrink: 0; border-radius: 18px; background-color: #e6f2ec; align-items: center; justify-content: center; margin-right: 16px; }
+.cue-icon Label { font-size: 25px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #559575; }
+.cue-icon.good { background-color: #d5f0d9; }
+.cue-icon.attention { background-color: #fff0d2; }
+.cue-icon.attention Label { color: #9b752f; }
+.coaching-copy { flex-grow: 1; flex-shrink: 1; margin-right: 22px; }
+.cue-title { font-size: 20px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
+.status { font-size: 14px; color: #607b80; white-space: normal; margin-top: 5px; }
+Button.start { height: 54px; min-width: 196px; padding: 0 24px; border-radius: 27px; border-width: 2px; border-color: #209aa7; border-bottom-width: 4px; border-bottom-color: #14838e; background-color: #38adba; color: white; font-size: 17px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; flex-shrink: 0; }
+Button.start:hover { background-color: #279caa; border-color: #197d88; }
+Button.start:active { background-color: #218c98; border-bottom-width: 2px; }
+Button.start:focus { border-color: #285e6b; }
+Button.start:disabled { background-color: #a6ccce; border-color: #96bcbe; color: white; }
+.footer-note { position: absolute; bottom: 23px; align-self: center; font-size: 10px; color: #4d6d67; letter-spacing: .3px; }
+.summary-overlay { position: absolute; top: 88px; bottom: 0; left: 0; right: 0; background-color: rgba(43, 77, 77, .3); align-items: center; justify-content: center; }
+.summary-card { width: 440px; padding: 30px; align-items: center; }
+.summary-check { width: 68px; height: 68px; border-radius: 34px; background-color: #e0f3e5; color: #62ab7d; font-size: 39px; -unity-text-align: middle-center; }
+.summary-title { font-size: 29px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; margin-top: 20px; }
+.summary-subtitle { font-size: 14px; color: #607b80; margin-top: 8px; }
+.summary-text { font-size: 16px; white-space: normal; -unity-text-align: middle-center; margin: 22px 0; }
+.summary-button { margin-top: 6px; }
+.hidden { display: none; }
+
+.exercise-scroll { flex-grow: 1; flex-shrink: 1; min-height: 0; }
+.exercise-scroll .unity-scroll-view__content-container { padding-right: 2px; }
+.angle-meter .unity-progress-bar { height: 8px; min-height: 8px; padding: 0; margin: 0; }

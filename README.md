@@ -44,7 +44,7 @@ Other scenes:
 | --- | --- |
 | `Assets/Kinesthetic/MotionProof.unity` | Articulated pose and recorded replay |
 | `Assets/Kinesthetic/Golf/KeyboardGolf.unity` | Golf runtime with developer keyboard input |
-| `Assets/Kinesthetic/Rehab/Rehab.unity` | Shoulder-exercise session and active care plan |
+| `Assets/Kinesthetic/Rehab/Rehab.unity` | Movement Studio: seated shoulder raises, prescribed targets, and live rep feedback |
 | `Assets/Kinesthetic/Golf/QuestGolf.unity` | Headset game-state client; the Mac remains the simulation authority |
 
 ## Quest setup on your own network
@@ -61,6 +61,7 @@ Other scenes:
 - The complete runtime course export, four textures, export report, and original `.meta` GUIDs are included under `unity/KinestheticUnity/Assets/Kinesthetic/Art/PurchasedGolf/`. Both golf scenes reference that export.
 - Runtime patient/friend Miis, wheelchair, props, and Resort driver assets are included under the Unity `Art` directory. Resort club assets are Nintendo game assets extracted/uploaded by DogToon64; the original archive README is retained under `art/wii-sports-resort/Golf Clubs/README.txt`.
 - `art/props/` contains the editable props. Export helpers are in `scripts/art/`. Use Blender's `--disable-autoexec` when running those scripts with source files.
+- The Movement Studio room, meshes, materials, and wood texture are included in `Assets/Kinesthetic/Rehab/Studio/`. Its reusable prefab is `RehabStudio.prefab`; **Kinesthetic → Rehab → Create shoulder raise scene** rebuilds the scene and studio assets. The UI uses [Nunito](https://github.com/googlefonts/nunito), bundled with its SIL Open Font License in `Assets/Kinesthetic/Rehab/Fonts/OFL.txt`.
 
 Keep each asset's existing `.meta` alongside it to preserve Unity scene references. Preserve the source notes and attribution when editing or redistributing assets.
 

@@ -30,9 +30,14 @@ namespace Kinesthetic.Rehab
         bool running, calibrated;
         int attempted, valid;
         float? liveAngle; string phase = "idle";
-        string status = "Press Start. Sit tall with your arms resting.";
+        string status = "Sit tall, rest your arms, and start when you're ready.";
         float flashUntil; Color flash;
         Label title, reps, angle, statusLabel, planLabel, summaryLabel; Button start; VisualElement summaryCard;
+        Label sideLabel, repGoal, targetLabel, progressNote, angleNote, cameraStatus, cueTitle, cueSymbol;
+        VisualElement repRing, cameraChip, cueIcon;
+        ProgressBar angleMeter;
+        int paintedReps = -1, paintedGoal = -1;
+        string coachingNote = "";
         static readonly Color Idle = new(.85f, .9f, .95f, .55f), Active = new(1f, .86f, .3f, .9f),
             Good = new(.35f, .95f, .5f, .95f), Bad = new(1f, .42f, .35f, .95f);
 
@@ -56,11 +61,19 @@ namespace Kinesthetic.Rehab
             title = root.Q<Label>("title"); reps = root.Q<Label>("reps"); angle = root.Q<Label>("angle");
             statusLabel = root.Q<Label>("status"); planLabel = root.Q<Label>("plan"); summaryLabel = root.Q<Label>("summary");
             summaryCard = root.Q("summary-card"); start = button;
+            sideLabel = root.Q<Label>("side-label"); repGoal = root.Q<Label>("rep-goal");
+            targetLabel = root.Q<Label>("target-label"); progressNote = root.Q<Label>("progress-note");
+            angleNote = root.Q<Label>("angle-note"); cameraStatus = root.Q<Label>("camera-status");
+            cueTitle = root.Q<Label>("cue-title"); cueSymbol = root.Q<Label>("cue-symbol");
+            repRing = root.Q("rep-ring"); cameraChip = root.Q("camera-chip"); cueIcon = root.Q("cue-icon");
+            angleMeter = root.Q<ProgressBar>("angle-meter");
+            repRing.generateVisualContent += DrawRepRing;
+            paintedReps = paintedGoal = -1;
+            root.Q<Button>("summary-close").clicked += () => summaryCard.AddToClassList("hidden");
             start.clicked += () => { if (running) StartCoroutine(Stop()); else StartCoroutine(Begin()); };
-            start.text = running ? "Finish" : "Start";
-            title.text = $"SHOULDER RAISE · {side.ToUpperInvariant()} ARM";
-            planLabel.text = $"Plan v{planVersion} · reach {targetDeg:0}° · {prescribedReps} reps";
-            summaryCard.style.display = DisplayStyle.None;
+            start.text = running ? "Finish set" : "Start session  ›";
+            UpdatePlanLabels();
+            summaryCard.AddToClassList("hidden");
             StartCoroutine(RefreshPlan());
             return true;
         }
@@ -75,7 +88,7 @@ namespace Kinesthetic.Rehab
 
         IEnumerator Begin()
         {
-            start.SetEnabled(false); summaryCard.style.display = DisplayStyle.None;
+            start.SetEnabled(false); summaryCard.AddToClassList("hidden");
             status = "Starting camera…";
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
             var script = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../scripts/start_camera_session.sh"));
@@ -97,7 +110,7 @@ namespace Kinesthetic.Rehab
             if (request.result != UnityWebRequest.Result.Success) { status = "Couldn't reach the measurement service · press Start to retry"; yield break; }
             running = true; calibrated = false; attempted = valid = 0; liveAngle = null;
             status = "Hold still with your arms relaxed · calibrating";
-            start.text = "Finish";
+            start.text = "Finish set";
         }
 
         void ApplyPlan(JObject plan)
@@ -107,8 +120,19 @@ namespace Kinesthetic.Rehab
             side = (string)e["side"] ?? side;
             targetDeg = e["targetDeg"]?.Value<float>() ?? targetDeg;
             prescribedReps = e["prescribedReps"]?.Value<int>() ?? prescribedReps;
-            title.text = $"SHOULDER RAISE · {side.ToUpperInvariant()} ARM";
-            planLabel.text = $"Plan v{planVersion} · reach {targetDeg:0}° · {prescribedReps} reps · {(string)plan["coachingNote"]}";
+            coachingNote = (string)plan["coachingNote"] ?? "";
+            UpdatePlanLabels();
+        }
+
+        void UpdatePlanLabels()
+        {
+            title.text = "Shoulder raises";
+            sideLabel.text = $"{side.ToUpperInvariant()} ARM";
+            planLabel.text = $"{prescribedReps} repetitions · reach {targetDeg:0}°" +
+                (string.IsNullOrWhiteSpace(coachingNote) ? "" : $"\n{coachingNote}");
+            planLabel.tooltip = $"Prescribed plan v{planVersion}";
+            repGoal.text = $"of {prescribedReps} repetitions";
+            targetLabel.text = $"Target {targetDeg:0}°";
         }
 
         IEnumerator Stop()
@@ -116,7 +140,7 @@ namespace Kinesthetic.Rehab
             using var request = new UnityWebRequest(bridge + "/exercise/stop", "POST") { downloadHandler = new DownloadHandlerBuffer(), timeout = 5 };
             yield return request.SendWebRequest();
             // The summary arrives on the exercise stream; this only ends the session.
-            running = false; start.text = "Start";
+            running = false; start.text = "Start session  ›";
         }
 
         void Update()
@@ -125,9 +149,51 @@ namespace Kinesthetic.Rehab
             if (!BindUI()) return;
             ReadExercise();
             DrawGuides();
-            reps.text = $"{valid} / {prescribedReps}";
-            angle.text = liveAngle.HasValue ? $"{liveAngle.Value:0}°" : "—";
+            reps.text = valid.ToString();
+            angle.text = running && LivePoseClient.Fresh(poseTicks) && liveAngle.HasValue ? $"{liveAngle.Value:0}°" : "—";
             statusLabel.text = status;
+            UpdateStudioUI();
+        }
+
+        void UpdateStudioUI()
+        {
+            bool fresh = LivePoseClient.Fresh(poseTicks);
+            cameraChip.EnableInClassList("connected", fresh);
+            cameraStatus.text = fresh ? "Camera connected" : running ? "Looking for you…" : "Camera on standby";
+            angleMeter.value = fresh && liveAngle.HasValue && running ? Mathf.Clamp01(liveAngle.Value / Mathf.Max(1, targetDeg)) * 100 : 0;
+            angleNote.text = !running ? "Your range appears when you begin" : !fresh || !liveAngle.HasValue ? "Waiting for a clear view of your arm" : "Measured from your live movement";
+            progressNote.text = valid >= prescribedReps ? "Your set is complete" : valid == 0 ? "One good movement at a time" : $"{prescribedReps - valid} more · take your time";
+            bool attention = running && !fresh;
+            bool reached = running && fresh && liveAngle.HasValue && liveAngle.Value >= targetDeg;
+            cueIcon.EnableInClassList("attention", attention);
+            cueIcon.EnableInClassList("good", reached || valid >= prescribedReps);
+            cueTitle.text = !start.enabledSelf ? "Getting the studio ready" : !running ? (valid >= prescribedReps ? "A little stronger, one set at a time" : "Make yourself comfortable") : attention ? "Let's get you in view" : !calibrated ? "Find your resting position" : reached ? "Hold gently, then lower" : "Move at your own pace";
+            cueSymbol.text = attention ? "!" : reached || valid >= prescribedReps ? "✓" : !running || !calibrated ? "1" : phase == "rep" ? "2" : "3";
+            if (paintedReps != valid || paintedGoal != prescribedReps)
+            {
+                paintedReps = valid; paintedGoal = prescribedReps; repRing.MarkDirtyRepaint();
+            }
+        }
+
+        // One arc per prescribed rep. The coordinator remains the source of every filled segment.
+        void DrawRepRing(MeshGenerationContext context)
+        {
+            var rect = repRing.contentRect;
+            if (rect.width <= 0 || rect.height <= 0) return;
+            var painter = context.painter2D;
+            painter.lineWidth = 7; painter.lineCap = LineCap.Round;
+            int segments = Mathf.Clamp(prescribedReps, 1, 24);
+            float step = 360f / segments, gap = segments == 1 ? 0 : 6;
+            float filled = Mathf.Clamp01((float)valid / Mathf.Max(1, prescribedReps)) * segments;
+            for (int i = 0; i < segments; i++)
+            {
+                painter.strokeColor = new Color(.87f, .93f, .90f);
+                float begin = -90 + i * step + gap * .5f, end = -90 + (i + 1) * step - gap * .5f;
+                painter.BeginPath(); painter.Arc(rect.center, rect.width * .43f, Angle.Degrees(begin), Angle.Degrees(end)); painter.Stroke();
+                if (filled <= i) continue;
+                painter.strokeColor = new Color(.22f, .68f, .62f);
+                painter.BeginPath(); painter.Arc(rect.center, rect.width * .43f, Angle.Degrees(begin), Angle.Degrees(Mathf.Lerp(begin, end, Mathf.Clamp01(filled - i)))); painter.Stroke();
+            }
         }
 
         void ReadPose()
@@ -199,12 +265,12 @@ namespace Kinesthetic.Rehab
 
         void ShowSummary(JObject s)
         {
-            running = false; start.text = "Start";
+            running = false; start.text = "Start session  ›";
             var median = s["medianValidPeakDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? $"{s["medianValidPeakDeg"].Value<float>():0}°" : "—";
             var reasons = s["invalidReasons"] as JObject; var notes = new StringBuilder();
             if (reasons != null) foreach (var r in reasons) notes.Append($"\n{r.Value} × {r.Key.Replace('_', ' ')}");
             summaryLabel.text = $"{s["valid"]} of {s["attempted"]} reps counted · target {targetDeg:0}°\nMedian peak {median}{notes}\n\nSent to your care team as session evidence.";
-            summaryCard.style.display = DisplayStyle.Flex;
+            summaryCard.RemoveFromClassList("hidden");
             status = "Session saved";
         }
 
@@ -214,6 +280,8 @@ namespace Kinesthetic.Rehab
         void DrawGuides()
         {
             if (!rig || !targetBand) return;
+            targetBand.enabled = running;
+            targetOrb.gameObject.SetActive(running);
             var left = side == "left";
             var shoulder = left ? rig.LeftUpperArm.position : rig.RightUpperArm.position;
             var across = (rig.RightUpperArm.position - rig.LeftUpperArm.position).normalized * (left ? -1 : 1);
@@ -227,14 +295,15 @@ namespace Kinesthetic.Rehab
             for (int i = 0; i < n; i++) targetBand.SetPosition(i, At(targetDeg + bandDeg * i / (n - 1), reach));
             armGuide.positionCount = 2; armGuide.SetPosition(0, shoulder);
             armGuide.SetPosition(1, At(liveAngle ?? 0, reach * .95f));
-            armGuide.enabled = liveAngle.HasValue && running;
+            bool showMeasured = liveAngle.HasValue && running && LivePoseClient.Fresh(poseTicks);
+            armGuide.enabled = showMeasured;
             targetOrb.position = At(targetDeg + bandDeg * .5f, reach);
-            targetOrb.localScale = Vector3.one * (.13f + .02f * Mathf.Sin(Time.unscaledTime * 4));
-            liveMarker.gameObject.SetActive(liveAngle.HasValue && running);
+            targetOrb.localScale = Vector3.one * (.08f + .008f * Mathf.Sin(Time.unscaledTime * 4));
+            liveMarker.gameObject.SetActive(showMeasured);
             if (liveAngle.HasValue) liveMarker.position = At(liveAngle.Value, reach);
 
             var color = Time.unscaledTime < flashUntil ? flash : !running ? Idle : phase == "rep" ? Active : Idle;
-            if (liveAngle.HasValue && running && liveAngle.Value >= targetDeg) color = Good;
+            if (showMeasured && liveAngle.Value >= targetDeg) color = Good;
             targetBand.startColor = targetBand.endColor = color;
             targetOrb.GetComponent<Renderer>().material.color = color;
         }

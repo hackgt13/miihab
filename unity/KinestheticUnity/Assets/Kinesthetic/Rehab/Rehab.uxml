@@ -1,23 +1,94 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <Style src="Rehab.uss" />
-    <ui:VisualElement class="screen">
-        <ui:VisualElement class="banner">
-            <ui:Label name="title" text="SHOULDER RAISE" class="title outlined" />
-            <ui:Label name="plan" text="Plan" class="plan" />
+    <ui:VisualElement name="studio-screen" class="studio-screen" picking-mode="Ignore">
+        <ui:VisualElement class="studio-header">
+            <ui:VisualElement class="brand-mark"><ui:Label text="m" /></ui:VisualElement>
+            <ui:VisualElement class="brand-copy">
+                <ui:Label text="rehabmii" class="brand-name" />
+                <ui:Label text="MOVEMENT STUDIO" class="eyebrow" />
+            </ui:VisualElement>
+            <ui:VisualElement class="header-space" />
+            <ui:VisualElement name="camera-chip" class="connection-chip">
+                <ui:VisualElement class="connection-dot" />
+                <ui:Label name="camera-status" text="Camera on standby" />
+            </ui:VisualElement>
+            <ui:Label text="YOUR DAILY PRACTICE" class="header-note" />
         </ui:VisualElement>
-        <ui:VisualElement class="counter">
-            <ui:Label text="REPS" class="counter-title outlined" />
-            <ui:Label name="reps" text="0 / 8" class="counter-value outlined" />
-            <ui:Label text="ARM ANGLE" class="counter-title outlined angle-title" />
-            <ui:Label name="angle" text="—" class="angle-value outlined" />
+        <ui:VisualElement class="exercise-card card">
+            <ui:VisualElement class="section-heading">
+                <ui:Label text="01" class="exercise-number" />
+                <ui:Label text="SEATED MOBILITY" class="eyebrow" />
+            </ui:VisualElement>
+            <ui:Label name="title" text="Shoulder raises" class="exercise-title" />
+            <ui:Label name="side-label" text="RIGHT ARM" class="side-label" />
+            <ui:Label text="A little movement.&#10;A little more you." class="exercise-intro" />
+            <ui:VisualElement class="card-divider" />
+            <ui:ScrollView class="exercise-scroll" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto">
+            <ui:Label text="FIND YOUR RHYTHM" class="eyebrow" />
+            <ui:VisualElement class="instruction-row">
+                <ui:Label text="1" class="step-number" />
+                <ui:VisualElement class="instruction-copy">
+                    <ui:Label text="Sit comfortably" class="step-title" />
+                    <ui:Label text="Keep shoulders and hips in view." class="step-detail" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="instruction-row">
+                <ui:Label text="2" class="step-number" />
+                <ui:VisualElement class="instruction-copy">
+                    <ui:Label text="Reach your target" class="step-title" />
+                    <ui:Label text="Raise your arm, then hold gently." class="step-detail" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="instruction-row">
+                <ui:Label text="3" class="step-number" />
+                <ui:VisualElement class="instruction-copy">
+                    <ui:Label text="Return slowly" class="step-title" />
+                    <ui:Label text="Lower with control. Take your time." class="step-detail" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="plan-inset">
+                <ui:Label text="YOUR PRESCRIBED SET" class="eyebrow" />
+                <ui:Label name="plan" text="8 repetitions · reach 80°" class="plan" />
+            </ui:VisualElement>
+            </ui:ScrollView>
         </ui:VisualElement>
-        <ui:VisualElement name="summary-card" class="summary-card">
-            <ui:Label text="SESSION COMPLETE" class="summary-title" />
-            <ui:Label name="summary" text="" class="summary-text" />
+        <ui:VisualElement class="progress-card card">
+            <ui:Label text="TODAY'S SET" class="eyebrow" />
+            <ui:VisualElement name="rep-ring" class="rep-ring">
+                <ui:Label name="reps" text="0" class="rep-value" />
+                <ui:Label name="rep-goal" text="of 8 repetitions" class="rep-goal" />
+            </ui:VisualElement>
+            <ui:Label name="progress-note" text="One good movement at a time" class="progress-note" />
+            <ui:VisualElement class="card-divider" />
+            <ui:VisualElement class="angle-heading">
+                <ui:Label text="ARM RAISE" class="eyebrow" />
+                <ui:Label name="target-label" text="Target 80°" class="target-label" />
+            </ui:VisualElement>
+            <ui:Label name="angle" text="—" class="angle-value" />
+            <ui:ProgressBar name="angle-meter" low-value="0" high-value="100" value="0" title="" class="angle-meter" />
+            <ui:Label name="angle-note" text="Your range appears when you begin" class="angle-note" />
         </ui:VisualElement>
-        <ui:VisualElement class="footer">
-            <ui:Label name="status" text="" class="status" />
-            <ui:Button name="start" text="Start" class="start" />
+        <ui:VisualElement class="studio-caption" picking-mode="Ignore">
+            <ui:Label text="THE MOVEMENT STUDIO" class="studio-caption-title" />
+            <ui:Label text="Room to move. Space to feel good." class="studio-caption-detail" />
+        </ui:VisualElement>
+        <ui:VisualElement class="coaching-dock">
+            <ui:VisualElement name="cue-icon" class="cue-icon"><ui:Label name="cue-symbol" text="1" /></ui:VisualElement>
+            <ui:VisualElement class="coaching-copy">
+                <ui:Label name="cue-title" text="Make yourself comfortable" class="cue-title" />
+                <ui:Label name="status" text="Sit tall, rest your arms, and start when you're ready." class="status" />
+            </ui:VisualElement>
+            <ui:Button name="start" text="Start session  ›" class="start" />
+        </ui:VisualElement>
+        <ui:Label text="Your own pace. Your prescribed range." class="footer-note" />
+        <ui:VisualElement name="summary-card" class="summary-overlay hidden">
+            <ui:VisualElement class="summary-card card">
+                <ui:Label text="✓" class="summary-check" />
+                <ui:Label text="Practice complete" class="summary-title" />
+                <ui:Label text="Every controlled movement counts." class="summary-subtitle" />
+                <ui:Label name="summary" text="" class="summary-text" />
+                <ui:Button name="summary-close" text="Back to the studio  ›" class="start summary-button" />
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>
