@@ -422,15 +422,7 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
    purpose: a clinician can always prescribe one more thing, and that must not be what pushes anything off
    the panel. */
 
-/* The block, and the title row inside it. The pane is cut to the board's bento block (.pane-screen), so its
-   title cannot ride the greeting row the way the board's does; it takes the first line of the block instead,
-   at a size between the board's greeting and a tile label, and the tiles start under it. */
-.plan-content { flex-grow: 1; min-height: 0; }
-.plan-head { flex-direction: row; align-items: flex-start; justify-content: space-between; flex-shrink: 0; margin-bottom: 12px; }
-.plan-head-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.plan-title { font-size: 36px; color: var(--prussian-50); letter-spacing: -0.5px; text-shadow: 0 2px 12px var(--sand-00-a95); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.plan-provenance { font-size: 18px; color: var(--slate-70); margin-top: 2px; text-shadow: 0 1px 8px var(--sand-00-a95); }
-.plan-source-slot { flex-shrink: 0; margin-top: 6px; margin-left: 24px; }
+.plan-source-slot { flex-shrink: 0; margin-top: 10px; }
 
 .plan-bento { flex-grow: 1; min-height: 0; }
 .plan-row { flex-direction: row; align-items: stretch; min-height: 0; margin-bottom: 13px; }

@@ -17,21 +17,24 @@
          its own — the calendar takes the height of the block because it is the thing worth looking at, and the
          two answers beside it stack in a column a third as wide.
 
-         Cut to the board's bento block like the gallery and friends panes (.pane-screen), not to the board's
-         full height: the greeting row belongs to the board alone, and a neighbour that copied it stood taller
-         than the panes on the other side. The title sits inside the block, in the row the tiles start under. -->
-    <ui:VisualElement name="coaching-pane" class="pane-screen">
-        <ui:VisualElement class="plan-content">
+         The same frame as the board, on purpose: the board's greeting rides above its tiles, and this pane's
+         title rides at exactly that height above its own — the same .splash-row, so the two line up as the
+         ring turns — while the tiles below it fill the same bento block the gallery and friends panes are
+         cut to. -->
+    <ui:VisualElement name="coaching-pane" class="menu-screen">
+        <ui:VisualElement class="menu-content">
 
-            <ui:VisualElement class="plan-head" picking-mode="Ignore">
-                <ui:VisualElement class="plan-head-copy">
-                    <ui:Label text="Your rehab plan" class="plan-title" />
+            <ui:VisualElement class="splash-row">
+                <ui:VisualElement class="splash-copy">
+                    <ui:Label text="Your rehab plan" class="splash-greeting" />
                     <!-- Whose plan this is, stated rather than implied: a demo plan that reads as a real one
                          is the mistake this surface cannot make, so the version and the badge are read first. -->
-                    <ui:Label name="plan-provenance" text="" class="plan-provenance" />
+                    <ui:Label name="plan-provenance" text="" class="splash-sub" />
                 </ui:VisualElement>
-                <ui:VisualElement class="plan-source-slot">
-                    <k:KTag name="plan-source" text="" tone="Info" />
+                <ui:VisualElement class="splash-side">
+                    <ui:VisualElement class="plan-source-slot">
+                        <k:KTag name="plan-source" text="" tone="Info" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
 
