@@ -28,6 +28,7 @@ public static class RemoteUiVerification
         "Assets/Kinesthetic/Rehab/RehabDock.uxml",
         "Assets/Kinesthetic/Rehab/RehabMeasure.uxml",
         "Assets/Kinesthetic/Rehab/RehabFocus.uxml",
+        "Assets/Kinesthetic/Rehab/RehabBrief.uxml",
         "Assets/Kinesthetic/Menu/Navigation.uxml",
         "Assets/Kinesthetic/Bowling/Bowling.uxml",
         "Assets/Kinesthetic/Menu/MainMenu.uxml",

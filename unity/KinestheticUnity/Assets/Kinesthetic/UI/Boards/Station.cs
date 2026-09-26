@@ -45,8 +45,9 @@ namespace Kinesthetic.UI.Boards
         public override string ToString() => $"{name}: yaw {yawDegrees:0}°, pitch {pitchDegrees:0}°, {distanceMetres:0.0} m";
     }
 
-    /// The named stations every venue places against. Four is the whole set on purpose: what to do now,
-    /// a modal in front, a score off to one side and live figures off to the other.
+    /// The named stations every venue places against. The set is deliberately small: what to do now, a
+    /// modal in front, a score off to one side, live figures off to the other, and one reading distance
+    /// inside arm's reach that only a document passing through ever occupies.
     public static class Stations
     {
         /// What to do now: the cue, the status, the primary button and the connection chip. Low and near, so
@@ -62,6 +63,12 @@ namespace Kinesthetic.UI.Boards
         /// Live figures — a ring, an angle, a meter — to the right, a little below the eye line.
         public static readonly Station Measure = new("Measure", 25, -5, 1.5f);
 
-        public static readonly Station[] All = { Dock, Focus, Score, Measure };
+        /// Arm's length, dead ahead, a little below the eye line: where a page is held to be read rather
+        /// than where a card stands to be looked at. A briefing is handed to you, so it arrives here and
+        /// leaves again; nothing lives at this distance, because nothing should sit inside your reach for
+        /// a whole session.
+        public static readonly Station Reading = new("Reading", 0, -14, .55f);
+
+        public static readonly Station[] All = { Dock, Focus, Score, Measure, Reading };
     }
 }

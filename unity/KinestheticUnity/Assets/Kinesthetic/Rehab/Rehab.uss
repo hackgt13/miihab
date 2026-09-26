@@ -22,9 +22,11 @@
 .angle-meter { width: 100%; margin-top: 10px; }
 .angle-note { margin-top: 10px; }
 
-/* Focus, 657 x 486 px at 1.4 m. Two sheets share it, one at each end of the session; whichever is
-   standing is the board. */
-.briefing-host { flex-grow: 1; }
+/* Brief, 727 x 836 px at 0.55 m. Inside arm's reach, so the sheet reads as held rather than mounted.
+   The host centres it; the sheet is as tall as what is on it. */
+.briefing-host { flex-grow: 1; justify-content: center; }
+
+/* Focus, 657 x 486 px at 1.4 m. The card is the board. */
 .summary-card { flex-grow: 1; align-items: center; }
 .summary-badge { align-self: center; margin-bottom: 12px; }
 .summary-subtitle, .summary-plan, .summary-progress { margin-top: 6px; }

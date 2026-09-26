@@ -38,6 +38,11 @@ namespace Kinesthetic.Shell
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { instance = null; }
 
+        /// The curtain if there is one, and null if nothing has raised one. Unlike Ensure, asking does
+        /// not build it: a scene entered straight from the editor has no curtain, and giving it one just
+        /// because something wanted to know would put a quad in front of the camera for no reason.
+        public static HeadFade Current => instance;
+
         public static HeadFade Ensure()
         {
             if (instance) return instance;
