@@ -166,6 +166,19 @@ paint, so a sealed screen may not write it. `Sheet.uss` carries the entrance (ea
 millimetres of overshoot, a slight angle that straightens as it lands) and the faster straight exit, and
 every sheet in every venue moves the same way.
 
+### `KMiiFace` — `variant`
+
+A person's face, drawn from their Mii index: the same face in the friends roster, a thread, a group
+session's member list and the Tab list. The screen gives it a size; it fills the smaller side and clips
+itself round. For an element a screen already has, `KMiiFace.Paint(element, variant, size)` draws into it.
+Skin and hair keep representational colours; the disc behind the head is from the palette.
+
+### `KMessage` — `side`, `author`, `said`, `text`, `time`
+
+One line of a conversation, in a pair's thread or a group's chat. `Mine` is prussian, `Theirs` is paper,
+`Room` is the room's own line ("June joined"), centred with no balloon because nobody said it. `said` is a
+fixed encouragement in bold; `text` a short note. Extra content (a photo) goes in `Attachments`.
+
 ### Briefings — `UI/Boards/ActivityBriefing.cs`
 
 What an activity hands you before it begins. `Briefing` is a value — eyebrow, title, subtitle, a

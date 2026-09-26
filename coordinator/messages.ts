@@ -39,6 +39,20 @@ const PHOTO_TYPES: Record<string, string> = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
 };
 
+/// What any message may carry, whoever it is to. A pair's thread and a group
+/// session's chat hold the same fixed encouragements and the same short note,
+/// so both go through this one gate.
+export function compose(body: { kind?: string; text?: string; photoId?: string }, photos = true):
+    { kind: Encouragement | null; text: string; photoId: string | null } {
+  const kind = body.kind && body.kind in ENCOURAGEMENTS ? body.kind as Encouragement : null;
+  const text = String(body.text ?? '').trim().slice(0, TEXT_LIMIT);
+  const photoId = photos && body.photoId && /^[\w-]{1,64}\.\w{2,5}$/.test(body.photoId) ? body.photoId : null;
+  if (!kind && !text && !photoId)
+    throw Object.assign(new Error(photos ? 'A message needs an encouragement, a note or a photo'
+      : 'A message needs an encouragement or a note'), { status: 400 });
+  return { kind, text, photoId };
+}
+
 export class MessageStore {
   private dir: string;
   private threadDir: string;
@@ -67,16 +81,7 @@ export class MessageStore {
   }
 
   send(from: string, to: string, body: { kind?: string; text?: string; photoId?: string }): Message {
-    const kind = body.kind && body.kind in ENCOURAGEMENTS ? body.kind as Encouragement : null;
-    const text = String(body.text ?? '').trim().slice(0, TEXT_LIMIT);
-    const photoId = body.photoId && /^[\w-]{1,64}\.\w{2,5}$/.test(body.photoId) ? body.photoId : null;
-    if (!kind && !text && !photoId)
-      throw Object.assign(new Error('A message needs an encouragement, a note or a photo'), { status: 400 });
-
-    const message: Message = {
-      id: randomUUID(), from, to, at: new Date().toISOString(),
-      kind, text, photoId,
-    };
+    const message: Message = { id: randomUUID(), from, to, at: new Date().toISOString(), ...compose(body) };
     appendFileSync(this.threadFile(from, to), JSON.stringify(message) + '\n');
     return message;
   }
