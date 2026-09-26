@@ -66,6 +66,17 @@ namespace Kinesthetic.UI.Boards
 
         public VisualElement Q(string name = null, string className = null) => Q<VisualElement>(name, className);
 
+        /// The board whose tree answers `name`. Screens ask for elements, not objects, and should keep
+        /// doing so — this is for the one thing an element cannot do: a board standing inside arm's reach
+        /// has to stop taking rays when what it showed is gone, and that is a property of the object.
+        public UIDocument BoardWith(string name)
+        {
+            Refresh();
+            foreach (var board in boards)
+                if (board && board.enabled && board.rootVisualElement?.Q(name) != null) return board;
+            return null;
+        }
+
         void Refresh()
         {
             if (lastRoots.Count != boards.Count) { lastRoots.Clear(); foreach (var board in boards) lastRoots.Add(board ? board.rootVisualElement : null); Generation++; Unhot(); return; }

@@ -71,13 +71,17 @@ namespace Kinesthetic.UI.Boards
         /// Live figures — a ring, an angle, a meter — to the right, a little below the eye line.
         public static readonly Station Measure = new("Measure", 25, -5, 1.5f);
 
-        /// Where a page is held, not where a card is mounted: 34 cm out, 30° down — the depression a
-        /// person actually reads at — and leaning 12° back toward the face, because nobody holds paper
-        /// square to their own eye. Its board is a sheet of US Letter, 216 x 279 mm, at its real size.
+        /// Where a page is held, not where a card is mounted: 42 cm out, 45° down, leaning 10° back
+        /// toward the face, because nobody holds paper square to their own eye. Its board is a sheet of
+        /// US Letter, 216 x 279 mm, at its real size.
+        ///
+        /// The pitch is to the middle of the page, and a held sheet is large: at 45° down its top edge
+        /// still reaches to 26° below the eye. Aiming the centre where the top edge belongs is what put
+        /// the first version of this in the reader's face.
         ///
         /// A briefing is handed to you, so it arrives here and leaves again. Nothing lives at this
         /// distance: it is inside your reach and across the room you are looking at.
-        public static readonly Station Reading = new("Reading", 0, -30, .34f, tiltDegrees: 12);
+        public static readonly Station Reading = new("Reading", 0, -45, .42f, tiltDegrees: 10);
 
         public static readonly Station[] All = { Dock, Focus, Score, Measure, Reading };
     }

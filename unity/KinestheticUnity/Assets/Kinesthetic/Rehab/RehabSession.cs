@@ -212,7 +212,7 @@ namespace Kinesthetic.Rehab
             // has nothing waiting to be read, so it arms straight away instead of never starting. Say so
             // out loud: a studio silently missing its prescription looks exactly like one that never had
             // the feature, and the cause is almost always a scene that predates the brief board.
-            if (!briefing.Bind(root.Q(ActivityBriefing.HostName), BeginFromBriefing))
+            if (!briefing.Bind(root.Q(ActivityBriefing.HostName), boards.BoardWith(ActivityBriefing.HostName)?.gameObject, BeginFromBriefing))
             {
                 if (!briefedWarning) Debug.LogWarning($"No '{ActivityBriefing.HostName}' host on any board, so there is no " +
                     "prescription to read and the set arms on arrival. Run Kinesthetic \u2192 Rehab \u2192 Create shoulder " +
