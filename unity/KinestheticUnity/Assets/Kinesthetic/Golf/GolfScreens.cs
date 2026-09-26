@@ -27,7 +27,6 @@ namespace Kinesthetic.Golf
                 OpenSetup(true);
             };
             root.Q<Button>("round-menu").clicked+=()=>ActivityNavigation.Ensure().OpenReturn();
-            root.Q<Button>("sound-toggle").clicked+=()=>ActivityNavigation.Ensure().PlaySelect();
             OpenSetup(true);
         }
         void OpenSetup(bool autoStart)

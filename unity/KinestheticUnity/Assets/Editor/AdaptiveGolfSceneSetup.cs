@@ -78,7 +78,7 @@ public static class AdaptiveGolfSceneSetup
             foreach(var r in renders)bounds.Encapsulate(r.bounds);
             avatar.transform.localScale*=1.75f/bounds.size.y;
             foreach(var r in avatar.GetComponentsInChildren<SkinnedMeshRenderer>())r.updateWhenOffscreen=true;
-            var rig=actor.gameObject.AddComponent<PoseRig>();rig.avatar=avatar.transform;rig.seated=i==0;rig.usePresentationSpace=true;
+            var rig=actor.gameObject.AddComponent<PoseRig>();rig.avatar=avatar.transform;rig.seated=i==0;rig.usePresentationSpace=true;rig.golfGrip=true;
             rig.Initialize();rig.Apply(null);
             actor.position+=Vector3.up*((i==0?.12f:.08f)-rig.RightAnkle.position.y);
             if(i==0)

@@ -18,7 +18,6 @@ namespace Kinesthetic.Golf
         public string poseUrl = "ws://127.0.0.1:8766/pose?role=viewer";
         public string motionUrl = "ws://127.0.0.1:8767/golf?role=viewer";
         public bool allowDeveloperShots;
-        public bool enableSoundAssist = true;
         public int activePlayer;
         public int clubIndex;
         public bool ClubSelectedAutomatically { get; private set; }
@@ -34,6 +33,7 @@ namespace Kinesthetic.Golf
         public Vector3 GetLie(int index) => lies[index];
         public float HudPower => Phase=="Address" ? (IMUReady && swing.Calibrated ? SwingPower(new Vector3(latest.rotationRate[0],latest.rotationRate[1],latest.rotationRate[2]).magnitude) : 0) : lastShotPower;
         float lastShotPower;
+        static double Now=>System.Diagnostics.Stopwatch.GetTimestamp()/(double)System.Diagnostics.Stopwatch.Frequency;
         // Recorded AirPod swings peak around 10-16 rad/s, so the old 7 rad/s ceiling made nearly every swing full power.
         // A full driver (25 m/s) stops about 5 m from the cup on this hole; 26 m/s and faster left the course (measured with developer shots).
         const float MinSwingRadPerSec=2f, FullSwingRadPerSec=16f;
@@ -48,21 +48,15 @@ namespace Kinesthetic.Golf
         public bool InterfaceOpen => screens?.SetupVisible == true || Kinesthetic.Menu.ActivityNavigation.Instance?.OverlayOpen == true;
         GroundAimGuide groundAim;
         readonly ClubSwingGate swing = new();
-        readonly ContactCueGate contact = new();
         readonly VirtualClubStrike strikeZone = new();
         bool pendingSpatial;
         float pendingSpeed;
         public bool StrikePoseReady=>PoseReady && rigs[activePlayer].LeftArmTracked && rigs[activePlayer].RightArmTracked;
         Vector3 Grip(int player)=>rigs[player].GolfGripCenter; // same point the rendered club attaches to
-        GolfImpactAudio impactAudio;
         AudioSource hitAudio;
         AudioClip hitClip;
-        Label audioStatus;
-        Button soundToggle;
-        bool audioCorroborated;
-        double? audioOffsetMs;
         double motionContactAt;
-        void ResetSwing(bool clearClub=true){swing.Reset();contact.Reset();pendingSpatial=false;if(clearClub)strikeZone.Reset();}
+        void ResetSwing(bool clearClub=true){swing.Reset();pendingSpatial=false;if(clearClub)strikeZone.Reset();}
         readonly Vector3[] lies = new Vector3[2];
         readonly Vector3[] rigRest = new Vector3[2];
         readonly GolfClubPresentation[] clubPresentation=new GolfClubPresentation[2];
@@ -91,18 +85,16 @@ namespace Kinesthetic.Golf
         {
             Application.runInBackground = true;
 
-            for(int i=0;i<2;i++) { rigs[i].Initialize(); rigRest[i]=rigs[i].transform.localPosition; rigs[i].Apply(null); lies[i]=tee.position; }
+            for(int i=0;i<2;i++) { rigs[i].golfGrip=true; rigs[i].Initialize(); rigRest[i]=rigs[i].transform.localPosition; rigs[i].Apply(null); lies[i]=tee.position; }
             for(int i=0;i<clubs.Length;i++)clubPresentation[i]=new GolfClubPresentation(rigs[i],clubs[i]);
             logPath=Path.Combine(Application.persistentDataPath,"golf-shots.jsonl");
             pose = new LivePoseClient(poseUrl);
             motion = new GolfMotionClient(motionUrl);
             groundAim=new GameObject("Ground aim guidance").AddComponent<GroundAimGuide>();
             foreach(var rig in rigs)if(!rig.GetComponent<MiiIdleLife>())rig.gameObject.AddComponent<MiiIdleLife>();
-            impactAudio=gameObject.AddComponent<GolfImpactAudio>();
             hitClip=Resources.Load<AudioClip>("GolfAudio/GolfHit");
             hitAudio=gameObject.AddComponent<AudioSource>();
             hitAudio.playOnAwake=false; hitAudio.spatialBlend=0;
-            impactAudio.Transient+=(at,peak)=>{if(Phase=="Address" && PoseReady && IMUReady && swing.Calibrated)contact.ObserveAudio(at);};
             // Headsets render this host's state; they never run their own shot simulation.
             if(!GetComponent<GolfStatePublisher>())gameObject.AddComponent<GolfStatePublisher>();
             BindUI(); BeginTurn(0); StartCapture();
@@ -120,8 +112,6 @@ namespace Kinesthetic.Golf
             root.Q<Button>("aim-left").clicked+=()=>Aim(-3);
             root.Q<Button>("aim-right").clicked+=()=>Aim(3);
 
-            audioStatus=root.Q<Label>("audio-status");soundToggle=root.Q<Button>("sound-toggle");
-            if(soundToggle!=null)soundToggle.clicked+=()=>{enableSoundAssist=!enableSoundAssist;ResetSwing();};
             hud=new GolfHud(root,this);
             screens=new GolfScreens(root,this);
             return true;
@@ -214,8 +204,6 @@ namespace Kinesthetic.Golf
         {
             if(!BindUI())return;
             if(captureRequested) ReadPose();
-            impactAudio.Listen(enableSoundAssist && PoseReady);
-            impactAudio.Poll();
             ReadMotion();
             if(!PoseReady || !IMUReady)
             {
@@ -225,36 +213,29 @@ namespace Kinesthetic.Golf
             if(!StrikePoseReady)
             {
                 strikeZone.BreakTrace();
-                if(contact.Pending){ResetSwing();Message="Tracking interrupted. Return to address and recalibrate.";}
+                if(pendingSpatial){ResetSwing();Message="Tracking interrupted. Return to address and recalibrate.";}
             }
+            if(InterfaceOpen) pendingSpatial=false;
+            // A qualified swing whose clubhead path crosses the virtual ball launches it; a path that misses does not.
             if(pendingSpatial && Phase=="Address")
             {
-                double now=GolfImpactAudio.Now;
                 if(StrikePoseReady && IMUReady && strikeZone.CrossedNear(motionContactAt))
                 {
                     pendingSpatial=false;
-                    contact.Arm(motionContactAt,pendingSpeed,enableSoundAssist && impactAudio.Ready);
+                    Launch(SwingPower(pendingSpeed),"airpod",pendingSpeed);
                 }
-                else if(now-motionContactAt>.12)
+                else if(Now-motionContactAt>.12)
                 {
                     Log("virtual-miss","pose+airpod",pendingSpeed);
                     ResetSwing();Message="Missed the virtual ball. Return to address and recalibrate.";
                 }
-            }
-            if(contact.Pending && GolfImpactAudio.Now-motionContactAt>.25){ResetSwing();Message="Tracking delayed. Return to address and recalibrate.";}
-            if(InterfaceOpen) { contact.Reset(); pendingSpatial=false; }
-            if(!InterfaceOpen && Phase=="Address" && StrikePoseReady && IMUReady &&
-                contact.Commit(GolfImpactAudio.Now,out var contactSpeed,out var heard,out var deltaMs))
-            {
-                audioCorroborated=heard;audioOffsetMs=heard?(double?)deltaMs:null;
-                Launch(SwingPower(contactSpeed),heard?"airpod+audio":"airpod",contactSpeed);
             }
             if(Phase=="Flight")
             {
                 if(ball.position.y<tee.position.y-45 || Time.time-shotAt>25)
                 {Strokes[activePlayer]++;ball.position=lastSafeLie;Settle("Ball returned to the last lie · one penalty stroke.");}
                 else if(Vector3.Distance(ball.position,cup.position)<.35f && ball.linearVelocity.magnitude<3f)
-                {ball.isKinematic=true;ball.position=cup.position;Finished[activePlayer]=true;Phase="Holed";Message="Holed out! "+Strokes[activePlayer]+" strokes.";Log("holed");}
+                {ball.isKinematic=true;ball.position=cup.position;Finished[activePlayer]=true;Phase="Holed";Message="Holed out! "+Strokes[activePlayer]+" strokes.";foreach(var r in rigs)r.GetComponent<MiiIdleLife>()?.Surprise(2f);Log("holed");}
                 else if(Grounded() && ball.linearVelocity.magnitude<.18f)
                 {if(stillSince<0)stillSince=Time.time;if(Time.time-stillSince>.8f)Settle("Shot complete. Continue to the next player.");}
                 else stillSince=-1;
@@ -317,7 +298,7 @@ namespace Kinesthetic.Golf
         static bool Valid(float[] a,int length)
         {if(a==null || a.Length!=length)return false;foreach(float x in a)if(!PoseMath.Finite(x))return false;return true;}
         public bool DeveloperShot(float power)
-        {if(!allowDeveloperShots)return false;audioCorroborated=false;audioOffsetMs=null;motionContactAt=0;return Launch(power,"developer-test",0);}
+        {if(!allowDeveloperShots)return false;motionContactAt=0;return Launch(power,"developer-test",0);}
         bool Launch(float power,string source,float angularSpeed)
         {
             if(Phase!="Address" || !PoseMath.Finite(power))return false;
@@ -334,7 +315,9 @@ namespace Kinesthetic.Golf
                 hitAudio.PlayOneShot(hitClip,Mathf.Lerp(.45f,.8f,power)*(clubIndex==2?.45f:1f));
             }
             Message=clubNames[clubIndex]+" · "+Mathf.RoundToInt(power*100)+"% virtual power";
-            Log("shot",source,angularSpeed,power);ResetSwing(false);return true;
+            Log("shot",source,angularSpeed,power);ResetSwing(false);
+            foreach(var r in rigs)r.GetComponent<MiiIdleLife>()?.Surprise(1.2f);   // both friends watch the ball go
+            return true;
         }
         void Settle(string message)
         {
@@ -400,8 +383,6 @@ namespace Kinesthetic.Golf
                 !framesFresh?captureStatus:!StrikePoseReady?"Keep both hands in view.":
                 !IMUReady?"Waiting for AirPods…":swing.Calibrated?"Swing gently.":
                 readySince<0?"Hold the club still.":$"Hold still · calibrating {Mathf.Max(1,Mathf.CeilToInt(2-(Time.unscaledTime-readySince)))}";
-            if(audioStatus!=null)audioStatus.text=enableSoundAssist && !PoseReady?"Sound assist waiting for camera":impactAudio.Status;
-            if(soundToggle!=null)soundToggle.text=enableSoundAssist?"Sound assist: on":"Sound assist: off";
             hud?.Update();
             screens?.Update();
         }
@@ -410,17 +391,15 @@ namespace Kinesthetic.Golf
             try {File.AppendAllText(logPath,Newtonsoft.Json.JsonConvert.SerializeObject(new {
                 type=kind,utc=DateTime.UtcNow,playerId=playerIds[activePlayer],stroke=Strokes[activePlayer],
                 input=source,club=clubNames[clubIndex],angularSpeedRadPerSec=rate,virtualPower=power,
-                audioCorroborated=kind=="shot"?(bool?)audioCorroborated:null,
-                audioOffsetMs=kind=="shot"?audioOffsetMs:null,
                 motionReceivedHostSeconds=kind=="shot"?(double?)motionContactAt:null,
-                poseAgeMsAtDecision=kind=="shot" && poseTicks>0?(double?)((GolfImpactAudio.Now-poseTicks/(double)System.Diagnostics.Stopwatch.Frequency)*1000):null,
+                poseAgeMsAtDecision=kind=="shot" && poseTicks>0?(double?)((Now-poseTicks/(double)System.Diagnostics.Stopwatch.Frequency)*1000):null,
                 virtualStrikeRadiusM=strikeZone.Calibrated?(float?)strikeZone.Radius:null,
                 closestVirtualApproachM=float.IsInfinity(strikeZone.ClosestApproach)?null:(float?)strikeZone.ClosestApproach,
                 contactMeaning="estimated virtual clubhead crossing; physical contact unverified",
-                timingBasis="host arrival time; audio block time estimated; hardware latency not calibrated",
+                timingBasis="host arrival time; hardware latency not calibrated",
                 x=ball.position.x,y=ball.position.y,z=ball.position.z})+"\n");}catch(Exception e){Debug.LogWarning(e.Message);}
         }
-        void OnDestroy(){if(impactAudio)impactAudio.StopCapture();if(groundAim)Destroy(groundAim.gameObject);hud?.Dispose();pose?.Dispose();motion?.Dispose();}
+        void OnDestroy(){if(groundAim)Destroy(groundAim.gameObject);hud?.Dispose();pose?.Dispose();motion?.Dispose();}
 
         public void StartCapture()
         {

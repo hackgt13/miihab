@@ -320,6 +320,7 @@ MonoBehaviour:
   avatar: {fileID: 1530358751}
   seated: 0
   usePresentationSpace: 1
+  golfGrip: 1
 --- !u!1 &732601868
 GameObject:
   m_ObjectHideFlags: 0
@@ -1035,6 +1036,7 @@ MonoBehaviour:
   avatar: {fileID: 841639298}
   seated: 1
   usePresentationSpace: 1
+  golfGrip: 1
 --- !u!1 &1160709980
 GameObject:
   m_ObjectHideFlags: 0
