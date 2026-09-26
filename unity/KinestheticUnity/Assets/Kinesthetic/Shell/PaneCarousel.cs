@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -36,7 +37,16 @@ namespace Kinesthetic.Shell
             public string title;     // shown in the dots' tooltip, and by anything that narrates
             public Transform pane;
 
-            public Slot(string id, string title, Transform pane) { this.id = id; this.title = title; this.pane = pane; }
+            /// Where this pane stands, in degrees clockwise from the person's facing. NaN means "wherever
+            /// its position in the list puts it", which is what a list of equals wants. Name the angle when
+            /// the layout is part of the design rather than a consequence of ordering — the gallery is 90°
+            /// to the LEFT because that is where it lives, not because it happens to be second.
+            public float yawDegrees;
+
+            public Slot(string id, string title, Transform pane, float yawDegrees = float.NaN)
+            {
+                this.id = id; this.title = title; this.pane = pane; this.yawDegrees = yawDegrees;
+            }
         }
 
         [Tooltip("Degrees between neighbouring slots. 90 keeps every pane a clean quarter-turn away.")]
@@ -77,13 +87,29 @@ namespace Kinesthetic.Shell
         /// Raised for the slot being left, as the turn begins.
         public event Action<Slot> Leaving;
 
-        readonly List<Slot> slots = new();
+        // Serialized, because Adopt is called by the scene builder at edit time and the ring has to still
+        // know its panes when the scene is loaded. Leaving this runtime-only left a carousel that stood its
+        // panes in the right places and then woke up believing it had none, so every Show and every arrow
+        // was a no-op against an empty list.
+        [SerializeField] List<Slot> slots = new();
         Transform ring;
         int index;
         float from, to, elapsed;
         bool turning;
 
-        void Awake() => EnsureRing();
+        void Awake()
+        {
+            EnsureRing();
+            // Panes authored into the scene keep their transforms, but the ring's own angle is not saved.
+            // Put it back where the facing slot says it should be, before anything renders.
+            if (slots.Count > 0) { index = Mathf.Clamp(index, 0, slots.Count - 1); Snap(); Cull(); }
+        }
+
+        // After every Awake, so chrome and scope start out agreeing with what is actually facing.
+        void Start()
+        {
+            if (slots.Count > 0) { Changed?.Invoke(Current); Settled?.Invoke(Current); }
+        }
 
         void EnsureRing()
         {
@@ -93,11 +119,17 @@ namespace Kinesthetic.Shell
             ring.SetParent(transform, false);
         }
 
-        /// Stand these panes in the ring, in order, starting with the one the person faces. Calling it again
-        /// rebuilds the ring, which is what a data-driven gallery wants when the catalog changes underneath.
+        /// Stand these panes in the ring, in order. Rebuilding is what a data-driven gallery wants when the
+        /// catalog changes underneath it — but rebuilding is not the same as going home: if whoever was being
+        /// faced is still in the new list, they stay faced, and the ring snaps to hold them there rather than
+        /// turning. Opening a pane is not a reason to be spun back to the board you were reading.
+        ///
+        /// `Add` and `Remove` are the cheaper paths and should be preferred when only one pane changed;
+        /// `Adopt` is for when the whole list is new.
         public void Adopt(params Slot[] adopted)
         {
             EnsureRing();
+            string wasFacing = slots.Count > 0 ? Current.id : null;
             slots.Clear();
             foreach (var slot in adopted)
             {
@@ -105,17 +137,91 @@ namespace Kinesthetic.Shell
                 slots.Add(slot);
                 Place(slots.Count - 1);
             }
-            index = 0;
-            ring.localRotation = Quaternion.identity;
-            turning = false;
+
+            int kept = wasFacing == null ? -1 : slots.FindIndex(s => s.id == wasFacing);
+            Settle(kept < 0 ? 0 : kept, announce: kept < 0);
+        }
+
+        /// Append one pane without disturbing the ring. Nobody already standing moves, the person keeps
+        /// facing whatever they were facing, and no turn is animated — opening a pane in the background is
+        /// not an event that should move the furniture. Returns the slot it went to.
+        public int Add(Slot slot)
+        {
+            EnsureRing();
+            if (slot.pane == null) return -1;
+            int at = slots.FindIndex(s => s.id == slot.id);
+            if (at >= 0) { slots[at] = slot; Place(at); return at; }
+
+            slots.Add(slot);
+            Place(slots.Count - 1);
             Cull();
-            if (slots.Count > 0) { Changed?.Invoke(Current); Settled?.Invoke(Current); }
+            return slots.Count - 1;
+        }
+
+        /// Close a pane and close the gap behind it. The panes after it shuffle down a slot, which would
+        /// normally drag whoever you are facing sideways — so the ring is counter-rotated by the same step
+        /// and the person sees nothing move except the pane that left. The exception is closing the pane you
+        /// are looking at: then there is nowhere to stand still, and the ring turns to its neighbour, which
+        /// is a turn the person asked for by closing it.
+        public bool Remove(string id)
+        {
+            int at = slots.FindIndex(s => s.id == id);
+            if (at < 0) return false;
+
+            bool wasFacing = at == index;
+            slots.RemoveAt(at);
+            for (int i = at; i < slots.Count; i++) Place(i);
+
+            if (slots.Count == 0) { index = 0; turning = false; ring.localRotation = Quaternion.identity; return true; }
+            if (wasFacing) { int neighbour = Mathf.Min(at, slots.Count - 1); index = neighbour; Snap(); Cull(); Changed?.Invoke(Current); Settled?.Invoke(Current); return true; }
+
+            // Whoever was faced kept their pane; only their slot number may have dropped by one.
+            Settle(at < index ? index - 1 : index, announce: false);
+            return true;
+        }
+
+        /// Face this slot with no animation and no announcement unless the person is actually somewhere new.
+        void Settle(int wanted, bool announce)
+        {
+            index = slots.Count == 0 ? 0 : Mathf.Clamp(wanted, 0, slots.Count - 1);
+            turning = false;
+            Snap();
+            Cull();
+            if (announce && slots.Count > 0) { Changed?.Invoke(Current); Settled?.Invoke(Current); }
+        }
+
+        void Snap() => ring.localRotation = Quaternion.Euler(0, -Yaw(index), 0);
+
+        /// A slot's angle: the one it was given, or the one its position implies.
+        float Yaw(int slot)
+        {
+            if (slot < 0 || slot >= slots.Count) return 0;
+            float named = slots[slot].yawDegrees;
+            return float.IsNaN(named) ? slot * spacingDegrees : named;
+        }
+
+        /// Left to right as the person sees it, which is what both the arrows and the dots have to agree on.
+        ///
+        /// Ordering by a 0..360 angle looks equivalent and is not: it puts a pane at -90 (to your left) after
+        /// one at +90 (to your right), because -90 wraps to 270. The right arrow then walked home, friends,
+        /// gallery while the dots read gallery, home, friends — one press moving the lit dot from the first
+        /// to the third. Signed angles keep left negative, so the order on screen and the order underneath
+        /// are the same order.
+        public List<int> LeftToRight => Enumerable.Range(0, slots.Count)
+            .OrderBy(i => Mathf.DeltaAngle(0, Yaw(i))).ToList();
+
+        int Step(int by)
+        {
+            if (slots.Count == 0) return 0;
+            var order = LeftToRight;
+            int at = order.IndexOf(index);
+            return order[((at + by) % order.Count + order.Count) % order.Count];
         }
 
         /// Out along the slot's heading, turned to face back down it.
         void Place(int slot)
         {
-            float yaw = slot * spacingDegrees;
+            float yaw = Yaw(slot);
             var heading = Quaternion.Euler(0, yaw, 0);
             var pane = slots[slot].pane;
             pane.SetParent(ring, false);
@@ -132,8 +238,8 @@ namespace Kinesthetic.Shell
             return found >= 0;
         }
 
-        public void Next() => TurnTo(index + 1);
-        public void Previous() => TurnTo(index - 1);
+        public void Next() => TurnTo(Step(1));
+        public void Previous() => TurnTo(Step(-1));
 
         void TurnTo(int wanted)
         {
@@ -145,7 +251,7 @@ namespace Kinesthetic.Shell
             // right". Signed degrees rather than slot arithmetic keeps the wrap honest: slot 3 to slot 0 is
             // +90, not -270.
             float current = ring.localEulerAngles.y;
-            float delta = Mathf.DeltaAngle(current, -target * spacingDegrees);
+            float delta = Mathf.DeltaAngle(current, -Yaw(target));
 
             Leaving?.Invoke(Current);
             from = current;

@@ -1,0 +1,44 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../Palette.uss" />
+    <ui:Style src="MainMenu.uss" />
+    <!-- Friends, one quarter-turn to the right. Same tree FriendsPanel already binds. -->
+    <ui:VisualElement name="friends-pane" class="pane-screen">
+        <ui:VisualElement name="friends-panel" class="friends-panel">
+            <ui:VisualElement class="friends-header">
+                <ui:VisualElement class="friends-heading">
+                    <ui:Label text="Friends" class="friends-title" />
+                    <ui:Label name="friends-subtitle" text="People who know how this feels." class="friends-subtitle" />
+                </ui:VisualElement>
+                <ui:Button name="friends-close" text="Close" class="panel-close" />
+            </ui:VisualElement>
+            <ui:VisualElement class="friends-body">
+                <ui:VisualElement class="friends-list-pane">
+                    <ui:ScrollView name="friends-list" class="friends-list" />
+                    <ui:VisualElement class="invite-block">
+                        <ui:Button name="friends-invite" text="Invite a friend" class="ghost-button" />
+                        <ui:Label name="invite-code" text="" class="invite-code hidden" />
+                        <ui:VisualElement class="code-row">
+                            <ui:TextField name="friends-code" class="code-field" max-length="6" />
+                            <ui:Button name="friends-accept" text="Add" class="ghost-button" />
+                        </ui:VisualElement>
+                        <ui:Label name="friends-notice" text="" class="friends-notice" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="thread-pane">
+                    <ui:VisualElement class="thread-head">
+                        <ui:VisualElement name="thread-face" class="thread-face" picking-mode="Ignore" />
+                        <ui:Label name="thread-name" text="Pick someone to cheer on" class="thread-name" />
+                        <ui:Label name="thread-hint" text="" class="thread-hint" />
+                    </ui:VisualElement>
+                    <ui:ScrollView name="thread" class="thread" />
+                    <ui:VisualElement name="quick-row" class="quick-row" />
+                    <ui:VisualElement class="composer">
+                        <ui:TextField name="composer-text" class="composer-text" max-length="240" />
+                        <ui:Button name="composer-photo" text="Photo" class="ghost-button" />
+                        <ui:Button name="composer-send" text="Send" class="send-button" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

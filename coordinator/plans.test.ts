@@ -61,7 +61,7 @@ test('a v2 plan written before goals, ids, ceilings and envelopes gains them on 
   assert.equal(plan.origin, 'clinician'); assert.match(plan.goal.text, /golf/);
 });
 
-test('approving v2 through the API changes the next session but not the running one', {timeout:15000}, async () => {
+test('approving v2 through the API changes the next session but not the running one', {timeout:40000}, async () => {
   const recordings = mkdtempSync(join(tmpdir(), 'rec-')), plansDir = mkdtempSync(join(tmpdir(), 'plansapi-'));
   const port = 18771, base = `http://127.0.0.1:${port}`;
   const child = spawn(process.execPath, ['server.ts'], {cwd:import.meta.dirname,

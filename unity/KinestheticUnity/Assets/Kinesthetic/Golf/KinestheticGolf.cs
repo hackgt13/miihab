@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Collections;
-using System.Text;
 using UnityEngine.Networking;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -246,47 +245,26 @@ namespace Kinesthetic.Golf
             if(roundReported)return;
             roundReported=true;
             string id=Guid.NewGuid().ToString();
-            var endedUtc=DateTime.UtcNow;
-            var subjects=new object[2];
+            var subjects=new ActivitySubject[2];
             for(int i=0;i<2;i++)
-                subjects[i]=new {
-                    subjectId=playerIds[i], role=i==0?"patient":"companion",
-                    dose=new {prescribed=(int?)null, attempted=Strokes[i]+Misses[i], valid=Strokes[i]},
-                    primaryMetric=new {name="strokes", value=(double)Strokes[i], unit="strokes"},
+                subjects[i]=new ActivitySubject {
+                    SubjectId=playerIds[i], IsCompanion=i!=0,
+                    // A swing that qualified but missed the virtual ball is still an attempt.
+                    Attempted=Strokes[i]+Misses[i], Valid=Strokes[i],
+                    MetricName="strokes", MetricValue=Strokes[i], MetricUnit="strokes",
                 };
-            var envelope=new {
-                schema="kinesthetic.activity.v1", activitySessionId=id, activityId="golf.adaptive",
-                exerciseKinds=new string[0], venueId="resort-course",
-                patientId=(string)null, planVersion=(int?)null,
-                startedAt=roundStartedUtc.ToString("o"), endedAt=endedUtc.ToString("o"),
-                durationMs=(int)Mathf.Clamp((float)(endedUtc-roundStartedUtc).TotalMilliseconds,0,86_400_000),
-                completed=true, subjects,
-                trackingQuality=new {validFrameRatio=(double?)null, lossEvents=PoseLossEvents},
-                flags=PoseLossEvents>0?new[]{"tracking_lost"}:new string[0],
-                payload=new {kind="golf.round", schemaVersion="1", data=new {
-                    strokes=Strokes, misses=Misses, acceptedShots=AcceptedShots, club=clubNames[clubIndex]}},
-            };
             Completed?.Invoke(id);
-            StartCoroutine(PostRound(id,Newtonsoft.Json.JsonConvert.SerializeObject(envelope)));
+            postingRound=true;
+            StartCoroutine(ActivityRecorder.Send(bridge, ActivityId, id, roundStartedUtc, subjects,
+                PoseLossEvents, "golf.round",
+                new {strokes=Strokes, misses=Misses, acceptedShots=AcceptedShots, club=clubNames[clubIndex]},
+                _=>postingRound=false));
         }
         /// <summary>Nothing server-side to close, but do not leave mid-POST or the round is lost.</summary>
         public IEnumerator RequestExit(Action<bool> succeeded)
         {
             while (postingRound) yield return null;
             succeeded?.Invoke(true);
-        }
-        IEnumerator PostRound(string id,string body)
-        {
-            postingRound=true;
-            using var request=new UnityWebRequest(bridge+"/activity/session","POST") {
-                uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
-                downloadHandler=new DownloadHandlerBuffer(), timeout=5 };
-            request.SetRequestHeader("Content-Type","application/json");
-            yield return request.SendWebRequest();
-            // A failed POST must never interrupt play; the round is over and the players are done.
-            postingRound=false;
-            if(request.result!=UnityWebRequest.Result.Success)
-                Debug.LogWarning($"Golf round {id} was not recorded: {request.error} {request.downloadHandler?.text}");
         }
         void Update()
         {

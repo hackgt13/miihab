@@ -10,7 +10,16 @@
    vibrant coral   #FE5F55   what you are reaching for, and what has gone wrong
 
    Steps rise with darkness: 00 is nearly white, 80 nearly black, 40–50 is the published colour.
-   Slate is prussian blue lightened, which is where secondary copy comes from. */
+   Slate is prussian blue lightened, which is where secondary copy comes from.
+
+   Using it: `color: var(--slate-60);`. A hex literal outside this file is a bug — it silently opts
+   that rule out of the theme, so changing a value here stops reaching it. A .uxml gets the tokens by
+   listing <ui:Style src="../Palette.uss" /> before its own sheet; every screen here already does.
+
+   Lettering on a tinted panel pairs <family>-60 on <family>-10, which clears 4.5:1 — that is the
+   pattern .summary-progress uses for neutral, good and reach-higher. If no token looks right, do not
+   add a hue: pick the family whose meaning matches (cerulean primary/measured, jungle good, coral
+   target or trouble) and take the step you need. */
 
 :root {
     --sand-00: #FDFBF6;

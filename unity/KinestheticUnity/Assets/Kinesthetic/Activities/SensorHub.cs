@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using Kinesthetic.Golf;
 
@@ -43,21 +44,39 @@ namespace Kinesthetic.Activities
         }
 
         LivePoseClient pose;
-        GolfMotionClient motion;
-        float retryPoseAt, retryMotionAt;
+        // Motion channels are per-URL because each game has its own: golf swings arrive on /golf and
+        // bowling rolls on /bowling-motion, separate channels on the same relay process.
+        readonly Dictionary<string, GolfMotionClient> motions = new();
+        readonly Dictionary<string, float> motionRetryAt = new();
+        readonly Dictionary<string, int> motionReconnects = new();
+        float retryPoseAt;
 
         /// <summary>The pose channel. Never null after Awake, and reconnected automatically.</summary>
         public LivePoseClient Pose => pose;
         /// <summary>The club-motion channel, on the other relay process.</summary>
-        public GolfMotionClient Motion => motion;
+        public GolfMotionClient Motion => MotionFor(DefaultMotionUrl);
+
+        /// <summary>
+        /// The motion channel at this URL, opened on first ask and kept alive from then on. An
+        /// activity names the channel it needs; the hub owns the socket and the reconnecting.
+        /// </summary>
+        public GolfMotionClient MotionFor(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+            if (!motions.TryGetValue(url, out var client))
+                motions[url] = client = new GolfMotionClient(url);
+            return client;
+        }
+        public int MotionReconnectsFor(string url) => motionReconnects.TryGetValue(url, out var n) ? n : 0;
 
         public bool PoseConnected => pose != null && pose.Connected;
-        public bool MotionConnected => motion != null && motion.connected;
+        public bool MotionConnected => MotionConnectedFor(DefaultMotionUrl);
+        public bool MotionConnectedFor(string url) => motions.TryGetValue(url, out var c) && c != null && c.connected;
         public string PoseStatus => pose?.Status ?? "Pose bridge not started";
         /// <summary>How many times each channel has had to reconnect. An activity reads the delta
         /// across its own session to report tracking quality, rather than owning the socket to count.</summary>
         public int PoseReconnects { get; private set; }
-        public int MotionReconnects { get; private set; }
+        public int MotionReconnects => MotionReconnectsFor(DefaultMotionUrl);
 
         void Awake()
         {
@@ -65,7 +84,6 @@ namespace Kinesthetic.Activities
             Instance = this;
             DontDestroyOnLoad(gameObject);
             pose = new LivePoseClient(DefaultPoseUrl);
-            motion = new GolfMotionClient(DefaultMotionUrl);
         }
 
         void Update()
@@ -79,12 +97,17 @@ namespace Kinesthetic.Activities
                 retryPoseAt = Time.unscaledTime + RetrySeconds;
                 PoseReconnects++;
             }
-            if (!MotionConnected && Time.unscaledTime > retryMotionAt)
+            // Every motion channel anyone has asked for, each on its own retry clock.
+            foreach (var url in new List<string>(motions.Keys))
             {
-                motion?.Dispose();
-                motion = new GolfMotionClient(DefaultMotionUrl);
-                retryMotionAt = Time.unscaledTime + RetrySeconds;
-                MotionReconnects++;
+                var client = motions[url];
+                if (client != null && client.connected) continue;
+                motionRetryAt.TryGetValue(url, out var due);
+                if (Time.unscaledTime <= due) continue;
+                client?.Dispose();
+                motions[url] = new GolfMotionClient(url);
+                motionRetryAt[url] = Time.unscaledTime + RetrySeconds;
+                motionReconnects[url] = MotionReconnectsFor(url) + 1;
             }
         }
 
@@ -92,7 +115,8 @@ namespace Kinesthetic.Activities
         {
             if (Instance == this) Instance = null;
             pose?.Dispose();
-            motion?.Dispose();
+            foreach (var client in motions.Values) client?.Dispose();
+            motions.Clear();
         }
     }
 }

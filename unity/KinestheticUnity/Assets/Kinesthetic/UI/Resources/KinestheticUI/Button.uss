@@ -1,0 +1,125 @@
+/* KButton. Every selector is at least two classes, so a screen's older `Button { }` (one type) or
+   `.sheet Button` (a class and a type) can never outrank it — and every property those rules touch is
+   set here, so nothing leaks through from them either. Whatever this sheet sets, the component wins.
+
+   :hover, :focus and .k-hot are one state. :active and .k-pressed are one state. The classes are for
+   world-space panels, which get no pointer events and so never see :hover (see KButton.cs).
+
+   Disabled comes last in each tone so it wins over a hover it happens to share a frame with. */
+
+/* ---------------------------------------------------------------- shape and size */
+
+.k-button.k-button--pill, .k-button.k-button--round {
+    margin: 0;
+    padding: 0;
+    border-width: 2px;
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf");
+    -unity-font-style: normal;
+    -unity-text-align: middle-center;
+    letter-spacing: 0;
+    white-space: nowrap;
+    min-width: 0;
+    min-height: 0;
+    opacity: 1;
+    scale: 1;
+    transition-duration: .16s;
+}
+
+.k-button.k-button--pill { border-bottom-width: 4px; }
+.k-button.k-button--pill.k-button--small  { height: 36px; padding: 0 18px; border-radius: 18px; font-size: 14px; }
+.k-button.k-button--pill.k-button--medium { height: 46px; padding: 0 22px; border-radius: 23px; font-size: 16px; }
+.k-button.k-button--pill.k-button--large  { height: 54px; padding: 0 26px; border-radius: 27px; font-size: 18px; }
+
+/* A pressed pill loses half its lip: the face drops toward the surface it sits on. */
+.k-button.k-button--pill:active, .k-button.k-button--pill.k-pressed { border-bottom-width: 2px; }
+
+.k-button.k-button--round.k-button--small  { width: 36px;  height: 36px;  border-radius: 18px; font-size: 20px; }
+.k-button.k-button--round.k-button--medium { width: 48px;  height: 48px;  border-radius: 24px; font-size: 26px; }
+.k-button.k-button--round.k-button--large  { width: 132px; height: 132px; border-radius: 66px; font-size: 78px; }
+
+/* ---------------------------------------------------------------- primary: the one thing to press */
+
+.k-button.k-button--primary {
+    background-color: var(--cerulean-50);
+    color: var(--sand-00);
+    border-color: var(--cerulean-60);
+    border-bottom-color: var(--cerulean-70);
+}
+.k-button.k-button--primary:hover, .k-button.k-button--primary:focus, .k-button.k-button--primary.k-hot {
+    background-color: var(--cerulean-45);
+    border-color: var(--cerulean-30);
+    border-bottom-color: var(--cerulean-70);
+    scale: 1.02;
+}
+.k-button.k-button--primary:active, .k-button.k-button--primary.k-pressed {
+    background-color: var(--cerulean-60);
+    scale: 1;
+}
+
+/* ---------------------------------------------------------------- secondary: everything else you can press */
+
+.k-button.k-button--secondary {
+    background-color: var(--sand-00);
+    color: var(--prussian-50);
+    border-color: var(--cerulean-30);
+}
+.k-button.k-button--secondary:hover, .k-button.k-button--secondary:focus, .k-button.k-button--secondary.k-hot {
+    background-color: var(--cerulean-10);
+    border-color: var(--cerulean-40);
+    scale: 1.02;
+}
+.k-button.k-button--secondary:active, .k-button.k-button--secondary.k-pressed {
+    background-color: var(--cerulean-20);
+    scale: 1;
+}
+
+/* ---------------------------------------------------------------- ghost: a control that should not draw the eye */
+
+/* rgba(0, 0, 0, 0) is the absence of a colour, not a colour, so it carries no hue for the palette to own. */
+.k-button.k-button--ghost {
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--slate-70);
+    border-color: rgba(0, 0, 0, 0);
+}
+.k-button.k-button--ghost:hover, .k-button.k-button--ghost:focus, .k-button.k-button--ghost.k-hot {
+    background-color: var(--cerulean-20);
+    color: var(--prussian-50);
+    scale: 1.02;
+}
+.k-button.k-button--ghost:active, .k-button.k-button--ghost.k-pressed {
+    background-color: var(--cerulean-30);
+    scale: 1;
+}
+
+/* ---------------------------------------------------------------- quiet: chrome standing over a venue */
+
+/* Sand at low opacity with prussian lettering: present enough to be found against a plaza, a studio or a
+   course, quiet enough that the eye goes to what it frames first. */
+.k-button.k-button--quiet {
+    background-color: var(--sand-00-a24);
+    color: var(--prussian-70);
+    border-color: var(--sand-00-a40);
+}
+.k-button.k-button--quiet:hover, .k-button.k-button--quiet:focus, .k-button.k-button--quiet.k-hot {
+    background-color: var(--sand-00-a88);
+    border-color: var(--cerulean-40);
+    scale: 1.02;
+}
+.k-button.k-button--quiet:active, .k-button.k-button--quiet.k-pressed {
+    background-color: var(--cerulean-20);
+    scale: 1;
+}
+
+/* ---------------------------------------------------------------- disabled: one look, whatever the tone */
+
+.k-button.k-button--pill:disabled, .k-button.k-button--round:disabled {
+    background-color: var(--sand-40);
+    color: var(--slate-70);
+    border-color: var(--slate-30);
+    scale: 1;
+}
+.k-button.k-button--ghost:disabled {
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--slate-40);
+    border-color: rgba(0, 0, 0, 0);
+}

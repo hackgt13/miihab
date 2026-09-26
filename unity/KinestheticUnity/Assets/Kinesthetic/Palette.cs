@@ -20,8 +20,9 @@ namespace Kinesthetic
     /// The numbered steps are tints and shades of those five, mixed toward white or black only — no new
     /// hues enter here. Steps rise with darkness: 00 is nearly white, 80 nearly black, 40–50 is the
     /// published colour. Slate is prussian blue lightened, which is where secondary copy comes from.
-    /// USS files carry the same values as literals (UI Toolkit resolves stylesheets before any of this
-    /// runs); the hex in a comment beside each one names the step it came from.
+    /// Palette.uss is the other half: the same steps as `--sand-00`-style custom properties, which is
+    /// what every USS rule uses. This file is only for surfaces painted in code. Keep the two in step
+    /// — a value changed here and not there splits the theme.
     ///
     /// Contrast is checked against the surface a colour actually lands on: Slate70 and Jungle60 on
     /// Sand00 clear 4.5:1 for body copy, and sand on Cerulean50 clears 4.9:1 — which is why a primary

@@ -5,13 +5,16 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UIElements;
+using Kinesthetic.Shell;
 
 namespace Kinesthetic.Menu
 {
     public sealed class MainMenuController : MonoBehaviour
     {
-        VisualElement root;
-        VisualElement activityOverlay, helpOverlay, nameOverlay;
+        VisualElement root;                       // the board
+        VisualElement galleryRoot, friendsRoot;   // the panes either side of it
+        PaneCarousel carousel;
+        VisualElement helpOverlay, nameOverlay;
         TextField nameField;
         Button[] cards;
         Button music;
@@ -29,6 +32,7 @@ namespace Kinesthetic.Menu
         // person cannot even see. So the menu decides what counts as reachable, per open layer.
         static readonly string[] BaseScope = { "start-activity", "choose-activity", "friends", "music", "help", "edit-name" };
         static readonly string[] ActivityScope = { "golf-card", "studio-card", "bowling-card", "activity-close" };
+        static readonly string[] FriendsScope = { "friends-close", "friends-invite", "friends-accept" };
         static readonly string[] ActivityIds = { "golf.adaptive", "rehab.studio", "bowling.adaptive" };
         static readonly string[] HelpScope = { "help-close" };
         static readonly string[] NameScope = { "name-save", "name-cancel" };
@@ -62,12 +66,18 @@ namespace Kinesthetic.Menu
             root = tree;
             model = BuildModel();
 
-            activityOverlay = root.Q("activity-overlay");
+            // The gallery and friends are panes of their own now, a quarter-turn either side. Reach them
+            // through the ring rather than through this document, which no longer contains them.
+            carousel = FindAnyObjectByType<PaneCarousel>();
+            galleryRoot = PaneRoot("gallery");
+            friendsRoot = PaneRoot("friends");
+            if (carousel == null || galleryRoot == null || friendsRoot == null) { root = null; return; }
+
             helpOverlay = root.Q("help-overlay");
             nameOverlay = root.Q("name-overlay");
             nameField = root.Q<TextField>("name-field");
-            cards = new[] { root.Q<Button>("golf-card"), root.Q<Button>("studio-card"), root.Q<Button>("bowling-card") };
-            caption = root.Q<Label>("selection-caption");
+            cards = new[] { galleryRoot.Q<Button>("golf-card"), galleryRoot.Q<Button>("studio-card"), galleryRoot.Q<Button>("bowling-card") };
+            caption = galleryRoot.Q<Label>("selection-caption");
             music = root.Q<Button>("music");
 
             for (int i = 0; i < cards.Length; i++)
@@ -79,8 +89,11 @@ namespace Kinesthetic.Menu
             }
 
             Act(root.Q<Button>("start-activity"), StartFirst);
-            Act(root.Q<Button>("choose-activity"), () => OpenSheet(activityOverlay, ActivityScope, cards[selected]));
-            Act(root.Q<Button>("activity-close"), () => CloseSheet(activityOverlay, "choose-activity"));
+            // "Choose activity" no longer opens anything — it turns the ring to the gallery, which was
+            // standing there the whole time. Same for friends. Closing either turns back to the board.
+            Act(root.Q<Button>("choose-activity"), () => carousel.Show("gallery"));
+            Act(galleryRoot.Q<Button>("activity-close"), () => carousel.Show("home"));
+            Act(friendsRoot.Q<Button>("friends-close"), () => carousel.Show("home"));
             Act(music, navigation.ToggleMusic);
             Act(root.Q<Button>("help"), () => OpenSheet(helpOverlay, HelpScope, root.Q<Button>("help-close")));
             Act(root.Q<Button>("help-close"), () => CloseSheet(helpOverlay, "help"));
@@ -99,31 +112,47 @@ namespace Kinesthetic.Menu
 
             root.RegisterCallback<NavigationCancelEvent>(e =>
             {
-                if (Showing(activityOverlay)) { CloseSheet(activityOverlay, "choose-activity"); e.StopPropagation(); }
-                else if (Showing(helpOverlay)) { CloseSheet(helpOverlay, "help"); e.StopPropagation(); }
+                if (helpOverlay == null) { }
+                if (Showing(helpOverlay)) { CloseSheet(helpOverlay, "help"); e.StopPropagation(); }
                 else if (Showing(nameOverlay)) { CloseSheet(nameOverlay, "edit-name"); e.StopPropagation(); }
             });
             root.RegisterCallback<NavigationMoveEvent>(e =>
             {
-                if (!Showing(activityOverlay)) return;
+                if (carousel.Current.id != "gallery") return;
                 if (e.direction != NavigationMoveEvent.Direction.Left && e.direction != NavigationMoveEvent.Direction.Right) return;
                 int step = e.direction == NavigationMoveEvent.Direction.Left ? -1 : 1;
                 Select((selected + step + cards.Length) % cards.Length, false);
                 cards[selected].Focus(); e.StopPropagation();
             });
 
-            var gaze = GetComponent<GazeDwell>();
-            if (gaze) { gaze.Entered += Gazed; gaze.Committed += Commit; }
-
-            root.Q("golf-icon").generateVisualContent += c => DrawIcon(c, false);
-            root.Q("studio-icon").generateVisualContent += c => DrawIcon(c, true);
-            root.Q("bowling-icon").generateVisualContent += DrawBowlingIcon;
+            galleryRoot.Q("golf-icon").generateVisualContent += c => DrawIcon(c, false);
+            galleryRoot.Q("studio-icon").generateVisualContent += c => DrawIcon(c, true);
+            galleryRoot.Q("bowling-icon").generateVisualContent += DrawBowlingIcon;
 
             // Added at runtime so the generated menu scene needs no change.
             var friends = GetComponent<FriendsPanel>() ?? gameObject.AddComponent<FriendsPanel>();
-            friends.Attach(root, navigation);
-            // FriendsPanel owns the button's click; the dwell path needs the same entry in the map.
-            actions["friends"] = friends.Open;
+            friends.Attach(friendsRoot, navigation);
+            // FriendsPanel still owns its own buttons; the friends button here only turns the ring.
+            actions["friends"] = () => carousel.Show("friends");
+
+            // Each pane has its own dwell, because GazeDwell resolves elements from the document it sits on.
+            // They all report into the one action table, so head and pointer cannot drift apart.
+            foreach (var slot in carousel.Slots)
+            {
+                var dwell = slot.pane.GetComponent<GazeDwell>();
+                if (dwell == null) continue;
+                dwell.Entered += Gazed;
+                dwell.Committed += Commit;
+            }
+
+            // What the gaze may commit follows whichever pane is facing, which is what the scope list used
+            // to do for a stack of sheets. One mechanism, now driven by where the person is looking.
+            carousel.Settled += slot => scope = slot.id switch
+            {
+                "gallery" => ActivityScope,
+                "friends" => FriendsScope,
+                _ => BaseScope,
+            };
 
             MenuDashboard.Populate(root, model);
             StartCoroutine(LoadDashboard());
@@ -140,6 +169,15 @@ namespace Kinesthetic.Menu
         }
 
         bool InScope(string name) => Array.IndexOf(scope, name) >= 0;
+        /// The root of a pane standing in the ring, by name.
+        VisualElement PaneRoot(string id)
+        {
+            foreach (var slot in carousel == null ? System.Array.Empty<PaneCarousel.Slot>() : (System.Collections.Generic.IEnumerable<PaneCarousel.Slot>)carousel.Slots)
+                if (slot.id == id)
+                    return slot.pane.GetComponent<UIDocument>()?.rootVisualElement;
+            return null;
+        }
+
         static bool Showing(VisualElement overlay) => overlay != null && !overlay.ClassListContains("hidden");
 
         void Gazed(string name)
@@ -160,7 +198,7 @@ namespace Kinesthetic.Menu
         void StartFirst()
         {
             var next = model.FirstOutstanding();
-            if (next is not { } task) { OpenSheet(activityOverlay, ActivityScope, cards[selected]); return; }
+            if (next is not { } task) { carousel.Show("gallery"); cards[selected]?.Focus(); return; }
             Launch(task.activityId);
         }
 

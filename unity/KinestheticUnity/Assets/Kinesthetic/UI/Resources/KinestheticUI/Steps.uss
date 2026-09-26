@@ -1,0 +1,59 @@
+/* KSteps and KStep. USS has no :first-child, so KSteps marks the first row itself. */
+
+.k-steps.k-steps--number, .k-steps.k-steps--progress {
+    margin: 0;
+    padding: 0;
+}
+
+.k-steps .k-step {
+    flex-direction: row;
+    align-items: flex-start;
+    margin: 0;
+    padding: 12px 0;
+    border-width: 0;
+    border-top-width: 1px;
+    border-top-color: var(--sand-40);
+}
+.k-steps .k-step.k-step--first { border-top-width: 0; padding-top: 0; }
+
+.k-step .k-step__badge {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    margin: 0 16px 0 0;
+    padding: 0;
+    border-radius: 18px;
+    background-color: var(--cerulean-20);
+    color: var(--prussian-50);
+    font-size: 18px;
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf");
+    -unity-font-style: normal;
+    -unity-text-align: middle-center;
+}
+.k-steps.k-steps--progress .k-step.k-step--done .k-step__badge {
+    background-color: var(--jungle-20);
+    color: var(--jungle-60);
+}
+
+.k-step .k-step__text { flex-grow: 1; flex-shrink: 1; }
+
+.k-step .k-step__title {
+    margin: 0;
+    padding: 0;
+    font-size: 18px;
+    color: var(--prussian-50);
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf");
+    -unity-font-style: normal;
+    white-space: normal;
+}
+
+.k-step .k-step__copy {
+    margin: 5px 0 0 0;
+    padding: 0;
+    font-size: 15px;
+    color: var(--slate-50);
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf");
+    -unity-font-style: normal;
+    white-space: normal;
+}
+.k-step .k-step__copy.k-step__copy--empty { display: none; }

@@ -1,0 +1,94 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../Palette.uss" />
+    <Style src="Base.uss" />
+    <Style src="Specimen.uss" />
+    <!-- Every component in every variant: the visual contract. Open it in UI Builder to see what the system
+         draws; if a component looks wrong here it looks wrong everywhere, and it is fixed here once. -->
+    <ui:ScrollView class="specimen">
+
+        <k:KEyebrow text="BUTTON · TONE × SIZE" />
+        <ui:VisualElement class="specimen-row">
+            <k:KButton text="Start session" tone="Primary" size="Large" />
+            <k:KButton text="Start session" tone="Primary" size="Medium" />
+            <k:KButton text="Start session" tone="Primary" size="Small" />
+        </ui:VisualElement>
+        <ui:VisualElement class="specimen-row">
+            <k:KButton text="Not now" tone="Secondary" size="Large" />
+            <k:KButton text="Not now" tone="Secondary" size="Medium" />
+            <k:KButton text="Not now" tone="Secondary" size="Small" />
+        </ui:VisualElement>
+        <ui:VisualElement class="specimen-row">
+            <k:KButton text="Skip" tone="Ghost" size="Large" />
+            <k:KButton text="Skip" tone="Ghost" size="Medium" />
+            <k:KButton text="Skip" tone="Ghost" size="Small" />
+        </ui:VisualElement>
+        <ui:VisualElement class="specimen-row">
+            <k:KButton text="Waiting for camera" tone="Primary" size="Medium" enabled="false" />
+            <k:KButton text="Waiting for camera" tone="Secondary" size="Medium" enabled="false" />
+            <k:KButton text="Waiting" tone="Ghost" size="Medium" enabled="false" />
+        </ui:VisualElement>
+
+        <k:KEyebrow text="BUTTON · ROUND" />
+        <ui:VisualElement class="specimen-row">
+            <k:KButton text="‹" tone="Secondary" size="Small" shape="Round" />
+            <k:KButton text="‹" tone="Secondary" size="Medium" shape="Round" />
+            <k:KButton text="✕" tone="Ghost" size="Small" shape="Round" />
+            <k:KButton text="+" tone="Primary" size="Medium" shape="Round" />
+        </ui:VisualElement>
+
+        <k:KEyebrow text="OVER A VENUE · QUIET BUTTON, DARK EYEBROW" backdrop="Dark" class="specimen-dark-label" />
+        <ui:VisualElement class="specimen-row specimen-dark">
+            <k:KButton text="‹" tone="Quiet" size="Large" shape="Round" />
+            <k:KButton text="Menu" tone="Quiet" size="Medium" />
+            <k:KEyebrow text="HOLE 3 · PAR 4" backdrop="Dark" />
+        </ui:VisualElement>
+
+        <k:KEyebrow text="TAG · CHIP" />
+        <ui:VisualElement class="specimen-row">
+            <k:KTag text="PREVIEW" tone="Neutral" />
+            <k:KTag text="RIGHT ARM" tone="Info" />
+            <k:KTag text="DONE" tone="Good" />
+            <k:KTag text="CHECK YOUR POSTURE" tone="Trouble" />
+        </ui:VisualElement>
+        <ui:VisualElement class="specimen-row">
+            <k:KChip text="Camera off" state="Idle" />
+            <k:KChip text="Measuring" state="Live" />
+            <k:KChip text="AirPods connected" state="Good" />
+            <k:KChip text="Lost the camera" state="Trouble" />
+        </ui:VisualElement>
+
+        <k:KEyebrow text="READOUT · SIZE × TONE" />
+        <ui:VisualElement class="specimen-row specimen-bottom">
+            <k:KReadout value="112°" caption="best reach" size="Hero" />
+            <k:KReadout value="8" caption="day streak" size="Large" tone="Good" />
+            <k:KReadout value="64°" caption="target 90°" size="Regular" tone="Target" />
+            <k:KReadout value="142" caption="total" size="Compact" />
+        </ui:VisualElement>
+
+        <k:KEyebrow text="ARC · METER" />
+        <ui:VisualElement class="specimen-row">
+            <k:KArc form="Continuous" fraction="0.62" class="specimen-ring">
+                <k:KReadout value="62%" caption="of program" size="Regular" />
+            </k:KArc>
+            <k:KArc form="Segmented" segments="10" fraction="0.4" tone="Good" class="specimen-ring">
+                <k:KReadout value="4" caption="of 10 reps" size="Large" />
+            </k:KArc>
+            <ui:VisualElement class="specimen-meters">
+                <k:KMeter form="Pips" count="5" filled="4" />
+                <k:KMeter form="Bar" fraction="0.71" />
+                <k:KMeter form="Bar" fraction="0.35" tone="Target" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <k:KEyebrow text="STEPS · FROM THE CATALOG" />
+        <k:KSteps activity="rehab.studio" class="specimen-steps" />
+
+        <k:KEyebrow text="STEPS · A READINESS CHECKLIST" />
+        <k:KSteps numbering="Progress" class="specimen-steps">
+            <k:KStep title="Camera" copy="Found you." />
+            <k:KStep title="AirPods" copy="Put them in and hold still." />
+            <k:KStep title="Club" />
+        </k:KSteps>
+
+    </ui:ScrollView>
+</ui:UXML>

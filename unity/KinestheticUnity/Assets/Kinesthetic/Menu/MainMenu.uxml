@@ -134,51 +134,6 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <ui:VisualElement name="activity-overlay" class="modal-shade hidden">
-            <ui:VisualElement class="sheet">
-                <ui:Label text="What would you like to play?" class="sheet-title" />
-                <ui:VisualElement class="activities">
-                    <ui:Button name="golf-card" class="activity-card golf-card selected" tooltip="Play adaptive golf">
-                        <ui:Label text="PLAY TOGETHER" class="preview-tag" picking-mode="Ignore" />
-                        <ui:VisualElement class="card-info" picking-mode="Ignore">
-                            <ui:VisualElement name="golf-icon" class="mode-icon" picking-mode="Ignore" />
-                            <ui:VisualElement class="card-copy" picking-mode="Ignore">
-                                <ui:Label text="Golf" class="card-title" picking-mode="Ignore" />
-                                <ui:Label text="Fresh air. Friendly competition." class="card-description" picking-mode="Ignore" />
-                            </ui:VisualElement>
-                            <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                    </ui:Button>
-                    <ui:Button name="studio-card" class="activity-card studio-card" tooltip="Open the Movement Studio">
-                        <ui:Label text="YOUR DAILY PRACTICE" class="preview-tag" picking-mode="Ignore" />
-                        <ui:VisualElement class="card-info" picking-mode="Ignore">
-                            <ui:VisualElement name="studio-icon" class="mode-icon" picking-mode="Ignore" />
-                            <ui:VisualElement class="card-copy" picking-mode="Ignore">
-                                <ui:Label text="Movement Studio" class="card-title" picking-mode="Ignore" />
-                                <ui:Label text="Gentle raises. Personal progress." class="card-description" picking-mode="Ignore" />
-                            </ui:VisualElement>
-                            <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                    </ui:Button>
-                    <ui:Button name="bowling-card" class="activity-card" tooltip="Play bowling with your wrist-mounted AirPod">
-                        <ui:Label text="A GENTLE ROLL" class="preview-tag" picking-mode="Ignore" />
-                        <ui:VisualElement class="card-info" picking-mode="Ignore">
-                            <ui:VisualElement name="bowling-icon" class="mode-icon" picking-mode="Ignore" />
-                            <ui:VisualElement class="card-copy" picking-mode="Ignore">
-                                <ui:Label text="Bowling" class="card-title" picking-mode="Ignore" />
-                                <ui:Label text="Line up. Swing. Watch them fall." class="card-description" picking-mode="Ignore" />
-                            </ui:VisualElement>
-                            <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                    </ui:Button>
-                </ui:VisualElement>
-                <ui:VisualElement class="selection-row" picking-mode="Ignore">
-                    <ui:VisualElement class="selection-dot" picking-mode="Ignore" />
-                    <ui:Label name="selection-caption" text="" class="selection-caption" picking-mode="Ignore" />
-                </ui:VisualElement>
-                <ui:Button name="activity-close" text="Back" class="sheet-close" />
-            </ui:VisualElement>
-        </ui:VisualElement>
 
         <ui:VisualElement name="help-overlay" class="modal-shade hidden">
             <ui:VisualElement class="sheet help-sheet">
@@ -192,45 +147,6 @@
                 <ui:Label text="Getting around" class="help-heading" />
                 <ui:Label text="Look at a panel and hold your gaze to choose it, or click. Press Esc or choose Menu during an activity to return here." class="help-copy" />
                 <ui:Button name="help-close" text="Let's play  ›" class="sheet-close primary" />
-            </ui:VisualElement>
-        </ui:VisualElement>
-    </ui:VisualElement>
-    <ui:VisualElement name="friends-overlay" class="friends-overlay hidden">
-        <ui:VisualElement name="friends-panel" class="friends-panel">
-            <ui:VisualElement class="friends-header">
-                <ui:VisualElement class="friends-heading">
-                    <ui:Label text="Friends" class="friends-title" />
-                    <ui:Label name="friends-subtitle" text="People who know how this feels." class="friends-subtitle" />
-                </ui:VisualElement>
-                <ui:Button name="friends-close" text="Close" class="panel-close" />
-            </ui:VisualElement>
-            <ui:VisualElement class="friends-body">
-                <ui:VisualElement class="friends-list-pane">
-                    <ui:ScrollView name="friends-list" class="friends-list" />
-                    <ui:VisualElement class="invite-block">
-                        <ui:Button name="friends-invite" text="Invite a friend" class="ghost-button" />
-                        <ui:Label name="invite-code" text="" class="invite-code hidden" />
-                        <ui:VisualElement class="code-row">
-                            <ui:TextField name="friends-code" class="code-field" max-length="6" />
-                            <ui:Button name="friends-accept" text="Add" class="ghost-button" />
-                        </ui:VisualElement>
-                        <ui:Label name="friends-notice" text="" class="friends-notice" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
-                <ui:VisualElement class="thread-pane">
-                    <ui:VisualElement class="thread-head">
-                        <ui:VisualElement name="thread-face" class="thread-face" picking-mode="Ignore" />
-                        <ui:Label name="thread-name" text="Pick someone to cheer on" class="thread-name" />
-                        <ui:Label name="thread-hint" text="" class="thread-hint" />
-                    </ui:VisualElement>
-                    <ui:ScrollView name="thread" class="thread" />
-                    <ui:VisualElement name="quick-row" class="quick-row" />
-                    <ui:VisualElement class="composer">
-                        <ui:TextField name="composer-text" class="composer-text" max-length="240" />
-                        <ui:Button name="composer-photo" text="Photo" class="ghost-button" />
-                        <ui:Button name="composer-send" text="Send" class="send-button" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

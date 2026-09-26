@@ -1,0 +1,12 @@
+/* The specimen's own page. It lives inside UI/, so it may paint: it has to show the components on both
+   the light panels and the dark glass they sit on in venues. */
+
+.specimen { flex-grow: 1; padding: 32px 40px; background-color: var(--sand-10); }
+.specimen .k-eyebrow { margin: 28px 0 12px 0; }
+.specimen-row { flex-direction: row; align-items: center; flex-wrap: wrap; }
+.specimen-row > * { margin: 0 14px 10px 0; }
+.specimen-bottom { align-items: flex-end; }
+.specimen-dark { padding: 18px 20px 8px 20px; border-radius: 12px; background-color: var(--prussian-70-a88); }
+.specimen-ring { width: 180px; height: 180px; }
+.specimen-meters { width: 260px; justify-content: space-around; height: 120px; }
+.specimen-steps { max-width: 620px; }

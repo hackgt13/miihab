@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../Palette.uss" />
+    <ui:Style src="Panes.uss" />
+    <!-- Every name here is contract: Pane.Bind queries pane-frame, pane-grip, pane-title,
+         pane-close and pane-content, and PaneHost decides what a hit on the grip means. -->
+    <ui:VisualElement name="pane-frame" class="pane-frame">
+        <ui:VisualElement name="pane-grip" class="pane-grip">
+            <ui:Label name="pane-title" class="pane-title" text="Pane" />
+            <ui:VisualElement class="pane-grip-space" />
+            <ui:Button name="pane-close" class="pane-close" text="✕" />
+        </ui:VisualElement>
+        <ui:VisualElement name="pane-content" class="pane-content" />
+    </ui:VisualElement>
+</ui:UXML>
