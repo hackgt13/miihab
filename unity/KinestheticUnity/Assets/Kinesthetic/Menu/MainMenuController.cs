@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -11,6 +13,10 @@ namespace Kinesthetic.Menu
         Label caption;
         ActivityNavigation navigation;
         int selected;
+
+        // Every activation this menu offers, by element name. Both the pointer's clicked handler and the gaze
+        // dwell run out of this one table, so the two input paths can never drift apart.
+        readonly Dictionary<string, Action> actions = new();
 
         void Start() { navigation = ActivityNavigation.Ensure(); Bind(); }
         void Update() { if (root == null) Bind(); }
@@ -28,14 +34,14 @@ namespace Kinesthetic.Menu
                 int index = i;
                 cards[i].RegisterCallback<PointerEnterEvent>(_ => Select(index, true));
                 cards[i].RegisterCallback<FocusInEvent>(_ => Select(index, true));
-                cards[i].clicked += () => navigation.LoadActivity(index == 0 ? ActivityNavigation.GolfScene : ActivityNavigation.StudioScene);
+                Act(cards[i], () => navigation.LoadActivity(index == 0 ? ActivityNavigation.GolfScene : ActivityNavigation.StudioScene));
             }
-            music.clicked += navigation.ToggleMusic;
+            Act(music, navigation.ToggleMusic);
             navigation.MusicChanged += MusicChanged;
             MusicChanged(navigation.MusicEnabled);
             var helpButton = root.Q<Button>("help"); var close = root.Q<Button>("help-close");
-            helpButton.clicked += () => { navigation.PlaySelect(); help.RemoveFromClassList("hidden"); close.Focus(); };
-            close.clicked += CloseHelp;
+            Act(helpButton, () => { navigation.PlaySelect(); help.RemoveFromClassList("hidden"); close.Focus(); });
+            Act(close, CloseHelp);
             root.RegisterCallback<NavigationCancelEvent>(e => { if (!help.ClassListContains("hidden")) { CloseHelp(); e.StopPropagation(); } });
             root.RegisterCallback<NavigationMoveEvent>(e => {
                 if (!help.ClassListContains("hidden")) return;
@@ -43,13 +49,24 @@ namespace Kinesthetic.Menu
                 Select(e.direction == NavigationMoveEvent.Direction.Left ? 0 : 1, false);
                 cards[selected].Focus(); e.StopPropagation();
             });
+            var gaze = GetComponent<GazeDwell>();
+            if (gaze) { gaze.Entered += Gazed; gaze.Committed += Commit; }
             root.Q("golf-icon").generateVisualContent += c => DrawIcon(c, false);
             root.Q("studio-icon").generateVisualContent += c => DrawIcon(c, true);
-            var backdrop = root.Q("backdrop");
-            backdrop.generateVisualContent += c => DrawBackdrop(c, backdrop.contentRect);
-            backdrop.schedule.Execute(backdrop.MarkDirtyRepaint).Every(40);
             root.schedule.Execute(() => cards[selected].Focus());
         }
+
+        // The dwell reports an element name; the pointer reports a click. Both land here.
+        void Act(Button button, Action action) { actions[button.name] = action; button.clicked += action; }
+
+        void Gazed(string name)
+        {
+            int card = System.Array.FindIndex(cards, c => c.name == name);
+            if (card >= 0) { Select(card, true); cards[card].Focus(); return; }
+            if (actions.ContainsKey(name)) navigation.PlayHover();
+        }
+
+        void Commit(string name) { if (actions.TryGetValue(name, out var action)) action(); }
 
         void Select(int index, bool sound)
         {
@@ -62,24 +79,6 @@ namespace Kinesthetic.Menu
         void CloseHelp() { help.AddToClassList("hidden"); navigation.PlayBack(); root.Q<Button>("help").Focus(); }
         void OnDestroy() { if (navigation) navigation.MusicChanged -= MusicChanged; }
 
-        static void DrawBackdrop(MeshGenerationContext ctx, Rect r)
-        {
-            if (r.width < 1 || r.height < 1) return;
-            var p = ctx.painter2D; float w = r.width, h = r.height;
-            p.fillGradient = FillGradient.MakeLinearGradient(Color.white, new Color(.86f,.95f,.99f), Vector2.zero, new Vector2(0,h), AddressMode.Clamp);
-            p.BeginPath(); p.MoveTo(Vector2.zero); p.LineTo(new(w,0)); p.LineTo(new(w,h)); p.LineTo(new(0,h)); p.ClosePath(); p.Fill();
-            float drift = Mathf.Sin(Time.unscaledTime * .22f) * 20;
-            for (int i = 0; i < 10; i++)
-            {
-                float y = h * .76f + i * 15;
-                p.strokeColor = new Color(.30f,.71f,.88f,.09f + i*.007f); p.lineWidth = 1.2f;
-                p.BeginPath(); p.MoveTo(new(-40,y+100));
-                p.BezierCurveTo(new(w*.35f,y-45+drift), new(w*.65f,y+135-drift), new(w+40,y-80)); p.Stroke();
-            }
-            p.strokeColor = new Color(.43f,.77f,.92f,.12f); p.lineWidth = 2;
-            for (int i = 0; i < 3; i++)
-            { p.BeginPath(); p.Arc(new(w-20, 20), 160+i*28, Angle.Degrees(70), Angle.Degrees(210)); p.Stroke(); }
-        }
         static void DrawIcon(MeshGenerationContext ctx, bool studio)
         {
             var p = ctx.painter2D;
