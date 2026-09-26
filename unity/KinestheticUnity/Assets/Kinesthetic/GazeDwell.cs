@@ -14,9 +14,10 @@ namespace Kinesthetic
     /// same action its clicked handler runs. So pointer clicking keeps working untouched, and dwell needs no
     /// event-pooling API that might not be public.
     ///
-    /// Panel picking is self-calibrating — the hit is normalised against the collider UIDocument maintains for
-    /// the panel, so it does not depend on the panel's world size or reference resolution being any particular
-    /// number.
+    /// Elements are resolved by their own rects, not by panel.Pick: Pick returns null on a world-space panel at
+    /// every point, including ones well inside the root. It does not need to be used — a world-space panel lays
+    /// its elements out in the panel's own units, centred and y-up, which is exactly the space the ray's hit
+    /// point lands in. So the hit converts straight to element coordinates with no pixel scaling at all.
     public sealed class GazeDwell : MonoBehaviour
     {
         public float dwellSeconds = 1.1f;
@@ -63,25 +64,19 @@ namespace Kinesthetic
             Committed?.Invoke(fired);
         }
 
-        // The name of the nearest Button under the centre of the view, or null.
+        // The name of the Button under the centre of the view, or null.
         string Under(Camera cam)
         {
             var ray = new Ray(cam.transform.position, cam.transform.forward);
             if (!Physics.Raycast(ray, out var hit, maxDistance)) return null;
-            var box = hit.collider as BoxCollider;
-            if (!box || !box.transform.IsChildOf(transform)) return null;
+            if (!hit.collider.transform.IsChildOf(transform)) return null;   // something else is in the way
+            var root = document.rootVisualElement;
+            if (root == null) return null;
 
-            var local = box.transform.InverseTransformPoint(hit.point) - box.center;
-            var tree = document.rootVisualElement?.panel?.visualTree;
-            if (tree == null || box.size.x <= 0 || box.size.y <= 0) return null;
-
-            // Panel space is y-down from the top-left; the collider is centred and y-up.
-            var point = new Vector2(
-                (local.x / box.size.x + .5f) * tree.layout.width,
-                (.5f - local.y / box.size.y) * tree.layout.height);
-
-            for (var element = document.rootVisualElement.panel.Pick(point); element != null; element = element.parent)
-                if (element is Button && !string.IsNullOrEmpty(element.name)) return element.name;
+            var local = hit.collider.transform.InverseTransformPoint(hit.point);
+            var point = new Vector2(local.x, local.y);
+            foreach (var button in root.Query<Button>().ToList())
+                if (!string.IsNullOrEmpty(button.name) && button.worldBound.Contains(point)) return button.name;
             return null;
         }
     }

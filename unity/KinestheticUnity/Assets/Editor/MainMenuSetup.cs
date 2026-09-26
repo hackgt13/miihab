@@ -73,14 +73,15 @@ public static class MainMenuSetup
         // renders, so it stays glued to the screen wherever the camera looks, and never reaches a stereo eye.
         var menu = new GameObject("RehabMii activity menu", typeof(UIDocument), typeof(MainMenuController), typeof(GazeDwell));
         menu.transform.SetPositionAndRotation(board.position, board.rotation);
-        // A world-space panel lays its pixels out first and the transform maps them to metres; worldSpaceSize
-        // alone does not govern the result. 1600 reference pixels land at roughly 8 m, so scale to the width
-        // the plaza wants. Measured off a camera render, not derived — see MenuPlazaBuilder's MenuBoard.
-        const float panelMetresAtUnitScale = 8f, wantedWidth = 1.85f;
-        menu.transform.localScale = Vector3.one * (wantedWidth / panelMetresAtUnitScale);
         var menuDoc = menu.GetComponent<UIDocument>(); menuDoc.panelSettings = panel;
         menuDoc.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;
         menuDoc.worldSpaceSize = new Vector2(1600, 900);     // panel pixels, not metres; the transform maps them
+        // A world-space panel lays its pixels out first and the transform maps them to metres; worldSpaceSize
+        // alone does not govern the result. It lays out 100 panel pixels per world unit — confirmed from the
+        // collider UIDocument maintains, which comes out 16x9 for a 1600x900 panel — so scale from that to the
+        // width the plaza wants. Element rects are in those same units, which is how GazeDwell resolves them.
+        const float pixelsPerUnit = 100f, wantedWidth = 3.7f;
+        menu.transform.localScale = Vector3.one * (wantedWidth / (menuDoc.worldSpaceSize.x / pixelsPerUnit));
         menuDoc.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(Root + "/MainMenu.uxml");
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
         var scenes = EditorBuildSettings.scenes.Where(s => s.path != ScenePath).ToList();
