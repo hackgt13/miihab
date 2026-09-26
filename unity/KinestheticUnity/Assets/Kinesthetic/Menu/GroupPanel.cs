@@ -37,6 +37,7 @@ namespace Kinesthetic.Menu
         [Serializable] class Lobby { public Summary[] friendsPlaying, open; public Room current; }
         [Serializable] class RoomReply { public Room group; }
         [Serializable] class Befriended { public Face person; public Room group; }
+        [Serializable] class Samples { public bool on = true; }
 #pragma warning restore 0649
 
         const float PollSeconds = 3f, TickerSeconds = 6f;
@@ -61,7 +62,8 @@ namespace Kinesthetic.Menu
         Room room;
         string lastSeen;         // the newest message id already shown, so the ticker only announces new ones
         string lastMembers;      // who was in the room, and who was a friend, when it was last drawn
-        float nextPoll, tickerUntil;
+        float nextPoll, tickerUntil, toastUntil;
+        bool samplesOn = true;       // the coordinator's word, once it has said (groups.ts `samples`)
         bool inActivity;
         bool othersOpen, roomOpen;   // what was up, so a rebuilt tree can put it back (see Mount)
 
@@ -76,17 +78,21 @@ namespace Kinesthetic.Menu
             public Person(string id, string name, int mii, bool sample) { Id = id; Name = name; Mii = mii; Sample = sample; }
         }
 
-        /// The other person a venue shows beside you: the first member of the room who is not you. Null out of a
-        /// room, or alone in one. A studio shows one partner; the rest of the room is on the Tab list.
-        public Person? Partner
+        /// Everyone in the room but you, in the order they joined — who a venue seats around you, and the same
+        /// people as the Tab list. Empty out of a room, or alone in one.
+        public System.Collections.Generic.List<Person> Others
         {
             get
             {
-                if (room?.members == null) return null;
-                foreach (var m in room.members) if (!m.isMe) return new Person(m.id, m.displayName, m.mii, m.sample);
-                return null;
+                var others = new System.Collections.Generic.List<Person>();
+                if (room?.members == null) return others;
+                foreach (var m in room.members) if (!m.isMe) others.Add(new Person(m.id, m.displayName, m.mii, m.sample));
+                return others;
             }
         }
+
+        /// The first of them, or null.
+        public Person? Partner { get { var others = Others; return others.Count > 0 ? others[0] : null; } }
 
         /// The room, or who is in it, changed.
         public event Action RoomChanged;
@@ -159,6 +165,7 @@ namespace Kinesthetic.Menu
 
             // Someone may already be in a room from before this layer existed (a scene opened directly).
             StartCoroutine(Refresh());
+            StartCoroutine(SocialBridge.Get("/api/groups/samples", json => samplesOn = JsonUtility.FromJson<Samples>(json)?.on ?? true));
         }
 
         // ---- before an activity ----------------------------------------------------------------------
@@ -534,6 +541,40 @@ namespace Kinesthetic.Menu
             return withName ? $"{line.name}: {said}" : said;
         }
 
+        /// A line over whatever is on screen for a moment, in or out of a room: what a key just did.
+        void Toast(string text)
+        {
+            tickerLine.text = text;
+            toastUntil = Time.unscaledTime + 3f;
+        }
+
+        /// Any text field focused on any document: a letter typed there is a letter, not a command.
+        static bool Typing()
+        {
+            foreach (var doc in FindObjectsByType<UIDocument>(FindObjectsInactive.Exclude))
+                if (doc.rootVisualElement?.panel?.focusController?.focusedElement is TextField) return true;
+            return false;
+        }
+
+        /// Sample groups off: only real people — nothing seeded, no sample room listed, and any sample person
+        /// leaves your room (groups.ts `setSamples`). On: the demo's fake people come back. The coordinator is the
+        /// authority, so the switch holds for everything that asks it: the lobby, the room, the studio's seats and,
+        /// through what the Mac publishes, the headset.
+        IEnumerator ToggleSamples()
+        {
+            bool next = !samplesOn;
+            yield return SocialBridge.Post("/api/groups/samples", next ? "{\"on\":true}" : "{\"on\":false}",
+                json =>
+                {
+                    samplesOn = next;
+                    navigation?.PlaySelect();
+                    Toast(next ? "Sample groups ON · fake people for the demo" : "Sample groups OFF · real people only");
+                    SetRoom(JsonUtility.FromJson<RoomReply>(json)?.group);
+                    if (Visible(others)) ShowOthers();   // the list that is up changes with it
+                },
+                _ => Toast("Could not switch sample groups. Is the bridge running?"));
+        }
+
         void Update()
         {
             if (lobby == null) return;
@@ -545,8 +586,11 @@ namespace Kinesthetic.Menu
                 && Keyboard.current?.tabKey.isPressed == true;
             if (holdTab != Visible(tablist)) { Show(tablist, holdTab); if (holdTab) PaintTablist(); }
 
-            if (Visible(ticker) != (Time.unscaledTime < tickerUntil && inActivity && room != null))
-                Show(ticker, !Visible(ticker));
+            // G flips sample groups on and off: fake people for a demo, or real ones only. Not while typing.
+            if (Keyboard.current?.gKey.wasPressedThisFrame == true && !Typing()) StartCoroutine(ToggleSamples());
+
+            bool tickerWanted = Time.unscaledTime < toastUntil || (Time.unscaledTime < tickerUntil && inActivity && room != null);
+            if (Visible(ticker) != tickerWanted) Show(ticker, tickerWanted);
 
             if (room != null && inActivity && Time.unscaledTime >= nextPoll)
             {

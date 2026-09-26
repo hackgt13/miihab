@@ -178,6 +178,30 @@ test('in a group session the second Mac is the other person, whatever is running
   } finally { for(const ws of clients)ws.terminate(); await stop(proc); coordinator.close(); }
 });
 
+test('a late client is caught up from the host\'s last state only while it is fresh',{timeout:40000},async()=>{
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18790',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-fresh-'))}});
+  const clients:WebSocket[]=[];
+  const connect=async(query:string)=>{const ws=new WebSocket('ws://127.0.0.1:18790/state?'+query);clients.push(ws);await once(ws,'open');return ws;};
+  const firstMessage=(ws:WebSocket,ms:number)=>new Promise<string|null>(r=>{const t=setTimeout(()=>r(null),ms);ws.once('message',b=>{clearTimeout(t);r(b.toString());});});
+  try {
+    await ready(proc);
+    const host=await connect('role=host');
+    host.send(JSON.stringify({type:'golf.state',hole:1}));
+    await new Promise(r=>setTimeout(r,50));
+    // Joining right after a frame: caught up at once.
+    const prompt=await connect('role=client');
+    assert.deepEqual(JSON.parse((await firstMessage(prompt,500))!),{type:'golf.state',hole:1});
+    // Joining after the host has been silent past the freshness window, without closing: nothing replayed.
+    await new Promise(r=>setTimeout(r,2200));
+    const late=await connect('role=client');
+    assert.equal(await firstMessage(late,300),null);
+    // The host publishing again catches everyone up live, as before.
+    host.send(JSON.stringify({type:'golf.state',hole:2}));
+    assert.deepEqual(JSON.parse((await firstMessage(late,500))!),{type:'golf.state',hole:2});
+  }finally{for(const ws of clients)ws.terminate();await stop(proc);}
+});
+
 test('the headset sends its head pose; this Mac reads it; nothing else may send or read it', {timeout:15000}, async()=>{
   const lan=Object.values(networkInterfaces()).flat().find(a=>a && a.family==='IPv4' && !a.internal)?.address;
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,

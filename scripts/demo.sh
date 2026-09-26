@@ -5,7 +5,9 @@
 #   zsh scripts/demo.sh --reset    archive approved plans after v1 and the recorded sessions, for a clean v1 → v2 demo
 set -u
 repo="${0:A:h:h}"; cd "$repo" || exit 1
-adb=/Applications/Unity/Hub/Editor/6000.6.2f1/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb
+adb=/Applications/Unity/Hub/Editor/6000.6.2f1-arm64/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb
+[[ -x $adb ]] || adb=/Applications/Unity/Hub/Editor/6000.6.2f1/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb
+apk=local-data/builds/RehabMiiQuest.apk
 ok()   { print -P "  %F{green}✓%f $1"; }
 warn() { print -P "  %F{yellow}!%f $1"; }
 bad()  { print -P "  %F{red}✗%f $1"; failures=$((failures+1)); }
@@ -47,14 +49,18 @@ if [[ -f $config ]]; then
 else warn "No headset config yet (Kinesthetic ▸ Quest ▸ Create headset scene)"; fi
 if lsof -nP -iTCP:8767 -sTCP:LISTEN 2>/dev/null | grep -q '\*:8767'; then ok "Relay reachable on Wi-Fi (token required)"
 else warn "Relay is local-only — headset can't connect until local-data/pair-token.txt exists and the relay restarts"; fi
-[[ -f local-data/builds/KinestheticQuest.apk ]] && ok "APK built: local-data/builds/KinestheticQuest.apk" || warn "No APK built yet"
+[[ -f $apk ]] && ok "APK built: $apk" || warn "No APK built yet (Kinesthetic ▸ Quest ▸ Build combined headset app)"
 if [[ -x $adb ]]; then
   device=$($adb devices | awk 'NR>1 && $2=="device"{print $1}' | head -1)
   unauthorized=$($adb devices | awk 'NR>1 && $2=="unauthorized"{print $1}' | head -1)
   if [[ -n $device ]]; then
     ok "Quest connected over USB ($device)"
-    $adb -s $device shell pm list packages 2>/dev/null | grep -q com.kinesthetic.questgolf && ok "Kinesthetic installed on the Quest" \
-      || warn "App not installed — run: $adb install -r local-data/builds/KinestheticQuest.apk"
+    packages=$($adb -s $device shell pm list packages 2>/dev/null)
+    print -r -- $packages | grep -q com.kinesthetic.rehabmii && ok "RehabMii installed on the Quest" \
+      || warn "App not installed — run: $adb install -r $apk"
+    for old in com.kinesthetic.questgolf com.kinesthetic.questbowling; do
+      print -r -- $packages | grep -q $old && bad "Old single-game app $old still installed; it boots straight into its game — run: $adb -s $device uninstall $old"
+    done
   elif [[ -n $unauthorized ]]; then warn "Quest connected but not authorized — put it on and tap Allow USB debugging"
   else warn "No Quest over USB (needed only to install; the game itself runs over Wi-Fi)"; fi
 fi

@@ -10,9 +10,8 @@ using UnityEngine.UIElements;
 /// Follows the repo rule that scene wiring lives in Assets/Editor/*SceneSetup.cs and never the
 /// Inspector, so re-running this is the way to change the scene.
 ///
-/// The sandbox is deliberately NOT added to EditorBuildSettings. Build indices here are reordered
-/// by Kinesthetic -> Quest -> Boot headset scene, and a stray scene at the wrong index is exactly
-/// the failure that ships a broken player.
+/// The sandbox is deliberately NOT added to EditorBuildSettings. Index 0 there is the Mac's menu, and
+/// a stray scene at the wrong index is exactly the failure that ships a broken player.
 public static class PaneSandboxSetup
 {
     const string Root = "Assets/Kinesthetic/UI/Panes";

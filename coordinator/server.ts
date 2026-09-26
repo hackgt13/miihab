@@ -563,7 +563,7 @@ const server = createServer(async (request, response) => {
           const recent = friends.list().filter(p => p.sample)
             .sort((a, b) => String(b.lastActiveAt).localeCompare(String(a.lastActiveAt)));
           groups.seed(activityId, recent);
-          return json(200, {...groups.lobby(activityId, friendIds()), current: mine()});
+          return json(200, {...groups.lobby(activityId, friendIds()), current: mine(), samples: groups.samples});
         }
         if (request.method === 'GET' && url.pathname === '/api/groups/current') return json(200, {group: mine()});
         if (request.method === 'POST' && url.pathname === '/api/groups') {
@@ -584,6 +584,13 @@ const server = createServer(async (request, response) => {
         if (request.method === 'POST' && url.pathname === '/api/groups/message') {
           groups.send(me.id, await readJson(request) as {kind?: string; text?: string});
           return json(201, {group: mine()});
+        }
+        // Sample groups or real ones only (groups.ts `setSamples`). The G key on the Mac flips it (GroupPanel).
+        if (request.method === 'GET' && url.pathname === '/api/groups/samples') return json(200, {on: groups.samples});
+        if (request.method === 'POST' && url.pathname === '/api/groups/samples') {
+          const body = await readJson(request) as {on?: boolean};
+          groups.setSamples(body.on !== false);
+          return json(200, {on: groups.samples, group: mine()});
         }
         // A fake partner, for a demo or a test (groups.ts `inject`): a labelled sample person joins your room.
         if (request.method === 'POST' && url.pathname === '/api/groups/inject') {
