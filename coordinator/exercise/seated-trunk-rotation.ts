@@ -22,7 +22,7 @@ export const seatedTrunkRotation: ExerciseKind<'trunk_lean'> = {
   compensationKey: 'trunkLean',
   // Rotation range is much smaller than shoulder elevation, so the rest band and hysteresis tighten.
   defaults: { restMaxDeg: 10, hysteresisDeg: 4, maxCompensationDeg: 10 },
-  limits: { targetDeg: [15, 70], prescribedReps: [1, 30], holdMs: [0, 3000], maxCompensationDeg: [3, 30] },
+  limits: { targetDeg: [15, 70], targetMaxDeg: [20, 80], prescribedReps: [1, 30], holdMs: [0, 3000], maxCompensationDeg: [3, 30] },
   measurementNote: 'Estimated seated trunk rotation from monocular pose; depth-dependent and not a goniometer reading. Symptoms are patient-reported.',
 
   landmarks: () => [...SHOULDERS, ...HIPS],

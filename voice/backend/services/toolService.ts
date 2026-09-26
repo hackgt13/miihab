@@ -220,7 +220,7 @@ export class ToolService {
       this.carePlan(),
     ]);
     if (!live && !measured) return { unavailable: 'Measurement service unreachable. Do not state rep counts.' };
-    return { running_now: live, completed_this_session: measured ?? [], plan: plan?.exercise ?? null };
+    return { running_now: live, completed_this_session: measured ?? [], plan: plan?.activities ?? null };
   }
 
   private async requestPlanReview(params: ToolParams) {

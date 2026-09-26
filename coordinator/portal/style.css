@@ -40,7 +40,7 @@ tr.synthetic td { color: var(--text-2); font-style: italic; }
 dl.plan { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0 0 8px; } dl.plan dt { color: var(--text-2); } dl.plan dd { margin: 0; font-weight: 600; }
 form label { display: block; font-size: 13px; color: var(--text-2); margin-bottom: 10px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
-input, textarea { display: block; width: 100%; margin-top: 4px; padding: 7px 9px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+input, textarea, select { display: block; width: 100%; margin-top: 4px; padding: 7px 9px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
 button { width: 100%; padding: 10px; font: inherit; font-weight: 650; color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 8px; cursor: pointer; }
 button:disabled { opacity: .6; cursor: default; }
 .form-status { min-height: 1.2em; margin: 8px 0 0; font-size: 13.5px; } .form-status.ok { color: var(--good); } .form-status.err { color: var(--bad); }
@@ -56,3 +56,11 @@ td button.small-btn { padding: 4px 10px; }
 .replay-controls { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; }
 .replay-controls input[type=range] { flex: 1; margin: 0; padding: 0; border: 0; background: none; }
 .replay-strip { width: 100%; height: 120px; display: block; cursor: pointer; }
+
+.check { display: flex; align-items: center; gap: 8px; }
+.check input { width: auto; margin: 0; }
+.proposal { border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 13.5px; }
+.proposal.good { border-left-color: var(--good); } .proposal.warn { border-left-color: var(--warn-line); }
+.proposal-head span { color: var(--text-2); } .proposal .why { color: var(--text-2); margin: 2px 0; }
+.proposal-actions { display: flex; gap: 8px; margin-top: 6px; }
+#proposals h3 { margin: 12px 0 6px; font-weight: 600; }

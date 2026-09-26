@@ -1,6 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
+using UnityEngine.Networking;
 using UnityEngine.UIElements;
 
 namespace Kinesthetic.Menu
@@ -31,6 +34,24 @@ namespace Kinesthetic.Menu
         static readonly string[] NameScope = { "name-save", "name-cancel" };
         string[] scope = BaseScope;
 
+        // The board's figures come from the coordinator on this Mac (coordinator/dashboard.ts). The menu is a
+        // Mac scene; on a headset 127.0.0.1 would be the headset itself, so the board would keep its demo data.
+        const string DashboardUrl = "http://127.0.0.1:8766/api/dashboard";
+        JObject dashboard;   // the last reply; null until one arrives
+
+        MenuDashboardModel BuildModel() => dashboard != null ? MenuDashboardModel.FromCoordinator(dashboard) : MenuDashboardModel.Placeholder();
+
+        IEnumerator LoadDashboard()
+        {
+            using var request = UnityWebRequest.Get(DashboardUrl);
+            request.timeout = 3;
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success || root == null) yield break;   // keep the demo board offline
+            try { dashboard = JObject.Parse(request.downloadHandler.text); } catch { yield break; }
+            model = BuildModel();
+            MenuDashboard.Populate(root, model);
+        }
+
         void Start() { navigation = ActivityNavigation.Ensure(); Bind(); }
         void Update() { if (root == null) Bind(); }
 
@@ -39,7 +60,7 @@ namespace Kinesthetic.Menu
             var tree = GetComponent<UIDocument>().rootVisualElement;
             if (tree?.Q<Button>("start-activity") == null) return;
             root = tree;
-            model = MenuDashboardModel.Placeholder();
+            model = BuildModel();
 
             activityOverlay = root.Q("activity-overlay");
             helpOverlay = root.Q("help-overlay");
@@ -105,6 +126,7 @@ namespace Kinesthetic.Menu
             actions["friends"] = friends.Open;
 
             MenuDashboard.Populate(root, model);
+            StartCoroutine(LoadDashboard());
             Select(0, false);
             root.schedule.Execute(() => root.Q<Button>("start-activity").Focus());
         }
@@ -153,7 +175,7 @@ namespace Kinesthetic.Menu
         void SaveName()
         {
             MenuProfile.Name = nameField?.value ?? MenuProfile.DefaultName;
-            model = MenuDashboardModel.Placeholder();
+            model = BuildModel();
             MenuDashboard.Populate(root, model);
             CloseSheet(nameOverlay, "edit-name");
         }

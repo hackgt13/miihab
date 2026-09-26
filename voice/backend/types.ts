@@ -45,14 +45,20 @@ export interface CarePlan {
   approvedBy: string;
   approvedAt: string;
   rationale: string;
-  exercise: {
-    type: string;
-    side: "left" | "right";
-    targetDeg: number;
-    prescribedReps: number;
-    holdMs: number;
-    maxTrunkDeviationDeg: number;
-  };
+  origin: "clinician" | "auto-progression";
+  goal: { text: string; components: string[] };
+  /**
+   * What the patient is prescribed. Measured prescriptions have a band: reps count from params.targetDeg;
+   * above params.targetMaxDeg is an overshoot to avoid. Golf is prescribed as play (exerciseKind null).
+   */
+  activities: {
+    id: string;
+    activityId: string;                 // e.g. rehab.studio, golf.adaptive
+    exerciseKind: string | null;        // e.g. arm-elevation.v1 (AirPod), shoulder-raise.v1 (camera)
+    targetCount: number;                // reps, or holes for golf
+    params: Record<string, number | string>;
+    note: string;
+  }[];
   coachingNote: string;
 }
 

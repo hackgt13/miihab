@@ -12,7 +12,8 @@
       "exerciseKinds": [
         "shoulder-raise.v1",
         "trunk-rotation.v1",
-        "arm-elevation.v1"
+        "arm-elevation.v1",
+        "elbow-flexion.v1"
       ],
       "requires": [
         "pose"
