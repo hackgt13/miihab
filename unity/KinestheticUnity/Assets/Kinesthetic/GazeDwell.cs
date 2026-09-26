@@ -101,7 +101,7 @@ namespace Kinesthetic
             reticle.mesh = new Mesh { name = "Gaze reticle" };
             go.AddComponent<MeshFilter>().sharedMesh = reticle.mesh;
             reticle.render = go.AddComponent<MeshRenderer>();
-            reticle.render.sharedMaterial = new Material(Shader.Find("Sprites/Default")) { color = new Color(1, 1, 1, .92f) };
+            reticle.render.sharedMaterial = new Material(Shader.Find("Sprites/Default")) { color = Palette.Sand10.At(.92f) };
             reticle.render.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             reticle.render.receiveShadows = false;
             reticle.render.enabled = false;

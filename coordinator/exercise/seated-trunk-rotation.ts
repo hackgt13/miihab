@@ -7,7 +7,7 @@
 
 import {
   RepSession, angle, cross, dot, len, mid, reject, sub, unit,
-  type ExerciseKind, type Frame, type Observation, type Reference, type RepParams, type ResolvedParams,
+  type ExerciseKind, type Observation, type ObservationInput, type Reference, type RepParams, type ResolvedParams,
 } from './kind.ts';
 
 export const ALGORITHM_VERSION = 'trunk-rotation.v1';
@@ -27,8 +27,8 @@ export const seatedTrunkRotation: ExerciseKind<'trunk_lean'> = {
 
   landmarks: () => [...SHOULDERS, ...HIPS],
 
-  observe(frame: Frame, p: ResolvedParams, reference: Reference | null): Observation | null {
-    const w = frame.worldLandmarks;
+  observe(input: ObservationInput, p: ResolvedParams, reference: Reference | null): Observation | null {
+    const w = input.pose!.worldLandmarks;
     const shoulderLine = sub(w[SHOULDERS[1]], w[SHOULDERS[0]]);
     const width = len(shoulderLine);
     if (width < 0.15) return null;

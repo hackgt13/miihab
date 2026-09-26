@@ -13,6 +13,27 @@ export interface Frame { sourceMediaTimeMs: number; imageLandmarks: Point[]; wor
 export type Vec = [number, number, number];
 export type ChannelId = 'pose' | 'imu';
 
+/** A mounted IMU sample, already on the shared host axis (see hostclock.ts). */
+export interface ImuSample {
+  quaternion: [number, number, number, number];
+  rotationRate: [number, number, number];
+  hostMonotonicMs: number;
+}
+
+/**
+ * One step of input. The engine holds the latest of each channel and hands both to the kind, so a
+ * kind never does its own fusion — per activity-plan.md, "no fusion math beyond a shared clock".
+ *
+ * The division that shapes this: the IMU owns magnitude (inclination from vertical is yaw-free and
+ * essentially exact), and the camera owns direction and compensation. So a wrist exercise reads
+ * primaryDeg from `imu` and compensationDeg from `pose`, and either channel may be absent.
+ */
+export interface ObservationInput {
+  tMs: number;                 // step time, on whichever axis the caller drives
+  pose?: Frame | null;
+  imu?: ImuSample | null;
+}
+
 /** Reasons that mean the same thing for every exercise. A kind names its own compensation reason. */
 export type SharedInvalidReason = 'tracking_lost' | 'did_not_reach_target' | 'too_fast';
 
@@ -53,10 +74,10 @@ export interface ExerciseKind<R extends string = string> {
   readonly defaults: Partial<RepParams>;
   readonly limits: Readonly<Record<string, readonly [number, number]>>;
   readonly measurementNote: string;
-  /** Landmark indices that must be present, in-frame and confident for the frame to count. */
+  /** Landmark indices that must be present, in-frame and confident. Empty when pose is not used. */
   landmarks(params: ResolvedParams): readonly number[];
-  /** Null when the frame is not trustworthy. Receives the reference once calibrated. */
-  observe(frame: Frame, params: ResolvedParams, reference: Reference | null): Observation | null;
+  /** Null when the input is not trustworthy. Receives the reference once calibrated. */
+  observe(input: ObservationInput, params: ResolvedParams, reference: Reference | null): Observation | null;
   /** Human-readable calibration payload for the event and the summary. */
   calibration(reference: Reference): Record<string, unknown>;
 }
@@ -131,23 +152,52 @@ export class RepSession<R extends string = string> {
       throw Error('targetDeg must exceed the rest band');
   }
 
-  /** Validate landmark trustworthiness, then hand the frame to the kind. No state change. */
-  observe(frame: Frame): Observation | null {
+  /** Validate every channel the kind declares, then hand the input over. No state change. */
+  observeFused(input: ObservationInput): Observation | null {
+    for (const channel of this.kind.requires) {
+      if (channel === 'pose' && !this.poseUsable(input.pose)) return null;
+      if (channel === 'imu' && !this.imuUsable(input.imu)) return null;
+    }
+    // A channel the kind does not require may still be present and useful — a wrist exercise reads
+    // compensation from pose when the camera can see the patient, and simply does without otherwise.
+    const pose = this.poseUsable(input.pose) ? input.pose : null;
+    const imu = this.imuUsable(input.imu) ? input.imu : null;
+    return this.kind.observe({ tMs: input.tMs, pose, imu }, this.params, this.reference);
+  }
+
+  private poseUsable(frame: Frame | null | undefined): boolean {
+    if (!frame) return false;
     const img = frame.imageLandmarks, w = frame.worldLandmarks;
-    if (!img || !w || img.length < 33 || w.length < 33) return null;
+    if (!img || !w || img.length < 33 || w.length < 33) return false;
     for (const i of this.kind.landmarks(this.params)) {
       const p = img[i], q = w[i];
       if (!p || !q || !(p.visibility! >= this.params.minVisibility) ||
           p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1 ||
-          ![q.x, q.y, q.z].every(Number.isFinite)) return null;
+          ![q.x, q.y, q.z].every(Number.isFinite)) return false;
     }
-    return this.kind.observe(frame, this.params, this.reference);
+    return true;
+  }
+  private imuUsable(sample: ImuSample | null | undefined): boolean {
+    if (!sample) return false;
+    if (!Array.isArray(sample.quaternion) || sample.quaternion.length !== 4) return false;
+    if (!sample.quaternion.every(Number.isFinite)) return false;
+    const norm = sample.quaternion.reduce((t, v) => t + v * v, 0);
+    return norm > 0.5 && norm < 1.5;   // a collapsed or unnormalised attitude is not trustworthy
   }
 
+  /** Pose-only convenience, so camera-driven callers stay unchanged. */
+  observe(frame: Frame): Observation | null {
+    return this.observeFused({ tMs: frame.sourceMediaTimeMs, pose: frame });
+  }
+  /** Pose-only convenience for a camera-driven caller. */
   push(frame: Frame): RepEvent<R>[] {
-    const t = frame.sourceMediaTimeMs, out: RepEvent<R>[] = [];
+    return this.pushFused({ tMs: frame.sourceMediaTimeMs, pose: frame });
+  }
+
+  pushFused(input: ObservationInput): RepEvent<R>[] {
+    const t = input.tMs, out: RepEvent<R>[] = [];
     const emit = (e: RepEvent<R>) => { out.push(e); this.events.push(e); };
-    const m = this.observe(frame);
+    const m = this.observeFused(input);
     this.samples.push({ tMs: t, valid: !!m, angleDeg: m?.primaryDeg ?? null, compensationDeg: m?.compensationDeg ?? null });
     const c = this.params;
 

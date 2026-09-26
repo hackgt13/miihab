@@ -101,5 +101,12 @@ sockets.on('connection',(ws,role,player,path)=>{
 const bindHost=process.env.KINESTHETIC_GOLF_HOST??'127.0.0.1';
 if(bindHost!=='127.0.0.1'&&!pairToken)throw Error('Set KINESTHETIC_PAIR_TOKEN before exposing the relay to the network');
 server.listen(port,bindHost,()=>console.log(`Kinesthetic golf relay: ws://127.0.0.1:${port}/golf`));
-function shutdown(){for(const ws of sockets.clients)ws.close();for(const ws of stateSockets.clients)ws.close();sockets.close();stateSockets.close();server.close();}
+// Shutdown must actually terminate. A graceful ws.close() waits for a closing handshake, and a peer
+// that vanished without one (a terminated test client, a Quest that dropped off the network) holds its
+// handle open, so server.close() never completes and the process hangs instead of exiting.
+function shutdown(){
+  for(const ws of sockets.clients)ws.terminate();for(const ws of stateSockets.clients)ws.terminate();
+  sockets.close();stateSockets.close();server.close(()=>process.exit(0));
+  setTimeout(()=>process.exit(0),500).unref();
+}
 process.on('SIGINT',shutdown);process.on('SIGTERM',shutdown);
