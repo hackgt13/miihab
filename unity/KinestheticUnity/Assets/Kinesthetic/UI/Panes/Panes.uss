@@ -1,77 +1,48 @@
-/* Chrome only, and no colour of its own: every value comes from Palette.uss, which the UXML
-   pulls in first. The app-wide layout tokens (.hidden, .card, .eyebrow) are still duplicated
-   across five USS files and want one home, but MainMenu.uss is owned by the in-flight menu
-   work, so unifying those is a separate change. Everything here is prefixed pane-. */
+/* A pane's own look: the frame and the grip it is dragged by. The title is a KText and the close
+   button a KButton, so they carry their own sheets and look like every other one.
 
-.pane-frame {
+   Every selector is at least two classes, as in every other library component, so nothing a
+   pane's content brings with it can outrank the frame. Colour comes only from Palette.uss, which
+   Pane.uxml links first. */
+
+.k-pane.k-pane--idle, .k-pane.k-pane--focused {
     flex-grow: 1;
-    background-color: var(--sand-10);
-    border-top-left-radius: 22px;
-    border-top-right-radius: 22px;
-    border-bottom-left-radius: 22px;
-    border-bottom-right-radius: 22px;
-    border-left-width: 2px; border-right-width: 2px;
-    border-top-width: 2px; border-bottom-width: 2px;
-    border-left-color: var(--slate-30);
-    border-right-color: var(--slate-30);
-    border-top-color: var(--slate-30);
-    border-bottom-color: var(--slate-30);
     overflow: hidden;
+    background-color: var(--sand-10);
+    border-width: 2px;
+    border-radius: 22px;
+    border-color: var(--slate-30);
 }
 
 /* Focus is a border, not a shadow: USS has no box-shadow. */
-.pane-focused {
-    border-left-color: var(--cerulean-50);
-    border-right-color: var(--cerulean-50);
-    border-top-color: var(--cerulean-50);
-    border-bottom-color: var(--cerulean-50);
-}
+.k-pane.k-pane--focused { border-color: var(--cerulean-50); }
 
-.pane-grip {
+.k-pane .k-pane__grip {
     flex-direction: row;
     align-items: center;
     height: 46px;
-    padding-left: 18px; padding-right: 10px;
+    padding: 0 5px 0 18px;
     background-color: var(--sand-30);
 }
 
-.pane-grip-space { flex-grow: 1; }
+/* Hover comes from the raycast (Pane.Highlight), because :hover never fires on a world-space
+   panel. It is the same k-hot a KButton answers to. */
+.k-pane .k-pane__grip.k-hot { background-color: var(--cerulean-20); }
 
-.pane-title {
-    font-size: 17px;
-    color: var(--slate-70);
-    -unity-font-style: bold;
-}
+.k-pane .k-pane__grip-space { flex-grow: 1; }
 
-.pane-close {
-    width: 30px; height: 30px;
-    font-size: 15px;
-    color: var(--slate-70);
-    background-color: rgba(0, 0, 0, 0);
-    border-top-left-radius: 15px; border-top-right-radius: 15px;
-    border-bottom-left-radius: 15px; border-bottom-right-radius: 15px;
-    border-left-width: 0; border-right-width: 0; border-top-width: 0; border-bottom-width: 0;
-}
-
-/* The pointer is a raycast, so hover cannot come from UI Toolkit's :hover — Pane.Highlight
-   sets this instead. */
-.pane-hot { background-color: var(--cerulean-20); }
-
-.pane-content {
+.k-pane .k-pane__content {
     flex-grow: 1;
     background-color: var(--sand-00);
 }
 
-.pane-reading {
-    font-size: 19px;
-    color: var(--slate-70);
-    white-space: normal;
-    padding-left: 22px; padding-right: 22px; padding-top: 18px; padding-bottom: 22px;
-}
+/* Content: a page of text, and the line a pane shows instead of content that failed to load. */
+.k-pane .k-pane__reading { padding: 18px 22px 22px 22px; }
 
-.pane-problem {
+.k-pane .k-pane__problem {
+    margin: 0;
+    padding: 16px 18px 0 18px;
     font-size: 15px;
     color: var(--coral-60);
     white-space: normal;
-    padding-left: 18px; padding-right: 18px; padding-top: 16px;
 }

@@ -161,17 +161,29 @@ one — and it is in the library so the chrome every pane draws is owned here, o
 still `Kinesthetic.Panes`; `UI/Panes/README.md` covers the lifecycle, content types and sandbox.
 
 Moved in from `Assets/Kinesthetic/Panes/` with every `.meta`, so scene and prefab references survive.
-Two things are still to do before panes meet the bar the other components hold:
 
-- **Selectors.** `Panes.uss` uses single classes (`.pane-frame`), which a screen's stylesheet can
-  outrank. They want the two-class form every other component uses.
-- **Chrome from components.** The close button is a raw `Button` with its hover toggled by hand
-  (`.pane-hot`); it should be `KButton tone="Ghost" size="Small" shape="Round"` driven through `Hot`.
-  The title is a candidate for `KText`, and the frame for `KSurface`.
+**Chrome.** The title is a `KText` (Body, Soft) and the close button a `KButton` (Ghost, Small, Round),
+so both look like every other one. The frame and grip are the pane's own, in `Panes.uss`, under the
+same rules as every component: `k-pane` classes, two-class selectors, palette only. The frame is not a
+`KSurface`: it has a focus state and stands opaque in a venue, which no surface variant gives.
+`Pane.uxml`'s element *names* (`pane-frame`, `pane-close`…) are unchanged — they are what `Pane.Bind`
+and `PaneHost` query. Only the grip is pickable in the title bar, so the whole bar drags.
 
-Three ray-to-element resolvers still exist — `UI/Panes/WorldPanelPick`, `UI/Panes/PanePointer` and
-`Shell/PanePointerInput` — and the menu boards are not yet real panes. Unifying them touches the
-menu's files, so it waits on that work.
+**Picking.** One path turns a ray into an element: `WorldPanelPick`, projecting through
+`Pane.TryProject` and picking in paint order, so a modal's shade blocks what is under it and a
+disabled button is never committed. The menu's inputs — `GazeDwell`, `Shell/PanePointerInput`,
+`Shell/CarouselChrome` — each ask `WorldPanelPick.NamedButtonOn(owner, ray, reach)` and report the
+element's *name* on to `Shell/PressGate`, which turns one physical press arriving by several roads
+into one action. The nearest collider answers and nothing else is consulted; that is the whole rule
+that keeps the carousel's arrows from taking presses meant for the facing pane.
+
+What stays separate on purpose is where the ray comes from. `PanePointer` (for `PaneHost`) restarts a
+gaze dwell when the head turns, because a pane takes a press anywhere on it; `GazeDwell` (for the
+menu) restarts when the target changes, because a menu dwells on one button. Those are two behaviours,
+not one written twice.
+
+The menu boards carry a `Pane` for projection only — no content, no `PaneHost` — and are placed by the
+menu, not opened by a host. Making them full panes is a change to the menu's own files.
 
 ## What a screen may do
 

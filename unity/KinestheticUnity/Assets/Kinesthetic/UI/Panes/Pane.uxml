@@ -1,14 +1,17 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements">
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
     <ui:Style src="../../Palette.uss" />
     <ui:Style src="Panes.uss" />
     <!-- Every name here is contract: Pane.Bind queries pane-frame, pane-grip, pane-title,
-         pane-close and pane-content, and PaneHost decides what a hit on the grip means. -->
-    <ui:VisualElement name="pane-frame" class="pane-frame">
-        <ui:VisualElement name="pane-grip" class="pane-grip">
-            <ui:Label name="pane-title" class="pane-title" text="Pane" />
-            <ui:VisualElement class="pane-grip-space" />
-            <ui:Button name="pane-close" class="pane-close" text="✕" />
+         pane-close and pane-content, and PaneHost decides what a hit on the grip means.
+         The title and the close button are library components, so they look like every other
+         KText and KButton; the frame and grip are the pane's own, in Panes.uss.
+         Only the grip itself is pickable in the title bar, so the whole bar drags. -->
+    <ui:VisualElement name="pane-frame" class="k-pane k-pane--idle">
+        <ui:VisualElement name="pane-grip" class="k-pane__grip">
+            <k:KText name="pane-title" text="Pane" size="Body" tone="Soft" />
+            <ui:VisualElement class="k-pane__grip-space" picking-mode="Ignore" />
+            <k:KButton name="pane-close" text="✕" tone="Ghost" size="Small" shape="Round" />
         </ui:VisualElement>
-        <ui:VisualElement name="pane-content" class="pane-content" />
+        <ui:VisualElement name="pane-content" class="k-pane__content" />
     </ui:VisualElement>
 </ui:UXML>

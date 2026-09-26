@@ -371,4 +371,20 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 
 /* A pane standing in the ring is the surface itself, so it needs no shade behind it — there is nothing
    behind it. It only has to fill its panel and centre what it carries. */
-.pane-screen { flex-grow: 1; align-items: center; justify-content: center; }
+.pane-screen {
+    flex-grow: 1;
+    /* Cut to the board's bento block, measured off the board itself: 1504 x 687 starting 179px down.
+       179 is the board's own 38px top padding plus its splash row (121) plus that row's 20px margin, so
+       a pane's surface begins exactly where the tiles begin and ends where they end. The greeting is
+       deliberately outside it — it belongs to the board, and a pane that copied its height would stand
+       taller than the thing it sits beside. */
+    padding: 179px 48px 34px;
+}
+
+/* One pane, one surface, and every surface the same block. These were a modal sheet (1180px) and an
+   overlay panel (980px) floating on a board that fills all 1600 — three widths, which did not matter
+   while only one was ever on screen. It matters now: the neighbours' edges are visible as the ring
+   turns, so three widths read as three different kinds of thing, and the sliver either side changes
+   size depending on which pane happens to be standing there. */
+.pane-screen > .sheet,
+.pane-screen > .friends-panel { width: 100%; height: 100%; }

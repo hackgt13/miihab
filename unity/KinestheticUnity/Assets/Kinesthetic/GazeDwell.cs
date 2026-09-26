@@ -14,10 +14,11 @@ namespace Kinesthetic
     /// same action its clicked handler runs. So pointer clicking keeps working untouched, and dwell needs no
     /// event-pooling API that might not be public.
     ///
-    /// Elements are resolved by their own rects, not by panel.Pick: Pick returns null on a world-space panel at
-    /// every point, including ones well inside the root. It does not need to be used — a world-space panel lays
-    /// its elements out in the panel's own units, centred and y-up, which is exactly the space the ray's hit
-    /// point lands in. So the hit converts straight to element coordinates with no pixel scaling at all.
+    /// Elements are resolved by Panes.WorldPanelPick, not by panel.Pick: Pick returns null on a world-space
+    /// panel at every point, including ones well inside the root. WorldPanelPick projects the hit through the
+    /// panel's own transform once (Pane.TryProject) and picks in paint order, so a modal's shade blocks the
+    /// buttons under it and a disabled button is never committed. PanePointerInput and CarouselChrome ask the
+    /// same question the same way.
     public sealed class GazeDwell : MonoBehaviour
     {
         public float dwellSeconds = 1.1f;
@@ -35,7 +36,7 @@ namespace Kinesthetic
         void Awake()
         {
             document = GetComponent<UIDocument>();
-            if (!GetComponent<Panes.Pane>()) gameObject.AddComponent<Panes.Pane>();
+            Panes.WorldPanelPick.MakePickable(gameObject);
             reticle = GazeReticle.Create();
         }
 
@@ -69,9 +70,7 @@ namespace Kinesthetic
         string Under(Camera cam)
         {
             var ray = new Ray(cam.transform.position, cam.transform.forward);
-            var button = Panes.WorldPanelPick.Under<Button>(ray, maxDistance, Physics.DefaultRaycastLayers,
-                out var pane, out _, out _);
-            return pane && pane.gameObject == gameObject && !string.IsNullOrEmpty(button?.name) ? button.name : null;
+            return Panes.WorldPanelPick.NamedButtonOn(gameObject, ray, maxDistance)?.name;
         }
     }
 
