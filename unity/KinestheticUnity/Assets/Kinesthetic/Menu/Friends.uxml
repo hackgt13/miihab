@@ -30,6 +30,21 @@
                         <ui:Label name="thread-hint" text="" class="thread-hint" />
                     </ui:VisualElement>
                     <ui:ScrollView name="thread" class="thread" />
+                    <!-- Over the thread, not beside it: a profile is something you
+                         look at, then go back from. -->
+                    <ui:VisualElement name="friend-profile" class="friend-profile hidden">
+                        <ui:VisualElement class="profile-head">
+                            <ui:VisualElement name="profile-face" class="spotlight-face profile-face" picking-mode="Ignore" />
+                            <ui:VisualElement class="profile-titles">
+                                <k:KText name="profile-name" text="" size="Heading" tone="Ink" />
+                                <k:KText name="profile-goal" text="" size="Caption" tone="Soft" />
+                            </ui:VisualElement>
+                            <k:KButton name="profile-close" text="Back" tone="Quiet" size="Small" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="profile-stats" class="profile-stats" />
+                        <ui:VisualElement name="profile-days" class="profile-days" picking-mode="Ignore" />
+                        <k:KText name="profile-note" text="" size="Caption" tone="Soft" />
+                    </ui:VisualElement>
                     <ui:VisualElement class="composer">
                         <ui:TextField name="composer-text" class="composer-text" max-length="240" />
                         <ui:Button name="composer-photo" text="Photo" class="ghost-button" />
