@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Kinesthetic;
 using Kinesthetic.Rehab;
+using Kinesthetic.UI.Boards;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
@@ -15,15 +16,44 @@ public static class RehabSceneSetup
     const string Root = "Assets/Kinesthetic/Rehab";
     public const string ScenePath = Root + "/Rehab.unity";
 
-    [MenuItem("Kinesthetic/Rehab/Create shoulder raise scene")]
-    public static string Create()
+    /// The studio's boards and where they stand. The mirror has the front-left (MirrorPanel, 36° left), so
+    /// nothing stands left of centre: the exercise card takes the Score station's mirror image, above the
+    /// live figures at Measure, and the coach sits past both (CoachDemonstrator.SeatPose, 40° right).
+    /// Sizes are metres in the room; BoardBuilder turns them into pixels at the station's density.
+    public readonly struct Board
     {
-        if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play mode first.");
+        public readonly string label, id, uxml;
+        public readonly Station station;
+        public readonly Vector2 size;
+        public Board(string label, string id, string uxml, Station station, Vector2 size) { this.label = label; this.id = id; this.uxml = uxml; this.station = station; this.size = size; }
+    }
+
+    public static readonly Board[] Boards =
+    {
+        new("Dock board",    "rehab.dock",    Root + "/RehabDock.uxml",    Stations.Dock,           new Vector2(.80f, .34f)),
+        new("Focus board",   "rehab.focus",   Root + "/RehabFocus.uxml",   Stations.Focus,          new Vector2(.92f, .68f)),
+        new("Plan board",    "rehab.plan",    Root + "/RehabPlan.uxml",    Stations.Score.Mirrored, new Vector2(.88f, .44f)),
+        new("Measure board", "rehab.measure", Root + "/RehabMeasure.uxml", Stations.Measure,        new Vector2(.48f, .60f)),
+    };
+
+    /// Refuse to touch scenes while the editor is playing or any open scene has unsaved work. Saving a
+    /// dirty scene on someone's behalf is how another session's half-done menu ends up in a commit; the
+    /// setups here replace the open scene, so the person decides what happens to it first.
+    public static void RequireIdleEditor(string action)
+    {
+        if (EditorApplication.isPlaying) throw new InvalidOperationException($"{action}: stop Play mode first.");
         for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
         {
             var open = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
-            if (open.isDirty && !string.IsNullOrEmpty(open.path)) EditorSceneManager.SaveScene(open);
+            if (open.isDirty) throw new InvalidOperationException(
+                $"{action}: '{(string.IsNullOrEmpty(open.path) ? open.name : open.path)}' has unsaved changes. Save or discard them first; nothing was touched.");
         }
+    }
+
+    [MenuItem("Kinesthetic/Rehab/Create shoulder raise scene")]
+    public static string Create()
+    {
+        RequireIdleEditor("Create shoulder raise scene");
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         var slot = new GameObject("Patient and wheelchair").transform;
@@ -90,15 +120,20 @@ public static class RehabSceneSetup
         RenderSettings.ambientEquatorColor = Palette.Sand30 * .6f;
         RenderSettings.ambientGroundColor = Palette.Slate70 * .6f;
 
+        // The seat anchor: the floor point under the patient, facing where they face (the Mii faces its
+        // local -Z). Boards stand around it, and QuestRehabSetup parks the headset's XR origin on it, so
+        // the Mac's eye camera and a tracked headset see the boards in the same places.
+        var forward = Vector3.ProjectOnPlane(rig.transform.TransformDirection(Vector3.back), Vector3.up).normalized;
+        var seatGo = new GameObject("Patient seat", typeof(SeatRig), typeof(BoardSet));
+        seatGo.transform.SetPositionAndRotation(slot.position, Quaternion.LookRotation(forward, Vector3.up));
+        var seat = seatGo.GetComponent<SeatRig>(); seat.eyeHeight = eyes.eyeHeight;
+        var boards = seatGo.GetComponent<BoardSet>();
+        foreach (var board in Boards) boards.Adopt(BoardBuilder.Build(seat, board.label, board.id, board.uxml, board.station, board.size));
+
         var ui = new GameObject("Rehab session");
-        var panel = AssetDatabase.LoadAssetAtPath<PanelSettings>(Root + "/RehabPanel.asset");
-        if (!panel) { panel = ScriptableObject.CreateInstance<PanelSettings>(); AssetDatabase.CreateAsset(panel, Root + "/RehabPanel.asset"); }
-        panel.scaleMode = PanelScaleMode.ScaleWithScreenSize; panel.referenceResolution = new Vector2Int(1600, 900);
-        panel.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight; panel.match = .5f; EditorUtility.SetDirty(panel);
-        var doc = ui.AddComponent<UIDocument>(); doc.panelSettings = panel;
-        doc.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(Root + "/Rehab.uxml");
         var session = ui.AddComponent<RehabSession>();
-        session.rig = rig; session.targetBand = band; session.armGuide = guide; session.targetOrb = orb.transform; session.liveMarker = marker.transform;
+        session.rig = rig; session.boards = boards;
+        session.targetBand = band; session.armGuide = guide; session.targetOrb = orb.transform; session.liveMarker = marker.transform;
 
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
         var scenes = EditorBuildSettings.scenes.ToList();

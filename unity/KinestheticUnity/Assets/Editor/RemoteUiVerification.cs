@@ -25,7 +25,10 @@ public static class RemoteUiVerification
     static readonly string[] Screens =
     {
         "Assets/Kinesthetic/Golf/Golf.uxml",
-        "Assets/Kinesthetic/Rehab/Rehab.uxml",
+        "Assets/Kinesthetic/Rehab/RehabDock.uxml",
+        "Assets/Kinesthetic/Rehab/RehabPlan.uxml",
+        "Assets/Kinesthetic/Rehab/RehabMeasure.uxml",
+        "Assets/Kinesthetic/Rehab/RehabFocus.uxml",
         "Assets/Kinesthetic/Menu/Navigation.uxml",
         "Assets/Kinesthetic/Bowling/Bowling.uxml",
         "Assets/Kinesthetic/Menu/MainMenu.uxml",

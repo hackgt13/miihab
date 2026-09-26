@@ -10,15 +10,21 @@ using UnityEngine.UIElements;
 
 using Kinesthetic.Activities;
 using Kinesthetic.UI;
+using Kinesthetic.UI.Boards;
 using Kinesthetic.Golf;
 
 namespace Kinesthetic.Rehab
 {
     // Patient-facing seated shoulder raise. The coordinator's measurement engine is the only source of
     // angles, rep counts and validity; this view renders them and the avatar never feeds back into them.
+    //
+    // The screen is several world-space boards standing at stations around the seat (RehabSceneSetup), and
+    // `boards` is the one root they are queried through: the element names are the ones the single
+    // document had, so nothing below knows which board a label is on.
     public sealed class RehabSession : MonoBehaviour, IActivity, IRehabView
     {
         public PoseRig rig;
+        public BoardSet boards;
         [Tooltip("Drive the Mii from camera pose (MediaPipe). Off: measurement is IMU-only and the Mii's arm follows the AirPod angle.")]
         public bool useCameraPose;
         public bool autoStartSession = true, startServices = true;
@@ -69,7 +75,11 @@ namespace Kinesthetic.Rehab
         float lastSampleAt = -99, shownAngle; string exerciseKind = "arm-elevation.v1";
         Kinesthetic.Coach.CoachDemonstrator coach;
         bool voiceOn; string currentExerciseId;
-        VisualElement screen, hudCoach, angleDetails; Label hudCoachLine;
+        VisualElement screen, hudCoach, angleDetails; Label hudCoachLine; Button viewToggle, summaryClose, summaryMenu;
+        int boundGeneration = -1;
+        // Held, so a rebind after one board rebuilds can take them off the boards that did not (-= then +=):
+        // a handler added twice fires twice, and a toggle that fires twice does nothing.
+        Action onSummaryClose, onSummaryMenu, onViewToggle, onStart;
         /// Stable per machine, so Alex (the voice PT) remembers this patient between sessions.
         static string PatientId
         {
@@ -99,6 +109,7 @@ namespace Kinesthetic.Rehab
         {
             Application.runInBackground = true;
             rig.Initialize(); rig.Apply(null);
+            if (!boards) boards = FindAnyObjectByType<BoardSet>();
             SensorHub.Ensure();
             exercise = new ExerciseClient(exerciseUrl);
             // The mirror window is added here, so the generated scene needs no change.
@@ -154,27 +165,29 @@ namespace Kinesthetic.Rehab
                 StartCoroutine(Begin());
         }
 
-        // UIDocument can build its tree after this component's Start, so bind whenever the tree appears
-        // (and again if it is rebuilt) instead of assuming it exists at startup.
+        // A UIDocument can build its tree after this component's Start, so bind whenever every board has
+        // one (and again if any is rebuilt) instead of assuming they exist at startup.
         bool BindUI()
         {
-            var root = GetComponent<UIDocument>().rootVisualElement;
-            var button = root?.Q<Button>("start");
+            if (!boards || !boards.Live) return false;
+            var root = boards;
+            var button = root.Q<Button>("start");
             if (button == null) return false;
-            if (button == start) return true;
+            if (button == start && boundGeneration == boards.Generation) return true;
+            boundGeneration = boards.Generation;
             title = root.Q<Label>("title"); repCount = root.Q<KReadout>("rep-count"); angleReadout = root.Q<KReadout>("angle-readout");
             statusLabel = root.Q<Label>("status"); planLabel = root.Q<Label>("plan"); summaryLabel = root.Q<Label>("summary");
-            summaryCard = root.Q("summary-card"); start = button;
+            summaryCard = root.Q("summary-card");
             sideLabel = root.Q<Label>("side-label"); progressNote = root.Q<Label>("progress-note");
             angleNote = root.Q<Label>("angle-note"); sensorStatus = root.Q<KChip>("sensor-status");
             cueTitle = root.Q<Label>("cue-title"); cueStep = root.Q<KTag>("cue-step");
             screen = root.Q("studio-screen"); hudCoach = root.Q("hud-coach"); angleDetails = root.Q("angle-details");
             hudCoachLine = root.Q<Label>("hud-coach-line");
             repRing = root.Q<KArc>("rep-ring"); angleMeter = root.Q<KMeter>("angle-meter");
-            root.Q<Button>("summary-close").clicked += () => summaryCard.AddToClassList("hidden");
-            root.Q<Button>("summary-menu").clicked += () => Kinesthetic.Menu.ActivityNavigation.Ensure().OpenReturn();
-            root.Q<Button>("view-toggle").clicked += () => GetComponent<StudioCamera>()?.ToggleView();
-            start.clicked += () => {
+            onSummaryClose ??= () => summaryCard.AddToClassList("hidden");
+            onSummaryMenu ??= () => Kinesthetic.Menu.ActivityNavigation.Ensure().OpenReturn();
+            onViewToggle ??= () => GetComponent<StudioCamera>()?.ToggleView();   // the Mac's camera only
+            onStart ??= () => {
                 if (IsBusy) return;
                 if (running) StartCoroutine(Stop());
                 else if (ReadyToBegin && exercise?.connected == true) StartCoroutine(Begin());
@@ -184,10 +197,23 @@ namespace Kinesthetic.Rehab
                     StartCoroutine(ConnectServices());
                 }
             };
+            summaryClose = Rebind(summaryClose, root.Q<Button>("summary-close"), onSummaryClose);
+            summaryMenu = Rebind(summaryMenu, root.Q<Button>("summary-menu"), onSummaryMenu);
+            viewToggle = Rebind(viewToggle, root.Q<Button>("view-toggle"), onViewToggle);
+            start = Rebind(start, button, onStart);
             UpdatePlanLabels();
             summaryCard.AddToClassList("hidden");
             StartCoroutine(RefreshPlan());
             return true;
+        }
+
+        /// Move a handler from the button it was on to the one the boards answer with now. The same button
+        /// gets it once: -= before += is what makes a rebind of an unchanged board a no-op.
+        static Button Rebind(Button previous, Button current, Action handler)
+        {
+            if (previous != null) previous.clicked -= handler;
+            if (current != null) { current.clicked -= handler; current.clicked += handler; }
+            return current;
         }
 
         IEnumerator RefreshPlan()
@@ -315,7 +341,6 @@ namespace Kinesthetic.Rehab
             if (voice && running && calibrated && !voiceOn) { voice.Begin(PatientId); voiceOn = true; }
             else if (voice && !running && voiceOn) { voice.End(); voiceOn = false; }
             screen.EnableInClassList("playing", running);
-            screen.EnableInClassList("compact", screen.resolvedStyle.width < 1400);
             var said = running && voice ? voice.Line : "";
             hudCoachLine.text = said;
             hudCoach.EnableInClassList("hidden", string.IsNullOrEmpty(said));
@@ -324,7 +349,7 @@ namespace Kinesthetic.Rehab
         void UpdateStudioUI()
         {
             var cameraRig = GetComponent<StudioCamera>();
-            screen.Q<Button>("view-toggle").text = cameraRig && cameraRig.InSeatedView ? "Wide view" : "Seated view";
+            viewToggle.text = cameraRig && cameraRig.InSeatedView ? "Wide view" : "Seated view";
             bool fresh = useCameraPose ? Fresh : MotionFresh;
             bool live = running && Fresh && liveAngle.HasValue;
             bool reached = live && liveAngle.Value >= targetDeg && liveAngle.Value <= targetDeg + bandDeg;
@@ -454,7 +479,7 @@ namespace Kinesthetic.Rehab
                     _ => r.Key.Replace('_', ' ') };
                 notes.Append($"{r.Value} · {reason}\n");
             }
-            var root = GetComponent<UIDocument>().rootVisualElement;
+            var root = boards;
             root.Q<Label>("summary-title").text = attempted == 0 ? "Ready for another day" : valid >= prescribedReps ? "Your set is complete" : "Practice, at your pace";
             root.Q<Label>("summary-subtitle").text = attempted == 0 ? "No repetitions were recorded this time." : "Your session summary.";
             root.Q<KReadout>("summary-valid").value = valid.ToString();
@@ -474,7 +499,7 @@ namespace Kinesthetic.Rehab
         // Arrives just after the summary; a level change inside the clinician's envelope has already applied.
         void ShowProgression(JObject p)
         {
-            var label = GetComponent<UIDocument>().rootVisualElement.Q<Label>("summary-progress");
+            var label = boards.Q<Label>("summary-progress");
             if (label == null) return;
             string decision = (string)p["decision"];
             bool applied = (string)p["status"] == "applied";

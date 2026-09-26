@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../../Palette.uss" />
+    <Style src="../Base.uss" />
+    <Style src="Boards.uss" />
+    <ui:VisualElement name="waiting" class="k-board k-board--waiting" picking-mode="Ignore">
+        <k:KSurface density="Comfortable" class="k-board__waiting-card" picking-mode="Ignore">
+            <k:KChip name="waiting-link" text="Waiting for the Mac" state="Idle" />
+            <k:KText name="waiting-copy" text="Open the studio on the Mac. This board fills in when it connects." size="Caption" tone="Soft" class="k-board__waiting-copy" />
+        </k:KSurface>
+    </ui:VisualElement>
+</ui:UXML>

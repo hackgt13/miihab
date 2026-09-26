@@ -22,7 +22,7 @@ namespace Kinesthetic.UI.Remote
     /// `Receive` and `Poll` are public so the verification can drive it with no socket at all.
     public sealed class RemoteUiClient : MonoBehaviour
     {
-        const float ResendSeconds = .5f, GiveUpSeconds = 5f, ResyncRepeatSeconds = 1f;
+        const float ResendSeconds = .5f, GiveUpSeconds = 5f, ResyncRepeatSeconds = 1f, StaleSeconds = 2f;
         const int MaxPress = 1024;   // the relay's client→relay limit
 
         // What the relay accepts; anything else it drops without a word, so it is not worth retrying.
@@ -44,7 +44,7 @@ namespace Kinesthetic.UI.Remote
         bool refused;
         int generation;
         bool resyncWanted;
-        float resyncSentAt = float.NegativeInfinity;
+        float resyncSentAt = float.NegativeInfinity, disconnectedSince = -1;
         readonly List<Pending> outbox = new();
         readonly HashSet<string> warnedPresses = new();
 
@@ -104,11 +104,18 @@ namespace Kinesthetic.UI.Remote
             if (socket == null) return;   // a duplicate instance on its way out
             if (socket.generation != generation)
             {
-                // A fresh connection: whatever was in flight is gone and the welcome will restart it.
+                // A fresh connection: whatever was in flight is gone and the welcome will restart it. What was
+                // drawn belongs to the connection that is gone, so every board shows its own tree again.
                 generation = socket.generation;
                 client = null;
                 rev = -1;
+                UnboardAll();
             }
+            // The socket only counts connections, not drops: a headset that lost the relay would keep showing
+            // the Mac's last tree as if it were live. Two seconds without a connection is a drop.
+            if (socket.connected) disconnectedSince = -1;
+            else if (disconnectedSince < 0) disconnectedSince = Time.unscaledTime;
+            else if (Time.unscaledTime - disconnectedSince > StaleSeconds) UnboardAll();
             while (socket.TryReceive(out var text)) Receive(text);
             Poll();
         }
@@ -138,9 +145,12 @@ namespace Kinesthetic.UI.Remote
                     break;
                 case "ui.host-disconnected":
                     // The next host starts its own count and the relay makes it snapshot; nothing to ask for.
+                    // What was mirrored is the last thing a Mac that has gone said, so every board goes back
+                    // to its own "waiting" tree rather than standing there looking live.
                     rev = -1;
                     hostBoards.Clear();
                     resyncWanted = false;
+                    UnboardAll();
                     break;
             }
         }
@@ -212,11 +222,17 @@ namespace Kinesthetic.UI.Remote
             built[id] = root;
         }
 
+        void UnboardAll()
+        {
+            foreach (var id in new List<string>(built.Keys)) Unboard(id);
+        }
+
+        /// A board the host no longer has: the replica shows its own tree again (RemoteBoard.ShowOwnTree).
         void Unboard(string id)
         {
             if (string.IsNullOrEmpty(id)) return;
             hostBoards.Remove(id);
-            RemoteBoard.Find(id, replica: true)?.Root?.Clear();
+            RemoteBoard.Find(id, replica: true)?.ShowOwnTree();
             built.Remove(id);
         }
 

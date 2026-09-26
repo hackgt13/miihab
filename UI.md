@@ -185,6 +185,21 @@ not one written twice.
 The menu boards carry a `Pane` for projection only — no content, no `PaneHost` — and are placed by the
 menu, not opened by a host. Making them full panes is a change to the menu's own files.
 
+### Boards — `UI/Boards/`
+
+A screen in a venue is not one document any more but a few **boards** standing at fixed **stations**
+around the seated patient: `Dock` (0° yaw, −22° pitch, 1.2 m: what to do now), `Focus` (0°, 0°, 1.4 m:
+modals), `Score` (−25°, +12°, 2.0 m) and `Measure` (+25°, −5°, 1.5 m: live figures) — all within ±30° of
+yaw so nobody is asked to turn, and a venue that reserves a side takes a station's `Mirrored` image. A
+board lays out at **px/m = 1000 / distance**, so a 19px body line subtends the same angle at every
+station. `SeatRig` is the seat anchor and stands boards at stations; `BoardSet` is the venue's boards as
+one query root (`boards.Q<Label>("status")`, names unchanged) and lands a gaze or pointer press on the
+button's own `clicked`; `Assets/Editor/BoardBuilder.cs` is the recipe — a world-space `UIDocument` on
+`Boards/BoardPanel.asset`, a projection-only `Pane`, `GazeDwell`, `PanePointerInput` and a `RemoteBoard`
+id like `rehab.dock`. The headset runs the same boards as Replicas (`UI/Remote/`); `Waiting.uxml` is what
+a replica shows until the Mac connects. The studio is the first venue on boards; the menu still stands
+its own panes and migrates later.
+
 ## What a screen may do
 
 A screen's own stylesheet keeps its own classes, and they set **layout only**: `position`, the insets,
@@ -234,9 +249,9 @@ One screen at a time, by whoever owns it:
   connection state, repetition ring, angle meter and summary. Other screens remain on their legacy
   sheets until migrated; run the UI check and inspect each migration in the Game view.
 - **The same px is not the same size on every screen.** Golf and Replay panels use a 1400×900 reference
-  resolution; Bowling, Navigation and Rehab use 1600×900; the menu board is world-space. So a 16px
-  button renders about 14% larger in Golf. The fix is in the `PanelSettings` assets, which this system
-  deliberately does not touch.
+  resolution; Bowling and Navigation use 1600×900; the menu board is world-space; the studio's boards
+  lay out at their stations' density. So a 16px button renders about 14% larger in Golf. The fix is in
+  the `PanelSettings` assets, which this system deliberately does not touch.
 - **Quest is unproven.** No UI Toolkit has rendered on the headset here yet (`QuestSceneSetup.cs:40`
   disables the UIDocument on device). `[UxmlElement]` uses generated code rather than reflection, which
   is the right side of the IL2CPP stripping trap in `AGENTS.md`, but that is reasoning, not a device
