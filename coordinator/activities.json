@@ -16,7 +16,7 @@
         "elbow-flexion.v1"
       ],
       "requires": [
-        "pose"
+        "imu"
       ],
       "subjects": 1,
       "prescribable": true,
@@ -25,8 +25,8 @@
         "title": "Today we will practice shoulder raises.",
         "steps": [
           {
-            "step": "Sit comfortably",
-            "copy": "Keep your shoulders and hips in view. Press Start session."
+            "step": "Hold still",
+            "copy": "Sit comfortably with the AirPod secured to your handle. Rest your arm and start the session."
           },
           {
             "step": "Raise your arm",
@@ -76,24 +76,24 @@
     {
       "id": "bowling.adaptive",
       "displayName": "Bowling",
-      "tagline": "Take your turn. Knock them down.",
+      "tagline": "Line up. Swing. Watch them fall.",
       "category": "play",
       "scene": "Bowling",
       "venue": "bowling-alley",
       "exerciseKinds": [],
       "requires": [
-        "pose",
         "imu"
       ],
-      "subjects": 2,
+      "subjects": 1,
       "prescribable": false,
+      "navigation": "activity",
       "loadingMessage": "Heading to the lanes\u2026",
       "help": {
         "title": "Today we will practice bowling.",
         "steps": [
           {
-            "step": "Get in view",
-            "copy": "Camera and AirPods connect automatically. Keep both hands in view."
+            "step": "Get ready",
+            "copy": "Secure your AirPod to your wrist or hand. It connects automatically."
           },
           {
             "step": "Line up",
@@ -101,7 +101,7 @@
           },
           {
             "step": "Swing forward",
-            "copy": "Swing gently to roll. Then your friend takes a turn."
+            "copy": "Swing gently to roll. Press Pause to rest or return to the menu."
           }
         ]
       }

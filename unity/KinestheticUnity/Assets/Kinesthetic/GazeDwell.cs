@@ -35,6 +35,7 @@ namespace Kinesthetic
         void Awake()
         {
             document = GetComponent<UIDocument>();
+            if (!GetComponent<Panes.Pane>()) gameObject.AddComponent<Panes.Pane>();
             reticle = GazeReticle.Create();
         }
 
@@ -68,16 +69,9 @@ namespace Kinesthetic
         string Under(Camera cam)
         {
             var ray = new Ray(cam.transform.position, cam.transform.forward);
-            if (!Physics.Raycast(ray, out var hit, maxDistance)) return null;
-            if (!hit.collider.transform.IsChildOf(transform)) return null;   // something else is in the way
-            var root = document.rootVisualElement;
-            if (root == null) return null;
-
-            var local = hit.collider.transform.InverseTransformPoint(hit.point);
-            var point = new Vector2(local.x, local.y);
-            foreach (var button in root.Query<Button>().ToList())
-                if (!string.IsNullOrEmpty(button.name) && button.worldBound.Contains(point)) return button.name;
-            return null;
+            var button = Panes.WorldPanelPick.Under<Button>(ray, maxDistance, Physics.DefaultRaycastLayers,
+                out var pane, out _, out _);
+            return pane && pane.gameObject == gameObject && !string.IsNullOrEmpty(button?.name) ? button.name : null;
         }
     }
 

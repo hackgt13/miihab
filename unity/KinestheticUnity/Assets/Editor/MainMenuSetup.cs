@@ -71,7 +71,7 @@ public static class MainMenuSetup
         // The menu is geometry standing on the plaza, not an overlay painted over it. That is what lets a
         // moving head work at all: a screen-space panel is composited to the backbuffer after the camera
         // renders, so it stays glued to the screen wherever the camera looks, and never reaches a stereo eye.
-        var menu = new GameObject("RehabMii activity menu", typeof(UIDocument), typeof(MainMenuController), typeof(GazeDwell));
+        var menu = new GameObject("RehabMii activity menu", typeof(UIDocument), typeof(MainMenuController), typeof(Kinesthetic.Panes.Pane), typeof(GazeDwell));
         menu.transform.SetPositionAndRotation(board.position, board.rotation);
         var menuDoc = menu.GetComponent<UIDocument>(); menuDoc.panelSettings = panel;
         menuDoc.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;

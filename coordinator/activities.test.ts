@@ -21,6 +21,16 @@ test('the shipped catalog holds the three built activities', () => {
   assert.equal(activityById('rehab.studio')!.subjects, 1);
 });
 
+test('bowling stays a solo IMU activity with its own pause and return controls', () => {
+  const bowling = requireActivity('bowling.adaptive');
+  assert.deepEqual(bowling.requires, ['imu']);
+  assert.equal(bowling.subjects, 1);
+  assert.equal(bowling.navigation, 'activity');
+  assert.equal(requireActivity('golf.adaptive').navigation, 'shell');
+  assert.equal(requireActivity('rehab.studio').navigation, 'shell');
+  assert.deepEqual(requireActivity('rehab.studio').requires, ['imu']);
+});
+
 test('every activity carries its own copy, so a new one adds no branch in the shell', () => {
   for (const a of ACTIVITIES) {
     assert.ok(a.loadingMessage.trim(), `${a.id} needs loading copy`);
@@ -48,6 +58,7 @@ test('a malformed catalog fails at load rather than at the patient', () => {
   assert.throws(bad(a => a.requires = ['telepathy']), /unknown channel/);
   assert.throws(bad(a => a.category = 'vibes'), /therapy or play/);
   assert.throws(bad(a => a.subjects = 0), /subjects/);
+  assert.throws(bad(a => a.navigation = 'both'), /navigation/);
   assert.throws(bad(a => delete a.loadingMessage), /loadingMessage/);
   assert.throws(bad(a => a.help.steps = [{step: 'x', copy: 'y'}]), /exactly 3 steps/);
   assert.throws(bad(a => a.help.steps[1].copy = ''), /needs both step and copy/);
