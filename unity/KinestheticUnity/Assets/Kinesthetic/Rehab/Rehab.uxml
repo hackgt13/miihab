@@ -1,0 +1,23 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Rehab.uss" />
+    <ui:VisualElement class="screen">
+        <ui:VisualElement class="banner">
+            <ui:Label name="title" text="SHOULDER RAISE" class="title outlined" />
+            <ui:Label name="plan" text="Plan" class="plan" />
+        </ui:VisualElement>
+        <ui:VisualElement class="counter">
+            <ui:Label text="REPS" class="counter-title outlined" />
+            <ui:Label name="reps" text="0 / 8" class="counter-value outlined" />
+            <ui:Label text="ARM ANGLE" class="counter-title outlined angle-title" />
+            <ui:Label name="angle" text="—" class="angle-value outlined" />
+        </ui:VisualElement>
+        <ui:VisualElement name="summary-card" class="summary-card">
+            <ui:Label text="SESSION COMPLETE" class="summary-title" />
+            <ui:Label name="summary" text="" class="summary-text" />
+        </ui:VisualElement>
+        <ui:VisualElement class="footer">
+            <ui:Label name="status" text="" class="status" />
+            <ui:Button name="start" text="Start" class="start" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

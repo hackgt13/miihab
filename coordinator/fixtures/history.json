@@ -1,0 +1,9 @@
+{
+  "label": "Synthetic history — authored demo data, not measured",
+  "patient": { "id": "demo-patient-01", "summary": "Fictional case: 20-year-old, incomplete cervical SCI after a car accident, uses a wheelchair, useful voluntary arm movement, clinician-documented spasticity.", "goal": "Play golf again with their best friend" },
+  "sessions": [
+    { "label": "Week 1", "planVersion": 1, "attempted": 8, "valid": 3, "medianValidPeakDeg": 68, "trunkCompensationReps": 2, "patientReport": "Shoulder feels tight after the third rep." },
+    { "label": "Week 2", "planVersion": 1, "attempted": 8, "valid": 5, "medianValidPeakDeg": 76, "trunkCompensationReps": 2, "patientReport": "Stiffness in the morning, easier later." },
+    { "label": "Week 3", "planVersion": 1, "attempted": 9, "valid": 6, "medianValidPeakDeg": 84, "trunkCompensationReps": 3, "patientReport": "Stiffness is interfering with practice near the top of the reach." }
+  ]
+}

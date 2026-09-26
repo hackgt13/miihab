@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kinesthetic · Clinician review</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Kinesthetic <span>Clinician review</span></div>
+  <div class="who" id="who">PM&amp;R physician (demo)</div>
+</header>
+
+<main class="layout">
+  <section class="patient">
+    <div>
+      <h1>Demo patient <span class="tag">Fictional case</span></h1>
+      <p id="patient-summary" class="muted"></p>
+      <p class="goal">Goal: <strong id="patient-goal"></strong></p>
+    </div>
+    <div id="trigger" class="trigger" hidden></div>
+  </section>
+
+  <div class="columns">
+    <div class="main-col">
+      <section class="card">
+        <h2>What changed</h2>
+        <p id="change-sentence" class="lead"></p>
+        <div class="tiles" id="tiles"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Shoulder elevation, median of counted reps</h2>
+          <span class="muted small">Dashed line: current plan target · hollow points: synthetic history</span>
+        </div>
+        <div class="chart-wrap"><svg id="chart" role="img" aria-label="Median shoulder elevation per session"></svg><div id="tooltip" class="tooltip" hidden></div></div>
+      </section>
+
+      <section class="card">
+        <h2>Session evidence</h2>
+        <div class="table-wrap"><table id="sessions">
+          <thead><tr><th>Session</th><th>Plan</th><th class="num">Counted</th><th class="num">Median peak</th><th>Not counted</th><th>Tracking</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <p class="muted small">Angles are estimated shoulder elevation from a single camera, not goniometer readings. Symptoms are patient-reported.</p>
+      </section>
+    </div>
+
+    <aside class="side-col">
+      <section class="card">
+        <h2>Active plan <span id="plan-version" class="pill"></span></h2>
+        <dl class="plan" id="plan"></dl>
+        <p class="muted small" id="plan-approved"></p>
+      </section>
+
+      <section class="card">
+        <h2>Change the plan</h2>
+        <form id="plan-form">
+          <div class="grid2">
+            <label>Target angle (°)<input name="targetDeg" type="number" min="35" max="160" step="1" required></label>
+            <label>Reps<input name="prescribedReps" type="number" min="1" max="30" step="1" required></label>
+            <label>Hold (ms)<input name="holdMs" type="number" min="0" max="3000" step="50" required></label>
+            <label>Trunk lean limit (°)<input name="maxTrunkDeviationDeg" type="number" min="3" max="45" step="1" required></label>
+          </div>
+          <label>Coaching note for the patient<input name="coachingNote" type="text" maxlength="500"></label>
+          <label>Rationale <span class="muted">(required, saved with the plan)</span><textarea name="rationale" rows="3" required></textarea></label>
+          <button type="submit" id="approve">Approve new plan version</button>
+          <p id="form-status" class="form-status" role="status"></p>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Plan history</h2>
+        <ol id="plan-history" class="history"></ol>
+      </section>
+    </aside>
+  </div>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
