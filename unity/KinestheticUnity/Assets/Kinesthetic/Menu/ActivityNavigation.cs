@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
-using Kinesthetic.Rehab;
+using System.Linq;
+using Kinesthetic.Activities;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -10,7 +11,7 @@ namespace Kinesthetic.Menu
 {
     public sealed class ActivityNavigation : MonoBehaviour
     {
-        public const string MenuScene = "MainMenu", GolfScene = "AdaptiveGolf", StudioScene = "Rehab";
+        public const string MenuScene = "MainMenu";
         const string MusicPreference = "RehabMii.MenuMusic";
         public AudioClip menuMusic, hoverSound, selectSound, backSound;
         public static ActivityNavigation Instance { get; private set; }
@@ -19,7 +20,6 @@ namespace Kinesthetic.Menu
         public bool OverlayOpen => Busy || (dialog != null && !dialog.ClassListContains("hidden")) || (help != null && !help.ClassListContains("hidden"));
         public event Action<bool> MusicChanged;
         AudioSource musicSource, effects;
-        AudioClip golfMusic;
         VisualElement root, dialog, curtain, help;
         Button returnButton, confirm, cancel, helpButton, helpClose, helpMusic;
         Label detail, title, loading;
@@ -33,7 +33,13 @@ namespace Kinesthetic.Menu
         {
             if (Supports(SceneManager.GetActiveScene().name)) Ensure();
         }
-        static bool Supports(string scene) => scene == MenuScene || scene == GolfScene || scene == StudioScene;
+        static bool Supports(string scene) =>
+            scene == MenuScene || ActivityCatalog.All.Any(a => a.Scene == scene);
+        /// <summary>The activity whose scene is loaded, or null in the menu.</summary>
+        static ActivityEntry Current() => ActivityCatalog.All.FirstOrDefault(a => a.Scene == SceneManager.GetActiveScene().name);
+        /// <summary>Whatever the shell is driving right now, without knowing what kind of thing it is.</summary>
+        static IActivity CurrentActivity() => FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+            .OfType<IActivity>().FirstOrDefault();
         public static ActivityNavigation Ensure()
         {
             if (Instance) return Instance;
@@ -46,7 +52,6 @@ namespace Kinesthetic.Menu
             if (Instance && Instance != this) { Destroy(gameObject); return; }
             Instance = this; DontDestroyOnLoad(gameObject);
             MusicEnabled = PlayerPrefs.GetInt(MusicPreference, 1) != 0;
-            golfMusic = Resources.Load<AudioClip>("GolfAudio/QuietFairway");
             musicSource = gameObject.AddComponent<AudioSource>(); musicSource.playOnAwake = false;
             musicSource.spatialBlend = 0; musicSource.loop = true; musicSource.clip = menuMusic; musicSource.volume = 0;
             effects = gameObject.AddComponent<AudioSource>(); effects.playOnAwake = false; effects.spatialBlend = 0; effects.volume = .55f;
@@ -76,8 +81,12 @@ namespace Kinesthetic.Menu
         void SyncScene()
         {
             string scene = SceneManager.GetActiveScene().name;
-            menuActive = scene == MenuScene; supported = Supports(scene); showMusic = menuActive || scene == GolfScene;
-            var nextMusic = menuActive ? menuMusic : scene == GolfScene ? golfMusic : null;
+            var entry = Current();
+            menuActive = scene == MenuScene; supported = Supports(scene);
+            // An activity has music when the catalog gives it a track; nothing here knows which one.
+            var activityMusic = entry?.Music == null ? null : Resources.Load<AudioClip>(entry.Music);
+            showMusic = menuActive || activityMusic;
+            var nextMusic = menuActive ? menuMusic : activityMusic;
             if (musicSource.clip != nextMusic) { musicSource.Stop(); musicSource.clip = nextMusic; musicSource.volume = 0; }
             if (Bind())
             {
@@ -107,14 +116,17 @@ namespace Kinesthetic.Menu
         void OpenHelp()
         {
             if (Busy || !dialog.ClassListContains("hidden")) return;
-            bool golf = SceneManager.GetActiveScene().name == GolfScene;
-            root.Q<Label>("activity-help-title").text = golf ? "Today we will practice golf." : "Today we will practice shoulder raises.";
-            root.Q<Label>("help-step-one").text = golf ? "Get in view" : "Sit comfortably";
-            root.Q<Label>("help-copy-one").text = golf ? "Camera and AirPods connect automatically. Keep both hands in view." : "Keep your shoulders and hips in view. Press Start session.";
-            root.Q<Label>("help-step-two").text = golf ? "Hold still" : "Raise your arm";
-            root.Q<Label>("help-copy-two").text = golf ? "Rest the club at the mat. Wait for Ready." : "Reach the glowing target. Hold gently.";
-            root.Q<Label>("help-step-three").text = golf ? "Swing gently" : "Lower slowly";
-            root.Q<Label>("help-copy-three").text = golf ? "Aim with the arrows. Swing. Then your friend takes a turn." : "Repeat at your pace. Finish set stops early. This guide does not pause your set.";
+            // Help copy is the activity's own, read from the catalog, so a new activity brings its guide
+            // with it instead of adding another branch here.
+            var entry = Current();
+            if (entry == null) return;
+            root.Q<Label>("activity-help-title").text = entry.HelpTitle;
+            var names = new[] { "one", "two", "three" };
+            for (int i = 0; i < names.Length && i < entry.HelpSteps.Length; i++)
+            {
+                root.Q<Label>("help-step-" + names[i]).text = entry.HelpSteps[i].Step;
+                root.Q<Label>("help-copy-" + names[i]).text = entry.HelpSteps[i].Copy;
+            }
             helpMusic.text = MusicEnabled ? "Music: On" : "Music: Off";
             help.RemoveFromClassList("hidden"); helpClose.Focus(); PlaySelect();
         }
@@ -122,19 +134,21 @@ namespace Kinesthetic.Menu
         public void PlayHover() { if (Time.unscaledTime - lastHover < .09f) return; lastHover = Time.unscaledTime; if (hoverSound) effects.PlayOneShot(hoverSound); }
         public void PlaySelect() { if (selectSound) effects.PlayOneShot(selectSound); }
         public void PlayBack() { if (backSound) effects.PlayOneShot(backSound); }
-        public void LoadActivity(string scene)
+        /// <summary>Takes a catalog activity id. The scene it lives in is the catalog's business.</summary>
+        public void LoadActivity(string activityId)
         {
-            if (Busy || (scene != GolfScene && scene != StudioScene)) return;
-            if (!Application.CanStreamedLevelBeLoaded(scene)) { ShowUnavailable(); return; }
-            PlaySelect(); StartCoroutine(Load(scene));
+            var entry = ActivityCatalog.ById(activityId);
+            if (Busy || entry == null) return;
+            if (!Application.CanStreamedLevelBeLoaded(entry.Scene)) { ShowUnavailable(); return; }
+            PlaySelect(); StartCoroutine(Load(entry.Scene));
         }
         public void OpenReturn()
         {
             if (Busy || menuActive || !supported || !Bind()) return;
             help.AddToClassList("hidden");
-            var rehab = FindAnyObjectByType<RehabSession>();
+            var activity = CurrentActivity();
             title.text = "Back to the menu?";
-            detail.text = rehab && rehab.IsRunning ? "We'll finish your exercise session before returning to the activity menu." : "Your current activity will close. You can choose another activity from the menu.";
+            detail.text = activity != null && activity.IsRunning ? "We'll finish your exercise session before returning to the activity menu." : "Your current activity will close. You can choose another activity from the menu.";
             cancel.text = "Keep playing"; confirm.text = "Return to menu";
             confirm.RemoveFromClassList("hidden"); confirm.SetEnabled(true); cancel.SetEnabled(true);
             dialog.RemoveFromClassList("hidden"); cancel.Focus(); PlayBack();
@@ -150,17 +164,17 @@ namespace Kinesthetic.Menu
         {
             if (!Application.CanStreamedLevelBeLoaded(MenuScene)) { ShowUnavailable(); yield break; }
             Busy = true; confirm.SetEnabled(false); cancel.SetEnabled(false);
-            var rehab = FindAnyObjectByType<RehabSession>();
-            if (rehab && rehab.IsBusy)
+            var activity = CurrentActivity();
+            if (activity != null && activity.IsBusy)
             {
                 detail.text = "Waiting for your session to finish connecting…";
-                while (rehab && rehab.IsBusy) yield return null;
+                while (activity != null && activity.IsBusy) yield return null;
             }
-            if (rehab && rehab.IsRunning)
+            if (activity != null && activity.IsRunning)
             {
                 bool ended = false;
                 detail.text = "Finishing your exercise session…";
-                yield return rehab.FinishSession(success => ended = success);
+                yield return activity.RequestExit(success => ended = success);
                 if (!ended)
                 {
                     Busy = false; confirm.SetEnabled(true); cancel.SetEnabled(true);
@@ -175,7 +189,7 @@ namespace Kinesthetic.Menu
         {
             Busy = true; showMusic = false;
             curtain.RemoveFromClassList("hidden");
-            loading.text = scene == GolfScene ? "Heading to the course…" : scene == StudioScene ? "Opening the studio…" : "Back to your activities…";
+            loading.text = ActivityCatalog.All.FirstOrDefault(a => a.Scene == scene)?.LoadingMessage ?? "Back to your activities…";
             yield return new WaitForSecondsRealtime(.22f);
             var load = SceneManager.LoadSceneAsync(scene);
             while (!load.isDone) yield return null;

@@ -18,7 +18,25 @@
         "pose"
       ],
       "subjects": 1,
-      "prescribable": true
+      "prescribable": true,
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice shoulder raises.",
+        "steps": [
+          {
+            "step": "Sit comfortably",
+            "copy": "Keep your shoulders and hips in view. Press Start session."
+          },
+          {
+            "step": "Raise your arm",
+            "copy": "Reach the glowing target. Hold gently."
+          },
+          {
+            "step": "Lower slowly",
+            "copy": "Repeat at your pace. Finish set stops early. This guide does not pause your set."
+          }
+        ]
+      }
     },
     {
       "id": "golf.adaptive",
@@ -33,7 +51,26 @@
         "imu"
       ],
       "subjects": 2,
-      "prescribable": true
+      "prescribable": true,
+      "loadingMessage": "Heading to the course\u2026",
+      "music": "GolfAudio/QuietFairway",
+      "help": {
+        "title": "Today we will practice golf.",
+        "steps": [
+          {
+            "step": "Get in view",
+            "copy": "Camera and AirPods connect automatically. Keep both hands in view."
+          },
+          {
+            "step": "Hold still",
+            "copy": "Rest the club at the mat. Wait for Ready."
+          },
+          {
+            "step": "Swing gently",
+            "copy": "Aim with the arrows. Swing. Then your friend takes a turn."
+          }
+        ]
+      }
     },
     {
       "id": "bowling.adaptive",
@@ -48,7 +85,25 @@
         "imu"
       ],
       "subjects": 2,
-      "prescribable": false
+      "prescribable": false,
+      "loadingMessage": "Heading to the lanes\u2026",
+      "help": {
+        "title": "Today we will practice bowling.",
+        "steps": [
+          {
+            "step": "Get in view",
+            "copy": "Camera and AirPods connect automatically. Keep both hands in view."
+          },
+          {
+            "step": "Line up",
+            "copy": "Face the lane and hold still until Ready appears."
+          },
+          {
+            "step": "Swing forward",
+            "copy": "Swing gently to roll. Then your friend takes a turn."
+          }
+        ]
+      }
     }
   ]
 }

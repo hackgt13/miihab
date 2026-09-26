@@ -53,7 +53,7 @@ namespace Kinesthetic.Menu
                 int index = i;
                 cards[i].RegisterCallback<PointerEnterEvent>(_ => Select(index, true));
                 cards[i].RegisterCallback<FocusInEvent>(_ => Select(index, true));
-                Act(cards[i], () => Launch(index == 0 ? ActivityNavigation.GolfScene : ActivityNavigation.StudioScene));
+                Act(cards[i], () => Launch(index == 0 ? "golf.adaptive" : "rehab.studio"));
             }
 
             Act(root.Q<Button>("start-activity"), StartFirst);
@@ -130,10 +130,10 @@ namespace Kinesthetic.Menu
         {
             var next = model.FirstOutstanding();
             if (next is not { } task) { OpenSheet(activityOverlay, ActivityScope, cards[selected]); return; }
-            Launch(task.activityId == "golf.adaptive" ? ActivityNavigation.GolfScene : ActivityNavigation.StudioScene);
+            Launch(task.activityId);
         }
 
-        void Launch(string scene) => navigation.LoadActivity(scene);
+        void Launch(string activityId) => navigation.LoadActivity(activityId);
 
         void OpenNameSheet()
         {

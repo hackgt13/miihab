@@ -17,9 +17,13 @@ namespace Kinesthetic.Activities
     /// reflection that JsonConvert.DeserializeObject&lt;T&gt; depends on, and this has to work on the
     /// headset as well as the Mac.
     /// </summary>
+    public sealed class HelpStep { public string Step, Copy; }
+
     public sealed class ActivityEntry
     {
         public string Id, DisplayName, Tagline, Category, Scene, Venue;
+        public string LoadingMessage, Music, HelpTitle;
+        public HelpStep[] HelpSteps = new HelpStep[0];
         public string[] ExerciseKinds = new string[0];
         public string[] Requires = new string[0];
         public int Subjects = 1;
@@ -55,6 +59,12 @@ namespace Kinesthetic.Activities
                         Requires = item["requires"]?.Select(k => (string)k).ToArray() ?? new string[0],
                         Subjects = (int?)item["subjects"] ?? 1,
                         Prescribable = (bool?)item["prescribable"] ?? false,
+                        LoadingMessage = (string)item["loadingMessage"] ?? "",
+                        Music = (string)item["music"],
+                        HelpTitle = (string)item["help"]?["title"] ?? "",
+                        HelpSteps = item["help"]?["steps"]?
+                            .Select(h => new HelpStep { Step = (string)h["step"], Copy = (string)h["copy"] })
+                            .ToArray() ?? new HelpStep[0],
                     });
                 return entries = list.ToArray();
             }

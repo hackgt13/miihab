@@ -55,16 +55,24 @@ test('live: both relays stamp their recordings on the same axis', {timeout: 2000
     imuProducer.send(JSON.stringify({type: 'club.motion', playerId: 'patient', sourceId: 'Right', sessionId,
       sequence: 0, sensorTime: 1, quaternion: [0, 0, 0, 1], rotationRate: [0, 0, 1]}));
 
-    await new Promise(r => setTimeout(r, 400));
-    const files = await readdir(directory);
-    const poseFile = files.find(f => f === `${sessionId}.jsonl`)!;
-    const imuFile = files.find(f => /^patient-\d+\.jsonl$/.test(f))!;
-    assert.ok(poseFile, `pose recording missing from ${files.join(', ')}`);
-    assert.ok(imuFile, `imu recording missing from ${files.join(', ')}`);
-
-    const poseRows = parseChannel<any>(await readFile(join(directory, poseFile), 'utf8'));
-    const imuRows = parseChannel<any>(await readFile(join(directory, imuFile), 'utf8'));
-    assert.ok(poseRows.length && imuRows.length);
+    // Poll rather than sleep: two spawned servers writing under a loaded parallel test run do not
+    // finish on any fixed schedule, and a fixed wait made this flake.
+    const readRows = async () => {
+      const files = await readdir(directory);
+      const poseFile = files.find(f => f === `${sessionId}.jsonl`);
+      const imuFile = files.find(f => /^patient-\d+\.jsonl$/.test(f));
+      if (!poseFile || !imuFile) return null;
+      const poseRows = parseChannel<any>(await readFile(join(directory, poseFile), 'utf8'));
+      const imuRows = parseChannel<any>(await readFile(join(directory, imuFile), 'utf8'));
+      return poseRows.length && imuRows.length ? {poseRows, imuRows} : null;
+    };
+    let rows = null as Awaited<ReturnType<typeof readRows>>;
+    for (let attempt = 0; attempt < 100 && !rows; attempt++) {
+      rows = await readRows();
+      if (!rows) await new Promise(r => setTimeout(r, 100));
+    }
+    assert.ok(rows, `both recordings should appear; directory held ${(await readdir(directory)).join(', ')}`);
+    const {poseRows, imuRows} = rows!;
     for (const r of [...poseRows, ...imuRows]) assert.ok(Number.isFinite(r.hostMonotonicMs), 'every sample is stamped');
 
     // The point of the shared axis: samples from two processes are orderable against each other.

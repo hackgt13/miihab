@@ -35,6 +35,12 @@ export interface Activity {
   /** Golf and bowling record two people; a therapy session records one. */
   subjects: number;
   prescribable: boolean;
+  /** Curtain text while the scene loads. */
+  loadingMessage: string;
+  /** Resources path of the activity's background music, or null for none. */
+  music: string | null;
+  /** The three-step guide shown inside the activity. Lives here so a new activity brings its own. */
+  help: { title: string; steps: { step: string; copy: string }[] };
 }
 
 const CHANNELS: readonly ChannelId[] = ['pose', 'imu'];
@@ -62,8 +68,19 @@ function parse(raw: any, source: string): Activity[] {
       if (!CHANNELS.includes(channel as ChannelId)) throw Error(`${where}: unknown channel "${channel}"`);
     const subjects = Number(a.subjects);
     if (!Number.isInteger(subjects) || subjects < 1 || subjects > 8) throw Error(`${where}: subjects must be 1-8`);
+    const help = a.help ?? {};
+    const steps = Array.isArray(help.steps) ? help.steps : [];
+    if (!String(help.title ?? '').trim()) throw Error(`${where}: help.title is required`);
+    if (steps.length !== 3) throw Error(`${where}: help.steps must hold exactly 3 steps, got ${steps.length}`);
+    for (const [j, s] of steps.entries())
+      if (!String(s?.step ?? '').trim() || !String(s?.copy ?? '').trim())
+        throw Error(`${where}: help.steps[${j}] needs both step and copy`);
+    if (!String(a.loadingMessage ?? '').trim()) throw Error(`${where}: loadingMessage is required`);
     return {
       id, displayName: String(a.displayName), tagline: String(a.tagline ?? ''),
+      loadingMessage: String(a.loadingMessage),
+      music: a.music == null ? null : String(a.music),
+      help: {title: String(help.title), steps: steps.map((s: any) => ({step: String(s.step), copy: String(s.copy)}))},
       category: a.category, scene: String(a.scene), venue: String(a.venue),
       exerciseKinds, requires: requires as ChannelId[], subjects, prescribable: !!a.prescribable,
     };
