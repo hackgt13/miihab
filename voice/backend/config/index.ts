@@ -25,6 +25,10 @@ export const config = {
     url: required("SUPABASE_URL"),
     serviceKey: required("SUPABASE_SERVICE_KEY"),
   },
+  // The coordinator owns the care plan and measured results; Alex only reads them.
+  coordinator: {
+    url: optional("COORDINATOR_URL", "http://127.0.0.1:8766"),
+  },
   server: {
     port: Number(optional("VOICE_PORT", "8768")),
   },

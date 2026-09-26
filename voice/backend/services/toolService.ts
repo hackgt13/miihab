@@ -1,5 +1,6 @@
 import type { PatientService } from './patientService.ts';
 import type { AnalyticsService } from './analyticsService.ts';
+import type { CoordinatorService } from './coordinatorService.ts';
 import type { EmitEvent, ToolParams } from '../types.ts';
 
 // ── Tool definitions ── registered with the ElevenLabs agent at creation time.
@@ -58,43 +59,52 @@ export const TOOL_DEFINITIONS = [
   },
   {
     type: 'client',
-    name: 'log_exercise_session',
+    name: 'get_exercise_results',
     description:
-      'Log all exercises and close the session record. Call once at the end of the session.',
+      'Get what the camera measured this session: reps attempted and valid against the plan, ' +
+      'range reached, and why any reps did not count (e.g. leaning the trunk). Also says whether ' +
+      'an exercise is running right now. These are the only rep counts to use — never estimate reps yourself.',
+    parameters: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    type: 'client',
+    name: 'request_plan_review',
+    description:
+      "Ask the patient's physician to review the care plan. You cannot change the plan (reps, range, " +
+      'hold, side) yourself. Use this when pain, fatigue, or ease suggests the plan may need changing.',
     parameters: {
       type: 'object',
       properties: {
-        exercises: {
-          type: 'array',
-          description: 'Exercises performed this session',
-          items: {
-            type: 'object',
-            properties: {
-              exercise_name: { type: 'string',  description: 'Name of the exercise performed' },
-              sets:          { type: 'integer', description: 'Number of sets completed' },
-              reps:          { type: 'integer', description: 'Number of reps per set' },
-              duration_sec:  { type: 'integer', description: 'Duration in seconds (timed exercises)' },
-              pain_during:   { type: 'number',  description: 'Pain level 0–10 during this exercise' },
-              notes:         { type: 'string',  description: 'Any notes about this exercise' },
-            },
-            required: ['exercise_name'],
-          },
-        },
-        session_notes: { type: 'string', description: 'Overall session notes' },
+        reason:   { type: 'string', description: "What you observed, in the patient's words where possible" },
+        category: { type: 'string', enum: ['pain', 'too_hard', 'too_easy', 'fatigue', 'other'], description: 'Why a review is needed' },
       },
-      required: ['exercises'],
+      required: ['reason', 'category'],
+    },
+  },
+  {
+    type: 'client',
+    name: 'close_session',
+    description:
+      'Close the session at the end: links the measured exercises to this conversation and returns the summary. ' +
+      'Call once, after the end-of-session pain check.',
+    parameters: {
+      type: 'object',
+      properties: {
+        session_notes: { type: 'string', description: 'Brief notes: how the patient felt, anything they reported' },
+      },
+      required: [],
     },
   },
   {
     type: 'client',
     name: 'add_milestone',
     description:
-      'Record a patient achievement. Call for ROM gains, pain-free movement, ' +
-      'attendance streaks, or any functional improvement the patient reports.',
+      'Record a patient achievement. Call for measured range gains, pain-free sets, ' +
+      'attendance streaks, or a functional win the patient reports (e.g. reaching a shelf from the chair).',
     parameters: {
       type: 'object',
       properties: {
-        description: { type: 'string', description: "Clear description, e.g. 'First full squat without knee pain'" },
+        description: { type: 'string', description: "Clear description, e.g. 'Reached the target height on every rep without leaning'" },
         category: {
           type: 'string',
           enum: ['range_of_motion', 'strength', 'endurance', 'pain_reduction', 'functional', 'adherence', 'other'],
@@ -111,21 +121,26 @@ export const TOOL_DEFINITIONS = [
 export class ToolService {
   private patientService: PatientService;
   private analyticsService: AnalyticsService;
+  private coordinator: CoordinatorService;
   private patientId: string;
   private sessionId: string;
+  private sessionStartedAt: string;
   private emitEvent: EmitEvent;
 
   constructor(
     patientService: PatientService,
     analyticsService: AnalyticsService,
+    coordinator: CoordinatorService,
     patientId: string,
-    sessionId: string,
+    session: { id: string; startedAt: string },
     emitEvent: EmitEvent,
   ) {
     this.patientService = patientService;
     this.analyticsService = analyticsService;
+    this.coordinator = coordinator;
     this.patientId = patientId;
-    this.sessionId = sessionId;
+    this.sessionId = session.id;
+    this.sessionStartedAt = session.startedAt;
     this.emitEvent = emitEvent;
   }
 
@@ -135,7 +150,9 @@ export class ToolService {
       case 'get_patient_analytics': return this.getPatientAnalytics();
       case 'update_patient_info':   return this.updatePatientInfo(params);
       case 'log_pain_level':        return this.logPainLevel(params);
-      case 'log_exercise_session':  return this.logExerciseSession(params);
+      case 'get_exercise_results':  return this.getExerciseResults();
+      case 'request_plan_review':   return this.requestPlanReview(params);
+      case 'close_session':         return this.closeSession(params);
       case 'add_milestone':         return this.addMilestone(params);
       default: throw new Error(`Unknown tool: ${toolName}`);
     }
@@ -143,13 +160,23 @@ export class ToolService {
 
   // ── handlers ─────────────────────────────────────────────────────────────
 
+  private async carePlan() {
+    return this.coordinator.activePlan().catch(() => null);
+  }
+
   private async getPatientProfile() {
-    const patient = await this.patientService.getPatient(this.patientId);
-    if (!patient) {
+    const [patient, carePlan] = await Promise.all([
+      this.patientService.getPatient(this.patientId),
+      this.carePlan(),
+    ]);
+    const care_plan = carePlan ?? { unavailable: 'Plan service unreachable. Do not guess the prescription; keep to gentle check-ins.' };
+    // createSession inserts an empty row so sessions can reference it: no name yet means a first visit.
+    if (!patient?.name) {
       return {
         is_new_patient: true,
         patient_id: this.patientId,
-        message: 'No profile found. Ask the patient for their name, condition, and goals.',
+        care_plan,
+        message: 'No profile yet. Ask the patient for their name, condition, and goals.',
       };
     }
     const [recentSessions, recentPain, recentMilestones] = await Promise.all([
@@ -157,7 +184,7 @@ export class ToolService {
       this.patientService.getRecentPainLogs(this.patientId, 10),
       this.patientService.getRecentMilestones(this.patientId, 5),
     ]);
-    return { is_new_patient: false, patient, recent_sessions: recentSessions, recent_pain_logs: recentPain, recent_milestones: recentMilestones };
+    return { is_new_patient: false, patient, care_plan, recent_sessions: recentSessions, recent_pain_logs: recentPain, recent_milestones: recentMilestones };
   }
 
   private async getPatientAnalytics() {
@@ -171,6 +198,7 @@ export class ToolService {
 
   private async logPainLevel(params: ToolParams) {
     const level = Number(params['level']);
+    if (!Number.isFinite(level) || level < 0 || level > 10) throw new Error('Pain level must be 0–10.');
     const context = params['context'] as string | undefined;
     const phase   = params['phase']   as string | undefined;
 
@@ -181,36 +209,44 @@ export class ToolService {
       status: 'logged',
       pain_id: record.id,
       session_pain_avg: sessionAvg,
-      recommendation: level >= 7 ? 'rest_and_reassess' : 'continue',
+      recommendation: level >= 8 ? 'stop_and_recommend_doctor' : level >= 7 ? 'stop_and_rest' : 'continue',
     };
   }
 
-  private async logExerciseSession(params: ToolParams) {
-    const exercises    = (params['exercises']     as ToolParams[]) ?? [];
+  private async getExerciseResults() {
+    const [live, measured, plan] = await Promise.all([
+      this.coordinator.live().catch(() => null),
+      this.coordinator.results({ since: this.sessionStartedAt }).catch(() => null),
+      this.carePlan(),
+    ]);
+    if (!live && !measured) return { unavailable: 'Measurement service unreachable. Do not state rep counts.' };
+    return { running_now: live, completed_this_session: measured ?? [], plan: plan?.exercise ?? null };
+  }
+
+  private async requestPlanReview(params: ToolParams) {
+    const plan = await this.carePlan();
+    const reason   = String(params['reason'] ?? '').trim();
+    const category = String(params['category'] ?? 'other');
+    if (!reason) throw new Error('A reason is required.');
+    const record = await this.patientService.addPlanReviewRequest(this.patientId, this.sessionId, plan?.version ?? null, reason, category);
+    this.emitEvent({ type: 'plan_review_requested', data: { reason, category, plan_version: plan?.version ?? null } });
+    return { status: 'sent_to_physician', request_id: record.id, note: 'The plan is unchanged until the physician approves a new version.' };
+  }
+
+  private async closeSession(params: ToolParams) {
     const sessionNotes = params['session_notes'] as string | undefined;
-
-    const logged = await Promise.all(
-      exercises.map(ex =>
-        this.patientService.logExercise(
-          this.sessionId,
-          this.patientId,
-          String(ex['exercise_name']),
-          {
-            sets:         ex['sets']         as number | undefined,
-            reps:         ex['reps']         as number | undefined,
-            duration_sec: ex['duration_sec'] as number | undefined,
-            pain_during:  ex['pain_during']  as number | undefined,
-            notes:        ex['notes']        as string | undefined,
-          },
-        ),
-      ),
-    );
-
-    await this.patientService.endSession(this.sessionId, sessionNotes);
-    const summary = await this.analyticsService.computeSessionSummary(this.sessionId);
+    const [measured, plan] = await Promise.all([
+      this.coordinator.results({ since: this.sessionStartedAt }).catch(() => []),
+      this.carePlan(),
+    ]);
+    await this.patientService.endSession(this.sessionId, {
+      notes: sessionNotes,
+      exerciseIds: measured.map(m => m.exercise_id),
+      planVersion: plan?.version ?? null,
+    });
+    const summary = await this.analyticsService.computeSessionSummary(this.sessionId, this.sessionStartedAt);
     this.emitEvent({ type: 'session_summary', data: summary });
-
-    return { status: 'logged', exercises_logged: logged.length, summary };
+    return { status: 'closed', summary };
   }
 
   private async addMilestone(params: ToolParams) {

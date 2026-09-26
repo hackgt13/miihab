@@ -12,6 +12,7 @@ import { WebSocketServer } from "ws";
 import { config } from "./backend/config/index.ts";
 import { PatientService } from "./backend/services/patientService.ts";
 import { AnalyticsService } from "./backend/services/analyticsService.ts";
+import { CoordinatorService } from "./backend/services/coordinatorService.ts";
 import { createSessionController } from "./backend/controllers/sessionController.ts";
 import { handleHealth } from "./backend/controllers/healthController.ts";
 
@@ -27,11 +28,13 @@ const patientService = new PatientService(
   config.supabase.url,
   config.supabase.serviceKey,
 );
-const analyticsService = new AnalyticsService(patientService);
+const coordinator = new CoordinatorService(config.coordinator.url);
+const analyticsService = new AnalyticsService(patientService, coordinator);
 const onConnection = createSessionController({
   config,
   patientService,
   analyticsService,
+  coordinator,
 });
 
 // ── Supabase connectivity check ────────────────────────────────────────────────

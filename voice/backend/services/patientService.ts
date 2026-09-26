@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
-import type { Patient, PTSession, ExerciseLog, PainLog, Milestone } from '../types.ts';
+import type { Patient, PTSession, PainLog, Milestone, PlanReviewRequest } from '../types.ts';
 
 export class PatientService {
   private db: SupabaseClient;
@@ -24,8 +24,8 @@ export class PatientService {
       .from('patients')
       .select('*')
       .eq('id', patientId)
-      .single();
-    return data ?? null;
+      .maybeSingle();
+    return (data as Patient | null) ?? null;
   }
 
   async upsertPatient(
@@ -44,23 +44,30 @@ export class PatientService {
 
   // ── sessions ──────────────────────────────────────────────────────────────
 
-  async createSession(patientId: string): Promise<string> {
+  async createSession(patientId: string): Promise<{ id: string; startedAt: string }> {
     // Ensure patient row exists — Alex will populate the profile via get_patient_profile
     await this.db.from('patients').upsert({ id: patientId }, { onConflict: 'id', ignoreDuplicates: true });
 
     const sessionId = randomUUID();
+    const startedAt = now();
     const { error } = await this.db.from('sessions').insert({
       id: sessionId,
       patient_id: patientId,
-      started_at: now(),
+      started_at: startedAt,
     });
     if (error) throw error;
-    return sessionId;
+    return { id: sessionId, startedAt };
   }
 
-  async endSession(sessionId: string, notes?: string): Promise<void> {
+  /** Stamps the end and links the coordinator's measured exercises for this conversation. */
+  async endSession(
+    sessionId: string,
+    opts: { notes?: string; exerciseIds?: string[]; planVersion?: number | null } = {},
+  ): Promise<void> {
     const payload: Record<string, unknown> = { ended_at: now() };
-    if (notes) payload['notes'] = notes;
+    if (opts.notes) payload['notes'] = opts.notes;
+    if (opts.exerciseIds) payload['exercise_ids'] = opts.exerciseIds;
+    if (opts.planVersion != null) payload['plan_version'] = opts.planVersion;
     const { error } = await this.db
       .from('sessions')
       .update(payload)
@@ -152,57 +159,33 @@ export class PatientService {
     return Math.round((sum / data.length) * 100) / 100;
   }
 
-  // ── exercise logs ─────────────────────────────────────────────────────────
+  // ── plan review requests ──────────────────────────────────────────────────
+  // Alex cannot change the plan. It files a request; the physician decides in the portal.
 
-  async logExercise(
-    sessionId: string,
+  async addPlanReviewRequest(
     patientId: string,
-    exerciseName: string,
-    opts: {
-      sets?: number;
-      reps?: number;
-      duration_sec?: number;
-      pain_during?: number;
-      notes?: string;
-    } = {},
-  ): Promise<ExerciseLog> {
+    sessionId: string,
+    planVersion: number | null,
+    reason: string,
+    category: string,
+  ): Promise<PlanReviewRequest> {
     const record = {
       id: randomUUID(),
-      session_id: sessionId,
       patient_id: patientId,
-      exercise_name: exerciseName,
-      sets: opts.sets ?? null,
-      reps: opts.reps ?? null,
-      duration_sec: opts.duration_sec ?? null,
-      pain_during: opts.pain_during ?? null,
-      notes: opts.notes ?? null,
-      logged_at: now(),
+      session_id: sessionId,
+      plan_version: planVersion,
+      reason,
+      category,
+      status: 'open',
+      created_at: now(),
     };
     const { data, error } = await this.db
-      .from('exercise_logs')
+      .from('plan_review_requests')
       .insert(record)
       .select()
       .single();
     if (error) throw error;
-    return data as ExerciseLog;
-  }
-
-  async getSessionExercises(sessionId: string): Promise<ExerciseLog[]> {
-    const { data } = await this.db
-      .from('exercise_logs')
-      .select('*')
-      .eq('session_id', sessionId);
-    return (data ?? []) as ExerciseLog[];
-  }
-
-  async getPatientExercises(patientId: string, limit = 100): Promise<ExerciseLog[]> {
-    const { data } = await this.db
-      .from('exercise_logs')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('logged_at', { ascending: false })
-      .limit(limit);
-    return (data ?? []) as ExerciseLog[];
+    return data as PlanReviewRequest;
   }
 
   // ── milestones ────────────────────────────────────────────────────────────

@@ -19,11 +19,14 @@
 ┌──────▼──────────────┐   ┌─────────────▼─────────────┐
 │ sessionController   │   │ PatientService  (Supabase) │
 │  – handshake        │   │  patients, sessions        │
-│  – audio relay      │   │  pain_logs, exercise_logs  │
-│  – session lifecycle│   │  milestones                │
+│  – audio relay      │   │  pain_logs, milestones     │
+│  – session lifecycle│   │  plan_review_requests      │
 ├─────────────────────┤   ├───────────────────────────┤
-│ healthController    │   │ AnalyticsService           │
-│  – GET /health      │   │  pain trend, progression   │
+│ healthController    │   │ CoordinatorService (read)  │
+│  – GET /health      │   │  care plan, measured reps  │
+│                     │   ├───────────────────────────┤
+│                     │   │ AnalyticsService           │
+│                     │   │  pain trend, progression   │
 └──────┬──────────────┘   │  streak, session summary   │
        │                  ├───────────────────────────┤
        │                  │ ToolService                │
@@ -45,6 +48,21 @@
 │  Client-tool calls → backend executes → Supabase     │
 └──────────────────────────────────────────────────────┘
 ```
+
+## Data ownership
+
+One patient record with three owners. Each fact has one writer, and nothing copies another owner's facts.
+
+| Fact | Owner (only writer) | Store | Alex |
+|---|---|---|---|
+| Care plan: exercise, side, target range, reps, hold | Physician, approved in the portal | Coordinator `local-data/plans` (immutable versions) | Reads |
+| Reps, range, compensation, tracking quality | Measurement engine (pose → `coordinator/measurement.ts`) | Coordinator `local-data/sessions` | Reads |
+| Pain, goals, profile, milestones, plan review requests | Patient, recorded by Alex | Supabase (this service) | Writes |
+
+- **Join key:** `sessions.exercise_ids` holds the coordinator exercise ids measured during the conversation, and `sessions.plan_version` the plan they ran under.
+- **Alex never changes the plan.** A pain rise or "too easy" becomes a `plan_review_requests` row; the plan changes only when the physician approves a new version in the portal.
+- **Alex never produces rep counts.** It quotes `get_exercise_results`; if the coordinator is unreachable it says nothing numeric.
+- **Access:** RLS on with no policies — only the service_role key (this backend) can read or write. The anon key sees nothing.
 
 ## Layer responsibilities
 
@@ -103,9 +121,11 @@ Unity                        server.ts              ElevenLabs
 ```bash
 cd voice
 npm ci
-cp .env.example .env      # fill in ELEVENLABS_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY
+cp .env.example .env      # fill in ELEVENLABS_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY; COORDINATOR_URL defaults to the local coordinator
 # Run supabase/schema.sql in the Supabase SQL editor
 node --env-file=.env backend/agent.ts   # creates the agent, prints ELEVENLABS_AGENT_ID
 # Add ELEVENLABS_AGENT_ID to .env
+npm test                  # offline: fake coordinator + in-memory store
+npm run update-agent      # push the new prompt and tools to the existing ElevenLabs agent
 npm start
 ```

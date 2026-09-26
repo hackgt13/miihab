@@ -14,12 +14,14 @@ import type { Config } from "../config/index.ts";
 import { ElevenLabsConversation } from "../conversation.ts";
 import type { PatientService } from "../services/patientService.ts";
 import type { AnalyticsService } from "../services/analyticsService.ts";
+import type { CoordinatorService } from "../services/coordinatorService.ts";
 import { ToolService } from "../services/toolService.ts";
 
 interface SessionControllerDeps {
   config: Config;
   patientService: PatientService;
   analyticsService: AnalyticsService;
+  coordinator: CoordinatorService;
 }
 
 /** Returns a handler function to pass to WebSocketServer's 'connection' event. */
@@ -39,7 +41,7 @@ async function handleSession(
   unity: WebSocket,
   deps: SessionControllerDeps,
 ): Promise<void> {
-  const { config, patientService, analyticsService } = deps;
+  const { config, patientService, analyticsService, coordinator } = deps;
 
   // 1. Handshake ─────────────────────────────────────────────────────────────
   const raw = await waitForMessage(unity, 30_000);
@@ -68,15 +70,16 @@ async function handleSession(
   }
 
   // 2. Create session record ─────────────────────────────────────────────────
-  let sessionId: string;
+  let session: { id: string; startedAt: string };
   try {
-    sessionId = await patientService.createSession(patientId);
+    session = await patientService.createSession(patientId);
   } catch (err) {
     emit(unity, { type: "error", message: `DB error: ${JSON.stringify(err)}` });
     console.error("DB error detail:", err);
     safeClose(unity);
     return;
   }
+  const sessionId = session.id;
   console.log(`Session started — patient=${patientId} session=${sessionId}`);
 
   // 3. Wire up services ──────────────────────────────────────────────────────
@@ -85,8 +88,9 @@ async function handleSession(
   const toolService = new ToolService(
     patientService,
     analyticsService,
+    coordinator,
     patientId,
-    sessionId,
+    session,
     emitEvent,
   );
 
@@ -103,7 +107,11 @@ async function handleSession(
       console.error("ElevenLabs error:", msg);
       emit(unity, { type: "error", message: msg });
     },
-    onClose: () => {},
+    // ElevenLabs hung up: tell Unity and end the session instead of leaving it waiting on silence.
+    onClose: () => {
+      emit(unity, { type: "error", message: "Voice agent disconnected" });
+      safeClose(unity, 1011, "Voice agent disconnected");
+    },
   });
 
   // 4. Start ElevenLabs conversation ─────────────────────────────────────────
@@ -147,7 +155,7 @@ async function handleSession(
   // 6. Teardown ──────────────────────────────────────────────────────────────
   conv.end();
   try {
-    await patientService.endSession(sessionId);
+    await patientService.endSession(sessionId);   // no-op fields if close_session already ran
   } catch (err) {
     console.warn("Failed to stamp ended_at:", err);
   }

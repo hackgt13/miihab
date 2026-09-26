@@ -16,19 +16,9 @@ export interface PTSession {
   pain_start?: number;
   pain_end?: number;
   notes?: string;
-}
-
-export interface ExerciseLog {
-  id: string;
-  session_id: string;
-  patient_id: string;
-  exercise_name: string;
-  sets?: number;
-  reps?: number;
-  duration_sec?: number;
-  pain_during?: number;
-  notes?: string;
-  logged_at?: string;
+  /** Coordinator exercise ids measured during this conversation — the join to the measured record. */
+  exercise_ids?: string[];
+  plan_version?: number | null;
 }
 
 export interface PainLog {
@@ -49,9 +39,54 @@ export interface Milestone {
   logged_at?: string;
 }
 
+/** The physician-approved plan, owned by the coordinator (coordinator/plans.ts). */
+export interface CarePlan {
+  version: number;
+  approvedBy: string;
+  approvedAt: string;
+  rationale: string;
+  exercise: {
+    type: string;
+    side: "left" | "right";
+    targetDeg: number;
+    prescribedReps: number;
+    holdMs: number;
+    maxTrunkDeviationDeg: number;
+  };
+  coachingNote: string;
+}
+
+/** One measured exercise from the coordinator's measurement engine. Never produced by the LLM. */
+export interface MeasuredExercise {
+  exercise_id: string;
+  ended_at: string;
+  exercise: string;
+  side: "left" | "right";
+  plan_version: number | null;
+  target_deg: number | null;
+  prescribed: number | null;
+  attempted: number;
+  valid: number;
+  completed: number;
+  median_peak_deg: number | null;
+  invalid_reasons: Record<string, number>;
+  tracking_loss_events: number;
+  simulated: boolean;
+}
+
+export interface PlanReviewRequest {
+  id: string;
+  patient_id: string;
+  session_id?: string;
+  plan_version?: number | null;
+  reason: string;
+  category: string;
+  status?: "open" | "reviewed";
+  created_at?: string;
+}
+
 export interface SessionSummary {
-  exercises: ExerciseLog[];
-  exercise_count: number;
+  measured: MeasuredExercise[];
   pain_avg: number | null;
   pain_delta: number | null;
   start_pain: number | null;
@@ -68,15 +103,13 @@ export interface PainTrend {
 
 export interface PatientAnalytics {
   pain_trend: PainTrend;
-  exercise_progression: Record<
-    string,
-    {
-      sessions: number;
-      volume_change_pct: number;
-      latest_sets?: number;
-      latest_reps?: number;
-    }
-  >;
+  /** From the coordinator's measured results; null when the coordinator is unreachable. */
+  measured_progress: {
+    sessions: number;
+    latest: MeasuredExercise | null;
+    first_median_peak_deg: number | null;
+    latest_median_peak_deg: number | null;
+  } | null;
   session_frequency_per_week: number | null;
   streak_days: number;
   total_sessions: number;

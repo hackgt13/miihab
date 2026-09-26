@@ -1,8 +1,9 @@
 import type { PatientService } from './patientService.ts';
+import type { CoordinatorService } from './coordinatorService.ts';
 import type {
   PainLog,
   PTSession,
-  ExerciseLog,
+  MeasuredExercise,
   PatientAnalytics,
   PainTrend,
   SessionSummary,
@@ -10,22 +11,24 @@ import type {
 
 export class AnalyticsService {
   private patientService: PatientService;
+  private coordinator: CoordinatorService;
 
-  constructor(patientService: PatientService) {
+  constructor(patientService: PatientService, coordinator: CoordinatorService) {
     this.patientService = patientService;
+    this.coordinator = coordinator;
   }
 
   async getPatientAnalytics(patientId: string): Promise<PatientAnalytics> {
-    const [sessions, painLogs, exercises, milestones] = await Promise.all([
+    const [sessions, painLogs, measured, milestones] = await Promise.all([
       this.patientService.getAllSessions(patientId),
       this.patientService.getAllPainLogs(patientId),
-      this.patientService.getPatientExercises(patientId, 100),
+      this.coordinator.results({ limit: 50 }).catch(() => null),
       this.patientService.getRecentMilestones(patientId, 50),
     ]);
 
     return {
       pain_trend: computePainTrend(painLogs),
-      exercise_progression: computeExerciseProgression(exercises),
+      measured_progress: measured && computeMeasuredProgress(measured),
       session_frequency_per_week: computeSessionFrequency(sessions),
       streak_days: computeStreak(sessions),
       total_sessions: sessions.length,
@@ -33,9 +36,10 @@ export class AnalyticsService {
     };
   }
 
-  async computeSessionSummary(sessionId: string): Promise<SessionSummary> {
-    const [exercises, painAvg, painLogs] = await Promise.all([
-      this.patientService.getSessionExercises(sessionId),
+  /** Pain the patient reported in this conversation + what the coordinator measured since it started. */
+  async computeSessionSummary(sessionId: string, startedAt: string): Promise<SessionSummary> {
+    const [measured, painAvg, painLogs] = await Promise.all([
+      this.coordinator.results({ since: startedAt }).catch(() => [] as MeasuredExercise[]),
       this.patientService.getSessionPainAverage(sessionId),
       this.patientService.getSessionPainLogs(sessionId),
     ]);
@@ -48,8 +52,7 @@ export class AnalyticsService {
         : null;
 
     return {
-      exercises,
-      exercise_count: exercises.length,
+      measured,
       pain_avg: painAvg,
       pain_delta: painDelta,
       start_pain: startPain,
@@ -81,30 +84,16 @@ function computePainTrend(painLogs: PainLog[]): PainTrend {
   return { trend, slope: round3(slope), recent_avg: recentAvg, early_avg: earlyAvg, data_points: n };
 }
 
-function computeExerciseProgression(exercises: ExerciseLog[]): PatientAnalytics['exercise_progression'] {
-  const byName = new Map<string, ExerciseLog[]>();
-  for (const ex of exercises) {
-    const name = ex.exercise_name ?? 'unknown';
-    const arr = byName.get(name) ?? [];
-    arr.push(ex);
-    byName.set(name, arr);
-  }
-
-  const result: PatientAnalytics['exercise_progression'] = {};
-  for (const [name, logs] of byName) {
-    if (logs.length < 2) continue;
-    const newest = logs[0];
-    const oldest = logs[logs.length - 1];
-    const newVol = (newest?.sets ?? 1) * (newest?.reps ?? 1);
-    const oldVol = (oldest?.sets ?? 1) * (oldest?.reps ?? 1);
-    result[name] = {
-      sessions: logs.length,
-      volume_change_pct: oldVol ? round1((newVol - oldVol) / oldVol * 100) : 0,
-      latest_sets: newest?.sets,
-      latest_reps: newest?.reps,
-    };
-  }
-  return result;
+// Real (non-simulated) measured sessions only; `results` is newest first.
+function computeMeasuredProgress(results: MeasuredExercise[]): NonNullable<PatientAnalytics['measured_progress']> {
+  const real = results.filter(r => !r.simulated && r.attempted > 0);
+  const peaks = real.map(r => r.median_peak_deg).filter((d): d is number => d != null);
+  return {
+    sessions: real.length,
+    latest: real[0] ?? null,
+    first_median_peak_deg: peaks.at(-1) ?? null,
+    latest_median_peak_deg: peaks[0] ?? null,
+  };
 }
 
 function computeSessionFrequency(sessions: PTSession[]): number | null {
@@ -137,6 +126,5 @@ function computeStreak(sessions: PTSession[]): number {
   return count;
 }
 
-function round1(n: number) { return Math.round(n * 10) / 10; }
 function round2(n: number) { return Math.round(n * 100) / 100; }
 function round3(n: number) { return Math.round(n * 1000) / 1000; }

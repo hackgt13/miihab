@@ -12,7 +12,8 @@
     "update-agent": "node --env-file=.env --experimental-strip-types backend/agent.ts update",
     "typecheck": "tsc --noEmit",
     "test:cli": "node --env-file=.env --experimental-strip-types test/cli.ts",
-    "migrate":  "node --env-file=.env --input-type=module --eval \"import {execSync} from 'node:child_process'; execSync('psql ' + process.env.DATABASE_URL + ' -f supabase/schema.sql', {stdio:'inherit'})\""
+    "migrate": "node --env-file=.env --input-type=module --eval \"import {execSync} from 'node:child_process'; execSync('psql ' + process.env.DATABASE_URL + ' -f supabase/schema.sql', {stdio:'inherit'})\"",
+    "test": "node --test test/tools.test.ts"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.69.0",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
-    "@types/ws": "^8.18.1"
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.3"
   }
 }
