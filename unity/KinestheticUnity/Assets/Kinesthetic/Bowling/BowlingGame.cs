@@ -1,10 +1,8 @@
 using System;
 using System.Collections;
 using System.IO;
-using System.Text;
 using Kinesthetic.Activities;
 using Kinesthetic.Golf;
-using UnityEngine.Networking;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -202,45 +200,20 @@ namespace Kinesthetic.Bowling
             if (gameReported) return;
             gameReported = true;
             string id = Guid.NewGuid().ToString();
-            var endedUtc = DateTime.UtcNow;
-            int lost = (SensorHub.Instance?.MotionReconnectsFor(motionUrl) ?? 0) - reconnectsAtStart;
             var marks = new string[10];
             for (int f = 0; f < 10; f++) marks[f] = Score.Marks(f);
-            var envelope = new {
-                schema = "kinesthetic.activity.v1", activitySessionId = id, activityId = ActivityId,
-                exerciseKinds = new string[0], venueId = "bowling-alley",
-                patientId = (string)null, planVersion = (int?)null,
-                startedAt = gameStartedUtc.ToString("o"), endedAt = endedUtc.ToString("o"),
-                durationMs = (int)Mathf.Clamp((float)(endedUtc - gameStartedUtc).TotalMilliseconds, 0, 86_400_000),
-                completed = true,
-                // One subject: the relay only accepts playerId "patient" on this channel.
-                subjects = new object[] { new {
-                    subjectId = "patient", role = "patient",
-                    // Every roll counts in bowling, so attempted and valid are the same number. The
-                    // figure that travels across activities is how much the person moved, not the score.
-                    dose = new { prescribed = (int?)null, attempted = rolls, valid = rolls },
-                    primaryMetric = new { name = "score", value = (double)Score.Total, unit = "pins" },
-                } },
-                trackingQuality = new { validFrameRatio = (double?)null, lossEvents = lost },
-                flags = lost > 0 ? new[] { "tracking_lost" } : new string[0],
-                payload = new { kind = "bowling.game", schemaVersion = "1",
-                    data = new { total = Score.Total, rolls, frames = marks } },
-            };
+            // Every roll counts in bowling, so attempted equals valid. The figure that travels across
+            // activities is how much the person moved; the score stays in the payload.
+            var subjects = new[] { new ActivitySubject {
+                SubjectId = "patient", Attempted = rolls, Valid = rolls,
+                MetricName = "score", MetricValue = Score.Total, MetricUnit = "pins",
+            } };
+            int lost = (SensorHub.Instance?.MotionReconnectsFor(motionUrl) ?? 0) - reconnectsAtStart;
             Completed?.Invoke(id);
-            StartCoroutine(PostGame(id, Newtonsoft.Json.JsonConvert.SerializeObject(envelope)));
-        }
-        IEnumerator PostGame(string id, string body)
-        {
             postingGame = true;
-            using var request = new UnityWebRequest(bridge + "/activity/session", "POST") {
-                uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
-                downloadHandler = new DownloadHandlerBuffer(), timeout = 5 };
-            request.SetRequestHeader("Content-Type", "application/json");
-            yield return request.SendWebRequest();
-            postingGame = false;
-            // A failed POST must never interrupt play; the game is over and the person is done.
-            if (request.result != UnityWebRequest.Result.Success)
-                Debug.LogWarning($"Bowling game {id} was not recorded: {request.error} {request.downloadHandler?.text}");
+            StartCoroutine(ActivityRecorder.Send(bridge, ActivityId, id, gameStartedUtc, subjects,
+                lost, "bowling.game", new { total = Score.Total, rolls, frames = marks },
+                _ => postingGame = false));
         }
         public void RestartRound()
         {
