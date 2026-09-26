@@ -62,6 +62,11 @@ public static class RehabSceneSetup
         UnityEngine.Object.DestroyImmediate(marker.GetComponent<Collider>()); marker.transform.localScale = Vector3.one * .08f;
         marker.GetComponent<Renderer>().sharedMaterial = Glow("RehabMarker", new Color(.55f, .88f, 1f));
 
+        // Seeing your own arm reach the target is the point of the exercise, so the studio gets the
+        // patient's-eye view too, not just the clinician's framing.
+        var eyes = actor.gameObject.AddComponent<EyeAnchor>();
+        eyes.ownBody = avatar.transform; eyes.lookAt = orb.transform;
+
         var camera = new GameObject("Patient view camera").AddComponent<Camera>();
         camera.transform.position = new Vector3(1.7f, 1.95f, -5.2f); camera.transform.LookAt(new Vector3(-.15f, 1.0f, .25f));
         camera.fieldOfView = 40; camera.nearClipPlane = .1f; camera.farClipPlane = 50;

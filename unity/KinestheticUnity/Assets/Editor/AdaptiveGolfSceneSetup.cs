@@ -78,7 +78,7 @@ public static class AdaptiveGolfSceneSetup
             foreach(var r in renders)bounds.Encapsulate(r.bounds);
             avatar.transform.localScale*=1.75f/bounds.size.y;
             foreach(var r in avatar.GetComponentsInChildren<SkinnedMeshRenderer>())r.updateWhenOffscreen=true;
-            var rig=actor.gameObject.AddComponent<PoseRig>();rig.avatar=avatar.transform;rig.seated=i==0;rig.usePresentationSpace=true;
+            var rig=actor.gameObject.AddComponent<PoseRig>();rig.avatar=avatar.transform;rig.seated=i==0;rig.usePresentationSpace=true;rig.golfGrip=true;
             rig.Initialize();rig.Apply(null);
             actor.position+=Vector3.up*((i==0?.12f:.08f)-rig.RightAnkle.position.y);
             if(i==0)
@@ -104,6 +104,11 @@ public static class AdaptiveGolfSceneSetup
             game.rigs[i].Apply(null);
             game.clubs[i].position=game.rigs[i].RightHand.position;
         }
+        // The patient's own eyes at the seat. FirstPersonView builds the Mac preview camera from this;
+        // the headset ignores it and uses its XR rig, which QuestSceneSetup parks at the same seat.
+        var eyes=new GameObject("Patient eyes").AddComponent<Kinesthetic.EyeAnchor>();
+        eyes.transform.SetPositionAndRotation(game.players[0].position,game.players[0].rotation);
+        eyes.follow=game.players[0];eyes.lookAt=go.transform;eyes.ownBody=game.rigs[0].avatar;
         game.allowDeveloperShots=false;
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(),ScenePath);
         var builds=EditorBuildSettings.scenes.ToList();if(!builds.Any(s=>s.path==ScenePath))builds.Add(new EditorBuildSettingsScene(ScenePath,true));

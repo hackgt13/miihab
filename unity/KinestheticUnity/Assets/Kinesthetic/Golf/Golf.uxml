@@ -64,7 +64,6 @@
                         <ui:Label text="3" class="step-badge" />
                         <ui:VisualElement class="step-copy"><ui:Label text="Hold still" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:VisualElement class="assist-row"><ui:Button name="sound-toggle" text="Sound assist: on" /><ui:Label name="audio-status" text="" class="assist-status" /></ui:VisualElement>
                     <ui:Label name="setup-status" text="Connecting…" class="setup-status" />
                     <ui:VisualElement class="sheet-actions"><ui:Button name="setup-retry" text="Try again" class="hidden" /><ui:Button name="setup-close" text="Got it" class="hidden" /></ui:VisualElement>
                 </ui:VisualElement>

@@ -62,7 +62,9 @@ function render() {
     <td>${esc(r.when)}${r.synthetic ? ' <span class="muted">(synthetic)</span>' : r.simulated ? ' <span class="muted">(simulated input)</span>' : ''}</td><td>v${r.planVersion}</td>
     <td class="num">${r.valid}/${r.attempted}</td><td class="num">${deg(r.medianValidPeakDeg)}</td>
     <td>${r.synthetic ? (r.trunk ? `${r.trunk} × trunk compensation` : '—') : Object.entries(r.reasons).map(([k, n]) => `${n} × ${REASONS[k] ?? k}`).join(', ') || '—'}</td>
-    <td>${r.tracking != null ? Math.round(r.tracking * 100) + '%' : '—'}</td></tr>`).join('');
+    <td>${r.tracking != null ? Math.round(r.tracking * 100) + '%' : '—'}</td>
+    <td>${r.synthetic ? '' : `<button type="button" class="small-btn" data-replay="${esc(r.id)}">Replay</button>`}</td></tr>`).join('');
+  document.querySelectorAll('[data-replay]').forEach(b => b.addEventListener('click', () => openReplay(b.dataset.replay)));
 
   $('#plan-version').textContent = `v${active.version}`;
   const e = active.exercise;
@@ -131,6 +133,80 @@ $('#plan-form').addEventListener('submit', async ev => {
 });
 
 addEventListener('resize', () => state.history && drawChart(rows()));
-load().catch(e => { $('#change-sentence').textContent = 'Could not load data: ' + e.message; });
+load().then(async () => {
+  // Deep link: /portal/?replay=<exerciseId>&rep=<n> opens that session's replay at that repetition.
+  const q = new URLSearchParams(location.search);
+  if (q.get('replay')) { await openReplay(q.get('replay'));
+    const r = replay?.reps.find(x => x.rep === Number(q.get('rep'))); if (r) showFrame(frameAt((r.startMs + r.endMs) / 2)); }
+}).catch(e => { $('#change-sentence').textContent = 'Could not load data: ' + e.message; });
 setInterval(() => get('/api/sessions').then(s => { const f = s.filter(x => x.calibrated && x.attempted > 0);
   if (f.length !== state.sessions.length) { state.sessions = f; render(); } }).catch(() => {}), 5000);
+
+
+// ---- Movement replay: recorded landmarks + engine angles, reps on a timeline ----
+const BONES = [[11,12],[11,23],[12,24],[23,24],[11,13],[13,15],[12,14],[14,16],[23,25],[24,26],[0,11],[0,12]];
+let replay = null, playing = false, cursor = 0, lastTick = 0;
+async function openReplay(id) {
+  const card = $('#replay-card'); card.hidden = false; $('#replay-title').textContent = 'Loading replay…';
+  try { replay = await get(`/api/sessions/${id}/replay`); }
+  catch (e) { $('#replay-title').textContent = 'Replay unavailable: ' + e.message; return; }
+  const r = replay;
+  $('#replay-title').textContent = `Movement replay · plan v${r.planVersion} · ${new Date(r.endedAt).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'})}${r.simulated ? ' · simulated input' : ''}`;
+  $('#replay-target').textContent = `target ${r.targetDeg}°`; $('#replay-trunk-limit').textContent = `limit ${r.maxTrunkDeviationDeg}°`;
+  $('#replay-seek').max = r.frames.length - 1; cursor = 0; playing = false; $('#replay-play').textContent = 'Play';
+  drawStrip(); showFrame(0); card.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function frameAt(ms) { let i = 0; while (i < replay.frames.length - 1 && replay.frames[i + 1].t <= ms) i++; return i; }
+function showFrame(i) {
+  cursor = Math.max(0, Math.min(i, replay.frames.length - 1)); const f = replay.frames[cursor];
+  $('#replay-seek').value = cursor; $('#replay-time').textContent = `${(f.t / 1000).toFixed(1)} s`;
+  $('#replay-angle').textContent = f.a == null ? '—' : `${Math.round(f.a)}°`;
+  $('#replay-trunk').textContent = f.k == null ? '—' : `${Math.round(f.k)}°`;
+  const rep = replay.reps.find(r => f.t >= r.startMs && f.t <= r.endMs);
+  $('#replay-rep').textContent = rep ? `Rep ${rep.rep}: ${rep.valid ? 'counted' : 'not counted — ' + (REASONS[rep.reason] ?? rep.reason)} · peak ${Math.round(rep.peakDeg)}°` : 'Between repetitions';
+  drawPose(f); moveStripCursor(f.t);
+}
+function drawPose(f) {
+  const cv = $('#replay-canvas'), g = cv.getContext('2d'), css = getComputedStyle(document.documentElement), c = n => css.getPropertyValue(n).trim();
+  g.clearRect(0, 0, cv.width, cv.height);
+  if (!f.p) return;
+  // Fit the recorded body into the canvas using the visible landmarks' bounds.
+  const vis = f.p.filter(p => p[2] >= .5); if (!vis.length) return;
+  const xs = vis.map(p => p[0]), ys = vis.map(p => p[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const span = Math.max(Math.max(...xs) - Math.min(...xs), (Math.max(...ys) - Math.min(...ys)) * 1.2, .25) * 1.35;
+  const P = i => [cv.width / 2 + (f.p[i][0] - cx) / span * cv.height, cv.height / 2 + (f.p[i][1] - cy) / span * cv.height];
+  const arm = replay.side === 'left' ? [[11,13],[13,15]] : [[12,14],[14,16]];
+  g.lineCap = 'round';
+  for (const [a, b] of BONES) { if (f.p[a][2] < .5 || f.p[b][2] < .5) continue;
+    const measured = arm.some(([x, y]) => x === a && y === b);
+    g.strokeStyle = measured ? c('--series-1') : c('--muted'); g.lineWidth = measured ? 7 : 3;
+    g.beginPath(); g.moveTo(...P(a)); g.lineTo(...P(b)); g.stroke(); }
+  for (const i of [0, 11, 12, 13, 14, 15, 16, 23, 24]) { if (f.p[i][2] < .5) continue;
+    g.fillStyle = c('--text'); g.beginPath(); g.arc(...P(i), i === 0 ? 7 : 4, 0, Math.PI * 2); g.fill(); }
+}
+function drawStrip() {
+  const svg = $('#replay-strip'), W = svg.clientWidth || 700, H = 120, m = { l: 36, r: 8, t: 8, b: 20 };
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const css = getComputedStyle(document.documentElement), c = n => css.getPropertyValue(n).trim();
+  const T = replay.frames.at(-1).t || 1, x = t => m.l + t / T * (W - m.l - m.r), y = v => m.t + (1 - Math.min(v, 150) / 150) * (H - m.t - m.b);
+  let g = '';
+  for (const r of replay.reps) g += `<rect data-rep="${r.rep}" x="${x(r.startMs)}" y="${m.t}" width="${Math.max(2, x(r.endMs) - x(r.startMs))}" height="${H - m.t - m.b}" fill="${r.valid ? c('--series-1') : c('--muted')}" fill-opacity="${r.valid ? .12 : .22}" rx="4"/>
+    <text x="${(x(r.startMs) + x(r.endMs)) / 2}" y="${H - 5}" text-anchor="middle" font-size="11" fill="${c('--text-2')}">${r.valid ? r.rep : r.rep + ' ✕'}</text>`;
+  for (const v of [0, 50, 100, 150]) g += `<text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10.5" fill="${c('--muted')}">${v}°</text>`;
+  g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(replay.targetDeg)}" y2="${y(replay.targetDeg)}" stroke="${c('--ref')}" stroke-dasharray="5 4" stroke-width="1.5"/>`;
+  const pts = replay.frames.filter(f => f.a != null).map(f => `${x(f.t)},${y(f.a)}`).join(' ');
+  g += `<polyline points="${pts}" fill="none" stroke="${c('--series-1')}" stroke-width="2" stroke-linejoin="round"/>`;
+  g += `<line id="strip-cursor" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="${c('--text')}" stroke-width="1.5"/>`;
+  svg.innerHTML = g; svg._x = x; svg._inv = px => (px - m.l) / (W - m.l - m.r) * T;
+  svg.onclick = ev => { const rep = ev.target.closest('[data-rep]');
+    if (rep) { const r = replay.reps.find(q => q.rep === +rep.dataset.rep); showFrame(frameAt(r.startMs)); return; }
+    const box = svg.getBoundingClientRect(); showFrame(frameAt(svg._inv((ev.clientX - box.left) / box.width * W))); };
+}
+function moveStripCursor(t) { const svg = $('#replay-strip'), l = svg.querySelector('#strip-cursor'); if (l && svg._x) { const X = svg._x(t); l.setAttribute('x1', X); l.setAttribute('x2', X); } }
+$('#replay-seek').addEventListener('input', e => { playing = false; $('#replay-play').textContent = 'Play'; showFrame(+e.target.value); });
+$('#replay-play').addEventListener('click', () => { if (!replay) return; playing = !playing; $('#replay-play').textContent = playing ? 'Pause' : 'Play'; if (playing && cursor >= replay.frames.length - 1) cursor = 0; lastTick = 0; });
+$('#replay-close').addEventListener('click', () => { $('#replay-card').hidden = true; playing = false; });
+(function tick(now) { if (playing && replay) { const f = replay.frames[cursor]; const target = f.t + (lastTick ? now - lastTick : 0);
+  const i = frameAt(target); if (i >= replay.frames.length - 1) { playing = false; $('#replay-play').textContent = 'Play'; } showFrame(i); }
+  lastTick = now; requestAnimationFrame(tick); })(0);

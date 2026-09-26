@@ -34,11 +34,23 @@ namespace Kinesthetic.Bowling
                 if (string.IsNullOrEmpty(nextSession) || nextSession == session && seq <= sequence) return false;
                 if (!ValidBody(p["ball"])) return false;
                 foreach (var pin in pins) if (!ValidBody(pin)) return false;
+                var avatar = p["avatar"] as JArray;
+                if (avatar != null && game.avatar)
+                {
+                    game.avatar.Initialize();
+                    if (avatar.Count != game.avatar.joints.Length) return false;
+                    foreach (var joint in avatar) if (!ValidBody(joint)) return false;
+                }
                 var marks = p["marks"] as JArray; var scores = p["scores"] as JArray;
                 if (marks?.Count != 10 || scores?.Count != 10) return false;
                 session = nextSession; sequence = seq;
                 SetBody(game.ball, p["ball"]);
                 for (int i = 0; i < pins.Count; i++) SetBody(game.pins[i], pins[i]);
+                if (avatar != null && game.avatar) for (int i = 0; i < avatar.Count; i++)
+                {
+                    game.avatar.joints[i].localPosition = GolfStateFormat.V(avatar[i]["p"]);
+                    game.avatar.joints[i].localRotation = GolfStateFormat.Q(avatar[i]["r"]);
+                }
                 string phase = (string)p["phase"];
                 hud.text = $"BOWLING  ·  FRAME {p["frame"]}  ·  BALL {p["roll"]}\n{p["cue"]}\n{BowlingHud.AimText((float)p["aim"])}   ·   {Mathf.RoundToInt((float)p["power"] * 100)}% power";
                 if (phase == "Complete") hud.text = $"Nice bowling!\n{p["total"]} points\nPlay again on your Mac.";

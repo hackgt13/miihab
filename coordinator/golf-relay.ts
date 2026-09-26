@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { mkdirSync, createWriteStream } from 'node:fs';
 import { resolve } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
+import { hostMonotonicMs } from './hostclock.ts';
 
 // Separate from the already-running pose proof. Native hosts connect here.
 const port=Number(process.env.KINESTHETIC_GOLF_PORT ?? 8767);
@@ -88,7 +89,8 @@ sockets.on('connection',(ws,role,player,path)=>{
       if(norm<.5 || norm>1.5 || p.rotationRate.some((v:number)=>Math.abs(v)>100))throw Error();
       sequence=p.sequence;time=p.sensorTime;received.set(player,{at:Date.now(),sequence,sourceId:p.sourceId});
       const sample={type:type+'.motion',playerId:player,sourceId:p.sourceId,sessionId:session,
-        sequence,sensorTime:time,quaternion:p.quaternion,rotationRate:p.rotationRate};
+        sequence,sensorTime:time,quaternion:p.quaternion,rotationRate:p.rotationRate,
+        hostMonotonicMs:hostMonotonicMs()};
       broadcast(viewers,sample);log.write(JSON.stringify({...sample,receivedAt:Date.now()})+'\n');
     }catch{ws.close(1008,'Invalid motion');}
   });

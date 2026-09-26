@@ -10,6 +10,9 @@ namespace Kinesthetic
         public Transform avatar;
         public bool seated = true;
         public bool usePresentationSpace;
+        [Tooltip("Golf only: untracked hands join the shared club grip. Off elsewhere, so rehab arms rest naturally.")]
+        public bool golfGrip;
+        public static float MiiHeadScale=.64f;
         readonly Dictionary<string, Transform> bones = new();
         readonly Dictionary<Transform, Quaternion> rest = new();
         bool initialized;
@@ -81,6 +84,8 @@ namespace Kinesthetic
                 "Skeleton_arm_joint_L__4_", "Skeleton_arm_joint_L__3_", "Skeleton_arm_joint_L__2_" };
             foreach (var name in required)
                 if (!bones.ContainsKey(name)) throw new InvalidOperationException("Missing articulated bone: " + name);
+            // Smaller than the Mii Maker default: friendlier proportions and less direct Nintendo likeness.
+            if(mii && Bone("head"))Bone("head").localScale=Vector3.one*MiiHeadScale;
             avatarRestPosition=avatar.localPosition;
             if(mii)contacts=new AvatarContactConstraints(transform,avatar,Hip,Bone("spine.001"),Bone("neck"),
                 new[]{Bone("thigh.L"),Bone("thigh.R")},new[]{Bone("calf.L"),Bone("calf.R")},new[]{Bone("foot.L"),Bone("foot.R")},
@@ -179,7 +184,7 @@ namespace Kinesthetic
             RightArmTracked = DriveArm(frame, false);
             LeftArmTracked = DriveArm(frame, true);
             if(usePresentationSpace) {
-                finishingPose=true;ApplyGolfIdle();finishingPose=false;
+                finishingPose=true;if(golfGrip)ApplyGolfIdle();else ApplyRestIdle();finishingPose=false;
                 SmoothSolvedRotations();
                 // Confidence is always from current accepted input, never a held presentation pose.
                 RightArmTracked &= LastRawFrame!=null && presentationFilter.Accepted[12] && presentationFilter.Accepted[14] && presentationFilter.Accepted[16];
@@ -273,6 +278,16 @@ namespace Kinesthetic
             float lean=Mathf.Atan2(Vector3.Dot(up,front),Vector3.Dot(up,transform.up))*Mathf.Rad2Deg;
             float correction=Mathf.Clamp(12*weight-lean,0,12*weight);
             spine.rotation=Quaternion.AngleAxis(-correction,left)*spine.rotation;
+        }
+        // Outside golf: each untracked arm rests on its own side — seated hands on the thighs, standing arms at the sides.
+        // Tracked flags stay false; this is presentation only, never a measurement.
+        void ApplyRestIdle()
+        {
+            if(!mii)return;
+            // The authored Mii faces local -Z and its anatomical left is local +X.
+            Vector3 Rest(bool left)=>Hip.position+Present(seated?new Vector3(left?.17f:-.17f,.1f,-.24f):new Vector3(left?.2f:-.2f,-.22f,-.05f));
+            if(!RightArmTracked)PlaceIdleHand(false,Rest(false));
+            if(!LeftArmTracked)PlaceIdleHand(true,Rest(true));
         }
         public void ApplyGolfIdle()
         {

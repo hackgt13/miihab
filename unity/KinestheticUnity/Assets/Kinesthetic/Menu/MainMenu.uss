@@ -1,51 +1,137 @@
+/* Bento board for the menu. Read at roughly two metres off a 1.85 m panel, so every size here is
+   larger than a desktop equivalent would be: the smallest type is 16px on a 1600px reference, and
+   nothing load-bearing is below 20px. Tiles are translucent white so the plaza stays visible
+   through them — the board is a thing standing in the world, not a screen pasted over it. */
+
 .menu-screen { flex-grow: 1; color: #3d657a; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
 Label { margin: 0; padding: 0; }
-.backdrop { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
-.menu-content { flex-grow: 1; padding: 34px 80px 30px; }
-.utility-row { flex-direction: row; align-items: center; justify-content: space-between; height: 44px; }
-.welcome { font-size: 14px; color: #7895a5; letter-spacing: 1px; }
-Button { -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #3386b6; border-color: #b8def1; border-width: 2px; border-radius: 24px; background-color: white; padding: 9px 24px; margin: 0; }
-Button:hover { background-color: #edfaff; border-color: #53b7e4; }
+.menu-content { flex-grow: 1; padding: 38px 48px 34px; }
+
+/* ---------------------------------------------------------------- splash */
+
+.splash-row { flex-direction: row; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.splash-copy { flex-grow: 1; flex-shrink: 1; }
+.splash-greeting { font-size: 58px; color: #1c6f9c; letter-spacing: -1px; text-shadow: 0 2px 12px rgba(255,255,255,.95); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.splash-sub { font-size: 25px; color: #4d7285; margin-top: 6px; text-shadow: 0 1px 8px rgba(255,255,255,.95); }
+.utility-cluster { flex-direction: row; flex-shrink: 0; margin-top: 8px; }
+
+Button { -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #3386b6; border-color: rgba(255,255,255,.8); border-width: 2px; border-radius: 22px; background-color: rgba(255,255,255,.88); padding: 10px 22px; margin: 0; }
+Button:hover { background-color: rgba(240,251,255,.95); border-color: #53b7e4; }
 Button:focus { border-color: #159dd8; }
-Button:active { background-color: #d9f3ff; }
-Button:disabled { opacity: .6; }
-.music-button { min-width: 142px; font-size: 14px; }
-.title-block { align-items: center; margin-top: 15px; margin-bottom: 34px; }
-.wordmark { flex-direction: row; align-items: center; }
-.brand-title { font-size: 64px; color: #8397a2; letter-spacing: -3px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.sports-title { font-size: 64px; color: #239bd3; letter-spacing: -2px; margin-left: 13px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.title-rule { width: 116px; height: 4px; border-radius: 2px; background-color: #72c7e8; margin-top: 8px; margin-bottom: 15px; }
-.tagline { font-size: 20px; color: #658799; }
-.activities { flex-direction: row; flex-grow: 1; min-height: 0; max-height: 440px; }
-Button.activity-card { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: stretch; justify-content: flex-start; padding: 0; border-radius: 25px; border-width: 4px; border-bottom-width: 8px; border-color: #d4e6ed; background-color: white; overflow: hidden; transition-duration: .16s; }
+Button:active { background-color: rgba(217,243,255,.96); }
+Button:disabled { opacity: .55; }
+.utility-button { font-size: 18px; margin-left: 12px; }
+
+/* ---------------------------------------------------------------- bento grid */
+
+.bento { flex-direction: row; flex-grow: 1; min-height: 0; }
+.bento-main { flex-grow: 1.55; flex-basis: 0; min-width: 0; margin-right: 22px; }
+.bento-side { flex-grow: 1; flex-basis: 0; min-width: 0; }
+
+.tile { background-color: rgba(255,255,255,.90); border-radius: 24px; border-width: 2px; border-bottom-width: 5px; border-color: rgba(255,255,255,.8); border-bottom-color: rgba(120,170,195,.42); padding: 16px 22px; margin-bottom: 13px; overflow: hidden; }
+.tile-head { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.tile-label { font-size: 17px; letter-spacing: 1.6px; color: #6b93a6; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.tile-note { font-size: 17px; color: #7c9bab; }
+.tile-note.accent { color: #1b8ec4; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+
+/* ---------------------------------------------------------------- hero */
+
+.tile-hero { flex-grow: 1; min-height: 0; }
+.hero-body { flex-direction: row; align-items: center; flex-grow: 1; min-height: 0; }
+.hero-readout { flex-shrink: 0; width: 210px; margin-right: 20px; }
+.stat-number { font-size: 66px; color: #1b8ec4; letter-spacing: -2px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.stat-caption { font-size: 16px; color: #7c9bab; margin-top: 2px; }
+.reach-delta { font-size: 20px; color: #1b8ec4; margin-top: 12px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.reach-best { font-size: 16px; color: #7c9bab; margin-top: 4px; }
+.hero-chart { flex-grow: 1; flex-shrink: 1; min-width: 0; height: 186px; }
+.goal-copy { font-size: 15px; color: #6b8fa1; white-space: normal; margin-top: 6px; -unity-text-align: middle-center; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
+
+/* ---------------------------------------------------------------- consistency */
+
+.tile-calendar { flex-shrink: 0; }
+.calendar-days { flex-direction: row; max-width: 420px; align-self: center; width: 100%; margin-bottom: 6px; }
+.day-letter { flex-grow: 1; flex-basis: 0; font-size: 14px; color: #93aebb; -unity-text-align: middle-center; }
+.calendar-grid { height: 168px; max-width: 420px; align-self: center; width: 100%; }
+
+/* ---------------------------------------------------------------- primary CTA */
+
+.cta { flex-direction: row; align-items: center; justify-content: space-between; flex-shrink: 0; padding: 20px 28px; border-radius: 26px; border-width: 2px; border-bottom-width: 7px; border-color: #35a9dd; border-bottom-color: #1173a4; background-color: rgba(31,150,205,.95); transition-duration: .16s; }
+.cta:hover, .cta:focus { background-color: rgba(26,163,222,.98); border-color: #7fd4f5; scale: 1.02; }
+.cta:active { background-color: rgba(16,124,175,.98); scale: 1.005; }
+.cta-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.cta-title { font-size: 32px; color: #ffffff; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.cta-sub { font-size: 20px; color: rgba(255,255,255,.88); margin-top: 3px; }
+.cta-arrow { font-size: 44px; color: rgba(255,255,255,.92); margin-left: 16px; flex-shrink: 0; }
+
+/* ---------------------------------------------------------------- side tiles */
+
+.tile-ring { flex-shrink: 0; align-items: center; }
+.ring-wrap { width: 100%; height: 142px; align-items: center; justify-content: center; margin-top: 4px; }
+.program-ring { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.ring-centre { align-items: center; max-width: 100px; }
+.ring-number { font-size: 44px; color: #1b8ec4; letter-spacing: -2px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.ring-note { font-size: 16px; color: #7c9bab; margin-top: 6px; }
+
+.tile-streak { flex-shrink: 0; }
+.streak-row { flex-direction: row; align-items: center; }
+.streak-number { font-size: 58px; color: #f08a3c; letter-spacing: -3px; margin-right: 18px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.streak-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+
+.tile-today { flex-grow: 1; min-height: 0; }
+.task-row { flex-direction: row; align-items: center; padding: 10px 0; border-top-width: 1px; border-top-color: rgba(154,196,214,.32); }
+.task-row.first { border-top-width: 0; }
+.task-dot { width: 15px; height: 15px; border-radius: 8px; border-width: 3px; border-color: #63b6da; background-color: rgba(255,255,255,.7); margin-right: 13px; flex-shrink: 0; }
+.task-dot.done { background-color: #2ba05f; border-color: #2ba05f; }
+.task-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.task-title { font-size: 23px; color: #2b6b88; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.task-detail { font-size: 16px; color: #6e8c9b; margin-top: 1px; }
+.task-status { font-size: 15px; color: #5f92a8; padding: 4px 12px; border-radius: 11px; background-color: rgba(226,243,251,.92); flex-shrink: 0; }
+.task-status.done { color: #24794a; background-color: rgba(219,245,229,.95); }
+#today-empty { font-size: 17px; color: #7593a3; padding: 8px 0; }
+
+.tile-action { flex-direction: row; align-items: center; justify-content: space-between; flex-shrink: 0; background-color: rgba(255,255,255,.82); margin-bottom: 0; transition-duration: .16s; }
+.tile-action:hover, .tile-action:focus { background-color: rgba(255,255,255,.95); border-color: rgba(57,175,224,.95); scale: 1.02; }
+.action-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.action-title { font-size: 29px; color: #2b6b88; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.action-sub { font-size: 18px; color: #6e8c9b; margin-top: 3px; white-space: normal; }
+.browse-glyph { width: 40px; height: 40px; flex-shrink: 0; margin-left: 14px; }
+
+/* ---------------------------------------------------------------- overlays */
+
+.modal-shade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; background-color: rgba(28,71,92,.38); }
+.sheet { width: 1180px; padding: 40px 44px 36px; background-color: rgba(255,255,255,.97); border-radius: 32px; border-width: 3px; border-bottom-width: 8px; border-color: #bce2f3; }
+.help-sheet { width: 900px; }
+.sheet-title { font-size: 36px; color: #1c7bab; margin-bottom: 22px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.sheet-close { align-self: flex-end; margin-top: 26px; font-size: 19px; }
+.name-sheet { width: 720px; }
+.name-field { margin: 18px 0 14px; }
+.name-field > TextInput { font-size: 30px; padding: 14px 18px; border-radius: 18px; border-width: 2px; border-color: #bce2f3; background-color: #f8fdff; color: #1c6f9c; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.sheet-actions { flex-direction: row; justify-content: flex-end; margin-top: 22px; }
+.sheet-close { margin-left: 14px; font-size: 19px; }
+.sheet-close.primary { color: #ffffff; background-color: rgba(31,150,205,.96); border-color: #35a9dd; }
+.sheet-close.primary:hover { background-color: rgba(26,163,222,.98); }
+
+
+.activities { flex-direction: row; }
+Button.activity-card { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: stretch; justify-content: flex-start; padding: 18px 22px 10px; border-radius: 26px; border-width: 2px; border-bottom-width: 6px; border-color: #d4e6ed; border-bottom-color: rgba(120,170,195,.55); background-color: #ffffff; overflow: hidden; transition-duration: .16s; }
 Button.golf-card { margin-right: 26px; }
-Button.activity-card.selected, Button.activity-card:hover, Button.activity-card:focus { border-color: #39afe0; border-bottom-color: #1d8dc6; background-color: white; }
-Button.activity-card:active { border-color: #1688be; background-color: #eaf8ff; }
-.activity-preview { flex-grow: 1; min-height: 140px; overflow: hidden; -unity-background-scale-mode: scale-and-crop; }
-.golf-preview { background-image: url("project://database/Assets/Kinesthetic/Menu/Art/Golf.png"); }
-.studio-preview { background-image: url("project://database/Assets/Kinesthetic/Menu/Art/Studio.png"); }
-.preview-tag { position: absolute; top: 17px; left: 18px; padding: 7px 13px; border-radius: 12px; color: #2c6d83; font-size: 11px; letter-spacing: 1.2px; background-color: rgba(255,255,255,.94); }
-.card-info { flex-direction: row; align-items: center; padding: 20px 22px; min-height: 112px; border-top-width: 3px; border-top-color: #edf7fb; }
-.mode-icon { width: 62px; height: 62px; flex-shrink: 0; border-radius: 31px; border-width: 2px; border-color: #c8e9f6; background-color: #f1faff; margin-right: 17px; }
-.card-copy { flex-grow: 1; flex-shrink: 1; }
-.card-title { font-size: 31px; color: #319acb; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.card-description { font-size: 14px; color: #6e8c9b; margin-top: 3px; white-space: normal; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
-.card-arrow { font-size: 37px; color: #acd4e5; margin-left: 10px; }
+Button.activity-card.selected, Button.activity-card:hover, Button.activity-card:focus { border-color: #39afe0; border-bottom-color: #1d8dc6; background-color: #f7fcff; scale: 1.02; }
+Button.activity-card:active { border-color: #1688be; background-color: #eaf8ff; scale: 1.005; }
+.preview-tag { align-self: flex-start; padding: 6px 14px; border-radius: 12px; color: #2c6d83; font-size: 13px; letter-spacing: 1.2px; background-color: #e9f7fd; }
+.card-info { flex-direction: row; align-items: center; padding: 14px 2px 10px; }
+.mode-icon { width: 62px; height: 62px; flex-shrink: 0; border-radius: 31px; border-width: 2px; border-color: #c8e9f6; background-color: #f1faff; margin-right: 16px; }
+.card-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.card-title { font-size: 30px; color: #319acb; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.card-description { font-size: 16px; color: #6e8c9b; margin-top: 3px; white-space: normal; }
+.card-arrow { font-size: 38px; color: #acd4e5; margin-left: 10px; flex-shrink: 0; }
 .selected .card-arrow { color: #239fd8; }
-.selection-row { height: 75px; flex-direction: row; align-items: center; justify-content: center; }
-.selection-dot { width: 8px; height: 8px; border-radius: 4px; background-color: #48b2dd; margin-right: 12px; }
-.selection-caption { font-size: 17px; color: #55819a; }
-.footer-row { flex-direction: row; align-items: center; justify-content: space-between; margin-top: auto; }
-.controls { flex-direction: row; align-items: center; }
-.keycap { min-width: 30px; height: 28px; padding: 3px 8px; margin-right: 5px; border-radius: 8px; border-width: 1px; border-bottom-width: 3px; border-color: #b8dbea; background-color: rgba(255,255,255,.88); -unity-text-align: middle-center; font-size: 12px; color: #50809a; }
-.control-label { margin-left: 5px; margin-right: 23px; font-size: 13px; color: #6c91a4; }
-.help-button { font-size: 14px; }
-.modal-shade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; background-color: rgba(43,83,104,.24); }
-.help-card { width: 580px; padding: 38px; background-color: white; border-radius: 28px; border-width: 3px; border-bottom-width: 7px; border-color: #bce2f3; }
-.help-title { font-size: 30px; color: #268cbe; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.help-heading { font-size: 18px; margin-top: 24px; margin-bottom: 6px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.help-copy { font-size: 16px; white-space: normal; color: #5d7e90; }
-.help-close { align-self: flex-end; margin-top: 28px; font-size: 17px; }
+.selection-row { height: 54px; flex-direction: row; align-items: center; justify-content: center; }
+.selection-dot { width: 9px; height: 9px; border-radius: 5px; background-color: #48b2dd; margin-right: 12px; }
+.selection-caption { font-size: 19px; color: #416e88; }
+
+.help-heading { font-size: 21px; margin-top: 22px; margin-bottom: 6px; color: #2b6b88; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.help-copy { font-size: 18px; white-space: normal; color: #5d7e90; }
+
 .hidden { display: none; }
 
 /* ---- Friends -------------------------------------------------------------

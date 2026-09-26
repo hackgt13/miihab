@@ -53,8 +53,7 @@ artifacts/pose-tests/
 artifacts/*.png
 artifacts/docs-trusted-read-20260925/
 
-# Downloaded voice weights and archived evaluation checkout
-coach/models/
+# Editable art sources and archived evaluation checkout
 art/mii/
 art/course-reference/
 third_party/cbush201-golf-original/FirstTest/Assets/ImportedAssets/
@@ -67,3 +66,9 @@ third_party/cbush201-golf-original/
 
 # agent working notes (local only)
 agents/
+
+# Large local datasets and reference footage (coach motions are extracted into Coach/Resources)
+research/ui-prmd/
+research/wii-sports-video/
+# Raw coach art; the imported copy lives in Assets/Kinesthetic/Art/Coach
+art/coach/src/

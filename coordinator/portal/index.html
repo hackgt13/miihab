@@ -41,10 +41,32 @@
       <section class="card">
         <h2>Session evidence</h2>
         <div class="table-wrap"><table id="sessions">
-          <thead><tr><th>Session</th><th>Plan</th><th class="num">Counted</th><th class="num">Median peak</th><th>Not counted</th><th>Tracking</th></tr></thead>
+          <thead><tr><th>Session</th><th>Plan</th><th class="num">Counted</th><th class="num">Median peak</th><th>Not counted</th><th>Tracking</th><th></th></tr></thead>
           <tbody></tbody>
         </table></div>
         <p class="muted small">Angles are estimated shoulder elevation from a single camera, not goniometer readings. Symptoms are patient-reported.</p>
+      </section>
+
+      <section class="card" id="replay-card" hidden>
+        <div class="card-head">
+          <h2 id="replay-title">Movement replay</h2>
+          <button type="button" class="ghost" id="replay-close">Close</button>
+        </div>
+        <div class="replay">
+          <canvas id="replay-canvas" width="480" height="360" aria-label="Recorded pose replay"></canvas>
+          <div class="replay-side">
+            <div class="tile"><div class="label">Arm elevation</div><div class="value" id="replay-angle">—</div><div class="sub" id="replay-target"></div></div>
+            <div class="tile"><div class="label">Trunk lean</div><div class="value" id="replay-trunk">—</div><div class="sub" id="replay-trunk-limit"></div></div>
+            <p class="small" id="replay-rep"></p>
+          </div>
+        </div>
+        <div class="replay-controls">
+          <button type="button" id="replay-play" class="small-btn">Play</button>
+          <input type="range" id="replay-seek" min="0" max="0" value="0" aria-label="Seek">
+          <span class="muted small" id="replay-time"></span>
+        </div>
+        <svg id="replay-strip" class="replay-strip" role="img" aria-label="Elevation over time with repetitions"></svg>
+        <p class="muted small">Recorded landmarks from the session, drawn as captured. Angles use the session's own calibration and the same measurement code as the report. Click a repetition to jump to it.</p>
       </section>
     </div>
 

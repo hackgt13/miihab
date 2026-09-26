@@ -5,7 +5,10 @@ using UnityEngine.SceneManagement;
 
 namespace Kinesthetic
 {
-    /// Mac-side look-around for every scene: left-drag to pan, right-click to recentre.
+    /// Mac-side look-around for every scene: right-drag to pan, middle-click to recentre.
+    ///
+    /// Look is on the right button, not the left, because the menu panels are world-space geometry: left-click
+    /// is a UI press. A left-drag look would start a drag on every button the pointer crossed.
     ///
     /// Installs itself onto Camera.main after each scene load, so it needs no scene wiring and no
     /// regenerated scenes. It never attaches, and disables itself if already attached, once an XRHMD
@@ -35,7 +38,7 @@ namespace Kinesthetic
             SceneManager.sceneLoaded += (scene, mode) => Attach();
         }
 
-        static void Attach()
+        public static void Attach()
         {
             if (HeadsetPresent()) return;
             var cam = Camera.main;
@@ -63,8 +66,8 @@ namespace Kinesthetic
             var current = transform.localRotation;
             if (!written || current != lastWritten) baseRotation = current;
 
-            if (mouse.rightButton.wasPressedThisFrame) yaw = pitch = 0;
-            else if (mouse.leftButton.isPressed)
+            if (mouse.middleButton.wasPressedThisFrame) yaw = pitch = 0;
+            else if (mouse.rightButton.isPressed)
             {
                 var delta = mouse.delta.ReadValue();
                 yaw += delta.x * degreesPerPixel;

@@ -179,7 +179,7 @@ namespace Kinesthetic.Menu
             }
         }
 
-        void Open()
+        public void Open()
         {
             navigation?.PlaySelect();
             overlay.RemoveFromClassList("hidden");

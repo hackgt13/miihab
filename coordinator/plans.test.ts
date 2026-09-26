@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -63,4 +63,71 @@ test('approving v2 through the API changes the next session but not the running 
     assert.equal((await fetch(base + '/portal/')).status, 200);
     producer.close();
   } finally { child.kill(); await once(child, 'exit'); }
+});
+
+test('plan v2 prescribes several activities, including one that measures nothing clinical', () => {
+  const store = new PlanStore(mkdtempSync(join(tmpdir(), 'plansv2-')));
+  const v2 = store.approve({
+    rationale: 'Add the golf round the patient is actually working towards.',
+    activities: [
+      { activityId: 'rehab.studio', exerciseKind: 'shoulder-raise.v1', targetCount: 10,
+        params: { side: 'right', targetDeg: 85, holdMs: 400, maxCompensationDeg: 10 } },
+      { activityId: 'golf.adaptive', exerciseKind: null, targetCount: 9, note: 'Nine holes with a friend.' },
+    ],
+  });
+  assert.equal(v2.activities.length, 2);
+  assert.equal(v2.activities[1].activityId, 'golf.adaptive', 'golf is prescribable at all — v1 could not say this');
+  assert.equal(v2.activities[1].exerciseKind, null);
+  assert.deepEqual(v2.activities.map(a => a.order), [0, 1]);
+
+  // A third exercise kind the registry knows but v1's string literal could never name.
+  const v3 = store.approve({ rationale: 'Swap in trunk rotation for this block.',
+    activities: [{ activityId: 'rehab.studio', exerciseKind: 'trunk-rotation.v1', targetCount: 12,
+      params: { side: 'left', targetDeg: 45 } }] });
+  assert.equal(v3.activities[0].exerciseKind, 'trunk-rotation.v1');
+
+  // Bounds come from the prescribed kind, not one global table: 45° is legal for rotation, not for a raise.
+  assert.throws(() => store.approve({ rationale: 'out of band for rotation',
+    activities: [{ activityId: 'rehab.studio', exerciseKind: 'trunk-rotation.v1', targetCount: 5, params: { targetDeg: 120 } }] }), /targetDeg/);
+  assert.throws(() => store.approve({ rationale: 'unknown kind',
+    activities: [{ activityId: 'rehab.studio', exerciseKind: 'nope.v9', targetCount: 5 }] }), /Unknown exercise/);
+  assert.throws(() => store.approve({ rationale: 'empty list', activities: [] }), /at least one/);
+});
+
+test('a v1 plan file on disk still loads, unrewritten, and reads as v2', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'plansmig-'));
+  const legacy = {
+    schema: 'kinesthetic.plan.v1', version: 1, approvedBy: 'Dr Legacy', approvedAt: '2026-01-01T00:00:00.000Z',
+    rationale: 'Authored under the old schema.', basedOnExerciseIds: [],
+    exercise: { type: 'seated_shoulder_raise', side: 'left', targetDeg: 75, prescribedReps: 6, holdMs: 300, maxTrunkDeviationDeg: 9 },
+    coachingNote: 'Steady.',
+  };
+  const raw = JSON.stringify(legacy, null, 2);
+  writeFileSync(join(dir, 'plan-v1.json'), raw);
+
+  const store = new PlanStore(dir);                       // must not seed over an existing plan
+  const active = store.active();
+  assert.equal(active.version, 1);
+  assert.equal(active.schema, 'kinesthetic.plan.v2', 'upgraded on read');
+  assert.equal(active.activities.length, 1);
+  assert.equal(active.activities[0].exerciseKind, 'shoulder-raise.v1', 'the v1 type literal maps to a registry id');
+  assert.equal(active.activities[0].targetCount, 6);
+  assert.equal(active.activities[0].params.targetDeg, 75);
+  assert.equal(active.activities[0].params.maxCompensationDeg, 9, 'maxTrunkDeviationDeg is the v1 spelling');
+  assert.equal(readFileSync(join(dir, 'plan-v1.json'), 'utf8'), raw, 'an approved record is never rewritten');
+
+  // The derived v1 view keeps existing readers (server.ts, the portal) working untouched.
+  assert.equal(active.exercise.targetDeg, 75);
+  assert.equal(active.exercise.prescribedReps, 6);
+  assert.equal(active.exercise.maxTrunkDeviationDeg, 9);
+  assert.equal(active.exercise.side, 'left');
+
+  // Approving on top of a v1 file writes clean v2, with no derived view on disk.
+  const next = store.approve({ rationale: 'Progress the target after a good week.', exercise: { targetDeg: 90 } });
+  assert.equal(next.version, 2);
+  assert.equal(next.activities[0].params.targetDeg, 90);
+  assert.equal(next.activities[0].targetCount, 6, 'reps carry over');
+  const stored = JSON.parse(readFileSync(join(dir, 'plan-v2.json'), 'utf8'));
+  assert.equal(stored.schema, 'kinesthetic.plan.v2');
+  assert.equal(stored.exercise, undefined, 'the compatibility view is computed, never persisted');
 });

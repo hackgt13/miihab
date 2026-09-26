@@ -26,59 +26,6 @@ public static class GolfVerification
         if(Vector3.Distance(displaced,Vector3.right*.3f)>.0001f)throw new Exception("Club was steered back to the ball.");
         return "PASS: swept crossing; high/side misses; stationary address ignored; stale/jump rejection; tracking-loss reset; frozen club geometry.";
     }
-    public static string SoundChecks()
-    {
-        var gate=new ContactCueGate();
-        gate.ObserveAudio(1);
-        if(gate.Commit(1,out _,out _,out _))throw new Exception("Noise alone launched.");
-        gate.Reset();gate.Arm(2,3,true);
-        if(gate.Commit(2.02,out _,out _,out _))throw new Exception("Did not wait for optional sound.");
-        gate.ObserveAudio(2.04);
-        if(!gate.Commit(2.05,out var speed,out var heard,out var offset) || !heard || Math.Abs(offset-40)>.001 || speed!=3)
-            throw new Exception("Following sound did not corroborate.");
-        if(gate.Commit(2.2,out _,out _,out _))throw new Exception("Duplicate shot.");
-        gate.Reset();gate.ObserveAudio(2.95);gate.Arm(3,2,true);
-        if(!gate.Commit(3,out _,out heard,out _) || !heard)throw new Exception("Preceding sound was lost.");
-        gate.Reset();gate.ObserveAudio(3);gate.Arm(4,2,true);
-        if(!gate.Commit(4.09,out _,out heard,out _) || heard)throw new Exception("Stale sound corroborated or quiet swing blocked.");
-        gate.Reset();gate.Arm(5,2,false);
-        if(!gate.Commit(5,out _,out heard,out _) || heard)throw new Exception("No microphone fallback failed.");
-        gate.Reset();gate.Arm(6,2,true);gate.Reset();gate.ObserveAudio(6.02);
-        if(gate.Commit(6.1,out _,out _,out _))throw new Exception("Canceled swing launched.");
-        var detector=new AudioTransientDetector();int pulses=0;
-        for(int i=0;i<150;i++)
-            if(detector.Sample(i==100||i==105?.15f:.002f,i==100||i==105?.05f:.001f,i*.01))pulses++;
-        if(pulses!=1)throw new Exception("Audio warmup/echo cooldown failed.");
-        return "PASS: noise alone rejected; preceding/following onset matched; single commit; stale audio rejected; quiet/no-mic fallback; canceled swing rejected; onset cooldown.";
-    }
-
-    public static string RecordedAudioChecks(string path)
-    {
-        // The fixtures are mono PCM16 WAV files extracted locally with ffmpeg.
-        // Use a direct RIFF reader here so this check does not depend on an async player loop.
-        using var r=new System.IO.BinaryReader(System.IO.File.OpenRead(path));
-        if(new string(r.ReadChars(4))!="RIFF")throw new Exception("Expected RIFF");
-        r.ReadInt32();if(new string(r.ReadChars(4))!="WAVE")throw new Exception("Expected WAV");
-        int sampleRate=0;short channels=0,bits=0;byte[] data=null;
-        while(r.BaseStream.Position+8<=r.BaseStream.Length)
-        {
-            string kind=new string(r.ReadChars(4));int length=r.ReadInt32();long next=r.BaseStream.Position+length+(length%2);
-            if(kind=="fmt "){if(r.ReadInt16()!=1)throw new Exception("Expected PCM");channels=r.ReadInt16();sampleRate=r.ReadInt32();r.ReadInt32();r.ReadInt16();bits=r.ReadInt16();}
-            if(kind=="data")data=r.ReadBytes(length);
-            r.BaseStream.Position=next;
-        }
-        if(channels!=1 || bits!=16 || data==null || sampleRate<=0)throw new Exception("Expected mono PCM16");
-        var detector=new AudioTransientDetector();var times=new System.Collections.Generic.List<double>();
-        int size=sampleRate/100;
-        for(int start=0;start+size<=data.Length/2;start+=size)
-        {
-            float peak=0,sum=0;
-            for(int n=0;n<size;n++){float v=BitConverter.ToInt16(data,(start+n)*2)/32768f;peak=Mathf.Max(peak,Mathf.Abs(v));sum+=v*v;}
-            double at=(start+size)/(double)sampleRate;
-            if(detector.Sample(peak,Mathf.Sqrt(sum/size),at))times.Add(Math.Round(at,3));
-        }
-        return Newtonsoft.Json.JsonConvert.SerializeObject(new {file=System.IO.Path.GetFileName(path),candidateSoundTimesSeconds=times,meaning="sound onset only; no physical-impact classification"});
-    }
     public static string SwingChecks()
     {
         int Count(float[] angles,string otherSource=null,double gap=0)
