@@ -13,7 +13,7 @@ namespace Kinesthetic.Rehab
 {
     // Patient-facing seated shoulder raise. The coordinator's measurement engine is the only source of
     // angles, rep counts and validity; this view renders them and the avatar never feeds back into them.
-    public sealed class RehabSession : MonoBehaviour, IActivity
+    public sealed class RehabSession : MonoBehaviour, IActivity, IRehabView
     {
         public PoseRig rig;
         [Tooltip("Drive the Mii from camera pose (MediaPipe). Off: measurement is IMU-only and the Mii's arm follows the AirPod angle.")]
@@ -35,6 +35,14 @@ namespace Kinesthetic.Rehab
         /// The angle the Mii's arm is showing right now, or null when nothing live is being measured.
         public float? ShownAngle => !useCameraPose && running && Fresh && liveAngle.HasValue ? shownAngle : null;
         public string ExerciseKind => exerciseKind;
+        public int Valid => valid;
+        /// The line the patient is reading right now (published to a headset with the rest of the state).
+        public string Cue { get; private set; } = "";
+        PoseRig IRehabView.Rig => rig;
+        string IRehabView.Side => side;
+        float IRehabView.TargetDeg => targetDeg;
+        float IRehabView.BandDeg => bandDeg;
+        bool IRehabView.CoachHandingOff => coach && coach.HandingOff;
         bool startingSession, stoppingSession, sessionError, summaryReceived;
         public bool IsBusy => startingSession || stoppingSession;
         // IActivity. The shell drives this without knowing it is a therapy session.
@@ -68,7 +76,9 @@ namespace Kinesthetic.Rehab
             SensorHub.Ensure();
             exercise = new ExerciseClient(exerciseUrl);
             // The mirror window is added here, so the generated scene needs no change.
-            if (!useCameraPose && !GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().session = this;
+            if (!useCameraPose && !GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
+            // A headset renders this studio from what it publishes (RehabStateClient in QuestRehab).
+            if (!GetComponent<RehabStatePublisher>()) gameObject.AddComponent<RehabStatePublisher>().session = this;
             BindUI();
         }
 
@@ -202,7 +212,7 @@ namespace Kinesthetic.Rehab
             angle.text = running && Fresh && liveAngle.HasValue ? $"{liveAngle.Value:0}°" : "—";
             // While the coach demonstrates and hands over, the cue is theirs; the measurement status follows after.
             coach ??= FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>();
-            statusLabel.text = running && coach && coach.Demonstrating ? "Watch the coach: up to the line, pause, then lower"
+            statusLabel.text = Cue = running && coach && coach.Demonstrating ? "Watch the coach: up to the line, pause, then lower"
                 : running && coach && coach.HandingOff ? "Your turn · watch yourself in the mirror" : status;
             UpdateStudioUI();
         }

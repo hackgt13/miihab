@@ -11,14 +11,13 @@ namespace Kinesthetic.Rehab
     /// own eyes in a headset. Added at runtime by RehabSession, so the generated scene needs no change.
     public sealed class MirrorPanel : MonoBehaviour
     {
-        public RehabSession session;
+        public IRehabView view;
         public float width = .9f, height = 1.2f, depth = .5f;
         [Tooltip("Metres from the patient's hips: to their left, and forward.")]
         public float offsetLeft = 1.15f, offsetForward = .45f;
 
         Transform source, copy, window;
         Material frameMaterial;
-        Kinesthetic.Coach.CoachDemonstrator coach;
         /// The window's centre, for the coach to point at and the patient to look at.
         public Vector3? WindowPosition => window ? window.position : null;
         Transform[] from, to;
@@ -30,7 +29,7 @@ namespace Kinesthetic.Rehab
 
         void Start()
         {
-            var rig = session ? session.rig : null;
+            var rig = view?.Rig;
             if (!rig) { enabled = false; return; }
             rig.Initialize();
             source = rig.transform.parent ? rig.transform.parent : rig.transform;   // the patient and their wheelchair
@@ -70,6 +69,8 @@ namespace Kinesthetic.Rehab
             fromRenderers = source.GetComponentsInChildren<Renderer>(true);
             toRenderers = copy.GetComponentsInChildren<Renderer>(true);
             foreach (var skin in copy.GetComponentsInChildren<SkinnedMeshRenderer>(true)) skin.updateWhenOffscreen = true;
+            // A headset hides the patient's own head from its camera by layer; the reflection must show it.
+            foreach (var r in copy.GetComponentsInChildren<Renderer>(true)) r.gameObject.layer = 0;
 
             // Mirror image: flip one axis, then turn it to face out of the window. Fit it inside the frame.
             copy.SetParent(window, false);
@@ -94,7 +95,7 @@ namespace Kinesthetic.Rehab
 
         void LateUpdate()
         {
-            if (!copy || !session) return;
+            if (!copy || view == null) return;
             // Pose: every transform under the patient, copied into the reflection (the root keeps its placement).
             for (int i = 1; i < from.Length && i < to.Length; i++)
             {
@@ -110,8 +111,7 @@ namespace Kinesthetic.Rehab
             }
             DrawGhosts();
             // When the coach hands over, the frame pulses to draw the patient's eye here.
-            coach ??= FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>();
-            float pulse = coach && coach.HandingOff ? .5f + .5f * Mathf.Sin(Time.time * 7) : 0;
+            float pulse = view.CoachHandingOff ? .5f + .5f * Mathf.Sin(Time.time * 7) : 0;
             frameMaterial.color = Color.Lerp(Palette.Slate30, Palette.Cerulean40, pulse);
         }
 
@@ -119,9 +119,9 @@ namespace Kinesthetic.Rehab
         // so they land exactly where a mirror would put them.
         void DrawGhosts()
         {
-            var rig = session.rig;
-            bool left = session.side == "left", curl = session.ExerciseKind == "elbow-flexion.v1";
-            float target = session.targetDeg, ceiling = session.targetDeg + session.bandDeg;
+            var rig = view.Rig;
+            bool left = view.Side == "left", curl = view.ExerciseKind == "elbow-flexion.v1";
+            float target = view.TargetDeg, ceiling = view.TargetDeg + view.BandDeg;
             Transform upper = left ? rig.LeftUpperArm : rig.RightUpperArm, forearm = left ? rig.LeftForearm : rig.RightForearm,
                 hand = left ? rig.LeftHand : rig.RightHand;
             float upperLength = Vector3.Distance(upper.position, forearm.position), forearmLength = Vector3.Distance(forearm.position, hand.position);
@@ -152,7 +152,7 @@ namespace Kinesthetic.Rehab
             }
 
             // Palette roles: cerulean is the measured arm still climbing, jungle is in the band (good), coral is over the ceiling.
-            var angle = session.ShownAngle;
+            var angle = view.ShownAngle;
             Color bandColor = angle is not float a ? Fade(Palette.Cerulean20, .7f)
                 : a > ceiling ? Palette.Coral40 : a >= target ? Palette.Jungle40 : Palette.Cerulean40;
             band.startColor = band.endColor = bandColor;
