@@ -31,7 +31,7 @@ public static class RehabSceneSetup
     public static readonly Board[] Boards =
     {
         new("Dock board",    "rehab.dock",    Root + "/RehabDock.uxml",    Stations.Dock,           new Vector2(.80f, .34f)),
-        new("Focus board",   "rehab.focus",   Root + "/RehabFocus.uxml",   Stations.Focus,          new Vector2(.92f, .68f)),
+        new("Focus board",   "rehab.focus",   Root + "/RehabFocus.uxml",   Stations.Focus,          new Vector2(1.2f, .8f)),
         new("Measure board", "rehab.measure", Root + "/RehabMeasure.uxml", Stations.Measure,        new Vector2(.48f, .60f)),
         new("Brief board",   "rehab.brief",   Root + "/RehabBrief.uxml",   Stations.Reading,        new Vector2(.216f, .279f)),
     };

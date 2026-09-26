@@ -105,7 +105,7 @@ namespace Kinesthetic.Rehab
         bool Fresh => useCameraPose ? LivePoseClient.Fresh(poseTicks) : MotionFresh && Time.unscaledTime - lastSampleAt < .5f;
         string status = "Secure your AirPod. Rest your arm.";
         float flashUntil; Color flash;
-        Label statusLabel, summaryLabel; Button start; KSheet summaryCard;
+        Label statusLabel; Button start; KSheet summaryCard;
         Label progressNote, angleNote, cueTitle;
         // The prescription, handed over on arrival. What it says lives in the plan; when it is put down is
         // what starts the set.
@@ -206,7 +206,7 @@ namespace Kinesthetic.Rehab
             if (button == start && boundGeneration == boards.Generation) return true;
             boundGeneration = boards.Generation;
             repCount = root.Q<KReadout>("rep-count"); angleReadout = root.Q<KReadout>("angle-readout");
-            statusLabel = root.Q<Label>("status"); summaryLabel = root.Q<Label>("summary");
+            statusLabel = root.Q<Label>("status");
             summaryCard = root.Q<KSheet>("summary-card");
             progressNote = root.Q<Label>("progress-note");
             angleNote = root.Q<Label>("angle-note"); sensorStatus = root.Q<KChip>("sensor-status");
@@ -217,8 +217,10 @@ namespace Kinesthetic.Rehab
             holdRing = root.Q<KArc>("hold-ring"); holdReadout = root.Q<KReadout>("hold-readout");
             formRow = root.Q("form-row"); streakReadout = root.Q<KReadout>("streak"); bestHoldReadout = root.Q<KReadout>("best-hold");
             formNoteLabel = root.Q<Label>("form-note");
-            onSummaryClose ??= () => summaryCard.Dismiss();
-            onSummaryMenu ??= () => Kinesthetic.Menu.ActivityNavigation.Ensure().OpenReturn();
+            // The summary's two ways on: another set straight away (what the dock's Practice again does), or done
+            // for today, straight back to the menu — the set is already saved, so there is nothing to confirm.
+            onSummaryClose ??= () => { summaryCard.Dismiss(); onStart(); };
+            onSummaryMenu ??= () => Kinesthetic.Menu.ActivityNavigation.Ensure().ReturnToMenuNow();
             onViewToggle ??= () => GetComponent<StudioCamera>()?.ToggleView();   // the Mac's camera only
             onStart ??= () => {
                 if (IsBusy) return;
@@ -479,6 +481,11 @@ namespace Kinesthetic.Rehab
 
         void UpdateStudioUI()
         {
+            // While the summary is up it is the only board: the dock's chip, cue and button and the rep ring
+            // all say again what the card says, and at these stations they overlap it.
+            bool summaryOpen = summaryCard != null && summaryCard.Presented;
+            boards.Q("dock-board")?.EnableInClassList("hidden", summaryOpen);
+            boards.Q("measure-board")?.EnableInClassList("hidden", summaryOpen);
             var cameraRig = GetComponent<StudioCamera>();
             viewToggle.text = cameraRig && cameraRig.InSeatedView ? "Wide view" : "Seated view";
             bool fresh = useCameraPose ? Fresh : MotionFresh;
@@ -658,20 +665,6 @@ namespace Kinesthetic.Rehab
             return parts.Count == 0 ? "" : $"Rep {rep} · {string.Join(" · ", parts)}";
         }
 
-        /// The set's form, one line under the count: what the care team would say first.
-        static string FormSummary(JObject q)
-        {
-            if (q == null) return "";
-            var parts = new System.Collections.Generic.List<string>();
-            if (Num(q["formScore"]) is float score) parts.Add($"Form {score * 100:0}%");
-            if (q["hold"] is JObject h && Num(h["bestMs"]) is float best) parts.Add($"best hold {Seconds(best)} · {h["metReps"]} of {h["reps"]} at target");
-            if (q["tempo"] is JObject t) parts.Add($"{t["controlledLowers"]} of {t["reps"]} lowered with control");
-            if (q["control"] is JObject c) parts.Add($"{c["steadyReps"]} of {c["reps"]} smooth");
-            if (q["streak"]?["best"]?.Value<int>() is int streak && streak >= 2) parts.Add($"{streak} in a row");
-            if (q["consistency"]?["fatigued"]?.Value<bool>() == true) parts.Add("your last reps were shallower · rest before another set");
-            return string.Join(" · ", parts);
-        }
-
         void ShowSummary(JObject s)
         {
             if (summaryReceived) return;
@@ -681,27 +674,16 @@ namespace Kinesthetic.Rehab
             running = false; autoArmed = false; start.text = "Practice again";
             valid = s["valid"]?.Value<int>() ?? 0; attempted = s["attempted"]?.Value<int>() ?? 0;
             var median = s["medianValidPeakDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? $"{s["medianValidPeakDeg"].Value<float>():0}°" : "—";
-            var reasons = s["invalidReasons"] as JObject; var notes = new StringBuilder();
-            if (reasons != null) foreach (var r in reasons)
-            {
-                string reason = r.Key switch {
-                    "did_not_reach_target" => "Below the target range", "trunk_compensation" => "Chest moved from resting position",
-                    "tracking_lost" => useCameraPose ? "Camera view interrupted" : "AirPod signal interrupted", "too_fast" => "Movement was too quick",
-                    _ => r.Key.Replace('_', ' ') };
-                notes.Append($"{r.Value} · {reason}\n");
-            }
             var root = boards;
-            root.Q<Label>("summary-title").text = attempted == 0 ? "Ready for another day" : valid >= prescribedReps ? "Your set is complete" : "Practice, at your pace";
-            root.Q<Label>("summary-subtitle").text = attempted == 0 ? "No repetitions were recorded this time." : "Your session summary.";
+            // A word for how it went, three numbers, and nothing the portal says better: per-rep reasons and the
+            // form breakdown are the care team's, not a wall of captions at the end of a set.
+            root.Q<Label>("summary-title").text = attempted == 0 ? "Ready for another day" : valid >= prescribedReps ? "Set complete!" : "Good practice";
             root.Q<KReadout>("summary-valid").value = valid.ToString();
             root.Q<KReadout>("summary-attempted").value = attempted.ToString();
             root.Q<KReadout>("summary-peak").value = median;
-            root.Q<Label>("summary-plan").text = $"{SideLabel}TARGET {targetDeg:0}°  ·  {prescribedReps} REPS";
             root.Q<Label>("summary-progress")?.AddToClassList("hidden");   // filled by the progression verdict that follows
-            var form = FormSummary(s["quality"] as JObject);
-            if (root.Q<Label>("summary-form") is Label formLine) { formLine.text = form; formLine.EnableInClassList("hidden", form.Length == 0); }
-            summaryLabel.text = notes.Length > 0 ? notes.ToString().TrimEnd() : attempted == 0 ? "Return to the studio when you're ready to begin." : "Nice work.";
-            root.Q<Label>("summary-saved").text = s["simulated"]?.Value<bool>() == true ? "Demo session · simulated movement" : "Session saved · available to your care team";
+            bool simulated = s["simulated"]?.Value<bool>() == true;
+            if (root.Q<KTag>("summary-badge") is KTag badge) { badge.text = simulated ? "DEMO SESSION" : "SESSION SAVED"; badge.tone = simulated ? KTag.Tone.Neutral : KTag.Tone.Good; }
             summaryCard.Present();
             root.Q<Button>("summary-close").Focus();
             Kinesthetic.Menu.ActivityNavigation.Ensure().PlaySelect();
