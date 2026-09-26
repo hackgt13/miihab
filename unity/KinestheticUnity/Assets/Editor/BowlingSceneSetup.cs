@@ -211,15 +211,9 @@ public static class BowlingSceneSetup
     }
     static void Headset(BowlingGame game)
     {
-        var originGo = new GameObject("XR Origin"); originGo.transform.position = new Vector3(1.15f, 0, -3.5f);
-        var offset = new GameObject("Camera Offset"); offset.transform.SetParent(originGo.transform, false);
-        var cam = new GameObject("Headset camera").AddComponent<Camera>(); cam.transform.SetParent(offset.transform, false); cam.tag = "MainCamera";
-        cam.nearClipPlane = .05f; cam.farClipPlane = 100; cam.gameObject.AddComponent<AudioListener>();
-        var pose = cam.gameObject.AddComponent<TrackedPoseDriver>();
-        pose.positionInput = new InputActionProperty(new InputAction("Head position", binding: "<XRHMD>/centerEyePosition"));
-        pose.rotationInput = new InputActionProperty(new InputAction("Head rotation", binding: "<XRHMD>/centerEyeRotation"));
-        var origin = originGo.AddComponent<XROrigin>(); origin.Origin = originGo; origin.CameraFloorOffsetObject = offset; origin.Camera = cam;
-        origin.RequestedTrackingOriginMode = XROrigin.TrackingOriginMode.Floor;
+        // The bowler's seat at the foul line, facing down the lane: the headset sees from the patient's eyes.
+        var seat = new GameObject("Bowler seat").transform; seat.position = new Vector3(1.15f, 0, -3.5f);
+        QuestRigBuilder.Build(seat, 1.15f, 100, CameraClearFlags.Skybox, ~0);
         var hud = Text("Bowling instructions", new Vector3(0, 1.1f, .2f), .012f); hud.text = "Waiting for Bowling on your Mac…";
         TextPanel("Instructions", hud.transform.position, new Vector2(2.3f, .48f));
         var board = Text("Bowling scoreboard", new Vector3(0, 2.8f, 4), .023f); board.text = "REHABMII  /  BOWLING";

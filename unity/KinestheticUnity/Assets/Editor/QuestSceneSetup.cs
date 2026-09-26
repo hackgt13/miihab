@@ -48,19 +48,7 @@ public static class QuestSceneSetup
 
         var anchor = new GameObject("Patient seat anchor").transform;
         anchor.SetPositionAndRotation(game.players[0].position, game.players[0].rotation);
-        var originGo = new GameObject("XR Origin"); originGo.transform.SetParent(anchor, false);
-        var offset = new GameObject("Camera Offset"); offset.transform.SetParent(originGo.transform, false);
-        var camGo = new GameObject("Headset camera"); camGo.transform.SetParent(offset.transform, false); camGo.tag = "MainCamera";
-        var cam = camGo.AddComponent<Camera>(); cam.nearClipPlane = .05f; cam.farClipPlane = 800;
-        cam.cullingMask = ~((1 << LocalHeadLayer) | (1 << MinimapLayer));
-        cam.clearFlags = CameraClearFlags.Skybox;
-        camGo.AddComponent<AudioListener>();
-        var pose = camGo.AddComponent<TrackedPoseDriver>();
-        pose.positionInput = new InputActionProperty(new InputAction("Head position", binding: "<XRHMD>/centerEyePosition"));
-        pose.rotationInput = new InputActionProperty(new InputAction("Head rotation", binding: "<XRHMD>/centerEyeRotation"));
-        var origin = originGo.AddComponent<XROrigin>();
-        origin.Origin = originGo; origin.CameraFloorOffsetObject = offset; origin.Camera = cam;
-        origin.RequestedTrackingOriginMode = XROrigin.TrackingOriginMode.Floor;
+        QuestRigBuilder.Build(anchor, 1.15f, 800, CameraClearFlags.Skybox, ~((1 << LocalHeadLayer) | (1 << MinimapLayer)));
 
         var hudGo = new GameObject("Headset HUD");
         var hud = hudGo.AddComponent<TextMesh>();
