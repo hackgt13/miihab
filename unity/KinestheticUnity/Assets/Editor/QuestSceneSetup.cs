@@ -106,10 +106,17 @@ public static class QuestSceneSetup
         return $"Headset will connect to {ip}:8767";
     }
 
-    // A build boots scene index 0. MainMenu is screen-space UI Toolkit driven by keyboard and pointer,
-    // so in the headset it renders wrong and cannot be operated: put QuestGolf first before a Quest build.
+    // A build boots scene index 0. The app's entry is the menu on both machines: MainMenu on the Mac, and on
+    // the headset its plaza, QuestMenu, where it waits for the Mac and enters golf, bowling or the studio
+    // through a door when the Mac does. An activity is never the boot scene. (MainMenu itself stays Mac-only:
+    // screen-space UI Toolkit, keyboard and pointer.)
     [MenuItem("Kinesthetic/Quest/Boot headset scene (before a Quest build)")]
-    public static string BootHeadsetScene() => SetBootScene(ScenePath);
+    public static string BootHeadsetScene()
+    {
+        if (!File.Exists(QuestMenuSetup.ScenePath))
+            throw new InvalidOperationException("No headset menu scene yet: run Kinesthetic/Quest/Create headset menu scene first.");
+        return SetBootScene(QuestMenuSetup.ScenePath);
+    }
 
     [MenuItem("Kinesthetic/Quest/Boot menu scene (back to Mac)")]
     public static string BootMenuScene() => MainMenuSetup.ConfigureMacBuildScenes();

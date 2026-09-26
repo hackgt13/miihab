@@ -42,7 +42,8 @@ public static class QuestCombinedBuild
             PlayerSettings.SetApplicationIdentifier(target, identifier);
             EditorBuildSettings.scenes = macScenes;
             AssetDatabase.SaveAssets();
-            EditorSceneManager.OpenScene(AdaptiveGolfSceneSetup.ScenePath);
+            // Leave the editor where the app starts, so Play after a build begins in the menu, not in golf.
+            EditorSceneManager.OpenScene(MainMenuSetup.ScenePath);
         }
     }
 }
