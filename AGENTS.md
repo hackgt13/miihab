@@ -1,56 +1,40 @@
 # Agent notes — RehabMii
 
-## The final target is the Meta Quest
+## Quest is the target, not the Mac
 
-The Mac is the development and authority machine, not the destination. Everything here ultimately
-has to run on, or drive, a Quest headset. Treat "works on the Mac" as unfinished.
+"Works on the Mac" is unfinished. Play mode and Quest Link are not proof; only a device build is. Hardware validation remains unproven end to end.
 
-**What that means in practice**
+- **Mac is authority; Quest only renders.** Sensors (camera, AirPods IMU, mic) are Mac-attached. `coordinator/server.ts` (8766) + `golf-relay.ts` (8767) run there as separate Node processes; Unity is a client of both, never a host. The headset gets resolved `golf.state`, never raw sensor data.
+- **AirPods IMU is Mac-only.** `CMHeadphoneMotionManager` (`native/ClubMotionBridge.swift`, ~25 Hz), unreachable from Horizon OS. Chain: AirPods → Mac → relay → Unity (Mac) → `golf.state` → Quest.
+- **Scene index 0 is what a build boots.** `MainMenu.unity` holds it for the Mac. **Kinesthetic → Quest → Boot headset scene** before a Quest build; **Boot menu scene** after.
+- **Perf is a separate budget.** Quest: 2 eyes, 72–90 Hz, mobile GPU, Vulkan. Mac: 1 view, Metal. Measure on device first. Foveated rendering, SpaceWarp, dynamic resolution all off — first knobs to reach for.
 
-- **The Mac stays the simulation authority; the Quest renders.** Sensors (camera, AirPods IMU,
-  microphone) are physically attached to the Mac, and the coordinator (`coordinator/server.ts` on
-  8766, `coordinator/golf-relay.ts` on 8767) runs there as separate Node processes. Unity is a client
-  of both and never hosts them. The headset receives resolved `golf.state`, never raw sensor data.
-  Keep it that way unless there is a specific reason not to.
+### Android traps
 
-- **AirPods motion can only be read on the Mac.** `CMHeadphoneMotionManager`
-  (`native/ClubMotionBridge.swift`, ~25 Hz) is Apple-only; there is no path to it from Horizon OS.
-  The chain is AirPods → Mac → golf relay → Unity on Mac → `golf.state` → Quest.
+Dormant only because `QuestSceneSetup` sets `game.enabled = false`; all return together once code runs on-headset.
 
-- **The platform checklist reopens whenever code starts executing on the headset.** Today
-  `QuestSceneSetup` sets `game.enabled = false`, so almost nothing runs there and most Android
-  concerns are dormant. Anything that moves into the headset brings them all back at once:
-  - `Application.streamingAssetsPath` is a `jar:` URL inside the APK — `File.Exists`/`File.ReadAllText`
-    always fail. Use a `Resources` ScriptableObject (see `QuestHostConfig`) or `UnityWebRequest`.
-  - `Microphone` needs `RECORD_AUDIO` in the manifest plus a runtime
-    `Permission.RequestUserPermission`. There is no custom AndroidManifest in this project yet.
-  - `UnityWebRequest` to `http://127.0.0.1` reaches the *headset*, not the Mac; plain HTTP may also
-    need `usesCleartextTraffic`.
-  - IL2CPP strips unused code, so reflection-based JSON can work in the editor and return nulls on
-    device. There is no `link.xml`; suspect this first if the headset connects but renders nothing.
-  - Screen-space UI Toolkit (`m_RenderMode: 0`) does not render correctly in stereo, and there is no
-    controller or gaze input model — only keyboard and pointer.
+- `streamingAssetsPath` is a `jar:` URL inside the APK — `File.Exists`/`ReadAllText` always fail. Use a `Resources` ScriptableObject (`QuestHostConfig`) or `UnityWebRequest`.
+- `Microphone` needs manifest `RECORD_AUDIO` + runtime `Permission.RequestUserPermission`. No custom AndroidManifest yet.
+- `UnityWebRequest` to `127.0.0.1` hits the *headset*, not the Mac. Plain HTTP may need `usesCleartextTraffic`.
+- IL2CPP strips code: reflection-based JSON works in-editor, returns null on device. No `link.xml` — suspect first if the headset connects but renders nothing.
+- Screen-space UI Toolkit (`m_RenderMode: 0`) does not render in stereo. No controller or gaze input — keyboard and pointer only.
 
-- **A build boots scene index 0.** `MainMenu.unity` holds that slot for the Mac. Run
-  **Kinesthetic → Quest → Boot headset scene** before a Quest build and
-  **Boot menu scene (back to Mac)** afterwards.
+## Unity setup
 
-- **Performance is a different budget.** The Quest renders two eyes at 72–90 Hz on a mobile GPU via
-  Vulkan; the Mac renders one view via Metal. Measure on device before optimizing, but expect the
-  full course export to need attention. Foveated rendering, SpaceWarp and dynamic resolution are all
-  currently disabled and are the first knobs to reach for.
+- **6000.6.2f1**, changeset **770e33f6875c**, arm64 — both pinned in tracked `ProjectSettings/ProjectVersion.txt`. **Never accept a Hub upgrade prompt**: it rewrites that file and migrates assets one-way.
+- **Install via the Hub GUI** → `Editor/6000.6.2f1-arm64`. `--headless install` creates `Editor/6000.6.2f1`, which the GUI ignores → two 10 GB copies. The bound one is in `UnityHub/projects-v1.json` (`eds:`).
+- **Android Build Support + SDK/NDK/OpenJDK is required even for Mac-only work.** `Assets/Editor/AndroidCMakePin.cs` needs `UnityEditor.Android`; without it `CS0103` fails the whole editor assembly and every `Kinesthetic/*` menu silently disappears.
+- Disk: ~10 GB editor + ~10 GB Android + ~2 GB `Library/`.
+- Live log is `unity/KinestheticUnity/Logs/Editor.log`, not `~/Library/Logs/Unity/`. Grep `error CS`; bare `error`/`Exception` match package filenames.
+- `Library/` is locked while the editor is open, so batchmode cannot run then.
+- Batchmode: `-batchmode -quit -disable-assembly-updater -projectPath <p> -logFile <f>` (the flag stops the API updater rewriting source). Undo two side effects after: `LastSceneManagerSetup.txt` becomes `sceneSetups: []` (editor opens sceneless — reopen one), and `UniversalRenderPipelineGlobalSettings.asset` loses `m_RuntimeSettings` (`git checkout --` it).
 
-- **Verify on hardware.** Quest hardware validation is still unproven end to end. Editor Play mode
-  and Quest Link are not proof; a device build is.
+## Repo
 
-## Working in this repo
-
-- **Scene wiring lives in `Assets/Editor/*SceneSetup.cs`, never the Inspector.** Scenes here are
-  generated by code. Hand-wiring diverges from the script and is destroyed on the next `Create()`.
-- **Never delete a `.meta` file.** References are by GUID, not path.
-- Verification scripts in `Assets/Editor/` and `scripts/unity_mcp.py` can drive the running editor —
-  prefer an actual check over asserting that a change works.
-- `cd coordinator && npm test` covers pose transport, golf relay, measurement, and care plans.
+- **Scene wiring lives in `Assets/Editor/*SceneSetup.cs`, never the Inspector** — scenes are code-generated; hand-wiring is destroyed by the next `Create()`.
+- **Never delete a `.meta`** — references are by GUID, not path.
+- Prefer a real check: `Assets/Editor/` verification scripts and `scripts/unity_mcp.py` drive the running editor.
+- `cd coordinator && npm test` — pose transport, golf relay, measurement, care plans.
 
 ## Git
 
