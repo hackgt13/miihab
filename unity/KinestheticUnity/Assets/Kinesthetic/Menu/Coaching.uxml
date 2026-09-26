@@ -1,121 +1,101 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
     <ui:Style src="../Palette.uss" />
     <ui:Style src="MainMenu.uss" />
-    <!-- Coaching, standing directly to the left of the board: the prescription itself, and the readings that
-         say whether it is working. The board answers "what do I do today"; this answers "what am I on, and is
-         it moving" — the question a patient takes to their therapist.
+    <!-- Coaching: the plan itself, as the patient's own copy of it. The board next door answers "what do I do
+         today". This answers the three things a person actually wants from a plan:
+
+           how long is this, and when am I done   — the whole program as a calendar, every day of it,
+           what am I working on right now         — one movement, one target, one step to the next,
+           what am I supposed to do               — everything prescribed, as prescribed.
+
+         It used to answer none of them. It carried a reach trend, a reps-in-band percentage, a level, a week
+         count and a bar chart of reps — five readings that all measured the same two sessions from different
+         angles, and not one of them said when the program ends or what this week is for.
 
          Tiles, like the board, because a pane is the same kind of surface: a transparent world-space panel of
-         exactly the board's 1600x900 (Editor/MainMenuSetup.Pane), with the plaza behind it. It was one sand
-         sheet divided by hairlines, written when panes were thought to have nothing behind them, and three
-         columns of captions on it made it a document you had to read.
+         exactly the board's 1600x900 (Editor/MainMenuSetup.Pane), with the plaza behind it. The arrangement is
+         its own — the calendar takes the height of the block because it is the thing worth looking at, and the
+         two answers beside it stack in a column a third as wide.
 
-         Arranged for what it carries, not copied from next door — the board is two columns with a hero and a
-         CTA; this is three bands:
-           1. the reading, wide, beside the three figures that qualify it,
-           2. everything prescribed, beside how much of it landed,
-           3. the way to a person, the full width of the panel and the last thing on it.
-         Figures over prose: one number or one chart per tile, and the only sentence left is the clinician's
-         own note, once, under what they asked for. The goal is not repeated here — the board states it under
-         WORKING TOWARD, a turn to the right. -->
-    <ui:VisualElement name="coaching-pane" class="menu-screen">
-        <ui:VisualElement class="menu-content">
+         Cut to the board's bento block like the gallery and friends panes (.pane-screen), not to the board's
+         full height: the greeting row belongs to the board alone, and a neighbour that copied it stood taller
+         than the panes on the other side. The title sits inside the block, in the row the tiles start under. -->
+    <ui:VisualElement name="coaching-pane" class="pane-screen">
+        <ui:VisualElement class="plan-content">
 
-            <ui:VisualElement class="splash-row">
-                <ui:VisualElement class="splash-copy">
-                    <ui:Label text="Your rehab plan" class="splash-greeting" />
+            <ui:VisualElement class="plan-head" picking-mode="Ignore">
+                <ui:VisualElement class="plan-head-copy">
+                    <ui:Label text="Your rehab plan" class="plan-title" />
                     <!-- Whose plan this is, stated rather than implied: a demo plan that reads as a real one
                          is the mistake this surface cannot make, so the version and the badge are read first. -->
-                    <ui:Label name="plan-provenance" text="" class="splash-sub" />
+                    <ui:Label name="plan-provenance" text="" class="plan-provenance" />
                 </ui:VisualElement>
-                <ui:VisualElement class="splash-side">
-                    <ui:VisualElement class="plan-source-slot">
-                        <k:KTag name="plan-source" text="" tone="Info" />
-                    </ui:VisualElement>
+                <ui:VisualElement class="plan-source-slot">
+                    <k:KTag name="plan-source" text="" tone="Info" />
                 </ui:VisualElement>
             </ui:VisualElement>
 
             <ui:VisualElement class="plan-bento">
 
-                <!-- Band 1: the reading, and the three figures that say what it is being read against. -->
                 <ui:VisualElement class="plan-row plan-row-tall">
 
-                    <ui:VisualElement class="tile tile-trend">
+                    <!-- Every day of the program in one block: weeks across, days down, so the width is time
+                         and the last faint column is the week it ends. A day is filled once it has work in it,
+                         today is ringed, and the final day carries the same mark as a target elsewhere in the
+                         product. Twelve weeks of it beats the four the board shows, which can only ever say
+                         "recently". -->
+                    <ui:VisualElement class="tile tile-program">
                         <ui:VisualElement class="tile-head" picking-mode="Ignore">
-                            <ui:Label text="HOW FAR YOU REACH" class="tile-label" />
-                            <ui:Label name="trend-note" text="" class="tile-note" />
+                            <ui:Label text="THE WHOLE PROGRAM" class="tile-label" />
+                            <ui:Label name="program-note" text="" class="tile-note accent" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="trend-body" picking-mode="Ignore">
-                            <ui:VisualElement class="trend-readout" picking-mode="Ignore">
-                                <ui:Label name="trend-delta" text="" class="reach-delta" />
-                                <ui:Label name="trend-now" text="—" class="stat-number" />
-                                <ui:Label name="trend-target" text="" class="reach-best" />
+                        <ui:VisualElement class="program-body" picking-mode="Ignore">
+                            <!-- One letter per row, and one number per week column, both laid out by the same
+                                 flex rule the painted grid divides its rect by — so they line up without
+                                 either side knowing the other's cell size. -->
+                            <ui:VisualElement class="program-days" picking-mode="Ignore">
+                                <ui:Label text="M" class="day-letter" /><ui:Label text="T" class="day-letter" />
+                                <ui:Label text="W" class="day-letter" /><ui:Label text="T" class="day-letter" />
+                                <ui:Label text="F" class="day-letter" /><ui:Label text="S" class="day-letter" />
+                                <ui:Label text="S" class="day-letter" />
                             </ui:VisualElement>
-                            <ui:VisualElement class="trend-plot" picking-mode="Ignore">
-                                <ui:VisualElement name="plan-trend" class="plan-trend" picking-mode="Ignore" />
-                                <!-- One label per session, from the history's own labels. Without them the
-                                     line is a shape going up and to the right; with them it is six sessions. -->
-                                <ui:VisualElement name="trend-axis" class="trend-axis" picking-mode="Ignore" />
+                            <ui:VisualElement class="program-plot" picking-mode="Ignore">
+                                <ui:VisualElement name="program-weeks" class="program-weeks" picking-mode="Ignore" />
+                                <ui:VisualElement name="program-grid" class="program-grid" picking-mode="Ignore" />
                             </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:VisualElement>
 
-                    <!-- Stacked rather than side by side: this column is a third of the panel, and three
-                         figures across it would each be a number nobody can read from two metres. -->
-                    <ui:VisualElement class="tile tile-figures last">
-                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
-                            <ui:Label text="YOUR PROGRESSION" class="tile-label" />
-                            <ui:Label name="envelope-note" text="" class="tile-note" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="figure-row first" picking-mode="Ignore">
-                            <ui:Label name="level-number" text="—" class="ring-number figure-number" />
-                            <ui:VisualElement class="figure-copy" picking-mode="Ignore">
-                                <ui:Label text="LEVEL" class="tile-label" />
-                                <ui:Label name="level-caption" text="" class="task-detail" />
+                    <ui:VisualElement class="plan-column last">
+
+                        <!-- What this week is for: the one movement the plan is pushing, the number it is
+                             pushing it to, and where that sits on the ladder the clinician approved. -->
+                        <ui:VisualElement class="tile tile-focus">
+                            <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                                <ui:Label text="WORKING ON NOW" class="tile-label" />
+                                <ui:Label name="focus-where" text="" class="tile-note" />
                             </ui:VisualElement>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="figure-row" picking-mode="Ignore">
-                            <ui:Label name="band-number" text="—" class="ring-number figure-number" />
-                            <ui:VisualElement class="figure-copy" picking-mode="Ignore">
-                                <ui:Label text="REPS IN BAND" class="tile-label" />
-                                <ui:Label name="band-caption" text="" class="task-detail" />
+                            <ui:Label name="focus-movement" text="" class="focus-movement" picking-mode="Ignore" />
+                            <ui:VisualElement class="focus-readout" picking-mode="Ignore">
+                                <ui:Label name="focus-target" text="—" class="focus-target" />
+                                <ui:Label name="focus-caption" text="" class="task-detail focus-caption" />
                             </ui:VisualElement>
+                            <ui:VisualElement name="envelope-ladder" class="envelope-ladder" picking-mode="Ignore" />
+                            <ui:Label name="focus-step" text="" class="task-detail focus-step" picking-mode="Ignore" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="figure-row" picking-mode="Ignore">
-                            <ui:Label name="week-number" text="—" class="ring-number figure-number" />
-                            <ui:VisualElement class="figure-copy" picking-mode="Ignore">
-                                <ui:Label text="WEEK" class="tile-label" />
-                                <ui:Label name="week-caption" text="" class="task-detail" />
+
+                        <!-- Everything prescribed, as prescribed: the movement, its dose, and where it is done.
+                             The clinician's note sits under the list once rather than on every row. -->
+                        <ui:VisualElement class="tile tile-prescription last">
+                            <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                                <ui:Label text="PRESCRIBED" class="tile-label" />
+                                <ui:Label name="prescription-note" text="" class="tile-note accent" />
                             </ui:VisualElement>
+                            <ui:ScrollView name="prescription-list" class="prescription-list"
+                                           horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" />
+                            <ui:Label name="coaching-note" text="" class="task-detail coaching-note" picking-mode="Ignore" />
                         </ui:VisualElement>
-                        <ui:VisualElement name="envelope-ladder" class="envelope-ladder" picking-mode="Ignore" />
-                    </ui:VisualElement>
 
-                </ui:VisualElement>
-
-                <!-- Band 2: everything prescribed, beside the reps that landed. A prescription row is the
-                     movement, its dose and where it is done — a line to read across, not a card to read down —
-                     so the list takes the width and the bars take the column next to it. -->
-                <ui:VisualElement class="plan-row plan-row-wide">
-
-                    <ui:VisualElement class="tile tile-prescription">
-                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
-                            <ui:Label text="PRESCRIBED" class="tile-label" />
-                            <ui:Label name="prescription-note" text="" class="tile-note accent" />
-                        </ui:VisualElement>
-                        <!-- A scroller so a clinician who prescribes five things does not push the chart off
-                             the panel. With the two or three a plan usually carries it never scrolls. -->
-                        <ui:ScrollView name="prescription-list" class="prescription-list"
-                                       horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" />
-                        <ui:Label name="coaching-note" text="" class="task-detail coaching-note" picking-mode="Ignore" />
-                    </ui:VisualElement>
-
-                    <ui:VisualElement class="tile tile-dose last">
-                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
-                            <ui:Label text="REPS THAT COUNTED" class="tile-label" />
-                            <ui:Label name="dose-note" text="" class="tile-note" />
-                        </ui:VisualElement>
-                        <ui:VisualElement name="dose-bars" class="dose-bars" picking-mode="Ignore" />
                     </ui:VisualElement>
 
                 </ui:VisualElement>
