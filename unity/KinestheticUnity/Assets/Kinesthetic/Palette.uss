@@ -1,0 +1,94 @@
+/* The five colours, and nothing else. Change a value here and every panel in the game follows:
+   the menu board, the studio, golf, bowling, the replay panel. Assets/Kinesthetic/Palette.cs holds
+   the same values for the parts that are painted in code rather than styled here — the two files
+   are the whole theme.
+
+   sand dune       #EAE0CC   warm neutral: panels, page fills, lettering on dark
+   rich cerulean   #2274A5   primary: the button you press, and anything being measured
+   medium jungle   #4AAD52   good: a rep that counted, a day done, a target reached
+   prussian blue   #0E1C36   ink, and the glass of panels that sit over the world
+   vibrant coral   #FE5F55   what you are reaching for, and what has gone wrong
+
+   Steps rise with darkness: 00 is nearly white, 80 nearly black, 40–50 is the published colour.
+   Slate is prussian blue lightened, which is where secondary copy comes from. */
+
+:root {
+    --sand-00: #FDFBF6;
+    --sand-10: #F8F3E8;
+    --sand-20: #F2EBDA;
+    --sand-30: #EAE0CC;
+    --sand-40: #DCCFB4;
+
+    --cerulean-10: #EAF3F9;
+    --cerulean-20: #CFE4F0;
+    --cerulean-30: #9FC8E0;
+    --cerulean-40: #5C9EC6;
+    --cerulean-50: #2274A5;
+    --cerulean-60: #185A83;
+    --cerulean-70: #124563;
+
+    --jungle-10: #EDF8EE;
+    --jungle-20: #D5EFD7;
+    --jungle-30: #A5DBA9;
+    --jungle-40: #4AAD52;
+    --jungle-50: #3A8B41;
+    --jungle-60: #2B6B31;
+
+    --coral-10: #FFEDEB;
+    --coral-20: #FFD3CF;
+    --coral-30: #FF9D96;
+    --coral-40: #FE5F55;
+    --coral-50: #DC4439;
+    --coral-60: #A93228;
+
+    --slate-30: #B4BFD3;
+    --slate-40: #97A4BE;
+    --slate-50: #6B7EA4;
+    --slate-60: #4D6187;
+    --slate-70: #33456A;
+    --prussian-60: #1B2C4A;
+    --prussian-70: #0E1C36;
+    --prussian-80: #08111F;
+
+    /* one-off steps between two published ones, used by hover and pressed states */
+    --cerulean-45: #2B87BE;
+    --coral-35: #FF7C73;
+    --coral-25: #FFB3AD;
+
+    /* the same colours at the opacities the translucent surfaces need: panels over the world,
+       tiles that let the plaza through, scrims, and hairlines */
+    --cerulean-10-a95: rgba(234, 243, 249, .95);
+    --cerulean-20-a85: rgba(207, 228, 240, .85);
+    --cerulean-20-a96: rgba(207, 228, 240, .96);
+    --cerulean-40-a95: rgba(92, 158, 198, .95);
+    --cerulean-45-a98: rgba(43, 135, 190, .98);
+    --cerulean-50-a95: rgba(34, 116, 165, .95);
+    --cerulean-50-a96: rgba(34, 116, 165, .96);
+    --cerulean-60-a98: rgba(24, 90, 131, .98);
+    --jungle-20-a75: rgba(213, 239, 215, .75);
+    --prussian-70-a45: rgba(14, 28, 54, .45);
+    --prussian-70-a75: rgba(14, 28, 54, .75);
+    --prussian-70-a80: rgba(14, 28, 54, .8);
+    --prussian-70-a82: rgba(14, 28, 54, .82);
+    --prussian-70-a88: rgba(14, 28, 54, .88);
+    --prussian-70-a90: rgba(14, 28, 54, .9);
+    --prussian-70-a95: rgba(14, 28, 54, 0.95);
+    --sand-00-a70: rgba(253, 251, 246, .7);
+    --sand-00-a80: rgba(253, 251, 246, .8);
+    --sand-00-a82: rgba(253, 251, 246, .82);
+    --sand-00-a88: rgba(253, 251, 246, .88);
+    --sand-00-a90: rgba(253, 251, 246, .90);
+    --sand-00-a92: rgba(253, 251, 246, .92);
+    --sand-00-a95: rgba(253, 251, 246, .95);
+    --sand-00-a96: rgba(253, 251, 246, .96);
+    --sand-00-a97: rgba(253, 251, 246, 0.97);
+    --sand-00-a98: rgba(253, 251, 246, .98);
+    --sand-00-a99: rgba(253, 251, 246, .99);
+    --sand-30-a70: rgba(234, 224, 204, .7);
+    --sand-30-a90: rgba(234, 224, 204, .9);
+    --slate-30-a55: rgba(180, 191, 211, .55);
+    --slate-50-a28: rgba(107, 126, 164, .28);
+    --slate-50-a32: rgba(107, 126, 164, .32);
+    --slate-50-a42: rgba(107, 126, 164, .42);
+    --slate-50-a55: rgba(107, 126, 164, .55);
+}

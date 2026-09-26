@@ -1,4 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../Palette.uss" />
     <ui:Style src="MainMenu.uss" />
     <ui:VisualElement name="menu-screen" class="menu-screen">
         <ui:VisualElement class="menu-content">

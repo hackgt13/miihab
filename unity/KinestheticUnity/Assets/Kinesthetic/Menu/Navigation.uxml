@@ -1,4 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../Palette.uss" />
     <ui:Style src="Navigation.uss" />
     <ui:VisualElement class="navigation-root" picking-mode="Ignore">
         <ui:Button name="return-menu" text="‹  Menu" class="return-menu hidden" />

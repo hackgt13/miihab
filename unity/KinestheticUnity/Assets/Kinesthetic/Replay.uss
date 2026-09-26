@@ -1,15 +1,15 @@
-.shell { flex-grow: 1; padding: 28px; color: #EAE0CC; }
-.panel { width: 370px; background-color: rgba(14, 28, 54, 0.95); padding: 22px; border-radius: 12px; }
-.eyebrow { color: #5C9EC6; font-size: 12px; -unity-font-style: bold; margin-bottom: 10px; }
+.shell { flex-grow: 1; padding: 28px; color: var(--sand-30); }
+.panel { width: 370px; background-color: var(--prussian-70-a95); padding: 22px; border-radius: 12px; }
+.eyebrow { color: var(--cerulean-40); font-size: 12px; -unity-font-style: bold; margin-bottom: 10px; }
 .title { font-size: 25px; -unity-font-style: bold; margin-bottom: 10px; }
-.description { white-space: normal; font-size: 13px; margin-bottom: 16px; color: #B4BFD3; }
-.status { white-space: normal; color: #5C9EC6; margin-top: 14px; margin-bottom: 12px; }
+.description { white-space: normal; font-size: 13px; margin-bottom: 16px; color: var(--slate-30); }
+.status { white-space: normal; color: var(--cerulean-40); margin-top: 14px; margin-bottom: 12px; }
 .metric { white-space: normal; font-size: 14px; margin-bottom: 12px; }
 .row { flex-direction: row; margin-top: 12px; margin-bottom: 12px; }
 .row > Button { flex-grow: 1; margin-right: 6px; }
-Button { background-color: #2274A5; color: #F8F3E8; border-width: 0; border-radius: 6px; padding: 9px; min-height: 34px; }
+Button { background-color: var(--cerulean-50); color: var(--sand-10); border-width: 0; border-radius: 6px; padding: 9px; min-height: 34px; }
 Button { margin-bottom: 5px; }
-Button:hover { background-color: #185A83; }
+Button:hover { background-color: var(--cerulean-60); }
 TextField { margin-bottom: 10px; }
-TextField .unity-base-text-field__input { background-color: #08111F; color: #F8F3E8; padding: 8px; }
-.note { white-space: normal; font-size: 12px; color: #97A4BE; margin-top: 12px; }
+TextField .unity-base-text-field__input { background-color: var(--prussian-80); color: var(--sand-10); padding: 8px; }
+.note { white-space: normal; font-size: 12px; color: var(--slate-40); margin-top: 12px; }

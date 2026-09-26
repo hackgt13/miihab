@@ -1,19 +1,19 @@
-.screen { flex-grow: 1; color: #F8F3E8; font-size: 18px; -unity-font-style: bold; }
-.outlined { -unity-text-outline-width: 1.4px; -unity-text-outline-color: rgba(14, 28, 54, .9); }
-.player-banner { position: absolute; left: 28px; top: 28px; width: 305px; background-color: rgba(14, 28, 54, .88); border-top-width: 3px; border-bottom-width: 3px; border-right-width: 7px; border-color: #5C9EC6; padding: 12px 18px; border-bottom-right-radius: 22px; }
-.score { font-size: 23px; color: #F8F3E8; -unity-text-align: middle-center; }
+.screen { flex-grow: 1; color: var(--sand-10); font-size: 18px; -unity-font-style: bold; }
+.outlined { -unity-text-outline-width: 1.4px; -unity-text-outline-color: var(--prussian-70-a90); }
+.player-banner { position: absolute; left: 28px; top: 28px; width: 305px; background-color: var(--prussian-70-a88); border-top-width: 3px; border-bottom-width: 3px; border-right-width: 7px; border-color: var(--cerulean-40); padding: 12px 18px; border-bottom-right-radius: 22px; }
+.score { font-size: 23px; color: var(--sand-10); -unity-text-align: middle-center; }
 .hole-info { position: absolute; left: 30px; top: 106px; }
 .hole-number { font-size: 35px; }
-.par { font-size: 24px; color: #EAE0CC; }
+.par { font-size: 24px; color: var(--sand-30); }
 .shot-info { position: absolute; top: 32px; left: 26%; right: 22%; align-items: center; }
 .turn-heading { font-size: 48px; margin-bottom: 3px; letter-spacing: 1px; }
-.stroke { font-size: 25px; margin-bottom: 10px; color: #EAE0CC; }
+.stroke { font-size: 25px; margin-bottom: 10px; color: var(--sand-30); }
 .lie { font-size: 20px; letter-spacing: 2px; }
-.distance { font-size: 22px; border-top-width: 1px; border-top-color: rgba(234,224,204,.7); padding: 4px 25px; margin-top: 4px; }
-.map-panel { position: absolute; right: 35px; top: 28px; width: 208px; background-color: rgba(14,28,54,.82); border-width: 2px; border-color: rgba(234,224,204,.9); border-radius: 4px; }
+.distance { font-size: 22px; border-top-width: 1px; border-top-color: var(--sand-30-a70); padding: 4px 25px; margin-top: 4px; }
+.map-panel { position: absolute; right: 35px; top: 28px; width: 208px; background-color: var(--prussian-70-a82); border-width: 2px; border-color: var(--sand-30-a90); border-radius: 4px; }
 .map-title { -unity-text-align: middle-center; font-size: 14px; height: 26px; letter-spacing: 2px; }
 .course-map { height: 333px; overflow: hidden; }
-.map-key { font-size: 11px; -unity-text-align: middle-center; height: 25px; color: #EAE0CC; }
+.map-key { font-size: 11px; -unity-text-align: middle-center; height: 25px; color: var(--sand-30); }
 .power-panel { position: absolute; left: 37px; top: 32%; width: 76px; align-items: center; }
 .power-title { font-size: 13px; letter-spacing: 1px; }
 .power-meter { width: 64px; height: 245px; margin-top: 10px; }
@@ -24,61 +24,61 @@
 .club-row { justify-content: center; }
 .club { font-size: 30px; min-width: 125px; -unity-text-align: middle-center; }
 .club-mode { font-size: 14px; -unity-font-style: bold; margin-top: 3px; -unity-text-outline-width: 0.5px; }
-.mount-hint { font-size: 13px; color: #9FC8E0; white-space: normal; margin-bottom: 8px; -unity-font-style: normal; }
+.mount-hint { font-size: 13px; color: var(--cerulean-30); white-space: normal; margin-bottom: 8px; -unity-font-style: normal; }
 .aim-row { margin-top: 4px; }
 .aim-row Label { margin-left: 15px; margin-right: 15px; font-size: 17px; }
-Button { background-color: #FDFBF6; color: #0E1C36; border-width: 2px; border-color: #9FC8E0; border-radius: 7px; padding: 7px 12px; margin: 3px; font-size: 15px; -unity-font-style: bold; }
-Button:hover { background-color: #EAF3F9; border-color: #5C9EC6; }
-Button:active { background-color: #CFE4F0; }
-Button:disabled { background-color: #DCCFB4; color: #33456A; border-color: #B4BFD3; }
-Button.primary { background-color: #2274A5; color: #FDFBF6; border-color: #5C9EC6; }
+Button { background-color: var(--sand-00); color: var(--prussian-70); border-width: 2px; border-color: var(--cerulean-30); border-radius: 7px; padding: 7px 12px; margin: 3px; font-size: 15px; -unity-font-style: bold; }
+Button:hover { background-color: var(--cerulean-10); border-color: var(--cerulean-40); }
+Button:active { background-color: var(--cerulean-20); }
+Button:disabled { background-color: var(--sand-40); color: var(--slate-70); border-color: var(--slate-30); }
+Button.primary { background-color: var(--cerulean-50); color: var(--sand-00); border-color: var(--cerulean-40); }
 Button.round-button { width: 35px; height: 35px; padding: 0; border-radius: 18px; font-size: 27px; }
 Button.aim-button { font-size: 20px; width: 48px; height: 44px; padding: 0; border-radius: 12px; }
 .footer { position: absolute; bottom: 18px; left: 26%; right: 23%; align-items: center; }
-.footer-guidance { padding: 7px 14px; margin-bottom: 8px; background-color: rgba(14,28,54,.8); border-radius: 10px; font-size: 17px; -unity-font-style: bold; -unity-text-align: middle-center; white-space: normal; }
+.footer-guidance { padding: 7px 14px; margin-bottom: 8px; background-color: var(--prussian-70-a80); border-radius: 10px; font-size: 17px; -unity-font-style: bold; -unity-text-align: middle-center; white-space: normal; }
 
-.device-chip { position: absolute; right: 35px; bottom: 58px; flex-direction: row; align-items: center; padding: 8px 10px 8px 14px; background-color: rgba(253,251,246,.97); border-radius: 18px; color: #33456A; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal; }
+.device-chip { position: absolute; right: 35px; bottom: 58px; flex-direction: row; align-items: center; padding: 8px 10px 8px 14px; background-color: var(--sand-00-a97); border-radius: 18px; color: var(--slate-70); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal; }
 .device-chip Label { font-size: 12px; max-width: 185px; white-space: normal; }
-.device-dot { width: 8px; height: 8px; border-radius: 4px; background-color: #B4BFD3; margin-right: 8px; }
-.device-chip.connected .device-dot { background-color: #4AAD52; }
+.device-dot { width: 8px; height: 8px; border-radius: 4px; background-color: var(--slate-30); margin-right: 8px; }
+.device-chip.connected .device-dot { background-color: var(--jungle-40); }
 .device-chip Button { font-size: 12px; padding: 5px 12px; margin-left: 12px; border-radius: 14px; }
-.golf-overlay { position: absolute; left: 0; right: 0; top: 0; bottom: 0; align-items: center; justify-content: center; background-color: rgba(14,28,54,.45); color: #33456A; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal; }
+.golf-overlay { position: absolute; left: 0; right: 0; top: 0; bottom: 0; align-items: center; justify-content: center; background-color: var(--prussian-70-a45); color: var(--slate-70); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal; }
 Label { margin: 0; padding: 0; }
-.setup-sheet { flex-direction: row; width: 1050px; max-width: 92%; background-color: #FDFBF6; border-width: 3px; border-bottom-width: 7px; border-color: #9FC8E0; border-radius: 28px; overflow: hidden; }
-.setup-hero { width: 355px; flex-shrink: 0; padding: 32px; background-image: url("project://database/Assets/Kinesthetic/Menu/Art/Golf.png"); -unity-background-scale-mode: scale-and-crop; background-color: #2274A5; -unity-background-image-tint-color: #97A4BE; }
-.sheet-eyebrow { font-size: 11px; letter-spacing: 2px; color: #F8F3E8; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.setup-title { font-size: 37px; white-space: normal; color: #F8F3E8; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); margin-top: 25px; -unity-text-outline-width: 0.5px; -unity-text-outline-color: #0E1C36; }
-.setup-tag { font-size: 10px; color: #F8F3E8; background-color: rgba(14,28,54,.75); padding: 10px 12px; margin-top: 18px; border-radius: 10px; align-self: flex-start; }
+.setup-sheet { flex-direction: row; width: 1050px; max-width: 92%; background-color: var(--sand-00); border-width: 3px; border-bottom-width: 7px; border-color: var(--cerulean-30); border-radius: 28px; overflow: hidden; }
+.setup-hero { width: 355px; flex-shrink: 0; padding: 32px; background-image: url("project://database/Assets/Kinesthetic/Menu/Art/Golf.png"); -unity-background-scale-mode: scale-and-crop; background-color: var(--cerulean-50); -unity-background-image-tint-color: var(--slate-40); }
+.sheet-eyebrow { font-size: 11px; letter-spacing: 2px; color: var(--sand-10); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.setup-title { font-size: 37px; white-space: normal; color: var(--sand-10); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); margin-top: 25px; -unity-text-outline-width: 0.5px; -unity-text-outline-color: var(--prussian-70); }
+.setup-tag { font-size: 10px; color: var(--sand-10); background-color: var(--prussian-70-a75); padding: 10px 12px; margin-top: 18px; border-radius: 10px; align-self: flex-start; }
 .hero-space { flex-grow: 1; min-height: 80px; }
-.hero-detail { color: #F8F3E8; font-size: 15px; white-space: normal; background-color: rgba(14,28,54,.75); padding: 12px; border-radius: 12px; }
+.hero-detail { color: var(--sand-10); font-size: 15px; white-space: normal; background-color: var(--prussian-70-a75); padding: 12px; border-radius: 12px; }
 .setup-content { flex-grow: 1; flex-shrink: 1; padding: 28px 32px; }
-.sheet-title { font-size: 30px; color: #0E1C36; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.sheet-copy { font-size: 15px; color: #6B7EA4; white-space: normal; margin-top: 8px; }
-.setup-step { flex-direction: row; align-items: center; padding: 13px 0; border-bottom-width: 1px; border-bottom-color: #DCCFB4; }
-.step-badge { width: 36px; height: 36px; flex-shrink: 0; border-radius: 18px; background-color: #CFE4F0; color: #6B7EA4; font-size: 19px; -unity-text-align: middle-center; margin-right: 15px; }
-.step-ready .step-badge { color: #2B6B31; background-color: #D5EFD7; }
+.sheet-title { font-size: 30px; color: var(--prussian-70); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.sheet-copy { font-size: 15px; color: var(--slate-50); white-space: normal; margin-top: 8px; }
+.setup-step { flex-direction: row; align-items: center; padding: 13px 0; border-bottom-width: 1px; border-bottom-color: var(--sand-40); }
+.step-badge { width: 36px; height: 36px; flex-shrink: 0; border-radius: 18px; background-color: var(--cerulean-20); color: var(--slate-50); font-size: 19px; -unity-text-align: middle-center; margin-right: 15px; }
+.step-ready .step-badge { color: var(--jungle-60); background-color: var(--jungle-20); }
 .step-copy { flex-grow: 1; flex-shrink: 1; }
 .step-heading { font-size: 17px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.step-state { font-size: 13px; color: #6B7EA4; white-space: normal; margin-top: 4px; }
-.setup-status { font-size: 12px; white-space: normal; color: #6B7EA4; padding: 12px 0; min-height: 45px; }
-.golf-overlay Button { border-radius: 22px; border-width: 2px; border-bottom-width: 4px; border-color: #9FC8E0; padding: 10px 18px; font-size: 15px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; background-color: #FDFBF6; color: #0E1C36; margin: 0; }
-.golf-overlay Button:hover, .golf-overlay Button:focus { border-color: #5C9EC6; background-color: #EAF3F9; }
+.step-state { font-size: 13px; color: var(--slate-50); white-space: normal; margin-top: 4px; }
+.setup-status { font-size: 12px; white-space: normal; color: var(--slate-50); padding: 12px 0; min-height: 45px; }
+.golf-overlay Button { border-radius: 22px; border-width: 2px; border-bottom-width: 4px; border-color: var(--cerulean-30); padding: 10px 18px; font-size: 15px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; background-color: var(--sand-00); color: var(--prussian-70); margin: 0; }
+.golf-overlay Button:hover, .golf-overlay Button:focus { border-color: var(--cerulean-40); background-color: var(--cerulean-10); }
 .golf-overlay Button:disabled { opacity: .45; }
-.golf-overlay Button.sheet-primary { color: #FDFBF6; background-color: #2274A5; border-color: #185A83; }
-.golf-overlay Button.sheet-primary:hover, .golf-overlay Button.sheet-primary:focus { background-color: #185A83; border-color: #124563; }
+.golf-overlay Button.sheet-primary { color: var(--sand-00); background-color: var(--cerulean-50); border-color: var(--cerulean-60); }
+.golf-overlay Button.sheet-primary:hover, .golf-overlay Button.sheet-primary:focus { background-color: var(--cerulean-60); border-color: var(--cerulean-70); }
 .sheet-actions { flex-direction: row; justify-content: flex-end; margin-top: 18px; }
 .sheet-actions Button { margin-left: 12px; }
-.results-sheet { width: 660px; padding: 30px 38px; border-width: 3px; border-bottom-width: 7px; border-color: #9FC8E0; background-color: #FDFBF6; border-radius: 28px; align-items: center; }
-.result-medallion { width: 66px; height: 66px; border-radius: 33px; background-color: #CFE4F0; color: #0E1C36; font-size: 38px; -unity-text-align: middle-center; }
-.result-eyebrow { color: #6B7EA4; margin-top: 18px; }
+.results-sheet { width: 660px; padding: 30px 38px; border-width: 3px; border-bottom-width: 7px; border-color: var(--cerulean-30); background-color: var(--sand-00); border-radius: 28px; align-items: center; }
+.result-medallion { width: 66px; height: 66px; border-radius: 33px; background-color: var(--cerulean-20); color: var(--prussian-70); font-size: 38px; -unity-text-align: middle-center; }
+.result-eyebrow { color: var(--slate-50); margin-top: 18px; }
 .result-title { margin-top: 10px; font-size: 32px; }
 .score-cards { flex-direction: row; align-self: stretch; margin-top: 25px; }
-.score-card { flex-grow: 1; flex-basis: 0; padding: 20px; align-items: center; border-radius: 18px; background-color: #EAF3F9; border-bottom-width: 4px; border-bottom-color: #9FC8E0; }
-.friend-card { margin-left: 18px; background-color: #F2EBDA; border-bottom-color: #DCCFB4; }
+.score-card { flex-grow: 1; flex-basis: 0; padding: 20px; align-items: center; border-radius: 18px; background-color: var(--cerulean-10); border-bottom-width: 4px; border-bottom-color: var(--cerulean-30); }
+.friend-card { margin-left: 18px; background-color: var(--sand-20); border-bottom-color: var(--sand-40); }
 .score-name { font-size: 12px; letter-spacing: 1px; }
-.result-score { font-size: 65px; color: #0E1C36; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.friend-card .result-score { color: #A93228; }
-.score-unit { font-size: 12px; color: #6B7EA4; margin-top: -6px; }
+.result-score { font-size: 65px; color: var(--prussian-70); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.friend-card .result-score { color: var(--coral-60); }
+.score-unit { font-size: 12px; color: var(--slate-50); margin-top: -6px; }
 .score-par { font-size: 15px; margin-top: 15px; }
-.result-footnote { margin-top: 18px; font-size: 11px; color: #6B7EA4; letter-spacing: 1px; }
+.result-footnote { margin-top: 18px; font-size: 11px; color: var(--slate-50); letter-spacing: 1px; }
 .hidden { display: none; }

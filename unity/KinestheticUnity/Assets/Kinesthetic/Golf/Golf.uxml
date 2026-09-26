@@ -1,4 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="../Palette.uss" />
     <Style src="Golf.uss" />
     <ui:VisualElement class="screen" picking-mode="Ignore">
         <ui:VisualElement class="player-banner" picking-mode="Ignore">
