@@ -16,13 +16,11 @@
 // it and the mapping underneath is the only thing that has to be re-read.
 //
 // What is NOT here, because the coordinator does not hold it, and must not be faked into looking real:
-//   · patient-reported symptoms   — nothing asks the patient how it felt, so `patientReports` is empty
-//                                   and the trigger rule's third condition can never be met on live data
 //   · the coach's event log       — no endpoint records what the coach said, so `coachLog` is empty
 //   · scheduling                  — the program is a daily home program; there is no appointment book
 //   · more than one patient       — the coordinator is one machine, one patient, `patientId: null`
 import type {
-  PatientData, PatientStatus, PlanVersion, RepEvent, ReplayMoment,
+  PatientData, PatientReport, PatientStatus, PlanVersion, RepEvent, ReplayMoment,
   SessionHandoff, SessionSummary,
 } from './types'
 
@@ -91,6 +89,15 @@ interface CoordinatorPlan {
   goal?: { text?: string }
   coachingNote?: string
   activities: CoordinatorPlanActivity[]
+}
+
+/** What the patient relays at the end of a visit (coordinator/visit.ts). Quick replies carry fixed text. */
+interface CoordinatorReply {
+  id: string
+  kind: 'fine' | 'easy' | 'hard' | 'hurt' | 'message'
+  text: string
+  planVersion: number | null
+  at: string
 }
 
 interface CoordinatorDashboard {
@@ -165,6 +172,25 @@ function replayMoments(summary: CoordinatorSummary): ReplayMoment[] {
   const best = reps.filter(r => r.valid).sort((a, b) => b.peakDeg - a.peakDeg)[0]
   if (best) moments.push({ t: at(best), label: `Best rep — ${Math.round(best.peakDeg)}°`, repIndex: best.rep })
   return moments.sort((a, b) => a.t - b.t)
+}
+
+/**
+ * The patient's own word, from the question every visit ends on ("is there anything you want me to know?").
+ * It is a quick reply rather than a scale, so the severity here is this portal reading the coordinator's
+ * four kinds onto its own 0–10 — hurt and too-hard are what a clinician needs to see, and the rest are
+ * context. A free-text message sits between them: it says something, and only the words say what.
+ *
+ * Replies are about the program, not about one session, so the last fortnight of them ride along with the
+ * latest session rather than being pinned to a moment inside it — which is why `t` is 0 and the portal
+ * says "reported at the visit" instead of a timestamp inside the recording.
+ */
+const SEVERITY: Record<CoordinatorReply['kind'], number> = { hurt: 8, hard: 6, message: 5, easy: 2, fine: 0 }
+
+function patientReports(replies: CoordinatorReply[], now: Date): PatientReport[] {
+  const since = now.getTime() - 14 * 86_400_000
+  return replies
+    .filter(r => Date.parse(r.at) >= since)
+    .map(r => ({ t: 0, text: r.text, severity: SEVERITY[r.kind] ?? 5 }))
 }
 
 /** What the measurement itself is unsure about, in the words of what actually happened. */
@@ -252,12 +278,13 @@ function saidWhen(days: number): string {
  * view that is anybody's source of truth.
  */
 export async function fetchLivePatient(): Promise<PatientData> {
-  const [dashboard, summaries, plans, activities, people] = await Promise.all([
+  const [dashboard, summaries, plans, activities, people, replies] = await Promise.all([
     get<CoordinatorDashboard>('/api/dashboard'),
     get<CoordinatorSummary[]>('/api/sessions'),
     get<CoordinatorPlan[]>('/api/plans'),
     get<CoordinatorActivity[]>('/api/activity-sessions'),
     get<{ me?: { displayName?: string } }>('/api/friends').catch(() => ({ me: undefined })),
+    get<CoordinatorReply[]>('/api/visit/replies').catch(() => [] as CoordinatorReply[]),
   ])
 
   const real = summaries.filter(isReal).sort((a, b) => a.endedAt.localeCompare(b.endedAt))
@@ -294,7 +321,7 @@ export async function fetchLivePatient(): Promise<PatientData> {
         ? Math.round((finalReps.reduce((sum, r) => sum + r.trunkDeg, 0) / finalReps.length) * 10) / 10
         : 0,
     },
-    patientReports: [],          // nothing asks the patient how it felt — see the note at the top
+    patientReports: patientReports(replies, today),
     replayMoments: latest ? replayMoments(latest) : [],
     uncertainty: latest ? uncertainty(latest) : ['No measured session yet'],
     repEvents: reps,

@@ -171,7 +171,10 @@ export function KeyMeasures({
           value={worstSymptom ? `${worstSymptom.severity}/10` : '—'}
           subtitle={
             worstSymptom
-              ? `reported at ${fmtTime(worstSymptom.t)} · "${worstSymptom.text}"`
+              // t is 0 for a report made at a visit rather than during the recording: it has no moment
+              // inside the session to point at, and a 0:00 would claim one.
+              ? `${worstSymptom.t > 0 ? `reported at ${fmtTime(worstSymptom.t)}` : 'reported at the visit'}`
+                + ` · "${worstSymptom.text}"`
               : undefined
           }
           warn={!!worstSymptom && worstSymptom.severity >= 5}
