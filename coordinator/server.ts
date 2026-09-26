@@ -21,7 +21,7 @@ import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from '.
 import { LIBRARY } from './exercises.ts';
 import { buildDashboard, golfUnlock } from './dashboard.ts';
 import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
-import { buildVisit, therapistFromEnv, VisitNoteStore } from './visit.ts';
+import { applyProgramUpdate, buildVisit, therapistFromEnv, VisitStore } from './visit.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const captureRoot = resolve(root, 'spikes/pose-capture');
@@ -43,7 +43,7 @@ const socialDir = resolve(process.env.KINESTHETIC_SOCIAL_DIRECTORY ?? resolve(ro
 const friends = new FriendStore(socialDir);
 const messages = new MessageStore(socialDir);
 // Notes the therapist leaves for the patient's visit (visit.ts). Kept beside the plans: they are clinical.
-const visitNotes = new VisitNoteStore(resolve(process.env.KINESTHETIC_VISIT_DIRECTORY ?? resolve(root, 'local-data/visit')));
+const visit = new VisitStore(resolve(process.env.KINESTHETIC_VISIT_DIRECTORY ?? resolve(root, 'local-data/visit')));
 const therapist = therapistFromEnv();
 
 /// Reads a bounded request body. Photos are the only binary upload here.
@@ -267,14 +267,26 @@ const server = createServer(async (request, response) => {
           .map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
         return json(200, buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes}));
       }
-      // The therapist visit (Unity: Kinesthetic/Visit): the whiteboard's program updates and what the therapist
-      // says about them. Notes are the therapist's own words to the patient; the clinician side writes them.
+      // The therapist visit (Unity: Kinesthetic/Visit, coordinator/visit.ts): the whiteboard's program updates
+      // since the patient last visited and what the therapist says about them. The therapist changes the
+      // program through program-update (a plan version plus a note to the patient); Unity marks it seen.
       if (request.method === 'GET' && url.pathname === '/api/visit')
-        return json(200, buildVisit({plans: plans.list(), notes: visitNotes.list(), therapist}));
-      if (request.method === 'GET' && url.pathname === '/api/visit/notes') return json(200, visitNotes.list());
-      if (request.method === 'POST' && url.pathname === '/api/visit/notes') return json(201, visitNotes.add(await readJson(request)));
+        return json(200, buildVisit({plans: plans.list(), notes: visit.list(), seen: visit.seen, therapist}));
+      if (request.method === 'POST' && url.pathname === '/api/visit/program-update')
+        return json(201, applyProgramUpdate(plans, visit, await readJson(request)));
+      if (request.method === 'POST' && url.pathname === '/api/visit/seen') {
+        const body = await readJson(request);
+        const version = Number(body.planVersion);
+        if (!plans.get(version)) return json(404, {error:`Plan v${body.planVersion} does not exist`});
+        return json(200, visit.markSeen(version));
+      }
+      if (request.method === 'GET' && url.pathname === '/api/visit/notes') return json(200, visit.list());
+      if (request.method === 'POST' && url.pathname === '/api/visit/notes') {
+        const body = await readJson(request);   // text and author only: seeded and planVersion are not the client's to set
+        return json(201, visit.add({text: body.text, author: body.author}));
+      }
       const note = url.pathname.match(/^\/api\/visit\/notes\/([0-9a-f-]{36})$/i);
-      if (request.method === 'DELETE' && note) return visitNotes.remove(note[1]) ? json(200, {removed: note[1]}) : json(404, {error:'No such note'});
+      if (request.method === 'DELETE' && note) return visit.remove(note[1]) ? json(200, {removed: note[1]}) : json(404, {error:'No such note'});
       if (request.method === 'GET' && url.pathname === '/api/proposals') return json(200, proposals.list().slice(0, 50));
       if (request.method === 'POST' && url.pathname === '/api/progression/evaluate') {
         const body = await readJson(request);

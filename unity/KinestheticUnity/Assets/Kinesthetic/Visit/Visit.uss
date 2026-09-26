@@ -3,18 +3,18 @@
    the components', and the whiteboard's white is the physical board behind the panel. */
 .board { flex-grow: 1; }
 
-/* Whiteboard, 571 x 375 px at 2.8 m. */
+/* Whiteboard, 643 x 464 px at 2.8 m: six rows under the title (visit.ts BOARD_LIMIT). */
 .visit-board { margin: 26px 34px; }
 .visit-title { margin-top: 4px; margin-bottom: 14px; }
 .visit-updates { flex-grow: 1; }
-.visit-update { flex-direction: row; align-items: flex-start; margin-bottom: 12px; }
+.visit-update { flex-direction: row; align-items: flex-start; margin-bottom: 7px; }
 .visit-update-tag { width: 96px; flex-shrink: 0; margin-top: 2px; align-items: flex-start; }
 .visit-update-copy { flex-grow: 1; flex-shrink: 1; }
 .visit-update.unrevealed { display: none; }
 .visit-date { align-self: flex-end; }
 
-/* Speech, 438 x 208 px at 2.4 m. The balloon sits on the bottom edge, so its tail points down at the
-   therapist standing beneath it. */
+/* Speech, about 1.0 x 0.5 m over the therapist's head. The balloon sits on the bottom edge, so its tail
+   points down at the therapist standing beneath it. */
 .visit-speech { justify-content: flex-end; }
 .visit-speech.quiet .visit-bubble { display: none; }
 .visit-line { margin-top: 4px; }

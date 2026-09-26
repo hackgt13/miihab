@@ -24,6 +24,7 @@ namespace Kinesthetic.Visit
     public sealed class TherapistVisit : MonoBehaviour
     {
         const string VisitUrl = "http://127.0.0.1:8766/api/visit";
+        const string SeenUrl = "http://127.0.0.1:8766/api/visit/seen";
         const float WriteCharactersPerSecond = 30f, TurnDegreesPerSecond = 120f;
 
         public BoardSet boards;
@@ -100,7 +101,23 @@ namespace Kinesthetic.Visit
             if (revealed < written.Length) yield return Write(revealed, written.Length);
             saying = ""; finished = true; Render();
             Status("That's everything for today. Hear it again, or head back to the menu when you're ready.");
+            // The patient has been through these changes: the next visit starts from here.
+            if (script.Live && script.PlanVersion > 0) yield return MarkSeen(script.PlanVersion);
             running = null;
+        }
+
+        static IEnumerator MarkSeen(int planVersion)
+        {
+            using var request = new UnityWebRequest(SeenUrl, UnityWebRequest.kHttpVerbPOST)
+            {
+                uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes($"{{\"planVersion\":{planVersion}}}")),
+                downloadHandler = new DownloadHandlerBuffer(),
+                timeout = 3,
+            };
+            request.SetRequestHeader("Content-Type", "application/json");
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success)
+                Debug.LogWarning($"Therapist visit: could not mark plan v{planVersion} seen ({request.error}); the next visit will show these changes again.");
         }
 
         IEnumerator Load()
@@ -135,7 +152,9 @@ namespace Kinesthetic.Visit
             if (running != null) StopCoroutine(running);
             StopAllCoroutines();
             voice?.Skip(); writing = false;
-            running = StartCoroutine(Run(reload: true));   // reload: the therapist may have left a note since
+            // The same visit again, not a fresh one: once it has finished it is marked seen, and a reload
+            // would find nothing changed since.
+            running = StartCoroutine(Run(reload: false));
         }
 
         bool Bind()

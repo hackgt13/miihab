@@ -1,9 +1,9 @@
 /* KBubble: a paper balloon. The tail is painted in KBubble.cs from Palette.Panel and Palette.Line, the
    same two values as the fill and edge here, so balloon and tail read as one shape. The bottom margin is
    the tail's room. */
-.k-bubble.k-bubble--left, .k-bubble.k-bubble--right, .k-bubble.k-bubble--none {
+.k-bubble.k-bubble--left, .k-bubble.k-bubble--center, .k-bubble.k-bubble--right, .k-bubble.k-bubble--none {
     background-color: var(--sand-00); border-radius: 28px; border-width: 2px; border-color: var(--slate-30);
     padding: 22px 28px; overflow: visible;
 }
-.k-bubble.k-bubble--left, .k-bubble.k-bubble--right { margin-bottom: 30px; }
+.k-bubble.k-bubble--left, .k-bubble.k-bubble--center, .k-bubble.k-bubble--right { margin-bottom: 30px; }
 .k-bubble.k-bubble--none { margin-bottom: 0; }

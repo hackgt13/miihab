@@ -23,6 +23,8 @@ namespace Kinesthetic.Visit
         public Line[] Lines = new Line[0];
         /// False when this is the stand-in shown because the coordinator could not be reached.
         public bool Live;
+        /// The plan version this visit talks about, which the visit marks seen once it has been through it.
+        public int PlanVersion;
 
         public static VisitScript FromCoordinator(JObject json)
         {
@@ -42,6 +44,7 @@ namespace Kinesthetic.Visit
                 Lines = json["speech"]?.Select(l => new Line {
                     Id = (string)l["id"], Text = (string)l["text"] ?? "", Audio = (string)l["audio"], Reveal = (int?)l["reveal"] ?? 0,
                 }).ToArray() ?? new Line[0],
+                PlanVersion = (int?)json["planVersion"] ?? 0,
                 Live = true,
             };
         }

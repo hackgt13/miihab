@@ -20,11 +20,12 @@ public static class TherapistVisitSetup
     public const string ActivityId = "therapist.visit";
 
     /// Where things stand, from the patient's eyes. The whiteboard and the therapist split the view either
-    /// side of straight ahead, both well inside the ±30° a seated patient can see without turning; the
-    /// balloon rides above the therapist's head, its tail on the left, pointing down at them.
+    /// side of straight ahead, both well inside the ±30° a seated patient can see without turning. The
+    /// balloon has no fixed station: it is worked out from where the therapist's head is (SpeechStation).
     public static readonly Station Whiteboard = new("Whiteboard", -14, 7, 2.8f);
-    public static readonly Station Speech = new("Speech", 26, 24, 2.4f);
-    public static readonly Vector2 WhiteboardSize = new(1.6f, 1.05f), SpeechSize = new(1.05f, .5f), DockSize = new(.8f, .22f);
+    public static readonly Vector2 WhiteboardSize = new(1.8f, 1.3f), SpeechSize = new(1f, .5f), DockSize = new(.8f, .22f);
+    /// Clear air between the top of the therapist's head and the tip of the balloon's tail, metres.
+    const float HeadClearance = .06f;
     public const float TherapistYaw = 16, TherapistDistance = 2.3f;
 
     [MenuItem("Kinesthetic/Visit/Create therapist visit scene")]
@@ -43,11 +44,10 @@ public static class TherapistVisitSetup
         var boards = seatGo.GetComponent<BoardSet>();
 
         var board = BuildWhiteboard(seat);
-        boards.Adopt(BoardBuilder.Build(seat, "Whiteboard board", "visit.whiteboard", Root + "/VisitWhiteboard.uxml", Whiteboard, WhiteboardSize));
-        boards.Adopt(BoardBuilder.Build(seat, "Speech board", "visit.speech", Root + "/VisitSpeech.uxml", Speech, SpeechSize));
-        boards.Adopt(BoardBuilder.Build(seat, "Dock board", "visit.dock", Root + "/VisitDock.uxml", Stations.Dock, DockSize));
-
         var therapist = BuildTherapist(seat);
+        boards.Adopt(BoardBuilder.Build(seat, "Whiteboard board", "visit.whiteboard", Root + "/VisitWhiteboard.uxml", Whiteboard, WhiteboardSize));
+        boards.Adopt(BoardBuilder.Build(seat, "Speech board", "visit.speech", Root + "/VisitSpeech.uxml", SpeechStation(seat, therapist), SpeechSize));
+        boards.Adopt(BoardBuilder.Build(seat, "Dock board", "visit.dock", Root + "/VisitDock.uxml", Stations.Dock, DockSize));
 
         var camera = new GameObject("Patient eyes camera").AddComponent<Camera>();
         camera.transform.SetPositionAndRotation(seat.EyePoint, seat.Facing * Quaternion.Euler(-4, 4, 0));
@@ -113,6 +113,19 @@ public static class TherapistVisitSetup
             Part(easel, side < 0 ? "Easel foot left" : "Easel foot right", PrimitiveType.Cube, foot + Vector3.up * .015f, new(.06f, .03f, .5f), metal);
         }
         return group;
+    }
+
+    /// The balloon's station: the point straight above the therapist's head where the board's centre must be
+    /// for its bottom edge — the tail's tip, since the balloon sits on that edge — to clear the head, read
+    /// back as a bearing from the seat. So the tail points down at the head from wherever the therapist stands.
+    public static Station SpeechStation(SeatRig seat, Transform therapist)
+    {
+        var renderers = therapist.GetComponentsInChildren<Renderer>();
+        var bounds = renderers[0].bounds;
+        foreach (var r in renderers) bounds.Encapsulate(r.bounds);
+        var centre = new Vector3(therapist.position.x, bounds.max.y + HeadClearance + SpeechSize.y / 2, therapist.position.z);
+        seat.Bearing(centre, out float yaw, out float pitch, out float distance);
+        return new Station("Speech", yaw, pitch, distance);
     }
 
     /// Alex, standing: the golf friend's standing Mii in the coach's colours, facing the patient.
@@ -204,6 +217,9 @@ public static class TherapistVisitSetup
         var face = visit.whiteboard.Find("Board face");
         var panel = visit.boards.Boards.First(b => b.name == "Whiteboard board").transform;
         Check(face && Vector3.Dot(face.position - panel.position, panel.forward) > 0, "the whiteboard's face is in front of its writing");
+        var speech = visit.boards.Boards.First(b => b.name == "Speech board").transform;
+        var flat = new Vector2(speech.position.x - visit.therapist.position.x, speech.position.z - visit.therapist.position.z);
+        Check(flat.magnitude < .05f, $"the speech balloon is {flat.magnitude:0.00} m off the therapist's head");
         seat.Bearing(visit.therapist.position + Vector3.up * 1.2f, out float yaw, out _, out float distance);
         Check(Mathf.Abs(yaw) <= Station.MaxYawDegrees && distance < 4, $"the therapist stands at {yaw:0}°, {distance:0.0} m");
         return "Therapist visit scene verified.";

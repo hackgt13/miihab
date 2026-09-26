@@ -14,7 +14,7 @@ namespace Kinesthetic.UI
     [UxmlElement]
     public partial class KBubble : VisualElement
     {
-        public enum Tail { Left, Right, None }
+        public enum Tail { Left, Center, Right, None }
 
         const string Block = "k-bubble";
         const float TailWidth = 34, TailDepth = 30, TailInset = 56, Edge = 2;
@@ -38,8 +38,8 @@ namespace Kinesthetic.UI
             var size = layout.size;   // local space: the balloon's own box, from its top-left
             if (size.x <= 0) return;
             float bottom = size.y - Edge;
-            float root = tailValue == Tail.Left ? TailInset : size.x - TailInset;
-            float tip = tailValue == Tail.Left ? root - TailWidth * .9f : root + TailWidth * .9f;
+            float root = tailValue switch { Tail.Left => TailInset, Tail.Right => size.x - TailInset, _ => size.x / 2 };
+            float tip = tailValue switch { Tail.Left => root - TailWidth * .9f, Tail.Right => root + TailWidth * .9f, _ => root };
             var p = context.painter2D;
             p.lineJoin = LineJoin.Round;
             p.fillColor = Palette.Panel; p.strokeColor = Palette.Line; p.lineWidth = Edge;
