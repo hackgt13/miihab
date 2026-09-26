@@ -499,5 +499,5 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 /* The two answers sit apart: "Not now" is the quiet one and stays left of the
    press a person is more likely to want. */
 .introduction-actions { flex-direction: row; justify-content: flex-end; margin-top: 12px; }
-.introduction-actions > .k-button { margin-left: 8px; }
+.introduction-actions > Button { margin-left: 8px; }
 .introduction-card.hidden { display: none; }
