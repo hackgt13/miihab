@@ -6,8 +6,23 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Kinesthetic/Menu/MainMenu.unity
+    guid: e22494537a8734e3cbdad032bbdca5fb
+  - enabled: 1
     path: Assets/Kinesthetic/MotionProof.unity
     guid: 3e84c86716adb4aaa95f957aa1a2b730
+  - enabled: 1
+    path: Assets/Kinesthetic/Golf/AdaptiveGolf.unity
+    guid: 3eb977031d2fe4eb68658e8120ee4871
+  - enabled: 1
+    path: Assets/Kinesthetic/Rehab/Rehab.unity
+    guid: 193fe227f031f44b2a5ba54acba92bdf
+  - enabled: 1
+    path: Assets/Kinesthetic/Golf/QuestGolf.unity
+    guid: e6b6a74e1936b41c49fae3b0a0643cbe
+  - enabled: 1
+    path: Assets/Kinesthetic/Golf/KeyboardGolf.unity
+    guid: 372db5aef03de45fcaef34cf2b983e30
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 62fe605601bd143dcb911e316c7c4032, type: 2}

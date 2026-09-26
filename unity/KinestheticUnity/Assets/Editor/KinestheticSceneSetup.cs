@@ -77,7 +77,12 @@ public static class KinestheticSceneSetup
         PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
         PlayerSettings.runInBackground = true;
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
-        EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+        // Additive, like every other setup here. Assigning the whole list instead drops every other scene from
+        // Build Settings, which boots a build into this diagnostic scene and leaves the menu unable to load
+        // any activity, since LoadScene only reaches scenes on the list.
+        var builds = EditorBuildSettings.scenes.ToList();
+        if (!builds.Any(s => s.path == ScenePath)) builds.Add(new EditorBuildSettingsScene(ScenePath, true));
+        EditorBuildSettings.scenes = builds.ToArray();
         AssetDatabase.SaveAssets();
         Debug.Log("[Kinesthetic] Motion scene created with articulated avatar and replay controls.");
     }
