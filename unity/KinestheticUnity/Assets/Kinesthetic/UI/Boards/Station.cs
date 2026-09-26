@@ -28,21 +28,29 @@ namespace Kinesthetic.UI.Boards
         public string name;
         public float yawDegrees, pitchDegrees, distanceMetres;
 
-        public Station(string name, float yawDegrees, float pitchDegrees, float distanceMetres)
+        /// How far the board's face leans back from square-on to the eye, positive turning it upward. A
+        /// board mounted in a room is square to whoever reads it, and every station here is zero for that
+        /// reason. A page in your hands is not square to anything: it lies back toward you, and the few
+        /// degrees of difference are most of what separates paper from a panel hanging in the air.
+        public float tiltDegrees;
+
+        public Station(string name, float yawDegrees, float pitchDegrees, float distanceMetres, float tiltDegrees = 0)
         {
-            this.name = name; this.yawDegrees = yawDegrees; this.pitchDegrees = pitchDegrees; this.distanceMetres = distanceMetres;
+            this.name = name; this.yawDegrees = yawDegrees; this.pitchDegrees = pitchDegrees;
+            this.distanceMetres = distanceMetres; this.tiltDegrees = tiltDegrees;
         }
 
         public float PixelsPerMetre => DensityConstant / Mathf.Max(.01f, distanceMetres);
 
         /// The same station on the other side of the facing. A venue that reserves a side — rehab's mirror
         /// stands front-left — takes the mirror image of a left-hand station rather than inventing a fifth.
-        public Station Mirrored => new(name + " (mirrored)", -yawDegrees, pitchDegrees, distanceMetres);
+        public Station Mirrored => new(name + " (mirrored)", -yawDegrees, pitchDegrees, distanceMetres, tiltDegrees);
 
         /// The direction from the eye point, in the seat's frame: pitch first, then yaw about the vertical.
         public Quaternion Heading => Quaternion.Euler(-pitchDegrees, yawDegrees, 0);
 
-        public override string ToString() => $"{name}: yaw {yawDegrees:0}°, pitch {pitchDegrees:0}°, {distanceMetres:0.0} m";
+        public override string ToString() => $"{name}: yaw {yawDegrees:0}°, pitch {pitchDegrees:0}°, {distanceMetres:0.0} m"
+            + (Mathf.Abs(tiltDegrees) > .01f ? $", tilted {tiltDegrees:0}°" : "");
     }
 
     /// The named stations every venue places against. The set is deliberately small: what to do now, a
@@ -63,11 +71,13 @@ namespace Kinesthetic.UI.Boards
         /// Live figures — a ring, an angle, a meter — to the right, a little below the eye line.
         public static readonly Station Measure = new("Measure", 25, -5, 1.5f);
 
-        /// Arm's length, dead ahead, a little below the eye line: where a page is held to be read rather
-        /// than where a card stands to be looked at. A briefing is handed to you, so it arrives here and
-        /// leaves again; nothing lives at this distance, because nothing should sit inside your reach for
-        /// a whole session.
-        public static readonly Station Reading = new("Reading", 0, -14, .55f);
+        /// Where a page is held, not where a card is mounted: 34 cm out, 30° down — the depression a
+        /// person actually reads at — and leaning 12° back toward the face, because nobody holds paper
+        /// square to their own eye. Its board is a sheet of US Letter, 216 x 279 mm, at its real size.
+        ///
+        /// A briefing is handed to you, so it arrives here and leaves again. Nothing lives at this
+        /// distance: it is inside your reach and across the room you are looking at.
+        public static readonly Station Reading = new("Reading", 0, -30, .34f, tiltDegrees: 12);
 
         public static readonly Station[] All = { Dock, Focus, Score, Measure, Reading };
     }

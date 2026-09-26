@@ -48,7 +48,10 @@ namespace Kinesthetic.UI.Boards
         public Pose PoseAt(Station station)
         {
             var heading = Facing * station.Heading;
-            return new Pose(EyePoint + heading * (Vector3.forward * station.distanceMetres), heading);
+            // Where it stands comes from the heading; how it is held comes from the tilt, about the board's
+            // own sideways axis once it faces the eye. Pitching its +Z down turns the face the reader sees up.
+            var held = heading * Quaternion.Euler(station.tiltDegrees, 0, 0);
+            return new Pose(EyePoint + heading * (Vector3.forward * station.distanceMetres), held);
         }
 
         /// Stand `board` at `station` as a child of the seat, and remember that it lives there.
