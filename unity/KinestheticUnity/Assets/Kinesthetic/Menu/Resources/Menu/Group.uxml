@@ -7,30 +7,40 @@
          except the Tab list, which rides over play. -->
     <ui:VisualElement name="group-layer" class="group-layer" picking-mode="Ignore">
 
-        <!-- Before an activity: alone, or with other people. -->
+        <!-- Before an activity: alone, or with other people. Every choice is one whole row you press;
+             nothing pressable sits inside another. -->
         <k:KSurface name="group-lobby" tone="Scrim" density="Flush" class="group-shade hidden">
             <k:KSurface tone="Paper" density="Comfortable" class="group-card lobby-card">
-                <k:KEyebrow name="lobby-eyebrow" text="BEFORE YOU START" />
+                <k:KEyebrow name="lobby-eyebrow" text="" />
                 <k:KText name="lobby-title" text="How would you like to play?" size="Title" class="group-title" />
 
                 <ui:VisualElement name="lobby-choose" class="lobby-choose">
-                    <k:KButton name="lobby-solo" text="Play solo" tone="Secondary" size="Large" class="lobby-choice" />
-                    <k:KButton name="lobby-together" text="Play with others" tone="Primary" size="Large" class="lobby-choice" />
+                    <k:KOption name="lobby-solo" tone="Plain" class="lobby-choice">
+                        <ui:VisualElement class="choice-faces" picking-mode="Ignore">
+                            <k:KMiiFace variant="0" class="choice-face" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="lobby-choice-copy" picking-mode="Ignore">
+                            <k:KText text="Play solo" size="Heading" />
+                            <k:KText text="Just you, at your own pace." size="Caption" tone="Soft" />
+                        </ui:VisualElement>
+                    </k:KOption>
+                    <k:KOption name="lobby-together" tone="Plain" class="lobby-choice">
+                        <ui:VisualElement class="choice-faces" picking-mode="Ignore">
+                            <k:KMiiFace variant="3" class="choice-face choice-face--back" />
+                            <k:KMiiFace variant="0" class="choice-face" />
+                            <k:KMiiFace variant="5" class="choice-face choice-face--back" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="lobby-choice-copy" picking-mode="Ignore">
+                            <k:KText text="Play with others" size="Heading" />
+                            <k:KText text="Join friends, or a group doing this now." size="Caption" tone="Soft" />
+                        </ui:VisualElement>
+                    </k:KOption>
                 </ui:VisualElement>
 
                 <ui:VisualElement name="lobby-others" class="lobby-others hidden">
-                    <ui:VisualElement class="lobby-column">
-                        <k:KText text="Friends playing now" size="Heading" />
-                        <k:KText text="Join them where they are." size="Caption" tone="Soft" class="lobby-hint" />
-                        <ui:ScrollView name="lobby-friends" class="lobby-list" />
-                        <k:KText name="lobby-friends-empty" text="None of your friends are playing this right now." size="Body" tone="Soft" class="lobby-empty hidden" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="lobby-column">
-                        <k:KText text="Join a group" size="Heading" />
-                        <k:KText text="People doing this right now. You see names once you are in, and they see yours." size="Caption" tone="Soft" class="lobby-hint" />
-                        <ui:ScrollView name="lobby-open" class="lobby-list" />
-                        <k:KText name="lobby-open-empty" text="No open groups right now. Start one and others can join." size="Body" tone="Soft" class="lobby-empty hidden" />
-                    </ui:VisualElement>
+                    <k:KText text="Groups with a friend in them are marked in green. You see everyone's names once you join, and they see yours." size="Caption" tone="Soft" class="lobby-hint" />
+                    <ui:ScrollView name="lobby-groups" class="lobby-list" />
+                    <k:KText name="lobby-empty" text="No groups right now. Start one and others can join." size="Body" tone="Soft" class="lobby-empty hidden" />
                 </ui:VisualElement>
 
                 <k:KText name="lobby-notice" text="" size="Caption" tone="Soft" class="group-notice" />
@@ -62,11 +72,14 @@
                 </ui:VisualElement>
                 <ui:VisualElement class="room-body">
                     <ui:VisualElement class="room-members">
-                        <k:KText name="room-count" text="" size="Caption" tone="Soft" class="room-count" />
+                        <k:KEyebrow name="room-count" text="" class="room-count" />
                         <ui:ScrollView name="room-list" class="room-list" />
+                        <k:KText text="Hold Tab while playing to see who is here." size="Caption" tone="Soft" class="room-tip" />
                     </ui:VisualElement>
                     <ui:VisualElement class="room-chat">
-                        <ui:ScrollView name="room-thread" class="room-thread" />
+                        <k:KSurface tone="Well" density="Compact" class="room-well">
+                            <ui:ScrollView name="room-thread" class="room-thread" />
+                        </k:KSurface>
                         <ui:VisualElement name="room-cheers" class="room-cheers" />
                         <ui:VisualElement class="room-composer">
                             <k:KField name="room-text" placeholder="Say something kind…" max-length="240" class="room-field" />

@@ -147,7 +147,8 @@ Readable headings and instructions. Sizes: `Title` (36px), `Heading` (26px), `Bo
 
 ### `KSurface` — `tone`, `density`
 
-Shared surfaces for compact HUDs and summaries. Tones: `Paper`, `Glass`, `Scrim`. Densities:
+Shared surfaces for compact HUDs and summaries. Tones: `Paper`, `Glass`, `Scrim`, and `Well` — a
+sunken sand ground set into paper, for paper-coloured things that need something to sit on. Densities:
 `Compact`, `Comfortable`, `Flush`. The screen positions the surface and its children; the component
 owns its padding, background, edge and radius. A scrim's blocking behavior and visibility remain
 with the screen. These variants and `KText` are also shown in `Specimen.uxml`.
@@ -172,6 +173,17 @@ A person's face, drawn from their Mii index: the same face in the friends roster
 session's member list and the Tab list. The screen gives it a size; it fills the smaller side and clips
 itself round. For an element a screen already has, `KMiiFace.Paint(element, variant, size)` draws into it.
 Skin and hair keep representational colours; the disc behind the head is from the palette.
+
+### `KOption` — `tone`
+
+One choice in a list, pressed as a whole row: a group to join, a way to play. The row is the button, so
+nothing pressable sits inside it; the screen fills it with `KText`, `KTag` and `KMiiTag`. `Plain` is paper
+with a slate edge; `Highlight` is jungle and means something good is in it (a friend is in that group).
+Hover and focus are cerulean for both, and a press halves the lip, as on `KButton`.
+
+### `KMiiTag` — `variant`, `text`
+
+A friend, small: their face and name in a jungle-edged pill. It only ever names a friend.
 
 ### `KMessage` — `side`, `author`, `said`, `text`, `time`
 

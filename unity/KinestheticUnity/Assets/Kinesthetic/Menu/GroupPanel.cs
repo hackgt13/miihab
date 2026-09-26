@@ -48,10 +48,10 @@ namespace Kinesthetic.Menu
         public static GroupPanel Instance { get; private set; }
 
         ActivityNavigation navigation;
-        VisualElement lobby, choose, others, roomLayer, tablist, tablistRows, roomList, friendsList, openList, cheers, ticker;
+        VisualElement lobby, choose, others, roomLayer, tablist, tablistRows, roomList, groupsList, cheers, ticker;
         ScrollView thread;
-        KText lobbyTitle, lobbyNotice, roomTitle, roomCount, roomNotice, tickerLine, friendsEmpty, openEmpty;
-        KEyebrow tablistTitle;
+        KText lobbyTitle, lobbyNotice, roomTitle, roomNotice, tickerLine, lobbyEmpty;
+        KEyebrow lobbyEyebrow, roomCount, tablistTitle;
         KTag roomSample;
         KButton openButton, hostButton;
         KField field;
@@ -63,6 +63,7 @@ namespace Kinesthetic.Menu
         string lastMembers;      // who was in the room, and who was a friend, when it was last drawn
         float nextPoll, tickerUntil;
         bool inActivity;
+        bool othersOpen, roomOpen;   // what was up, so a rebuilt tree can put it back (see Mount)
 
         /// A layer of this panel is up and should hold the activity (GolfScreens pauses its countdown on this).
         public bool Showing => Visible(lobby) || Visible(roomLayer);
@@ -87,19 +88,22 @@ namespace Kinesthetic.Menu
         {
             navigation = nav;
             if (root == null || root.Q("group-layer") != null) return;
+            // The navigation document rebuilds its tree on some scene changes, and a fresh copy of this layer
+            // comes up with everything hidden. Whatever was open before is put back at the end of Mount.
+            bool lobbyWasOpen = pending != null, othersWereOpen = othersOpen, roomWasOpen = roomOpen;
             var tree = Resources.Load<VisualTreeAsset>("Menu/Group");
             if (!tree) { Debug.LogError("Group session layout missing at Resources/Menu/Group.uxml"); return; }
             tree.CloneTree(root);
 
             lobby = root.Q("group-lobby"); choose = root.Q("lobby-choose"); others = root.Q("lobby-others");
             lobbyTitle = root.Q<KText>("lobby-title"); lobbyNotice = root.Q<KText>("lobby-notice");
-            friendsList = root.Q<ScrollView>("lobby-friends").contentContainer;
-            openList = root.Q<ScrollView>("lobby-open").contentContainer;
-            friendsEmpty = root.Q<KText>("lobby-friends-empty"); openEmpty = root.Q<KText>("lobby-open-empty");
+            lobbyEyebrow = root.Q<KEyebrow>("lobby-eyebrow");
+            groupsList = root.Q<ScrollView>("lobby-groups").contentContainer;
+            lobbyEmpty = root.Q<KText>("lobby-empty");
             hostButton = root.Q<KButton>("lobby-host");
 
             roomLayer = root.Q("group-room"); roomTitle = root.Q<KText>("room-title");
-            roomCount = root.Q<KText>("room-count"); roomNotice = root.Q<KText>("room-notice");
+            roomCount = root.Q<KEyebrow>("room-count"); roomNotice = root.Q<KText>("room-notice");
             roomSample = root.Q<KTag>("room-sample");
             roomList = root.Q<ScrollView>("room-list").contentContainer;
             thread = root.Q<ScrollView>("room-thread");
@@ -109,8 +113,8 @@ namespace Kinesthetic.Menu
             tablist = root.Q("group-tablist"); tablistRows = root.Q("tablist-rows");
             tablistTitle = root.Q<KEyebrow>("tablist-title");
 
-            root.Q<KButton>("lobby-solo").clicked += () => StartCoroutine(Solo());
-            root.Q<KButton>("lobby-together").clicked += ShowOthers;
+            root.Q<KOption>("lobby-solo").clicked += () => StartCoroutine(Solo());
+            root.Q<KOption>("lobby-together").clicked += ShowOthers;
             root.Q<KButton>("lobby-back").clicked += Back;
             hostButton.clicked += () => StartCoroutine(Host());
             openButton.clicked += OpenRoom;
@@ -128,6 +132,9 @@ namespace Kinesthetic.Menu
                 cheers.Add(cheer);
             }
 
+            if (lobbyWasOpen) { lobbyEyebrow.text = pending.DisplayName.ToUpperInvariant(); ShowChoose(); Show(lobby, true); if (othersWereOpen) ShowOthers(); }
+            if (roomWasOpen && room != null) OpenRoom();
+
             // Someone may already be in a room from before this layer existed (a scene opened directly).
             StartCoroutine(Refresh());
         }
@@ -143,22 +150,30 @@ namespace Kinesthetic.Menu
             // through this layer) must not swap the activity out from under the person choosing.
             if (Visible(lobby)) return true;
             pending = entry; proceed = go;
-            lobbyTitle.text = $"{entry.DisplayName}: how would you like to play?";
-            lobbyNotice.text = "";
-            Show(choose, true); Show(others, false); Show(hostButton, false);
+            lobbyEyebrow.text = entry.DisplayName.ToUpperInvariant();
+            ShowChoose();
             Show(lobby, true);
             navigation?.PlaySelect();
-            lobby.schedule.Execute(() => lobby.Q<KButton>("lobby-together")?.Focus());
+            lobby.schedule.Execute(() => lobby.Q<KOption>("lobby-together")?.Focus());
             return true;
+        }
+
+        void ShowChoose()
+        {
+            lobbyTitle.text = "How would you like to play?";
+            lobbyNotice.text = "";
+            othersOpen = false;
+            Show(choose, true); Show(others, false); Show(hostButton, false);
         }
 
         void ShowOthers()
         {
             navigation?.PlaySelect();
-            lobbyTitle.text = $"{pending.DisplayName}: who would you like to play with?";
+            lobbyTitle.text = "Pick a group";
+            othersOpen = true;
             Show(choose, false); Show(others, true); Show(hostButton, true);
-            friendsList.Clear(); openList.Clear();
-            Show(friendsEmpty, false); Show(openEmpty, false);
+            groupsList.Clear();
+            Show(lobbyEmpty, false);
             lobbyNotice.text = "Looking for groups…";
             StartCoroutine(SocialBridge.Get("/api/groups?activity=" + UnityEngine.Networking.UnityWebRequest.EscapeURL(pending.Id),
                 PaintLobby,
@@ -168,68 +183,63 @@ namespace Kinesthetic.Menu
         void Back()
         {
             navigation?.PlayBack();
-            if (Visible(others)) { Show(others, false); Show(hostButton, false); Show(choose, true); lobbyTitle.text = $"{pending.DisplayName}: how would you like to play?"; lobbyNotice.text = ""; return; }
+            if (Visible(others)) { ShowChoose(); lobby.Q<KOption>("lobby-together")?.Focus(); return; }
             CloseLobby();
         }
 
-        void CloseLobby() { Show(lobby, false); pending = null; proceed = null; }
+        void CloseLobby() { Show(lobby, false); pending = null; proceed = null; othersOpen = false; }
 
+        /// One list. Groups with a friend in them come first and are highlighted, with that friend's face
+        /// on the row; the coordinator already sends them apart (groups.ts `lobby`), so the order is theirs.
         void PaintLobby(string json)
         {
             var reply = JsonUtility.FromJson<Lobby>(json);
             lobbyNotice.text = "";
-            friendsList.Clear(); openList.Clear();
-            foreach (var group in reply?.friendsPlaying ?? new Summary[0]) friendsList.Add(LobbyRow(group, true));
-            foreach (var group in reply?.open ?? new Summary[0]) openList.Add(LobbyRow(group, false));
-            Show(friendsEmpty, friendsList.childCount == 0);
-            Show(openEmpty, openList.childCount == 0);
+            groupsList.Clear();
+            foreach (var group in reply?.friendsPlaying ?? new Summary[0]) groupsList.Add(GroupRow(group));
+            foreach (var group in reply?.open ?? new Summary[0]) groupsList.Add(GroupRow(group));
+            Show(lobbyEmpty, groupsList.childCount == 0);
         }
 
-        VisualElement LobbyRow(Summary group, bool withFriends)
+        /// A group, pressed as a whole to join it. Friends are named by face: you know them already. The
+        /// strangers in a group are only its size until you are in it (groups.ts), so they have no faces.
+        VisualElement GroupRow(Summary group)
         {
-            var row = new VisualElement();
-            row.AddToClassList("lobby-row");
-
-            // Friends are shown by face and name: you know them already. A room of strangers is only its
-            // size until you are in it (groups.ts), so it has no faces here.
-            if (withFriends && group.friends is { Length: > 0 })
-            {
-                var faces = new VisualElement { pickingMode = PickingMode.Ignore };
-                faces.AddToClassList("lobby-row-faces");
-                foreach (var friend in group.friends)
-                {
-                    var face = new KMiiFace { variant = friend.mii };
-                    face.AddToClassList("lobby-row-face");
-                    faces.Add(face);
-                }
-                row.Add(faces);
-            }
+            bool friends = group.friends is { Length: > 0 };
+            string id = group.id;
+            var row = new KOption(() => StartCoroutine(Join(id))) { tone = friends ? KOption.Tone.Highlight : KOption.Tone.Plain };
+            bool full = group.size >= group.capacity;
+            row.SetEnabled(!full);
+            row.tooltip = full ? "This group is full" : "Join " + group.title;
 
             var copy = new VisualElement { pickingMode = PickingMode.Ignore };
-            copy.AddToClassList("lobby-row-copy");
-            string who = withFriends && group.friends is { Length: > 0 }
-                ? string.Join(", ", Array.ConvertAll(group.friends, f => f.displayName)) + " · "
-                : "";
+            copy.AddToClassList("group-row-copy");
             copy.Add(new KText { text = group.title, size = KText.Size.Body });
-            copy.Add(new KText
+            var meta = new VisualElement { pickingMode = PickingMode.Ignore };
+            meta.AddToClassList("group-row-meta");
+            meta.Add(new KText
             {
-                text = $"{who}{group.size} of {group.capacity} · going for {Minutes(group.minutes)}",
+                text = full ? $"Full · {group.size} of {group.capacity}"
+                    : $"{group.size} of {group.capacity} · going for {Minutes(group.minutes)}",
                 size = KText.Size.Caption, tone = KText.Tone.Soft,
             });
-            if (group.sample)
-            {
-                var tags = new VisualElement { pickingMode = PickingMode.Ignore };
-                tags.AddToClassList("lobby-row-tags");
-                tags.Add(new KTag("SAMPLE"));
-                copy.Add(tags);
-            }
+            if (group.sample) meta.Add(new KTag("SAMPLE"));
+            copy.Add(meta);
             row.Add(copy);
 
-            var join = new KButton { text = "Join", tone = KButton.Tone.Primary, size = KButton.Size.Small };
-            string id = group.id;
-            join.SetEnabled(group.size < group.capacity);
-            join.clicked += () => StartCoroutine(Join(id));
-            row.Add(join);
+            if (friends)
+            {
+                var tags = new VisualElement { pickingMode = PickingMode.Ignore };
+                tags.AddToClassList("group-row-friends");
+                foreach (var friend in group.friends)
+                    tags.Add(new KMiiTag { variant = friend.mii, text = friend.displayName });
+                row.Add(tags);
+            }
+
+            // Where the eye lands to see that the row goes somewhere. Words, not a button: the row is the button.
+            var go = new KText { text = full ? "" : "Join  ›", size = KText.Size.Caption, tone = KText.Tone.Ink };
+            go.AddToClassList("group-row-go");
+            row.Add(go);
             return row;
         }
 
@@ -264,7 +274,7 @@ namespace Kinesthetic.Menu
         void Go()
         {
             var go = proceed;
-            Show(lobby, false); pending = null; proceed = null;
+            Show(lobby, false); pending = null; proceed = null; othersOpen = false;
             go?.Invoke();
         }
 
@@ -275,7 +285,7 @@ namespace Kinesthetic.Menu
         public void SceneChanged(bool menu)
         {
             inActivity = !menu;
-            if (menu) { Show(lobby, false); Show(roomLayer, false); Show(tablist, false); Show(ticker, false); }
+            if (menu) { roomOpen = false; Show(roomLayer, false); Show(tablist, false); Show(ticker, false); }
             PaintChrome();
             nextPoll = 0;
         }
@@ -294,7 +304,7 @@ namespace Kinesthetic.Menu
             navigation?.PlaySelect();
             roomNotice.text = "";
             PaintRoom();
-            Show(roomLayer, true); Show(ticker, false);
+            Show(roomLayer, true); Show(ticker, false); roomOpen = true;
             field.schedule.Execute(() => field.Focus());
         }
 
@@ -305,12 +315,12 @@ namespace Kinesthetic.Menu
             else if (Visible(lobby)) Back();
         }
 
-        void CloseRoom() { Show(roomLayer, false); navigation?.PlayBack(); openButton?.Focus(); }
+        void CloseRoom() { Show(roomLayer, false); roomOpen = false; navigation?.PlayBack(); openButton?.Focus(); }
 
         IEnumerator Leave(bool sound)
         {
             yield return SocialBridge.Post("/api/groups/leave", "{}",
-                _ => { SetRoom(null); Show(roomLayer, false); if (sound) navigation?.PlayBack(); },
+                _ => { SetRoom(null); Show(roomLayer, false); roomOpen = false; if (sound) navigation?.PlayBack(); },
                 reason => roomNotice.text = reason ?? "That did not go through. Is the bridge running?");
         }
 
@@ -370,7 +380,7 @@ namespace Kinesthetic.Menu
             room = next; lastSeen = newest; lastMembers = members;
             PaintChrome();
             // The poll lands every few seconds; redraw only for something new, so the list does not flicker.
-            if (Visible(roomLayer)) { if (room == null) Show(roomLayer, false); else if (changed || moved) PaintRoom(changed); }
+            if (Visible(roomLayer)) { if (room == null) { Show(roomLayer, false); roomOpen = false; } else if (changed || moved) PaintRoom(changed); }
             if (Visible(tablist)) PaintTablist();
         }
 
@@ -385,7 +395,7 @@ namespace Kinesthetic.Menu
         {
             bool here = inActivity && room != null && room.activityId == ActivityNavigation.Current()?.Id;
             Show(openButton, here);
-            if (here) openButton.text = $"Group · {room.members?.Length ?? 0}   (hold Tab)";
+            if (here) openButton.text = $"Group · {room.members?.Length ?? 0}";
             if (!here) { Show(ticker, false); Show(tablist, false); }
         }
 

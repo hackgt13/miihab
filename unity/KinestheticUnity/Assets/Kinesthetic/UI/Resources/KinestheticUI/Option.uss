@@ -1,0 +1,40 @@
+/* KOption: a whole row you press. Paper with a slate edge and a lip, like a KButton laid flat; the
+   highlight is jungle because it means something good is in it. Hover and focus are cerulean for every
+   tone, and a press halves the lip, as on KButton. Children are the screen's; this sets none of their paint.
+
+   KMiiTag lives here too: it exists to sit on these rows. */
+
+.k-option.k-option--plain, .k-option.k-option--highlight {
+    flex-direction: row; align-items: center; justify-content: flex-start;
+    margin: 0 0 10px 0; padding: 14px 18px;
+    border-width: 2px; border-bottom-width: 4px; border-radius: 18px;
+    -unity-text-align: middle-left; white-space: normal; font-size: 16px; color: var(--prussian-50);
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal;
+    opacity: 1; scale: 1; transition-duration: .16s;
+}
+.k-option.k-option--plain { background-color: var(--sand-00); border-color: var(--slate-30); }
+.k-option.k-option--highlight { background-color: var(--jungle-10); border-color: var(--jungle-40); border-bottom-color: var(--jungle-50); }
+
+.k-option.k-option--plain:hover, .k-option.k-option--plain:focus, .k-option.k-option--plain.k-hot {
+    background-color: var(--cerulean-10); border-color: var(--cerulean-50); scale: 1.01;
+}
+.k-option.k-option--highlight:hover, .k-option.k-option--highlight:focus, .k-option.k-option--highlight.k-hot {
+    border-color: var(--cerulean-50); scale: 1.01;
+}
+.k-option.k-option--plain:active, .k-option.k-option--plain.k-pressed,
+.k-option.k-option--highlight:active, .k-option.k-option--highlight.k-pressed { border-bottom-width: 2px; scale: 1; }
+
+.k-option.k-option--plain:disabled, .k-option.k-option--highlight:disabled {
+    background-color: var(--sand-40); border-color: var(--sand-40); color: var(--slate-70); opacity: .7; scale: 1;
+}
+
+.k-mii-tag {
+    flex-direction: row; align-items: center; flex-shrink: 0;
+    height: 36px; padding: 0 14px 0 3px; margin: 0; border-radius: 18px; border-width: 2px;
+    background-color: var(--sand-00); border-color: var(--jungle-40);
+}
+.k-mii-tag .k-mii-tag__face { width: 28px; height: 28px; margin-right: 7px; }
+.k-mii-tag .k-mii-tag__name {
+    margin: 0; padding: 0; font-size: 15px; color: var(--jungle-60);
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal;
+}
