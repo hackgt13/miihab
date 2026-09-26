@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Linq;
 using Kinesthetic.Activities;
+using Kinesthetic.Shell;
+using Kinesthetic.UI.Remote;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -20,9 +22,9 @@ namespace Kinesthetic.Menu
         public bool OverlayOpen => Busy || (dialog != null && !dialog.ClassListContains("hidden")) || (help != null && !help.ClassListContains("hidden"));
         public event Action<bool> MusicChanged;
         AudioSource musicSource, effects;
-        VisualElement root, dialog, curtain, help;
+        VisualElement root, dialog, help;
         Button returnButton, confirm, cancel, helpButton, helpClose, helpMusic;
-        Label detail, title, loading;
+        Label detail, title;
         bool menuActive, supported, showMusic;
         float lastHover = -1;
 
@@ -64,9 +66,9 @@ namespace Kinesthetic.Menu
             if (tree?.Q<Button>("return-menu") == null) return false;
             if (returnButton == tree.Q<Button>("return-menu")) return true;
             root = tree; root.pickingMode = PickingMode.Ignore;
-            returnButton = root.Q<Button>("return-menu"); dialog = root.Q("return-dialog"); curtain = root.Q("transition");
+            returnButton = root.Q<Button>("return-menu"); dialog = root.Q("return-dialog");
             confirm = root.Q<Button>("return-confirm"); cancel = root.Q<Button>("return-cancel");
-            detail = root.Q<Label>("return-detail"); title = root.Q<Label>("return-title"); loading = root.Q<Label>("loading-label");
+            detail = root.Q<Label>("return-detail"); title = root.Q<Label>("return-title");
             returnButton.clicked += OpenReturn;
             help = root.Q("activity-help-panel"); helpButton = root.Q<Button>("activity-help");
             helpClose = root.Q<Button>("activity-help-close"); helpMusic = root.Q<Button>("activity-music");
@@ -140,7 +142,7 @@ namespace Kinesthetic.Menu
             var entry = ActivityCatalog.ById(activityId);
             if (Busy || entry == null) return;
             if (!Application.CanStreamedLevelBeLoaded(entry.Scene)) { ShowUnavailable(); return; }
-            PlaySelect(); StartCoroutine(Load(entry.Scene));
+            PlaySelect(); StartCoroutine(Load(entry.Scene, entry.Venue));
         }
         public void OpenReturn()
         {
@@ -183,17 +185,33 @@ namespace Kinesthetic.Menu
                     confirm.text = "Try again"; yield break;
                 }
             }
-            PlaySelect(); yield return Load(MenuScene);
+            PlaySelect(); yield return Load(MenuScene, null);
         }
-        IEnumerator Load(string scene)
+        /// Into `scene`, through the doorway of `venue` when this scene has one (the plaza does, for every
+        /// catalog venue), behind a fade when it does not (an activity, on the way back). The next scene loads
+        /// during the walk and is switched in on the covered frame. The headset is told at both ends
+        /// (UiCue.Scene) so it walks through its own copy of the door at the same moment.
+        IEnumerator Load(string scene, string venue)
         {
             Busy = true; showMusic = false;
-            curtain.RemoveFromClassList("hidden");
-            loading.text = ActivityCatalog.All.FirstOrDefault(a => a.Scene == scene)?.LoadingMessage ?? "Back to your activities…";
-            yield return new WaitForSecondsRealtime(.22f);
+            dialog.AddToClassList("hidden");
+            UiCue.SendScene(scene, venue, UiCue.Leave);
+            var fade = HeadFade.Ensure();
             var load = SceneManager.LoadSceneAsync(scene);
+            load.allowSceneActivation = false;
+            var portal = Portal.Find(venue);
+            var cam = Camera.main;
+            if (portal != null && cam != null)
+            {
+                var carousel = FindAnyObjectByType<PaneCarousel>();
+                yield return PlazaApproach.Enter(portal, cam.transform, fade, turnToward: true, carousel ? carousel.gameObject : null);
+            }
+            else yield return fade.CoverTo(1, PlazaApproach.ClearSeconds);
+            load.allowSceneActivation = true;
             while (!load.isDone) yield return null;
-            Busy = false; curtain.AddToClassList("hidden"); confirm.SetEnabled(true); cancel.SetEnabled(true);
+            UiCue.SendScene(scene, venue, UiCue.Arrive);
+            yield return PlazaApproach.Arrive(fade);
+            Busy = false; confirm.SetEnabled(true); cancel.SetEnabled(true);
         }
         void OnDestroy()
         {

@@ -8,6 +8,7 @@
       "tagline": "Gentle raises. Personal progress.",
       "category": "therapy",
       "scene": "Rehab",
+      "questScene": "QuestRehab",
       "venue": "studio",
       "exerciseKinds": [
         "shoulder-raise.v1",
@@ -45,6 +46,7 @@
       "tagline": "Fresh air. Friendly competition.",
       "category": "play",
       "scene": "AdaptiveGolf",
+      "questScene": "QuestGolf",
       "venue": "resort-course",
       "exerciseKinds": [],
       "requires": [
@@ -79,6 +81,7 @@
       "tagline": "Line up. Swing. Watch them fall.",
       "category": "play",
       "scene": "Bowling",
+      "questScene": "QuestBowling",
       "venue": "bowling-alley",
       "exerciseKinds": [],
       "requires": [

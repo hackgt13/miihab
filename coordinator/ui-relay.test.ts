@@ -87,6 +87,26 @@ test('ui: one host, unique client ids, resync both ways, broadcast trees, acks t
   } finally { await r.close(); }
 });
 
+test('ui: a cue from the host reaches every client as sent; a cue with no kind cuts the host off',{timeout:40000},async()=>{
+  const r=relay('18795');
+  try {
+    await ready(r.proc);
+    const c1=await r.open('client'),c2=await r.open('client');await r.heard(c1,1);await r.heard(c2,1);
+    const host=await r.open('host');await r.heard(host,2);
+    const leave={type:'ui.cue',kind:'scene',scene:'Rehab',venue:'studio',phase:'leave'};
+    host.ws.send(JSON.stringify(leave));await r.heard(c1,2);await r.heard(c2,2);
+    assert.deepEqual(c1.messages[1],leave);assert.deepEqual(c2.messages[1],leave);
+    const face={type:'ui.cue',kind:'face',slot:'gallery'};
+    host.ws.send(JSON.stringify(face));await r.heard(c1,3);
+    assert.deepEqual(c1.messages[2],face);
+    // A client cannot forge one: it is not a press, so it is dropped and the host never hears it.
+    c1.ws.send(JSON.stringify(leave));await r.settle();
+    assert.equal(host.messages.length,2);
+    const closed=once(host.ws,'close');host.ws.send(JSON.stringify({type:'ui.cue',scene:'Rehab'}));
+    assert.equal((await closed)[0],1008);
+  } finally { await r.close(); }
+});
+
 test('ui: a client that floods is throttled, then disconnected; a burst refills; rare drops are forgiven',{timeout:40000},async()=>{
   const r=relay('18791');
   try {

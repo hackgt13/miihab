@@ -26,6 +26,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Kinesthetic/Bowling/Bowling.unity
     guid: 08a2a4d0b0fec46d48d34956ed088126
+  - enabled: 1
+    path: Assets/Kinesthetic/Menu/QuestMenu.unity
+    guid: b7cbafdbbffa7463ab8a6ae67b67f696
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: 223d7e26084774c21949ad74f66c502f, type: 2}

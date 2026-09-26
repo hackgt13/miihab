@@ -71,6 +71,7 @@ namespace Kinesthetic.UI.Remote
             if (Instance && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
             socket = new UiSocket(Url);
+            UiCue.Sender = Send;   // cues ride this socket, next to the trees
         }
 
         void OnDestroy()

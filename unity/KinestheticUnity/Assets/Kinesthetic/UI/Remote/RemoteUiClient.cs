@@ -143,6 +143,7 @@ namespace Kinesthetic.UI.Remote
                 case "ui.ack":
                     if (message["seq"] != null) { long acked = (long)message["seq"]; outbox.RemoveAll(p => p.seq == acked); }
                     break;
+                case "ui.cue": UiCue.Deliver(message); break;   // not a tree: whoever cares subscribes to UiCue
                 case "ui.host-disconnected":
                     // The next host starts its own count and the relay makes it snapshot; nothing to ask for.
                     // What was mirrored is the last thing a Mac that has gone said, so every board goes back

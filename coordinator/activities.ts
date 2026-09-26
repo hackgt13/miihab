@@ -27,6 +27,8 @@ export interface Activity {
   category: 'therapy' | 'play';
   /** Unity scene name. The gallery loads this; nothing else should hardcode it. */
   scene: string;
+  /** The headset's render-only copy of that scene, or null when the headset has no copy of it. */
+  questScene: string | null;
   venue: string;
   /** Exercise kinds measured here. Empty means the activity measures nothing clinical. */
   exerciseKinds: string[];
@@ -85,7 +87,7 @@ function parse(raw: any, source: string): Activity[] {
       loadingMessage: String(a.loadingMessage),
       music: a.music == null ? null : String(a.music),
       help: {title: String(help.title), steps: steps.map((s: any) => ({step: String(s.step), copy: String(s.copy)}))},
-      category: a.category, scene: String(a.scene), venue: String(a.venue),
+      category: a.category, scene: String(a.scene), questScene: a.questScene == null ? null : String(a.questScene), venue: String(a.venue),
       exerciseKinds, requires: requires as ChannelId[], subjects, prescribable: !!a.prescribable, navigation,
     };
   });

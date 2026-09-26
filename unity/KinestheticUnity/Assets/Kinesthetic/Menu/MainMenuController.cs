@@ -197,6 +197,8 @@ namespace Kinesthetic.Menu
 
             // What the gaze may commit follows whichever pane is facing, which is what the scope list used
             // to do for a stack of sheets. One mechanism, now driven by where the person is looking.
+            // The headset's ring is its own geometry and follows this one by name (QuestMenuMirror).
+            carousel.Changed += slot => Kinesthetic.UI.Remote.UiCue.SendFace(slot.id);
             carousel.Settled += slot => scope = slot.id switch
             {
                 "gallery" => ActivityScope,
