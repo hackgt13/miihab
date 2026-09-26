@@ -196,7 +196,7 @@ namespace Kinesthetic.Menu
         static void DrawBowlingIcon(MeshGenerationContext ctx)
         {
             var p = ctx.painter2D;
-            p.strokeColor = Palette.Indigo60; p.lineWidth = 2.5f; p.lineJoin = LineJoin.Round;
+            p.strokeColor = Palette.Prussian60; p.lineWidth = 2.5f; p.lineJoin = LineJoin.Round;
             p.fillColor = Palette.Sand00;
             p.BeginPath(); p.MoveTo(new(35, 12));
             p.BezierCurveTo(new(32, 4), new(47, 4), new(44, 12));
@@ -204,9 +204,9 @@ namespace Kinesthetic.Menu
             p.LineTo(new(31, 44));
             p.BezierCurveTo(new(27, 28), new(39, 21), new(35, 12));
             p.ClosePath(); p.Fill(); p.Stroke();
-            p.strokeColor = Palette.Glaucous50;
+            p.strokeColor = Palette.Slate50;
             p.BeginPath(); p.MoveTo(new(35, 19)); p.LineTo(new(44, 19)); p.Stroke();
-            p.fillColor = Palette.Indigo60;
+            p.fillColor = Palette.Prussian60;
             p.BeginPath(); p.Arc(new(23, 39), 13, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
             p.fillColor = Palette.Sand00;
             foreach (var point in new[] { new Vector2(21, 33), new Vector2(27, 34), new Vector2(23, 39) })
@@ -216,7 +216,7 @@ namespace Kinesthetic.Menu
         static void DrawIcon(MeshGenerationContext ctx, bool studio)
         {
             var p = ctx.painter2D;
-            p.strokeColor = Palette.Indigo60; p.lineWidth = 3; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
+            p.strokeColor = Palette.Prussian60; p.lineWidth = 3; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
             void Line(params Vector2[] points) { p.BeginPath(); p.MoveTo(points[0]); for(int i=1;i<points.Length;i++)p.LineTo(points[i]);p.Stroke(); }
             if (studio)
             {
@@ -224,13 +224,13 @@ namespace Kinesthetic.Menu
                 Line(new(30,26),new(30,39),new(42,39),new(44,49));
                 Line(new(30,28),new(42,24),new(47,12));
                 Line(new(30,28),new(19,36)); Line(new(19,40),new(19,49),new(33,49));
-                p.strokeColor = Palette.Ice40;p.lineWidth=2;
+                p.strokeColor = Palette.Cerulean40;p.lineWidth=2;
                 p.BeginPath();p.Arc(new(31,31),21,Angle.Degrees(235),Angle.Degrees(305));p.Stroke();
             }
             else
             {
                 Line(new(30,47),new(30,13),new(48,20),new(30,26));
-                p.strokeColor = Palette.Glaucous50; Line(new(14,48),new(48,48));
+                p.strokeColor = Palette.Slate50; Line(new(14,48),new(48,48));
                 p.fillColor=Palette.Sand00;p.BeginPath();p.Arc(new(19,41),4,Angle.Degrees(0),Angle.Degrees(360));p.Fill();p.Stroke();
             }
         }
