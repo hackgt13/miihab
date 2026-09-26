@@ -148,6 +148,7 @@ public static class MainMenuSetup
         actor.position += Vector3.up * (stand.position.y + .12f - rig.RightAnkle.position.y);
         var chair = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Kinesthetic/Art/BlenderProps/MiiWheelchair.glb"), slot);
         chair.transform.localRotation = Quaternion.Euler(0, 180, 0);
+        actor.gameObject.AddComponent<MenuResident>();                 // pose the rig once in the player
         actor.gameObject.AddComponent<Kinesthetic.Golf.MiiIdleLife>(); // blink + breathing
     }
 

@@ -8,7 +8,8 @@ namespace Kinesthetic.Menu
     public sealed class MainMenuController : MonoBehaviour
     {
         VisualElement root;
-        VisualElement activityOverlay, helpOverlay;
+        VisualElement activityOverlay, helpOverlay, nameOverlay;
+        TextField nameField;
         Button[] cards;
         Button music;
         Label caption;
@@ -23,9 +24,10 @@ namespace Kinesthetic.Menu
         // What is reachable right now. A pointer cannot reach behind an open sheet because the shade covers
         // it, but the gaze ray is resolved from element rects alone and would happily commit a tile the
         // person cannot even see. So the menu decides what counts as reachable, per open layer.
-        static readonly string[] BaseScope = { "start-activity", "choose-activity", "music", "help" };
+        static readonly string[] BaseScope = { "start-activity", "choose-activity", "music", "help", "edit-name" };
         static readonly string[] ActivityScope = { "golf-card", "studio-card", "activity-close" };
         static readonly string[] HelpScope = { "help-close" };
+        static readonly string[] NameScope = { "name-save", "name-cancel" };
         string[] scope = BaseScope;
 
         void Start() { navigation = ActivityNavigation.Ensure(); Bind(); }
@@ -40,6 +42,8 @@ namespace Kinesthetic.Menu
 
             activityOverlay = root.Q("activity-overlay");
             helpOverlay = root.Q("help-overlay");
+            nameOverlay = root.Q("name-overlay");
+            nameField = root.Q<TextField>("name-field");
             cards = new[] { root.Q<Button>("golf-card"), root.Q<Button>("studio-card") };
             caption = root.Q<Label>("selection-caption");
             music = root.Q<Button>("music");
@@ -58,6 +62,15 @@ namespace Kinesthetic.Menu
             Act(music, navigation.ToggleMusic);
             Act(root.Q<Button>("help"), () => OpenSheet(helpOverlay, HelpScope, root.Q<Button>("help-close")));
             Act(root.Q<Button>("help-close"), () => CloseSheet(helpOverlay, "help"));
+            Act(root.Q<Button>("edit-name"), OpenNameSheet);
+            Act(root.Q<Button>("name-cancel"), () => CloseSheet(nameOverlay, "edit-name"));
+            Act(root.Q<Button>("name-save"), SaveName);
+            // Enter in the field commits, so the keyboard path does not dead-end on a board whose
+            // primary input is a gaze.
+            nameField?.RegisterCallback<KeyDownEvent>(e =>
+            {
+                if (e.keyCode is KeyCode.Return or KeyCode.KeypadEnter) { SaveName(); e.StopPropagation(); }
+            });
 
             navigation.MusicChanged += MusicChanged;
             MusicChanged(navigation.MusicEnabled);
@@ -66,6 +79,7 @@ namespace Kinesthetic.Menu
             {
                 if (Showing(activityOverlay)) { CloseSheet(activityOverlay, "choose-activity"); e.StopPropagation(); }
                 else if (Showing(helpOverlay)) { CloseSheet(helpOverlay, "help"); e.StopPropagation(); }
+                else if (Showing(nameOverlay)) { CloseSheet(nameOverlay, "edit-name"); e.StopPropagation(); }
             });
             root.RegisterCallback<NavigationMoveEvent>(e =>
             {
@@ -120,6 +134,20 @@ namespace Kinesthetic.Menu
         }
 
         void Launch(string scene) => navigation.LoadActivity(scene);
+
+        void OpenNameSheet()
+        {
+            if (nameField != null) nameField.value = MenuProfile.Name;
+            OpenSheet(nameOverlay, NameScope, nameField);
+        }
+
+        void SaveName()
+        {
+            MenuProfile.Name = nameField?.value ?? MenuProfile.DefaultName;
+            model = MenuDashboardModel.Placeholder();
+            MenuDashboard.Populate(root, model);
+            CloseSheet(nameOverlay, "edit-name");
+        }
 
         void OpenSheet(VisualElement overlay, string[] next, VisualElement focus)
         {
