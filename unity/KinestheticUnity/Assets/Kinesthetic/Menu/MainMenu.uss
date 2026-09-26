@@ -195,8 +195,7 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
     border-radius: 13px;
     margin-right: -8px;
     border-width: 2px;
-    border-color: var(--sand-00);
-}
+    border-color: var(--sand-00); overflow: hidden;}
 
 .friends-overlay {
     position: absolute;
@@ -239,7 +238,7 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 }
 .friend-row:hover { background-color: var(--cerulean-20-a96); }
 .friend-row.selected { background-color: var(--slate-50-a28); }
-.friend-row-face { width: 34px; height: 34px; border-radius: 17px; margin-right: 10px; }
+.friend-row-face { width: 34px; height: 34px; border-radius: 17px; margin-right: 10px; overflow: hidden;}
 .friend-row-copy { flex-grow: 1; flex-shrink: 1; flex-direction: column; overflow: hidden; margin-right: 8px; }
 .friend-row-name { font-size: 17px; color: var(--prussian-50); -unity-font-style: bold; overflow: hidden; text-overflow: ellipsis; }
 .friend-row-meta { font-size: 14px; color: var(--slate-50); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; }
@@ -286,7 +285,7 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 
 .thread-pane { flex-grow: 1; flex-direction: column; min-height: 0; }
 .thread-head { flex-direction: row; align-items: center; margin-bottom: 10px; }
-.thread-face { width: 30px; height: 30px; border-radius: 15px; margin-right: 10px; }
+.thread-face { width: 30px; height: 30px; border-radius: 15px; margin-right: 10px; overflow: hidden;}
 .thread-name { font-size: 20px; color: var(--prussian-50); -unity-font-style: bold; }
 .thread { flex-grow: 1; min-height: 0; border-radius: 18px; background-color: var(--sand-30-a70); padding: 12px; }
 
@@ -344,7 +343,7 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
     border-color: var(--sand-00-a80);
 }
 .friend-spotlight.hidden { display: none; }
-.spotlight-face { width: 40px; height: 40px; border-radius: 20px; margin-right: 10px; flex-shrink: 0; }
+.spotlight-face { width: 40px; height: 40px; border-radius: 20px; margin-right: 10px; flex-shrink: 0; overflow: hidden;}
 .spotlight-copy { flex-direction: column; flex-grow: 1; flex-shrink: 1; overflow: hidden; }
 .spotlight-name { font-size: 17px; color: var(--prussian-50); -unity-font-style: bold; }
 .spotlight-line { font-size: 17px; color: var(--prussian-50); white-space: normal; margin-top: 1px; }
