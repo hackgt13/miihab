@@ -98,7 +98,8 @@ Button:disabled { opacity: .55; }
 .task-detail { font-size: 16px; color: var(--slate-50); margin-top: 1px; }
 .task-status { font-size: 15px; color: var(--slate-60); padding: 4px 12px; border-radius: 11px; background-color: var(--cerulean-20-a85); flex-shrink: 0; }
 .task-status.done { color: var(--jungle-60); background-color: var(--jungle-20-a75); }
-#today-empty { font-size: 17px; color: var(--slate-50); padding: 8px 0; }
+#today-empty,
+#prescription-empty { font-size: 17px; color: var(--slate-50); padding: 8px 0; }
 
 /* ---------------------------------------------------------------- pane links
 
@@ -402,100 +403,76 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
    overlay panel (980px) floating on a board that fills all 1600 — three widths, which did not matter
    while only one was ever on screen. It matters now: the neighbours' edges are visible as the ring
    turns, so three widths read as three different kinds of thing, and the sliver either side changes
-   size depending on which pane happens to be standing there. */
 .pane-screen > .sheet,
-.pane-screen > .friends-panel,
-.pane-screen > .coaching-panel { width: 100%; height: 100%; }
+.pane-screen > .friends-panel { width: 100%; height: 100%; }
 
 /* ---- Coaching -------------------------------------------------------------
-   The plan pane, standing directly to the left of the board. Same panel as the other two — sand sheet,
-   cerulean edge, the block measured off the board's bento — because three panes standing in one ring have
-   to read as three faces of one thing, not three different screens that happen to be nearby.
+   The plan pane is tiles, like the board, but not the board's grid: the board is two columns with a hero and
+   a CTA, and this is three bands — the reading beside the figures that qualify it, a short band of three, and
+   the prescription full width. So this block is the bands, and everything else comes from the tile chrome and
+   the type classes above.
 
-   The numbers here are smaller than the board's on purpose. The board is glanced at from across the room
-   and carries one figure; this is read, so it trades headline size for a page that holds a prescription,
-   three charts and a note without a scrollbar. Nothing drops below 14px on the 1600px reference, which is
-   the floor the rest of this stylesheet keeps. */
+   It was a sand sheet divided by hairlines, on the reasoning that a pane has no plaza behind it for a floating
+   tile to sit against. A pane is a transparent world-space panel of exactly the board's 1600x900, so the plaza
+   is behind it just as it is behind the board.
 
-.coaching-panel {
-    padding: 34px 40px 30px;
-    background-color: var(--sand-00-a97);
-    border-radius: 32px;
-    border-width: 3px;
-    border-bottom-width: 8px;
-    border-color: var(--cerulean-30);
-}
-.coaching-header { flex-direction: row; justify-content: space-between; align-items: flex-start; flex-shrink: 0; margin-bottom: 14px; }
-.coaching-heading { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.coaching-title { font-size: 34px; color: var(--prussian-50); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.coaching-subtitle { font-size: 16px; color: var(--slate-50); margin-top: 3px; }
-/* Whose figures these are, stated rather than implied. A demo plan that reads as a real one is the one
-   mistake this surface cannot make, so provenance sits at the top where it is read first. */
-.plan-source { flex-shrink: 0; margin-left: 20px; margin-top: 6px; padding: 5px 14px; border-radius: 13px; font-size: 14px; color: var(--slate-60); background-color: var(--cerulean-20-a85); }
+   Sized to fit 900px without a scrollbar, because a pane you have to scroll is a pane whose bottom half does
+   not exist to someone reading it from two metres. The prescription list is the one exception and scrolls on
+   purpose: a clinician can always prescribe one more thing, and that must not be what pushes the chart off
+   the panel. */
 
-.coaching-body { flex-direction: row; flex-grow: 1; min-height: 0; }
-.coaching-main { flex-grow: 1.35; flex-basis: 0; min-width: 0; margin-right: 18px; }
-.coaching-side { flex-grow: 1; flex-basis: 0; min-width: 0; }
+.plan-source-slot { flex-shrink: 0; margin-top: 10px; }
 
-/* ---- the reach, session by session */
+.plan-bento { flex-grow: 1; min-height: 0; }
+.plan-row { flex-direction: row; align-items: stretch; min-height: 0; }
+.plan-row-tall { flex-grow: 1; }
+.plan-row-short { flex-shrink: 0; }
+/* Tiles in a band share its width and never push each other out of it. `last` closes the gap at the end,
+   because USS has no :last-child worth relying on here. */
+.plan-row > .tile, .plan-row > .cta { flex-basis: 0; min-width: 0; margin-right: 13px; }
+.plan-row > .last { margin-right: 0; }
 
-.tile-trend { flex-grow: 1; min-height: 0; padding-bottom: 12px; }
+/* ---- band 1: the reach, session by session, and the figures it is read against */
+
+.tile-trend { flex-grow: 2.1; }
 .trend-body { flex-direction: row; align-items: stretch; flex-grow: 1; min-height: 0; }
-.trend-readout { flex-shrink: 0; width: 186px; margin-right: 10px; justify-content: center; }
-/* Smaller than the board's 84px hero: this one shares its tile with a chart, and a figure that overpowers
-   the line it belongs to turns the trend into decoration. */
-.trend-readout > .stat-number { font-size: 62px; }
-.trend-readout > .reach-delta { font-size: 17px; }
-.trend-readout > .reach-best { font-size: 15px; }
-.plan-trend { flex-grow: 1; flex-shrink: 1; min-width: 0; min-height: 0; }
+.trend-readout { flex-shrink: 0; width: 210px; margin-right: 12px; justify-content: center; }
+.trend-plot { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.plan-trend { flex-grow: 1; min-height: 0; }
+.trend-axis { flex-direction: row; flex-shrink: 0; height: 22px; }
 
-/* ---- the prescription */
+/* Three figures stacked, each a number with its name beside it: this column is a third of the panel, and
+   three numbers across it would each be too small to read from two metres. The fixed number column is what
+   puts the three names on one left edge. */
+.tile-figures { flex-grow: 1; }
+.figure-row { flex-direction: row; align-items: center; padding: 4px 0; border-top-width: 1px; border-top-color: var(--slate-50-a28); }
+.figure-row.first { border-top-width: 0; }
+.figure-number { width: 104px; flex-shrink: 0; }
+.figure-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.envelope-ladder { height: 26px; flex-shrink: 0; margin-top: 10px; }
 
-.tile-prescription { flex-shrink: 0; margin-bottom: 0; padding-bottom: 8px; }
-.prescription-list { flex-shrink: 0; }
-.prescription-row { flex-direction: row; align-items: center; padding: 7px 0; border-top-width: 1px; border-top-color: var(--slate-50-a28); }
-.prescription-row.first { border-top-width: 0; }
-/* A bar rather than a dot, and cerulean only when something is actually measured: play is prescribed too,
+/* ---- band 2: why, how much, and the way to a person */
+
+.tile-goal { flex-grow: 1; }
+.plan-goal { font-size: 19px; color: var(--slate-70); white-space: normal; }
+.tile-dose { flex-grow: 1; }
+.dose-bars { height: 74px; flex-shrink: 0; margin-top: 2px; }
+.cta-visit { flex-grow: 1.15; margin-bottom: 13px; }
+/* A third of a band is narrower than the board's full-width CTA, and the line under the title turns
+   into a sentence once the button has been pressed, so it wraps instead of clipping. */
+.cta-visit .cta-sub { white-space: normal; }
+
+/* ---- band 3: everything prescribed, across the full width
+
+   Rows are the board's .task-row, so a prescribed thing looks like a thing to do. Capped rather than fixed:
+   three rows is a long plan and a fourth scrolls instead of growing into the chart above. */
+
+.tile-prescription { flex-shrink: 0; margin-bottom: 0; }
+.prescription-list { flex-grow: 0; max-height: 196px; }
+.tile-prescription .task-row { padding: 7px 0; }
+/* A bar rather than a dot, and cerulean only where something is actually measured: play is prescribed too,
    and marking it with the colour this product uses for "measured" would say it produces numbers. */
 .prescription-mark { width: 4px; height: 38px; border-radius: 2px; background-color: var(--slate-30); margin-right: 14px; flex-shrink: 0; }
 .prescription-mark.measured { background-color: var(--cerulean-50); }
-.prescription-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.prescription-title { font-size: 20px; color: var(--prussian-50); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.prescription-dose { font-size: 16px; color: var(--slate-60); margin-top: 1px; }
-.prescription-note-copy { font-size: 14px; color: var(--slate-50); margin-top: 1px; white-space: normal; }
-.prescription-where { font-size: 14px; color: var(--slate-60); padding: 4px 12px; border-radius: 11px; background-color: var(--cerulean-20-a85); margin-left: 10px; flex-shrink: 0; }
-#prescription-empty { font-size: 16px; color: var(--slate-50); padding: 8px 0; }
-
-/* ---- the three figures */
-
-.tile-metrics { flex-shrink: 0; padding-top: 14px; padding-bottom: 14px; }
-.coach-metrics { flex-direction: row; align-items: center; justify-content: center; }
-.coach-metric { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: center; }
-.coach-rule { width: 1px; height: 76px; background-color: var(--slate-30-a55); margin: 0 10px; }
-.coach-figure { font-size: 46px; color: var(--prussian-50); letter-spacing: -2px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-
-/* ---- the envelope, and the dose */
-
-.tile-envelope { flex-shrink: 0; }
-.envelope-ladder { height: 42px; flex-shrink: 0; }
-.envelope-caption { font-size: 14px; color: var(--slate-50); margin-top: 4px; -unity-text-align: middle-center; }
-.tile-dose { flex-shrink: 0; }
-.dose-bars { height: 66px; flex-shrink: 0; }
-
-/* ---- the therapist's own words */
-
-.tile-coach-note { flex-grow: 1; min-height: 0; margin-bottom: 0; }
-.coach-note-copy { font-size: 17px; color: var(--slate-70); white-space: normal; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
-
-/* ---- the way out, and the way to a person
-
-   Back sits left and quiet; the visit is the one thing on this pane a patient might actually want to do
-   about what they have just read, so it gets the primary treatment. Shorter than the board's CTA, which
-   has a whole board to itself. */
-
-.coaching-actions { flex-direction: row; align-items: center; justify-content: space-between; flex-shrink: 0; margin-top: 14px; }
-.coaching-actions > .sheet-close { align-self: center; margin-top: 0; margin-left: 0; }
-.coaching-cta { flex-shrink: 0; max-width: 620px; padding: 13px 24px; border-bottom-width: 6px; }
-.coaching-cta > .cta-copy > .cta-title { font-size: 25px; }
-.coaching-cta > .cta-copy > .cta-sub { font-size: 16px; }
-.coaching-cta > .cta-arrow { font-size: 36px; }
+/* The clinician's own words, once, under what they asked for. The only sentence on the pane. */
+.coaching-note { white-space: normal; margin-top: 9px; }

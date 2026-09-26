@@ -88,10 +88,16 @@ namespace Kinesthetic.Menu
             ["golf.adaptive"] = "Golf",
             ["bowling.adaptive"] = "Bowling",
         };
+        // All four registered kinds (coordinator/exercise/registry.ts), not just the two the LIBRARY names:
+        // the demo plan on disk prescribes the camera kind, and a pane that answered "shoulder-raise.v1 ·
+        // right" would be showing the patient a database key. The camera and AirPod kinds measure the same
+        // movement with different sensors, so they share a name; only one is ever prescribed at a time.
         static readonly Dictionary<string, string> Movements = new()
         {
             ["arm-elevation.v1"] = "Seated shoulder raise",
+            ["shoulder-raise.v1"] = "Seated shoulder raise",
             ["elbow-flexion.v1"] = "Seated biceps curl",
+            ["trunk-rotation.v1"] = "Seated trunk rotation",
         };
 
         public static CoachingPlanModel FromCoordinator(JObject j)
@@ -183,6 +189,11 @@ namespace Kinesthetic.Menu
         static readonly Color Panel = Palette.Panel;
         static readonly Color Line = Palette.Line;
 
+        /// Fills the tiles. Every figure is one label and every label is at most a handful of words: the pane
+        /// is read from two metres, and a caption that has to be read twice is a caption nobody reads. The
+        /// sentences it used to carry under each number — "median peak · prescribed to 45°, ceiling 60°",
+        /// "REPS IN BAND · 8 of 10 last session" — said in prose what the tile's own label and the chart
+        /// beside it already say.
         public static void Populate(VisualElement root, CoachingPlanModel plan, MenuDashboardModel dashboard)
         {
             if (root == null || plan == null || dashboard == null) return;
@@ -190,23 +201,20 @@ namespace Kinesthetic.Menu
             var history = dashboard.history;
             var last = history.Length > 0 ? history[^1] : default;
 
-            Text(root, "plan-provenance",
-                $"Version {plan.version} · approved by {plan.approvedBy} · {plan.approvedAt:d MMM yyyy}");
+            Text(root, "plan-provenance", $"Version {plan.version} · {plan.approvedBy} · {plan.approvedAt:d MMM}");
             Text(root, "plan-source", plan.live ? "From your clinic" : "Demo plan · not from your clinic");
-            Text(root, "coaching-note", string.IsNullOrWhiteSpace(plan.coachingNote)
-                ? "Nothing added this visit." : $"“{plan.coachingNote}”");
+            Text(root, "goal-copy", plan.goal);
 
-            // ---- the reach, session by session
+            // ---- the reach, session by session: three lines, exactly as the board's hero tile carries them
             float now = history.Length > 0 ? last.medianPeakDeg : 0;
             float first = history.Length > 0 ? history[0].medianPeakDeg : 0;
             Text(root, "trend-now", history.Length > 0 ? $"{Mathf.RoundToInt(now)}°" : "—");
             Text(root, "trend-delta", history.Length > 1
-                ? $"{(now - first >= 0 ? "+" : "")}{Mathf.RoundToInt(now - first)}° since your first session"
-                : "No trend yet — one session to go");
+                ? $"{(now - first >= 0 ? "+" : "")}{Mathf.RoundToInt(now - first)}° since you started" : "");
+            // The ceiling is not repeated here: it is the top of the green band on the chart, and it is
+            // spelled out in the dose on the prescription row underneath.
             Text(root, "trend-target", primary is { } p1
-                ? $"median peak · prescribed to {Mathf.RoundToInt(p1.targetDeg)}°" +
-                  (p1.targetMaxDeg > p1.targetDeg ? $", ceiling {Mathf.RoundToInt(p1.targetMaxDeg)}°" : "")
-                : "median peak of each session");
+                ? $"median peak · target {Mathf.RoundToInt(p1.targetDeg)}°" : "median peak");
             Text(root, "trend-note", history.Length switch
             {
                 0 => "no sessions yet",
@@ -214,46 +222,42 @@ namespace Kinesthetic.Menu
                 _ => $"last {history.Length} sessions",
             });
 
-            // ---- the three figures
+            // ---- the three figures. Each is a number with its name beside it, so the words after the name
+            // are the one detail that number needs and nothing else: the note in the tile head labels the
+            // ladder with the range it draws, which is what the sentence under it used to spell out.
             if (primary != null && primary.Value.envelope != null)
             {
                 var measured = primary.Value;
                 var envelope = measured.envelope.Value;
-                int level = envelope.LevelOf(measured.targetDeg);
-                Text(root, "level-number", level.ToString());
+                Text(root, "level-number", envelope.LevelOf(measured.targetDeg).ToString());
                 Text(root, "level-caption", $"of {envelope.Levels} · now {Mathf.RoundToInt(measured.targetDeg)}°");
-                Text(root, "envelope-note", envelope.autoApply
-                    ? $"moves itself after {envelope.sessionsToProgress} good sessions"
-                    : "your clinician moves this");
-                Text(root, "envelope-caption",
-                    $"{Mathf.RoundToInt(envelope.minTargetDeg)}° to {Mathf.RoundToInt(envelope.maxTargetDeg)}° · " +
-                    $"{Mathf.RoundToInt(envelope.stepDeg)}° a step");
+                Text(root, "envelope-note",
+                    $"{Mathf.RoundToInt(envelope.minTargetDeg)}° to {Mathf.RoundToInt(envelope.maxTargetDeg)}°");
             }
             else
             {
                 Text(root, "level-number", "—");
-                Text(root, "level-caption", "no envelope set");
-                Text(root, "envelope-note", "set by your clinician");
-                Text(root, "envelope-caption", primary is { } only
-                    ? $"prescribed to {Mathf.RoundToInt(only.targetDeg)}°" : "nothing measured in this plan");
+                Text(root, "level-caption", "not set yet");
+                Text(root, "envelope-note", primary is { } only
+                    ? $"target {Mathf.RoundToInt(only.targetDeg)}°" : "nothing measured");
             }
 
             int inBand = last.attempted > 0 ? Mathf.RoundToInt(100f * last.valid / last.attempted) : 0;
             Text(root, "band-number", last.attempted > 0 ? $"{inBand}%" : "—");
-            Text(root, "band-caption", last.attempted > 0
-                ? $"last session · {last.valid} of {last.attempted}"
-                : "nothing measured yet");
+            Text(root, "band-caption", last.attempted > 0 ? $"{last.valid} of {last.attempted}" : "nothing yet");
 
             int week = Mathf.Max(1, Mathf.CeilToInt(dashboard.programDay / 7f));
             int weeks = Mathf.Max(1, Mathf.CeilToInt(dashboard.programTotalDays / 7f));
             Text(root, "week-number", week.ToString());
-            Text(root, "week-caption", $"of {weeks} · {dashboard.DaysRemaining} days to go");
+            Text(root, "week-caption", $"of {weeks}");
 
             Text(root, "dose-note", primary is { } dose ? $"{dose.targetCount} prescribed" : "");
-            Text(root, "visit-sub", $"Talk through these numbers · “{plan.goal}”");
+            Text(root, "visit-sub", "Talk these numbers through together");
 
             // ---- the prescription, rebuilt rather than patched: approving a change writes a new version
-            var list = root.Q("prescription-list");
+            // The ScrollView's own children are its scrollers, so rows go into its content container.
+            var scroller = root.Q<ScrollView>("prescription-list");
+            var list = scroller != null ? scroller.contentContainer : root.Q("prescription-list");
             if (list != null)
             {
                 list.Clear();
@@ -265,15 +269,39 @@ namespace Kinesthetic.Menu
             Text(root, "prescription-note", plan.prescriptions.Length == 1
                 ? "1 thing" : $"{plan.prescriptions.Length} things");
 
+            // The clinician's own words, under what they asked for — and only if the rows are not already
+            // carrying them, because the one sentence on this pane must not be the same sentence twice.
+            bool onARow = plan.prescriptions.Any(
+                p => string.Equals(p.note?.Trim(), plan.coachingNote?.Trim(), StringComparison.OrdinalIgnoreCase));
+            Text(root, "coaching-note", string.IsNullOrWhiteSpace(plan.coachingNote) || onARow
+                ? "" : $"“{plan.coachingNote}”");
+
+            // One label per session, in the same cells the chart puts its points in — the day letters over
+            // the board's consistency grid, doing the same job for the line above them.
+            var axis = root.Q("trend-axis");
+            if (axis != null)
+            {
+                axis.Clear();
+                foreach (var point in history)
+                {
+                    var tick = new Label(point.label) { pickingMode = PickingMode.Ignore };
+                    tick.AddToClassList("day-letter");
+                    axis.Add(tick);
+                }
+            }
+
             Paint(root, "plan-trend", (ctx, r) => DrawTrend(ctx, r, history, primary));
             Paint(root, "envelope-ladder", (ctx, r) => DrawEnvelope(ctx, r, primary));
             Paint(root, "dose-bars", (ctx, r) => DrawDose(ctx, r, history, primary?.targetCount ?? 0));
         }
 
+        /// One prescribed thing, built as the board builds a thing to do: the movement, then its dose and any
+        /// form note on one line under it, then where it is done as a pill on the right. Same .task-row the
+        /// Today tile uses, so a prescription and today's work read as the same kind of object.
         static VisualElement PrescriptionRow(CoachingPlanModel.Prescription p, bool first)
         {
             var row = new VisualElement { pickingMode = PickingMode.Ignore };
-            row.AddToClassList("prescription-row");
+            row.AddToClassList("task-row");
             if (first) row.AddToClassList("first");
 
             var marker = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -282,24 +310,22 @@ namespace Kinesthetic.Menu
             row.Add(marker);
 
             var copy = new VisualElement { pickingMode = PickingMode.Ignore };
-            copy.AddToClassList("prescription-copy");
-            var title = new Label(p.movement) { pickingMode = PickingMode.Ignore };
-            title.AddToClassList("prescription-title");
-            var dose = new Label(p.Dose) { pickingMode = PickingMode.Ignore };
-            dose.AddToClassList("prescription-dose");
-            copy.Add(title); copy.Add(dose);
-            if (!string.IsNullOrWhiteSpace(p.note))
-            {
-                var note = new Label(p.note) { pickingMode = PickingMode.Ignore };
-                note.AddToClassList("prescription-note-copy");
-                copy.Add(note);
-            }
+            copy.AddToClassList("task-copy");
+            copy.Add(Styled("task-title", p.movement));
+            // The note joins the dose rather than taking a third line: two lines a row is what keeps four
+            // prescriptions inside the tile instead of inside a scrollbar.
+            copy.Add(Styled("task-detail", string.IsNullOrWhiteSpace(p.note) ? p.Dose : $"{p.Dose} · {p.note}"));
             row.Add(copy);
 
-            var where = new Label(p.where) { pickingMode = PickingMode.Ignore };
-            where.AddToClassList("prescription-where");
-            row.Add(where);
+            row.Add(Styled("task-status", p.where));
             return row;
+        }
+
+        static Label Styled(string className, string text)
+        {
+            var label = new Label(text) { pickingMode = PickingMode.Ignore };
+            label.AddToClassList(className);
+            return label;
         }
 
         // ------------------------------------------------------------------ the reach, session by session
@@ -319,8 +345,8 @@ namespace Kinesthetic.Menu
             if (r.width < 40 || r.height < 30 || history.Length == 0) return;
             var p = ctx.painter2D;
 
-            float pad = 10;
-            float left = pad, right = r.width - pad, top = pad, bottom = r.height - pad;
+            float pad = 12;
+            float left = pad, right = r.width - pad, top = pad, bottom = r.height - 6;
             float target = primary?.targetDeg ?? 0, ceiling = primary?.targetMaxDeg ?? 0;
 
             // The scale has to hold the plan as well as the data, or a band the line never reaches falls off
@@ -329,50 +355,58 @@ namespace Kinesthetic.Menu
             if (target > 0) { lo = Mathf.Min(lo, target); hi = Mathf.Max(hi, target); }
             if (ceiling > 0) hi = Mathf.Max(hi, ceiling);
             float span = Mathf.Max(12, hi - lo);
-            lo -= span * .18f; hi += span * .18f;
+            lo -= span * .22f; hi += span * .16f;
 
             float Y(float deg) => bottom - (deg - lo) / (hi - lo) * (bottom - top);
-            float X(int i) => history.Length == 1 ? (left + right) * .5f
-                : left + i * (right - left) / (history.Length - 1);
+            // Cell centres, not endpoints: each session owns a column, which is what puts a point above its
+            // own label in the axis row underneath and keeps the line clear of the tile's edges.
+            float cell = (right - left) / history.Length;
+            float X(int i) => left + (i + .5f) * cell;
 
-            // The band the prescription asks for.
+            // The band the prescription asks for, from the target up to the ceiling. Green because landing
+            // inside it is the thing that counts — not because the number is high.
             if (ceiling > target && target > 0)
             {
-                float yTop = Y(ceiling), yBottom = Y(target);
-                p.fillColor = Good.At(.16f);
+                float yTop = Mathf.Max(top, Y(ceiling)), yBottom = Y(target);
+                p.fillColor = Good.At(.18f);
                 p.BeginPath();
                 p.MoveTo(new(left, yTop)); p.LineTo(new(right, yTop));
                 p.LineTo(new(right, yBottom)); p.LineTo(new(left, yBottom));
                 p.ClosePath(); p.Fill();
             }
 
-            // The target, as the line the band starts at; the ceiling as the quieter line it ends at.
+            // The two edges of that band: the target you are asked to reach, and the ceiling you are asked
+            // not to pass. The target is the louder of the two because it is the one being worked toward.
             void Rule(float deg, Color colour, float width)
             {
                 if (deg <= 0) return;
                 p.strokeColor = colour; p.lineWidth = width; p.lineCap = LineCap.Butt;
                 p.BeginPath(); p.MoveTo(new(left, Y(deg))); p.LineTo(new(right, Y(deg))); p.Stroke();
             }
-            Rule(target, Target, 3);
-            Rule(ceiling, Line.At(.85f), 2);
+            Rule(ceiling, Good.At(.45f), 2);
+            Rule(target, Target.At(.8f), 2.5f);
 
-            // The baseline, so the line has a floor to sit on rather than floating in the tile.
-            p.strokeColor = Line.At(.55f); p.lineWidth = 2;
+            // A floor for the line to stand on. Without it the plot is a block of colour with a line in it,
+            // and the eye has nothing to read the last point's height against.
+            p.strokeColor = Line.At(.5f); p.lineWidth = 1.5f; p.lineCap = LineCap.Butt;
             p.BeginPath(); p.MoveTo(new(left, bottom)); p.LineTo(new(right, bottom)); p.Stroke();
 
             // The measurement.
-            p.strokeColor = Progress; p.lineWidth = 5; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
+            p.strokeColor = Progress; p.lineWidth = 4.5f; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
             p.BeginPath();
             p.MoveTo(new(X(0), Y(history[0].medianPeakDeg)));
             for (int i = 1; i < history.Length; i++) p.LineTo(new(X(i), Y(history[i].medianPeakDeg)));
             if (history.Length > 1) p.Stroke();
 
+            // Hollow dots, so the line reads through them; the last one filled, because "where you are now"
+            // is the one point on this chart anybody looks for first.
             for (int i = 0; i < history.Length; i++)
             {
                 bool latest = i == history.Length - 1;
                 var at = new Vector2(X(i), Y(history[i].medianPeakDeg));
-                p.fillColor = Panel; p.strokeColor = Progress; p.lineWidth = latest ? 5 : 4;
-                p.BeginPath(); p.Arc(at, latest ? 11 : 7, Angle.Degrees(0), Angle.Degrees(360));
+                p.fillColor = latest ? Progress : Panel;
+                p.strokeColor = Progress; p.lineWidth = 4;
+                p.BeginPath(); p.Arc(at, latest ? 9 : 6, Angle.Degrees(0), Angle.Degrees(360));
                 p.Fill(); p.Stroke();
             }
         }
@@ -446,26 +480,27 @@ namespace Kinesthetic.Menu
             if (r.width < 24 || r.height < 16 || history.Length == 0) return;
             var p = ctx.painter2D;
 
-            float pad = 6, bottom = r.height - pad, top = pad;
+            float bottom = r.height - 2, top = 12;
             int ceiling = Mathf.Max(prescribed, history.Max(h => Mathf.Max(h.attempted, h.valid)));
             if (ceiling <= 0) return;
             float Y(float reps) => bottom - Mathf.Clamp01(reps / ceiling) * (bottom - top);
 
-            float gap = Mathf.Min(10, r.width * .04f);
+            float gap = Mathf.Clamp(r.width * .035f, 4, 10);
             float width = (r.width - gap * (history.Length - 1)) / history.Length;
-            float radius = Mathf.Min(width * .3f, 7);
+            float radius = Mathf.Min(width * .28f, 6);
 
             for (int i = 0; i < history.Length; i++)
             {
                 float x = i * (width + gap);
-                p.fillColor = Reference.At(.22f);
+                p.fillColor = Reference.At(.18f);
                 Column(p, x, Y(history[i].attempted), width, bottom - Y(history[i].attempted), radius);
                 p.fillColor = Good;
                 Column(p, x, Y(history[i].valid), width, bottom - Y(history[i].valid), radius);
             }
 
+            // What was prescribed, as the line the columns are read against.
             if (prescribed <= 0) return;
-            p.strokeColor = Target; p.lineWidth = 2.5f; p.lineCap = LineCap.Butt;
+            p.strokeColor = Target.At(.7f); p.lineWidth = 2; p.lineCap = LineCap.Butt;
             p.BeginPath(); p.MoveTo(new(0, Y(prescribed))); p.LineTo(new(r.width, Y(prescribed))); p.Stroke();
         }
 

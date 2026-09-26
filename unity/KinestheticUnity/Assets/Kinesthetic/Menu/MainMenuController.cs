@@ -325,7 +325,7 @@ namespace Kinesthetic.Menu
         {
             navigation.PlaySelect();
             var sub = coachingRoot?.Q<Label>("visit-sub");
-            if (sub != null) sub.text = "Booking is coming soon — your therapist already sees this plan.";
+            if (sub != null) sub.text = "Booking is coming soon — your therapist already sees this.";
         }
 
         void OpenNameSheet()
