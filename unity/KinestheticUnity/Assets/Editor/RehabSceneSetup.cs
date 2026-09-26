@@ -100,9 +100,11 @@ public static class RehabSceneSetup
         // patient's-eye view too, not just the clinician's framing.
         var eyes = actor.gameObject.AddComponent<EyeAnchor>();
         eyes.ownBody = avatar.transform; eyes.lookAt = orb.transform;
+        eyes.sceneOwnsView = true;   // StudioCamera is this scene's eye view; FirstPersonView adds no second one
 
         var camera = new GameObject("Patient view camera").AddComponent<Camera>();
-        // Third person from behind the chair (StudioCamera glides it into the patient's eyes during a session).
+        // Authored wide, behind the chair. StudioCamera opens it in the patient's eyes and only comes back
+        // out here on C, so this pose is the wide shot, not what the scene starts on.
         camera.transform.position = new Vector3(1.35f, 2.55f, -4.34f); camera.transform.LookAt(new Vector3(0, .9f, 1.4f));
         camera.fieldOfView = 46; camera.nearClipPlane = .1f; camera.farClipPlane = 50;
         camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = Palette.Cerulean10;

@@ -1242,6 +1242,7 @@ MonoBehaviour:
   lookAt: {fileID: 1193390654}
   ownBody: {fileID: 2004877420}
   fieldOfView: 63
+  sceneOwnsView: 1
 --- !u!114 &838069361
 MonoBehaviour:
   m_ObjectHideFlags: 0

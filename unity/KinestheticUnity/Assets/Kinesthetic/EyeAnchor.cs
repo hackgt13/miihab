@@ -15,5 +15,8 @@ namespace Kinesthetic
         public Transform lookAt;          // what the view faces at rest; null looks along the anchor's forward
         public Transform ownBody;         // the patient's own avatar: hidden from their own eyes, torso excepted
         public float fieldOfView = 63;    // wider than a spectator's — this is a view from inside a head
+        // Set by a scene that already drives the patient's-eye view itself (the studio's StudioCamera).
+        // FirstPersonView then does the own-body layering but builds no camera of its own.
+        public bool sceneOwnsView;
     }
 }

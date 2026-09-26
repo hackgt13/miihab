@@ -114,7 +114,7 @@ namespace Kinesthetic.Rehab
             exercise = new ExerciseClient(exerciseUrl);
             // The mirror window is added here, so the generated scene needs no change.
             if (!useCameraPose && !GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
-            // Third person to set the scene, first person during the set (mirror left, coach right).
+            // The patient's own eyes (mirror left, coach right); C glides out to the wide shot.
             if (!GetComponent<StudioCamera>()) gameObject.AddComponent<StudioCamera>().session = this;
             // A headset renders this studio from what it publishes (RehabStateClient in QuestRehab).
             if (!GetComponent<RehabStatePublisher>()) gameObject.AddComponent<RehabStatePublisher>().session = this;
