@@ -97,3 +97,25 @@ Button.summary-secondary:hover, Button.summary-secondary:focus { background-colo
 .studio-screen .unity-scroller--vertical .unity-base-slider__tracker { width: 3px; background-color: var(--sand-20); border-width: 0; }
 .studio-screen .unity-scroller--vertical .unity-base-slider__dragger { width: 6px; min-height: 28px; background-color: var(--slate-30); border-width: 0; border-radius: 3px; }
 .studio-screen .unity-scroller--vertical .unity-base-slider__dragger:hover { background-color: var(--slate-40); }
+
+/* In play the studio becomes a game view, like golf and bowling: the website-like cards give way to a compact
+   HUD over the 3D room, and the coaching dock turns into a translucent banner. */
+.play-hud { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: none; }
+.studio-screen.playing .play-hud { display: flex; }
+.studio-screen.playing .studio-header,
+.studio-screen.playing .exercise-card,
+.studio-screen.playing .progress-card,
+.studio-screen.playing .studio-caption,
+.studio-screen.playing .footer-note { display: none; }
+.hud-chip { position: absolute; top: 28px; padding: 12px 22px 10px; border-radius: 22px; background-color: var(--prussian-70-a45); align-items: center; }
+.hud-reps { left: 32px; }
+.hud-angle { right: 32px; }
+.hud-big { font-size: 46px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: var(--sand-10); }
+.hud-small { font-size: 11px; letter-spacing: 1.6px; color: var(--sand-10); -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; opacity: .85; }
+.hud-angle.in-band .hud-big { color: var(--jungle-40); }
+.hud-angle.over .hud-big { color: var(--coral-40); }
+.hud-coach { position: absolute; right: 32px; bottom: 190px; max-width: 420px; padding: 12px 18px; border-radius: 18px; background-color: var(--prussian-70-a45); }
+.hud-coach-line { font-size: 17px; color: var(--sand-10); white-space: normal; margin-top: 4px; }
+.studio-screen.playing .coaching-dock { background-color: var(--prussian-70-a45); border-color: rgba(0, 0, 0, 0); border-bottom-color: rgba(0, 0, 0, 0); left: 22%; right: 22%; bottom: 34px; }
+.studio-screen.playing .cue-title { color: var(--sand-10); }
+.studio-screen.playing .status { color: var(--sand-10); opacity: .85; }

@@ -73,6 +73,20 @@
             <ui:Label text="THE MOVEMENT STUDIO" class="studio-caption-title" />
             <ui:Label text="Move at your pace." class="studio-caption-detail" />
         </ui:VisualElement>
+        <ui:VisualElement name="play-hud" class="play-hud" picking-mode="Ignore">
+            <ui:VisualElement class="hud-chip hud-reps" picking-mode="Ignore">
+                <ui:Label name="hud-reps" text="0/8" class="hud-big" />
+                <ui:Label text="REPS" class="hud-small" />
+            </ui:VisualElement>
+            <ui:VisualElement class="hud-chip hud-angle" picking-mode="Ignore">
+                <ui:Label name="hud-angle" text="—" class="hud-big" />
+                <ui:Label name="hud-target" text="TARGET 85°" class="hud-small" />
+            </ui:VisualElement>
+            <ui:VisualElement name="hud-coach" class="hud-coach hidden" picking-mode="Ignore">
+                <ui:Label text="COACH ALEX" class="hud-small" />
+                <ui:Label name="hud-coach-line" text="" class="hud-coach-line" />
+            </ui:VisualElement>
+        </ui:VisualElement>
         <ui:VisualElement class="coaching-dock">
             <ui:VisualElement name="cue-icon" class="cue-icon"><ui:Label name="cue-symbol" text="1" /></ui:VisualElement>
             <ui:VisualElement class="coaching-copy">

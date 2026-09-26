@@ -54,6 +54,18 @@ namespace Kinesthetic.Rehab
         float? liveAngle; string phase = "idle";
         float lastSampleAt = -99, shownAngle; string exerciseKind = "arm-elevation.v1";
         Kinesthetic.Coach.CoachDemonstrator coach;
+        bool voiceOn; string currentExerciseId;
+        VisualElement screen, hudCoach, hudAngleChip; Label hudReps, hudAngle, hudTarget, hudCoachLine;
+        /// Stable per machine, so Alex (the voice PT) remembers this patient between sessions.
+        static string PatientId
+        {
+            get
+            {
+                var id = PlayerPrefs.GetString("RehabMii.PatientId", "");
+                if (string.IsNullOrEmpty(id)) { id = Guid.NewGuid().ToString(); PlayerPrefs.SetString("RehabMii.PatientId", id); PlayerPrefs.Save(); }
+                return id;
+            }
+        }
         // Whether the measurement stream is live: camera frames, or AirPod-driven samples from the coordinator.
         bool Fresh => useCameraPose ? LivePoseClient.Fresh(poseTicks) : Time.unscaledTime - lastSampleAt < .5f;
         string status = "Rest your arms. Press Start session.";
@@ -77,6 +89,8 @@ namespace Kinesthetic.Rehab
             exercise = new ExerciseClient(exerciseUrl);
             // The mirror window is added here, so the generated scene needs no change.
             if (!useCameraPose && !GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
+            // Third person to set the scene, first person during the set (mirror left, coach right).
+            if (!GetComponent<StudioCamera>()) gameObject.AddComponent<StudioCamera>().session = this;
             // A headset renders this studio from what it publishes (RehabStateClient in QuestRehab).
             if (!GetComponent<RehabStatePublisher>()) gameObject.AddComponent<RehabStatePublisher>().session = this;
             BindUI();
@@ -97,6 +111,9 @@ namespace Kinesthetic.Rehab
             targetLabel = root.Q<Label>("target-label"); progressNote = root.Q<Label>("progress-note");
             angleNote = root.Q<Label>("angle-note"); cameraStatus = root.Q<Label>("camera-status");
             cueTitle = root.Q<Label>("cue-title"); cueSymbol = root.Q<Label>("cue-symbol");
+            screen = root.Q("studio-screen"); hudCoach = root.Q("hud-coach"); hudAngleChip = root.Q(className: "hud-angle");
+            hudReps = root.Q<Label>("hud-reps"); hudAngle = root.Q<Label>("hud-angle"); hudTarget = root.Q<Label>("hud-target");
+            hudCoachLine = root.Q<Label>("hud-coach-line");
             repRing = root.Q("rep-ring"); cameraChip = root.Q("camera-chip"); cueIcon = root.Q("cue-icon");
             angleMeter = root.Q<ProgressBar>("angle-meter");
             repRing.generateVisualContent += DrawRepRing;
@@ -122,6 +139,7 @@ namespace Kinesthetic.Rehab
         IEnumerator Begin()
         {
             startingSession = true; sessionError = false; summaryReceived = false;
+            currentExerciseId = "pending";   // ignore the stream until the coordinator says which session is ours
             start.SetEnabled(false); summaryCard.AddToClassList("hidden");
             status = useCameraPose ? "Starting camera…" : "Connecting to your AirPod…";
 #if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
@@ -146,6 +164,14 @@ namespace Kinesthetic.Rehab
             start.SetEnabled(true);
             if (request.result != UnityWebRequest.Result.Success) { sessionError = true; status = useCameraPose ? "Check that camera capture is open, then press Start to try again." : "Check the measurement service is running, then press Start to try again."; yield break; }
             sessionError = false;
+            // Only this session's messages count from here: starting one closes any session still open on the
+            // coordinator, and that one's summary must not be taken for ours.
+            try
+            {
+                var reply = JObject.Parse(request.downloadHandler.text);
+                currentExerciseId = (string)reply["exerciseId"]; exerciseKind = (string)reply["exerciseKind"] ?? exerciseKind; shownAngle = 0;
+            }
+            catch (Exception) { currentExerciseId = null; }
             running = true; calibrated = false; attempted = valid = 0; liveAngle = null;
             status = useCameraPose ? "Hold still with your arms relaxed · calibrating" : "Hold the handle still, arm resting · calibrating";
             start.text = "Finish set";
@@ -215,6 +241,28 @@ namespace Kinesthetic.Rehab
             statusLabel.text = Cue = running && coach && coach.Demonstrating ? "Watch the coach: up to the line, pause, then lower"
                 : running && coach && coach.HandingOff ? "Your turn · watch yourself in the mirror" : status;
             UpdateStudioUI();
+            UpdatePlayHud();
+        }
+
+        // The in-play HUD: reps, the live angle against the band, and what Alex just said.
+        void UpdatePlayHud()
+        {
+            // Alex (the voice PT) is in the room exactly while a set runs, however the set starts or ends.
+            var voice = Kinesthetic.Coach.CoachVoice.Instance;
+            if (voice && running && !voiceOn) { voice.Begin(PatientId); voiceOn = true; }
+            else if (voice && !running && voiceOn) { voice.End(); voiceOn = false; }
+            if (screen == null) return;
+            screen.EnableInClassList("playing", running);
+            if (!running) return;
+            hudReps.text = $"{valid}/{prescribedReps}";
+            bool live = Fresh && liveAngle.HasValue;
+            hudAngle.text = live ? $"{liveAngle.Value:0}°" : "—";
+            hudTarget.text = $"TARGET {targetDeg:0}–{targetDeg + bandDeg:0}°";
+            hudAngleChip.EnableInClassList("in-band", live && liveAngle.Value >= targetDeg && liveAngle.Value <= targetDeg + bandDeg);
+            hudAngleChip.EnableInClassList("over", live && liveAngle.Value > targetDeg + bandDeg);
+            var said = Kinesthetic.Coach.CoachVoice.Instance ? Kinesthetic.Coach.CoachVoice.Instance.Line : "";
+            hudCoachLine.text = said;
+            hudCoach.EnableInClassList("hidden", string.IsNullOrEmpty(said));
         }
 
         void UpdateStudioUI()
@@ -296,6 +344,7 @@ namespace Kinesthetic.Rehab
             {
                 JObject m; try { m = JObject.Parse(text); } catch (Exception) { continue; }
                 var p = m["payload"] as JObject; if (p == null) continue;
+                if (currentExerciseId != null && (string)m["exerciseId"] != currentExerciseId) continue;   // an earlier session closing
                 switch ((string)m["type"])
                 {
                     case "exercise.started": exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0; break;
@@ -381,8 +430,9 @@ namespace Kinesthetic.Rehab
             if (label == null) return;
             string decision = (string)p["decision"];
             bool applied = (string)p["status"] == "applied";
-            var to = p["to"]?["targetDeg"]?.Value<float>();
-            int good = p["goodSessions"]?["count"]?.Value<int>() ?? 0, needed = p["goodSessions"]?["needed"]?.Value<int>() ?? 0;
+            var to = (p["to"] as JObject)?["targetDeg"]?.Value<float>();   // null on a hold
+            var goodSessions = p["goodSessions"] as JObject;
+            int good = goodSessions?["count"]?.Value<int>() ?? 0, needed = goodSessions?["needed"]?.Value<int>() ?? 0;
             var (text, tone) = decision switch
             {
                 "progress" when applied => ($"Level up! Next session your target is {to:0}°", "up"),

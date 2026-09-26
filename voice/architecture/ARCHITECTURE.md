@@ -8,7 +8,7 @@
 │  Mic PCM → WS /voice                                │
 │  WS /voice → speaker PCM + events                  │
 └─────────────────────┬────────────────────────────────┘
-                      │ WebSocket  ws://localhost:8768/voice
+                      │ WebSocket  ws://localhost:8769/voice
 ┌─────────────────────▼────────────────────────────────┐
 │               server.ts  (entry point)               │
 │  http.createServer + WebSocketServer                 │

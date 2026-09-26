@@ -4,7 +4,8 @@ namespace Kinesthetic.Rehab
 {
     /// A mirror window on the patient's left (the coach is on their right): a mirror-image copy of the patient in
     /// their wheelchair, posed from the real one after every frame, with ghost arms at the plan's target and safe
-    /// ceiling and the band between them lit by where the live arm is — below, in, or over.
+    /// ceiling and the band between them lit by where the live arm is — below, in, or over. It stands ahead and to
+    /// the left, facing the patient, so it sits in view from their eyes.
     ///
     /// It is a posed copy, not a second camera rendering a reflection, so on a headset it costs one extra skinned
     /// mesh rather than a whole extra view. The window faces whoever is looking: the Mac view today, the patient's
@@ -14,7 +15,7 @@ namespace Kinesthetic.Rehab
         public IRehabView view;
         public float width = .9f, height = 1.2f, depth = .5f;
         [Tooltip("Metres from the patient's hips: to their left, and forward.")]
-        public float offsetLeft = 1.15f, offsetForward = .45f;
+        public float offsetLeft = 1.0f, offsetForward = 1.35f;
 
         Transform source, copy, window;
         Material frameMaterial;
@@ -45,7 +46,8 @@ namespace Kinesthetic.Rehab
             var centre = hip + left * offsetLeft + forward * offsetForward;
             centre.y = source.position.y + height * .5f + .06f;
             window = new GameObject("Mirror window").transform;
-            var viewer = Camera.main ? Camera.main.transform.position : hip;
+            // Face the patient's eyes: that is who the mirror is for, in first person and in the headset alike.
+            var viewer = hip + Vector3.up * .8f;
             var facing = viewer - centre; facing.y = 0;
             window.SetPositionAndRotation(centre, Quaternion.LookRotation(facing.sqrMagnitude > 1e-4f ? facing.normalized : -left));
 

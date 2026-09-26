@@ -30,7 +30,7 @@ export const config = {
     url: optional("COORDINATOR_URL", "http://127.0.0.1:8766"),
   },
   server: {
-    port: Number(optional("VOICE_PORT", "8768")),
+    port: Number(optional("VOICE_PORT", "8769")),
   },
 } as const;
 

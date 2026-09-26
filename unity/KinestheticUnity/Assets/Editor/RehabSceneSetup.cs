@@ -46,6 +46,9 @@ public static class RehabSceneSetup
 
         RehabStudioBuilder.Build();
         slot.position = Vector3.up * .062f;
+        // The patient faces into the room — windows, plants — so first person looks at the studio, with the
+        // coach ahead-right and the mirror ahead-left, not at the open side of the set.
+        slot.rotation = Quaternion.Euler(0, 180, 0);
 
         var unlit = Shader.Find("Universal Render Pipeline/Unlit");
         Material Glow(string name, Color c) {
@@ -68,7 +71,8 @@ public static class RehabSceneSetup
         eyes.ownBody = avatar.transform; eyes.lookAt = orb.transform;
 
         var camera = new GameObject("Patient view camera").AddComponent<Camera>();
-        camera.transform.position = new Vector3(1.7f, 1.95f, -5.2f); camera.transform.LookAt(new Vector3(-.15f, 1.0f, .25f));
+        // Third person from behind the chair (StudioCamera glides it into the patient's eyes during a session).
+        camera.transform.position = new Vector3(-.45f, 2.05f, -3.05f); camera.transform.LookAt(new Vector3(0, .9f, 1.4f));
         camera.fieldOfView = 40; camera.nearClipPlane = .1f; camera.farClipPlane = 50;
         camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(.83f, .92f, .91f);
         camera.tag = "MainCamera";

@@ -340,14 +340,16 @@ namespace Kinesthetic.Coach
             if (scene.name is not ("Rehab" or "QuestRehab") || FindAnyObjectByType<CoachDemonstrator>()) return;
             var prefab = Resources.Load<GameObject>("Coach/TrainerCoach"); if (!prefab) return;
             var patient = FindAnyObjectByType<PoseRig>();
-            var cam = Camera.main;
             var coach = Instantiate(prefab);
-            var basePos = patient ? patient.transform.root.position : Vector3.zero;
-            var toCamera = cam ? Vector3.ProjectOnPlane(cam.transform.position - basePos, Vector3.up).normalized : Vector3.back;
-            var side = Vector3.Cross(Vector3.up, toCamera).normalized;              // camera's left, the patient's right
-            coach.transform.position = basePos + side * 1.15f + toCamera * .45f;   // level with the patient, not behind them
-            var look = Vector3.ProjectOnPlane((cam ? cam.transform.position : basePos + toCamera) - coach.transform.position, Vector3.up);
-            coach.transform.rotation = Quaternion.LookRotation(Vector3.Slerp(look.normalized, -side, .4f), Vector3.up);
+            // Placed from the patient, not a camera: ahead and to their right, facing them, the same spot in third
+            // person, first person and the headset. (The Mii faces local -Z; its anatomical right is local -X.)
+            var basePos = patient ? (patient.transform.parent ? patient.transform.parent.position : patient.transform.position) : Vector3.zero;
+            var forward = patient ? Vector3.ProjectOnPlane(patient.transform.TransformDirection(Vector3.back), Vector3.up).normalized : Vector3.forward;
+            var right = Vector3.Cross(Vector3.up, forward);
+            coach.transform.position = basePos + right * 1.0f + forward * 1.35f;
+            coach.transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(basePos - coach.transform.position, Vector3.up), Vector3.up);
+            // On the Mac the coach talks: Alex, the ElevenLabs voice PT. The headset renders the Mac's coach instead.
+            if (scene.name == "Rehab") coach.AddComponent<CoachVoice>();
         }
     }
 }

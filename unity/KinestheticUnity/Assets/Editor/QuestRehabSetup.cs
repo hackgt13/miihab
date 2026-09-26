@@ -74,7 +74,7 @@ public static class QuestRehabSetup
         var client = new GameObject("Headset rehab-state client").AddComponent<RehabStateClient>();
         client.rig = rig; client.hud = hud; client.coachSeat = coachSeat;
         var mirror = client.gameObject.AddComponent<MirrorPanel>();   // the mirror on the left, fed from the Mac
-        mirror.view = client; mirror.offsetLeft = 1.0f; mirror.offsetForward = 1.35f;
+        mirror.view = client;
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);

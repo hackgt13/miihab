@@ -22,6 +22,8 @@ export interface ConversationOptions {
     params: Record<string, unknown>,
   ) => Promise<unknown>;
   onInterrupt: () => void;
+  /** Audio formats the agent announced, e.g. { output: "pcm_16000", input: "pcm_16000" }. */
+  onFormat?: (format: { output: string; input: string }) => void;
   onError: (message: string) => void;
   onClose: () => void;
 }
@@ -153,7 +155,14 @@ export class ElevenLabsConversation {
         this.send({ type: "pong", event_id: eventId });
         break;
       }
-      // conversation_initiation_metadata — informational, no action needed
+      case "conversation_initiation_metadata": {
+        const meta = msg["conversation_initiation_metadata_event"] as Record<string, unknown> | undefined;
+        this.opts.onFormat?.({
+          output: String(meta?.["agent_output_audio_format"] ?? "pcm_16000"),
+          input: String(meta?.["user_input_audio_format"] ?? "pcm_16000"),
+        });
+        break;
+      }
     }
   }
 

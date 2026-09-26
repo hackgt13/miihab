@@ -103,6 +103,8 @@ async function handleSession(
       emit(unity, { type: "transcript", role, text }),
     onToolCall: (_id, name, params) => toolService.dispatch(name, params),
     onInterrupt: () => emit(unity, { type: "interrupt" }),
+    // Unity plays and records at these rates (pcm_16000 → 16 kHz, 16-bit mono).
+    onFormat: (format) => emit(unity, { type: "audio_format", ...format }),
     onError: (msg) => {
       console.error("ElevenLabs error:", msg);
       emit(unity, { type: "error", message: msg });

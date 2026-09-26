@@ -1,7 +1,7 @@
 /**
  * CLI test client for the Virtual PT voice server.
  *
- * Connects to ws://localhost:8768/voice, starts a session, and bridges
+ * Connects to ws://localhost:8769/voice, starts a session, and bridges
  * raw 16kHz mono PCM audio from stdin → ElevenLabs and TTS audio → stdout.
  *
  * This lets you pipe any audio tool in/out without native Node audio deps:
@@ -38,7 +38,7 @@ const noAudio = args.includes("--no-audio");
 const micFlag = args.find((a) => a.startsWith("--mic="))?.slice(6) ?? null;
 const patientId = args.find((a) => !a.startsWith("--")) ?? randomUUID();
 const serverUrl =
-  process.env["VOICE_SERVER_URL"] ?? "ws://localhost:8768/voice";
+  process.env["VOICE_SERVER_URL"] ?? "ws://localhost:8769/voice";
 
 // Auto-detect first available dshow audio device if --mic not provided
 function detectMic(): string | null {

@@ -3,8 +3,8 @@
  *
  *   node --env-file=.env server.ts
  *
- * WebSocket:   ws://localhost:8768/voice
- * Health:      GET http://localhost:8768/health
+ * WebSocket:   ws://localhost:8769/voice
+ * Health:      GET http://localhost:8769/health
  */
 
 import { createServer } from "node:http";
