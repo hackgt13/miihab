@@ -1,0 +1,21 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../Palette.uss" />
+    <Style src="../UI/Base.uss" />
+    <Style src="Rehab.uss" />
+    <!-- Measure station: the live figures. The rep ring with the count inside it, and once calibrated the
+         measured angle against the target. -->
+    <ui:VisualElement name="measure-board" class="board" picking-mode="Ignore">
+        <k:KSurface class="progress-card" density="Compact" picking-mode="Ignore">
+            <k:KEyebrow text="YOUR SET" />
+            <k:KArc name="rep-ring" form="Segmented" tone="Good" segments="8" class="rep-ring">
+                <k:KReadout name="rep-count" value="0" caption="of 8 reps" size="Large" />
+            </k:KArc>
+            <k:KText name="progress-note" text="One at a time." size="Caption" tone="Soft" class="progress-note" />
+            <ui:VisualElement name="angle-details" class="angle-details hidden">
+                <k:KReadout name="angle-readout" value="—" caption="Target 85°" size="Compact" />
+                <k:KMeter name="angle-meter" form="Bar" class="angle-meter" />
+                <k:KText name="angle-note" text="Raise slowly" size="Caption" tone="Soft" class="angle-note" />
+            </ui:VisualElement>
+        </k:KSurface>
+    </ui:VisualElement>
+</ui:UXML>

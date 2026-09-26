@@ -405,14 +405,15 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
    overlay panel (980px) floating on a board that fills all 1600 — three widths, which did not matter
    while only one was ever on screen. It matters now: the neighbours' edges are visible as the ring
    turns, so three widths read as three different kinds of thing, and the sliver either side changes
+   size depending on which pane happens to be standing there. */
 .pane-screen > .sheet,
 .pane-screen > .friends-panel { width: 100%; height: 100%; }
 
 /* ---- Coaching -------------------------------------------------------------
-   The plan pane is tiles, like the board, but not the board's grid: the board is two columns with a hero and
-   a CTA, and this is three bands — the reading beside the figures that qualify it, a short band of three, and
-   the prescription full width. So this block is the bands, and everything else comes from the tile chrome and
-   the type classes above.
+   The plan pane is tiles, like the board, but its own arrangement: the calendar takes the full height of the
+   panel because it is the thing worth looking at, the two answers beside it stack in a column a third as
+   wide, and the visit runs across the bottom. Layout only — the type and the tile chrome come from above, and
+   the grid and the ladder are painted in CoachingPanel.cs from Palette.cs.
 
    It was a sand sheet divided by hairlines, on the reasoning that a pane has no plaza behind it for a floating
    tile to sit against. A pane is a transparent world-space panel of exactly the board's 1600x900, so the plaza
@@ -420,64 +421,76 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 
    Sized to fit 900px without a scrollbar, because a pane you have to scroll is a pane whose bottom half does
    not exist to someone reading it from two metres. The prescription list is the one exception and scrolls on
-   purpose: a clinician can always prescribe one more thing, and that must not be what pushes the chart off
+   purpose: a clinician can always prescribe one more thing, and that must not be what pushes anything off
    the panel. */
 
 .plan-source-slot { flex-shrink: 0; margin-top: 10px; }
 
 .plan-bento { flex-grow: 1; min-height: 0; }
-.plan-row { flex-direction: row; align-items: stretch; min-height: 0; }
+.plan-row { flex-direction: row; align-items: stretch; min-height: 0; margin-bottom: 13px; }
 .plan-row-tall { flex-grow: 1; }
-.plan-row-short { flex-shrink: 0; }
-/* Tiles in a band share its width and never push each other out of it. `last` closes the gap at the end,
-   because USS has no :last-child worth relying on here. */
-.plan-row > .tile, .plan-row > .cta { flex-basis: 0; min-width: 0; margin-right: 13px; }
+/* Tiles and columns in a band share its width and never push each other out of it. `last` closes the gap at
+   the end, because USS has no :last-child worth relying on here. The band owns the gap underneath itself:
+   a tile that kept .tile's own margin-bottom ended 13px above the column standing next to it, which is two
+   bottom edges on one row. */
+.plan-row > .tile, .plan-row > .plan-column { flex-basis: 0; min-width: 0; margin-right: 13px; margin-bottom: 0; }
 .plan-row > .last { margin-right: 0; }
+.plan-column { flex-grow: 1; min-height: 0; }
 
-/* ---- band 1: the reach, session by session, and the figures it is read against */
+/* ---- the whole program, as a calendar
 
-.tile-trend { flex-grow: 2.1; }
-.trend-body { flex-direction: row; align-items: stretch; flex-grow: 1; min-height: 0; }
-.trend-readout { flex-shrink: 0; width: 210px; margin-right: 12px; justify-content: center; }
-.trend-plot { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.plan-trend { flex-grow: 1; min-height: 0; }
-.trend-axis { flex-direction: row; flex-shrink: 0; height: 22px; }
+   Weeks across and days down, so the width of the tile is the length of the program and the block simply
+   stops where the program does. The painted grid divides its own rect into weeks x 7 with no aspect cap, and
+   the day letters and week numbers are laid out by the same flex rule on the same rect — which is what keeps
+   the three in step without either side knowing the other's cell size. */
 
-/* Three figures stacked, each a number with its name beside it: this column is a third of the panel, and
-   three numbers across it would each be too small to read from two metres. The fixed number column is what
-   puts the three names on one left edge. */
-.tile-figures { flex-grow: 1; }
-.figure-row { flex-direction: row; align-items: center; padding: 4px 0; border-top-width: 1px; border-top-color: var(--slate-50-a28); }
-.figure-row.first { border-top-width: 0; }
-.figure-number { width: 104px; flex-shrink: 0; }
-.figure-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.envelope-ladder { height: 26px; flex-shrink: 0; margin-top: 10px; }
+.tile-program { flex-grow: 1.62; }
+.program-body { flex-direction: row; flex-grow: 1; min-height: 0; }
+.program-days { flex-shrink: 0; width: 22px; margin-right: 8px; padding-top: 24px; }
+.program-days > Label { flex-grow: 1; flex-basis: 0; }
+.program-weeks > Label { flex-grow: 1; flex-basis: 0; }
+.program-plot { flex-grow: 1; min-width: 0; min-height: 0; }
+.program-weeks { flex-direction: row; flex-shrink: 0; height: 24px; }
+.program-grid { flex-grow: 1; min-height: 0; }
+/* "END" sits on the last day of the program. CoachingPanel positions it from the same geometry the grid
+   divides its rect by; everything here is what it looks like once it is there. */
+.end-flag { position: absolute; font-size: 14px; letter-spacing: .5px; color: var(--coral-60); -unity-text-align: middle-center; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 
-/* ---- band 2: why, how much, and the way to a person */
+/* ---- what the plan is pushing right now */
 
-.tile-goal { flex-grow: 1; }
-.plan-goal { font-size: 19px; color: var(--slate-70); white-space: normal; }
-.tile-dose { flex-grow: 1; }
-.dose-bars { height: 74px; flex-shrink: 0; margin-top: 2px; }
-.cta-visit { flex-grow: 1.15; margin-bottom: 13px; }
-/* A third of a band is narrower than the board's full-width CTA, and the line under the title turns
-   into a sentence once the button has been pressed, so it wraps instead of clipping. */
-.cta-visit .cta-sub { white-space: normal; }
+.tile-focus { flex-shrink: 0; }
+.focus-movement { font-size: 25px; color: var(--prussian-50); white-space: normal; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.focus-readout { flex-direction: row; align-items: baseline; margin-top: 4px; }
+.focus-target { font-size: 58px; color: var(--cerulean-50); letter-spacing: -2px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.focus-caption { margin-left: 12px; margin-bottom: 8px; }
+.envelope-ladder { height: 22px; flex-shrink: 0; margin-top: 6px; }
+.focus-step { margin-top: 7px; white-space: normal; }
 
-/* ---- band 3: everything prescribed, across the full width
+/* ---- everything prescribed
 
-   Rows are the board's .task-row, so a prescribed thing looks like a thing to do. Capped rather than fixed:
-   three rows is a long plan and a fourth scrolls instead of growing into the chart above. */
+   Rows are the board's .task-row, so a prescribed thing looks like a thing to do. The list takes what the
+   column has left and scrolls past it: a clinician can always prescribe one more thing. */
 
-.tile-prescription { flex-shrink: 0; margin-bottom: 0; }
-.prescription-list { flex-grow: 0; max-height: 196px; }
+.tile-prescription { flex-grow: 1; min-height: 0; margin-bottom: 0; }
+.prescription-list { flex-grow: 1; min-height: 0; }
+/* Room between the last word of a row and the scrollbar. Without it the bar sits on the text, and a scroller
+   with nothing either side of it reads as part of the list rather than as its edge. */
+.prescription-list .unity-scroll-view__vertical-scroller { margin-left: 10px; margin-right: 2px; }
 .tile-prescription .task-row { padding: 7px 0; }
 /* A bar rather than a dot, and cerulean only where something is actually measured: play is prescribed too,
    and marking it with the colour this product uses for "measured" would say it produces numbers. */
 .prescription-mark { width: 4px; height: 38px; border-radius: 2px; background-color: var(--slate-30); margin-right: 14px; flex-shrink: 0; }
 .prescription-mark.measured { background-color: var(--cerulean-50); }
 /* The clinician's own words, once, under what they asked for. The only sentence on the pane. */
-.coaching-note { white-space: normal; margin-top: 9px; }
+.coaching-note { white-space: normal; margin-top: 9px; flex-shrink: 0; }
+
+/* ---- the way to a person: the full width of the panel, under everything it is about, and the only thing on
+   this pane that is a control rather than a reading. The line under the title becomes a sentence once the
+   button has been pressed, so it wraps rather than clipping. */
+
+.cta-visit { flex-shrink: 0; margin-bottom: 0; }
+.cta-visit .cta-sub { white-space: normal; }
+
 /* ---- Introductions -------------------------------------------------------
    Layout only. Colour, radius and type come from the UI library components the
    card is built from, so this never restates a palette token. */
@@ -488,5 +501,5 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 /* The two answers sit apart: "Not now" is the quiet one and stays left of the
    press a person is more likely to want. */
 .introduction-actions { flex-direction: row; justify-content: flex-end; margin-top: 12px; }
-.introduction-actions > .k-button { margin-left: 8px; }
+.introduction-actions > Button { margin-left: 8px; }
 .introduction-card.hidden { display: none; }

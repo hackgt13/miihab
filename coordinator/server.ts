@@ -23,6 +23,7 @@ import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from '.
 import { LIBRARY } from './exercises.ts';
 import { buildDashboard, golfUnlock } from './dashboard.ts';
 import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
+import { applyProgramUpdate, buildVisit, therapistFromEnv, VisitStore } from './visit.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const captureRoot = resolve(root, 'spikes/pose-capture');
@@ -43,6 +44,9 @@ const cameraMeasurement = process.env.KINESTHETIC_CAMERA_MEASUREMENT === '1';
 const socialDir = resolve(process.env.KINESTHETIC_SOCIAL_DIRECTORY ?? resolve(root, 'local-data/social'));
 const friends = new FriendStore(socialDir);
 const messages = new MessageStore(socialDir);
+// Notes the therapist leaves for the patient's visit (visit.ts). Kept beside the plans: they are clinical.
+const visit = new VisitStore(resolve(process.env.KINESTHETIC_VISIT_DIRECTORY ?? resolve(root, 'local-data/visit')));
+const therapist = therapistFromEnv();
 const introductions = new IntroductionStore(socialDir);
 // Local today. When a shared backend exists this is the only line that changes.
 const directory = new LocalDirectory(socialDir);
@@ -76,7 +80,8 @@ function readBytes(request: import('node:http').IncomingMessage, limit: number):
   });
 }
 const portalRoot = resolve(root, 'coordinator/portal');
-const allowedOrigins = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:8765', 'http://127.0.0.1:8765']);
+// 5173 is the wiirehab clinician web app's Vite dev server, which writes visit notes.
+const allowedOrigins = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:8765', 'http://127.0.0.1:8765', 'http://localhost:5173', 'http://127.0.0.1:5173']);
 const mime: Record<string,string> = { '.html':'text/html', '.js':'text/javascript', '.mjs':'text/javascript', '.css':'text/css', '.wasm':'application/wasm', '.task':'application/octet-stream' };
 let producer: WebSocket | null = null;
 let latest: any = null;
@@ -282,6 +287,26 @@ const server = createServer(async (request, response) => {
           .map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
         return json(200, buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes}));
       }
+      // The therapist visit (Unity: Kinesthetic/Visit, coordinator/visit.ts): the whiteboard's program updates
+      // since the patient last visited and what the therapist says about them. The therapist changes the
+      // program through program-update (a plan version plus a note to the patient); Unity marks it seen.
+      if (request.method === 'GET' && url.pathname === '/api/visit')
+        return json(200, buildVisit({plans: plans.list(), notes: visit.list(), seen: visit.seen, therapist}));
+      if (request.method === 'POST' && url.pathname === '/api/visit/program-update')
+        return json(201, applyProgramUpdate(plans, visit, await readJson(request)));
+      if (request.method === 'POST' && url.pathname === '/api/visit/seen') {
+        const body = await readJson(request);
+        const version = Number(body.planVersion);
+        if (!plans.get(version)) return json(404, {error:`Plan v${body.planVersion} does not exist`});
+        return json(200, visit.markSeen(version));
+      }
+      if (request.method === 'GET' && url.pathname === '/api/visit/notes') return json(200, visit.list());
+      if (request.method === 'POST' && url.pathname === '/api/visit/notes') {
+        const body = await readJson(request);   // text and author only: seeded and planVersion are not the client's to set
+        return json(201, visit.add({text: body.text, author: body.author}));
+      }
+      const note = url.pathname.match(/^\/api\/visit\/notes\/([0-9a-f-]{36})$/i);
+      if (request.method === 'DELETE' && note) return visit.remove(note[1]) ? json(200, {removed: note[1]}) : json(404, {error:'No such note'});
       if (request.method === 'GET' && url.pathname === '/api/proposals') return json(200, proposals.list().slice(0, 50));
       if (request.method === 'POST' && url.pathname === '/api/progression/evaluate') {
         const body = await readJson(request);

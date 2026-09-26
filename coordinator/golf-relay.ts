@@ -77,7 +77,11 @@ uiHostSockets.on('connection',ws=>{
   for(const client of ui.clients.values())ws.send(JSON.stringify({type:'ui.resync',client}));
   ws.on('message',bytes=>{
     const text=bytes.toString();let p:any;
-    try{p=JSON.parse(text);if(!['ui.snapshot','ui.patch','ui.ack'].includes(p.type))throw Error();}catch{ws.close(1008,'Invalid UI message');return;}
+    // A cue is the host telling every headset that something happened outside any board tree — the Mac is
+    // leaving a scene for a venue, or the menu ring turned — so it rides the same broadcast as a patch. Only
+    // its kind is checked; the rest is the host's, and the host is loopback-only.
+    try{p=JSON.parse(text);if(!['ui.snapshot','ui.patch','ui.ack','ui.cue'].includes(p.type))throw Error();
+      if(p.type==='ui.cue'&&!(typeof p.kind==='string'&&uiName.test(p.kind)))throw Error();}catch{ws.close(1008,'Invalid UI message');return;}
     if(p.type==='ui.ack'){for(const [c,client] of ui.clients)if(client===p.client&&c.readyState===WebSocket.OPEN)c.send(text);return;}
     // A client too far behind to take a tree would stay stale for good; closing it makes it reconnect and resync.
     for(const c of ui.clients.keys())if(c.readyState===WebSocket.OPEN){if(c.bufferedAmount<512*1024)c.send(text);else c.close(1013,'UI client fell behind');}

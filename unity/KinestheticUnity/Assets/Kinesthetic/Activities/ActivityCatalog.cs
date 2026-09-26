@@ -22,6 +22,8 @@ namespace Kinesthetic.Activities
     public sealed class ActivityEntry
     {
         public string Id, DisplayName, Tagline, Category, Scene, Venue;
+        /// <summary>The headset's render-only copy of Scene, or null when the headset has none.</summary>
+        public string QuestScene;
         public string LoadingMessage, Music, HelpTitle;
         public HelpStep[] HelpSteps = new HelpStep[0];
         public string[] ExerciseKinds = new string[0];
@@ -55,7 +57,7 @@ namespace Kinesthetic.Activities
                     list.Add(new ActivityEntry {
                         Id = (string)item["id"], DisplayName = (string)item["displayName"],
                         Tagline = (string)item["tagline"] ?? "", Category = (string)item["category"],
-                        Scene = (string)item["scene"], Venue = (string)item["venue"],
+                        Scene = (string)item["scene"], QuestScene = (string)item["questScene"], Venue = (string)item["venue"],
                         ExerciseKinds = item["exerciseKinds"]?.Select(k => (string)k).ToArray() ?? new string[0],
                         Requires = item["requires"]?.Select(k => (string)k).ToArray() ?? new string[0],
                         Subjects = (int?)item["subjects"] ?? 1,
@@ -78,6 +80,9 @@ namespace Kinesthetic.Activities
         public static string SceneOf(string id) => ById(id)?.Scene;
 
         public static bool Knows(string id) => ById(id) != null;
+
+        /// <summary>The headset scene that renders a Mac scene, or null: the catalog's questScene, by scene name.</summary>
+        public static string QuestSceneOf(string macScene) => All.FirstOrDefault(a => a.Scene == macScene)?.QuestScene;
 
         /// <summary>Forget the parsed copy, so a catalog re-sync is picked up without a domain reload.</summary>
         public static void Invalidate() => entries = null;

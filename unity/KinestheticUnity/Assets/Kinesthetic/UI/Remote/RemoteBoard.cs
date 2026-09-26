@@ -41,6 +41,19 @@ namespace Kinesthetic.UI.Remote
         void OnEnable() { if (!Live.Contains(this)) Live.Add(this); }
         void OnDisable() { Live.Remove(this); }
 
+        /// The board's own authored tree, back in place of whatever was mirrored into it. A replica shows
+        /// this until the Mac's tree arrives and again whenever it goes away — so the document's asset is
+        /// the board's "waiting for the Mac" state, and a scene decides what that says (UI/Boards/Waiting.uxml
+        /// on the headset's dock) instead of the client inventing a message. With no asset the board is
+        /// simply empty, which is what a board the Mac's scene no longer has should be.
+        public void ShowOwnTree()
+        {
+            var root = Root;
+            if (root == null) return;
+            root.Clear();
+            if (document.visualTreeAsset) document.visualTreeAsset.CloneTree(root);
+        }
+
         public static RemoteBoard Find(string id, bool replica)
         {
             if (string.IsNullOrEmpty(id)) return null;

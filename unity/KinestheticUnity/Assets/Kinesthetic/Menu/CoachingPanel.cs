@@ -185,77 +185,65 @@ namespace Kinesthetic.Menu
         static readonly Color Progress = Palette.Progress;     // a measured value
         static readonly Color Reference = Palette.Reference;    // the plan it is drawn against
         static readonly Color Target = Palette.Target;         // what is being reached for
-        static readonly Color Good = Palette.Good;             // a rep that counted
         static readonly Color Panel = Palette.Panel;
-        static readonly Color Line = Palette.Line;
+        static readonly Color Pen = Palette.Coral50;           // the hand crossing a day off
 
-        /// Fills the tiles. Every figure is one label and every label is at most a handful of words: the pane
-        /// is read from two metres, and a caption that has to be read twice is a caption nobody reads. The
-        /// sentences it used to carry under each number — "median peak · prescribed to 45°, ceiling 60°",
-        /// "REPS IN BAND · 8 of 10 last session" — said in prose what the tile's own label and the chart
-        /// beside it already say.
+        /// Fills the three answers. Every label on this pane is a handful of words: it is read from two metres,
+        /// and the figures it used to carry — a reach delta, a reps-in-band percentage, a level, a week count —
+        /// were five measurements of the same two sessions where a patient wanted a date, a movement and a list.
         public static void Populate(VisualElement root, CoachingPlanModel plan, MenuDashboardModel dashboard)
         {
             if (root == null || plan == null || dashboard == null) return;
             var primary = plan.Primary;
-            var history = dashboard.history;
-            var last = history.Length > 0 ? history[^1] : default;
 
             Text(root, "plan-provenance", $"Version {plan.version} · {plan.approvedBy} · {plan.approvedAt:d MMM}");
             Text(root, "plan-source", plan.live ? "From your clinic" : "Demo plan · not from your clinic");
-            Text(root, "goal-copy", plan.goal);
 
-            // ---- the reach, session by session: three lines, exactly as the board's hero tile carries them
-            float now = history.Length > 0 ? last.medianPeakDeg : 0;
-            float first = history.Length > 0 ? history[0].medianPeakDeg : 0;
-            Text(root, "trend-now", history.Length > 0 ? $"{Mathf.RoundToInt(now)}°" : "—");
-            Text(root, "trend-delta", history.Length > 1
-                ? $"{(now - first >= 0 ? "+" : "")}{Mathf.RoundToInt(now - first)}° since you started" : "");
-            // The ceiling is not repeated here: it is the top of the green band on the chart, and it is
-            // spelled out in the dose on the prescription row underneath.
-            Text(root, "trend-target", primary is { } p1
-                ? $"median peak · target {Mathf.RoundToInt(p1.targetDeg)}°" : "median peak");
-            Text(root, "trend-note", history.Length switch
-            {
-                0 => "no sessions yet",
-                1 => "1 session",
-                _ => $"last {history.Length} sessions",
-            });
+            // ---- how long is this, and when am I done
+            int totalDays = Mathf.Max(7, dashboard.programTotalDays);
+            int day = Mathf.Clamp(dashboard.programDay, 1, totalDays);
+            var start = DateTime.Today.AddDays(1 - day);
+            var finish = start.AddDays(totalDays - 1);
+            int week = Mathf.Max(1, Mathf.CeilToInt(day / 7f));
+            int weeks = Mathf.Max(1, Mathf.CeilToInt(totalDays / 7f));
+            Text(root, "program-note", $"Week {week} of {weeks} · ends {finish:d MMM}");
 
-            // ---- the three figures. Each is a number with its name beside it, so the words after the name
-            // are the one detail that number needs and nothing else: the note in the tile head labels the
-            // ladder with the range it draws, which is what the sentence under it used to spell out.
-            if (primary != null && primary.Value.envelope != null)
+            // A column is a week of the program, counted from its own first day rather than from a Monday.
+            // Monday-aligned columns put an 84-day program across 13 of them whenever it starts mid-week,
+            // which is a grid that disagrees with the "of 12" written above it.
+            int columns = Mathf.CeilToInt(totalDays / 7f);
+            Ticks(root, "program-weeks", columns, i => (i + 1).ToString());
+            // So row 0 is whatever weekday the program began on, and the letters down the side rotate to match.
+            Ticks(root, "program-days", 7, i => "MTWTFSS"[(((int)start.DayOfWeek + 6) % 7 + i) % 7].ToString());
+
+            // ---- what am I working on right now
+            if (primary is { } focus)
             {
-                var measured = primary.Value;
-                var envelope = measured.envelope.Value;
-                Text(root, "level-number", envelope.LevelOf(measured.targetDeg).ToString());
-                Text(root, "level-caption", $"of {envelope.Levels} · now {Mathf.RoundToInt(measured.targetDeg)}°");
-                Text(root, "envelope-note",
-                    $"{Mathf.RoundToInt(envelope.minTargetDeg)}° to {Mathf.RoundToInt(envelope.maxTargetDeg)}°");
+                Text(root, "focus-movement", focus.movement);
+                Text(root, "focus-where", focus.where);
+                Text(root, "focus-target", $"{Mathf.RoundToInt(focus.targetDeg)}°");
+                Text(root, "focus-caption", focus.targetMaxDeg > focus.targetDeg
+                    ? $"today's target · stop by {Mathf.RoundToInt(focus.targetMaxDeg)}°" : "today's target");
+                Text(root, "focus-step", focus.envelope is { } envelope
+                    ? $"Level {envelope.LevelOf(focus.targetDeg)} of {envelope.Levels}" +
+                      (envelope.autoApply
+                          ? $" · next {Mathf.RoundToInt(Mathf.Min(focus.targetDeg + envelope.stepDeg, envelope.maxTargetDeg))}°" +
+                            $" after {envelope.sessionsToProgress} good sessions"
+                          : " · your clinician sets the next step")
+                    : "Your clinician sets this target");
             }
             else
             {
-                Text(root, "level-number", "—");
-                Text(root, "level-caption", "not set yet");
-                Text(root, "envelope-note", primary is { } only
-                    ? $"target {Mathf.RoundToInt(only.targetDeg)}°" : "nothing measured");
+                Text(root, "focus-movement", "Nothing measured in this plan");
+                Text(root, "focus-where", "");
+                Text(root, "focus-target", "—");
+                Text(root, "focus-caption", "");
+                Text(root, "focus-step", "Ask your therapist to add an exercise to measure.");
             }
 
-            int inBand = last.attempted > 0 ? Mathf.RoundToInt(100f * last.valid / last.attempted) : 0;
-            Text(root, "band-number", last.attempted > 0 ? $"{inBand}%" : "—");
-            Text(root, "band-caption", last.attempted > 0 ? $"{last.valid} of {last.attempted}" : "nothing yet");
-
-            int week = Mathf.Max(1, Mathf.CeilToInt(dashboard.programDay / 7f));
-            int weeks = Mathf.Max(1, Mathf.CeilToInt(dashboard.programTotalDays / 7f));
-            Text(root, "week-number", week.ToString());
-            Text(root, "week-caption", $"of {weeks}");
-
-            Text(root, "dose-note", primary is { } dose ? $"{dose.targetCount} prescribed" : "");
-            Text(root, "visit-sub", "Talk these numbers through together");
-
-            // ---- the prescription, rebuilt rather than patched: approving a change writes a new version
-            // The ScrollView's own children are its scrollers, so rows go into its content container.
+            // ---- what am I supposed to do
+            // Rebuilt rather than patched: approving a change writes a new version. The ScrollView's own
+            // children are its scrollers, so rows go into its content container.
             var scroller = root.Q<ScrollView>("prescription-list");
             var list = scroller != null ? scroller.contentContainer : root.Q("prescription-list");
             if (list != null)
@@ -276,23 +264,15 @@ namespace Kinesthetic.Menu
             Text(root, "coaching-note", string.IsNullOrWhiteSpace(plan.coachingNote) || onARow
                 ? "" : $"“{plan.coachingNote}”");
 
-            // One label per session, in the same cells the chart puts its points in — the day letters over
-            // the board's consistency grid, doing the same job for the line above them.
-            var axis = root.Q("trend-axis");
-            if (axis != null)
-            {
-                axis.Clear();
-                foreach (var point in history)
-                {
-                    var tick = new Label(point.label) { pickingMode = PickingMode.Ignore };
-                    tick.AddToClassList("day-letter");
-                    axis.Add(tick);
-                }
-            }
+            Text(root, "visit-sub", "Talk these numbers through together");
 
-            Paint(root, "plan-trend", (ctx, r) => DrawTrend(ctx, r, history, primary));
+            // Last write wins rather than ToDictionary, which throws if the coordinator ever sends a date twice.
+            var levels = new Dictionary<DateTime, int>();
+            foreach (var cell in dashboard.calendar) levels[cell.date.Date] = cell.level;
+
+            Paint(root, "program-grid", (ctx, r) => DrawProgram(ctx, r, start, columns, finish, levels));
+            PlaceEndFlag(root, columns, totalDays);
             Paint(root, "envelope-ladder", (ctx, r) => DrawEnvelope(ctx, r, primary));
-            Paint(root, "dose-bars", (ctx, r) => DrawDose(ctx, r, history, primary?.targetCount ?? 0));
         }
 
         /// One prescribed thing, built as the board builds a thing to do: the movement, then its dose and any
@@ -321,6 +301,21 @@ namespace Kinesthetic.Menu
             return row;
         }
 
+        /// A row (or column) of small labels that has to keep step with a painted grid: same count, same flex
+        /// rule, so the two divide the same rect the same way.
+        static void Ticks(VisualElement root, string name, int count, Func<int, string> text)
+        {
+            var holder = root.Q(name);
+            if (holder == null) return;
+            holder.Clear();
+            for (int i = 0; i < count; i++)
+            {
+                var tick = new Label(text(i)) { pickingMode = PickingMode.Ignore };
+                tick.AddToClassList("day-letter");
+                holder.Add(tick);
+            }
+        }
+
         static Label Styled(string className, string text)
         {
             var label = new Label(text) { pickingMode = PickingMode.Ignore };
@@ -328,87 +323,194 @@ namespace Kinesthetic.Menu
             return label;
         }
 
-        // ------------------------------------------------------------------ the reach, session by session
+        // ------------------------------------------------------------------ the whole program
 
-        /// A line, because this is the one place a trend belongs. The board draws the same measurement as an
-        /// arc pivoting at the shoulder — a reach, not a chart — and that is right for a headline number, but
-        /// it can only ever show today. Six sessions side by side is a different reading, and the shape a
-        /// person already knows how to read is a line going up.
+        /// Every day of the program at once: weeks across, days down, one square each, and a day you have done
+        /// crossed off by hand.
         ///
-        /// Drawn against the plan rather than against itself: the band from the target to the ceiling is the
-        /// zone the prescription asks for, so a line that has climbed into it has arrived somewhere, and a
-        /// line above it has overshot a limit rather than done especially well. Without the band the same
-        /// polyline is just "a number that went up", which is exactly what a rehab chart must not be.
-        static void DrawTrend(MeshGenerationContext ctx, Rect r,
-                              MenuDashboardModel.WeekPoint[] history, CoachingPlanModel.Prescription? primary)
+        /// The question this answers is the one nobody could answer from this pane before — *how long is this,
+        /// and when am I done* — so the shape is the program's own length and the block stops where the program
+        /// stops. Read left to right it is what I have crossed off, where I am, what is left, and the date it
+        /// ends.
+        ///
+        /// The crossing-off is drawn rather than filled because that is what a person does to a paper plan on a
+        /// fridge, and because a wall of flat coloured squares says "data" where two pen strokes say "that one
+        /// is behind me". Every stroke is bowed and its ends are jittered, so no two X's are the same and none
+        /// of them is straight — but the jitter comes from the date, so a day's X is the same X on every repaint.
+        ///
+        /// Every day that has gone by is crossed, whether it had rehab in it or not. A calendar on a wall gets
+        /// crossed off because the day is over, and crossing only the days with a session would quietly turn
+        /// this into an attendance record — which is the board's consistency grid, not this. A day with work in
+        /// it is pressed a little harder, and that is the whole of the difference. Today is never crossed: it is
+        /// where the person is, not something they have finished.
+        ///
+        /// The rect is divided into columns x 7 with no aspect cap, so the day letters and week numbers beside
+        /// it — laid out by flex on the same rect — land on the same rows and columns without either side
+        /// knowing the other's cell size.
+        static void DrawProgram(MeshGenerationContext ctx, Rect r, DateTime start, int columns,
+                                DateTime finish, Dictionary<DateTime, int> levels)
         {
-            if (r.width < 40 || r.height < 30 || history.Length == 0) return;
+            if (r.width < 40 || r.height < 40 || columns < 1) return;
             var p = ctx.painter2D;
+            var today = DateTime.Today;
 
-            float pad = 12;
-            float left = pad, right = r.width - pad, top = pad, bottom = r.height - 6;
-            float target = primary?.targetDeg ?? 0, ceiling = primary?.targetMaxDeg ?? 0;
+            var (cw, ch, gap) = Grid(r, columns);
+            float radius = Mathf.Min(cw, ch) * .28f;
 
-            // The scale has to hold the plan as well as the data, or a band the line never reaches falls off
-            // the top and the chart quietly stops being drawn against anything.
-            float lo = history.Min(h => h.medianPeakDeg), hi = history.Max(h => h.medianPeakDeg);
-            if (target > 0) { lo = Mathf.Min(lo, target); hi = Mathf.Max(hi, target); }
-            if (ceiling > 0) hi = Mathf.Max(hi, ceiling);
-            float span = Mathf.Max(12, hi - lo);
-            lo -= span * .22f; hi += span * .16f;
-
-            float Y(float deg) => bottom - (deg - lo) / (hi - lo) * (bottom - top);
-            // Cell centres, not endpoints: each session owns a column, which is what puts a point above its
-            // own label in the axis row underneath and keeps the line clear of the tile's edges.
-            float cell = (right - left) / history.Length;
-            float X(int i) => left + (i + .5f) * cell;
-
-            // The band the prescription asks for, from the target up to the ceiling. Green because landing
-            // inside it is the thing that counts — not because the number is high.
-            if (ceiling > target && target > 0)
+            for (int column = 0; column < columns; column++)
+            for (int row = 0; row < 7; row++)
             {
-                float yTop = Mathf.Max(top, Y(ceiling)), yBottom = Y(target);
-                p.fillColor = Good.At(.18f);
+                var date = start.AddDays(column * 7 + row);
+                if (date > finish) continue;                      // the tail of the last week, if it has one
+                var cell = new Rect(column * (cw + gap), row * (ch + gap), cw, ch);
+                levels.TryGetValue(date.Date, out int level);
+                bool now = date == today;
+
+                // The paper the day is written on. A crossed-off day keeps the plain square a past day has —
+                // the pen is the mark, and tinting the paper under it as well would say the same thing twice.
+                // The last day of the program is the one square filled for what it is rather than for what
+                // happened on it: it is a coral wash rather than a ring, because a ring would read as another
+                // kind of today next to the one four squares away.
+                p.fillColor = now ? Progress.At(.20f)
+                            : date == finish ? Target.At(.26f)
+                            : date < today ? Reference.At(.20f)
+                            : Reference.At(.11f);
+                Cell(p, cell.x, cell.y, cell.width, cell.height, radius);
+
+                // Today is ringed as well as washed, so "where am I" and "did I train" stay two separate
+                // readings: the ring is the date, the pen is the work, and a day can carry both.
+                if (now)
+                {
+                    p.strokeColor = Progress; p.lineWidth = 4;
+                    Cell(p, cell.x - 3, cell.y - 3, cell.width + 6, cell.height + 6, radius + 2, stroke: true);
+                }
+
+                if (date < today) CrossOff(p, cell, date.DayOfYear * 31 + date.Year, level);
+            }
+        }
+
+        /// How the grid divides its rect: columns across, seven down, with a gap that comes off the cell size so
+        /// a twelve-week block and a thirty-week one are spaced the same way. Shared, so anything that has to
+        /// land on a particular day lands where the pen does.
+        static (float cw, float ch, float gap) Grid(Rect r, int columns)
+        {
+            float gap = Mathf.Clamp(Mathf.Min(r.width / columns, r.height / 7f) * .14f, 3, 9);
+            return ((r.width - gap * (columns - 1)) / columns, (r.height - gap * 6) / 7f, gap);
+        }
+
+        /// "END" written on the last day of the program, because a coral square at the end of the block says
+        /// something is there without saying what. Painter2D draws no text, so this is a label placed on the
+        /// cell — positioned from the same Grid() the painter uses, and put back whenever the grid is resized.
+        static void PlaceEndFlag(VisualElement root, int columns, int totalDays)
+        {
+            var grid = root.Q("program-grid");
+            if (grid == null) return;
+
+            var flag = grid.Q<Label>("end-flag");
+            if (flag == null)
+            {
+                flag = new Label("END") { name = "end-flag", pickingMode = PickingMode.Ignore };
+                flag.AddToClassList("end-flag");
+                grid.Add(flag);
+            }
+
+            int column = (totalDays - 1) / 7, row = (totalDays - 1) % 7;
+            void Put()
+            {
+                var r = grid.contentRect;
+                if (r.width < 40 || r.height < 40) return;
+                var (cw, ch, gap) = Grid(r, columns);
+                flag.style.left = column * (cw + gap);
+                flag.style.top = row * (ch + gap);
+                flag.style.width = cw;
+                flag.style.height = ch;
+            }
+
+            // One callback per element, for the same reason there is one painter per element: Populate runs
+            // again when the plan arrives from the bridge.
+            if (placers.TryGetValue(grid, out var previous))
+            { grid.UnregisterCallback(previous); placers.Remove(grid); }
+            EventCallback<GeometryChangedEvent> place = _ => Put();
+            grid.RegisterCallback(place);
+            placers.Add(grid, place);
+            Put();
+        }
+
+        static readonly ConditionalWeakTable<VisualElement, EventCallback<GeometryChangedEvent>> placers = new();
+
+        /// Two bowed strokes through a day, drawn as a hand would: each end wanders, each stroke overshoots the
+        /// square by a little and bows off true, one is heavier than the other, and the second starts slightly
+        /// after the first crosses it. `seed` is the date, so the same day is crossed off the same way every
+        /// repaint; `level` is how much work landed, and a fuller day presses harder.
+        static void CrossOff(Painter2D p, Rect cell, int seed, int level)
+        {
+            float size = Mathf.Min(cell.width, cell.height);
+            if (size < 10) return;
+
+            // The stroke aims at a point inside the square, not at its corner. Aiming at the corner and then
+            // overshooting put every X across its neighbours, and fourteen of them made a mesh rather than
+            // fourteen crossed-off days — on a grid this tight the hand has to stay inside the box.
+            float inset = size * .15f;           // where the stroke starts, in from the corner
+            float wander = size * .07f;          // how far its end misses that
+            float weight = Mathf.Clamp(size * .062f, 1.8f, 3.6f) + level * .2f;
+
+            float Jitter(int salt) => (Noise(seed, salt) - .5f) * 2f * wander;
+            Vector2 Corner(bool right, bool low, int salt) => new(
+                (right ? cell.xMax - inset : cell.x + inset) + Jitter(salt),
+                (low ? cell.yMax - inset : cell.y + inset) + Jitter(salt + 7));
+
+            p.lineCap = LineCap.Round;
+            p.strokeColor = Pen;
+
+            // Top-left to bottom-right, then top-right to bottom-left. The bow is perpendicular to the stroke
+            // and its side comes off the seed, so some X's bulge out and some in.
+            void Stroke(Vector2 from, Vector2 to, float bow, float width)
+            {
+                var mid = (from + to) * .5f;
+                var away = new Vector2(-(to - from).y, (to - from).x).normalized;
+                p.lineWidth = width;
                 p.BeginPath();
-                p.MoveTo(new(left, yTop)); p.LineTo(new(right, yTop));
-                p.LineTo(new(right, yBottom)); p.LineTo(new(left, yBottom));
-                p.ClosePath(); p.Fill();
+                p.MoveTo(from);
+                p.QuadraticCurveTo(mid + away * bow, to);
+                p.Stroke();
             }
 
-            // The two edges of that band: the target you are asked to reach, and the ceiling you are asked
-            // not to pass. The target is the louder of the two because it is the one being worked toward.
-            void Rule(float deg, Color colour, float width)
+            float bowAmount = size * .055f;
+            Stroke(Corner(false, false, 1), Corner(true, true, 2),
+                   (Noise(seed, 3) - .5f) * 2f * bowAmount, weight);
+            Stroke(Corner(true, false, 4), Corner(false, true, 5),
+                   (Noise(seed, 6) - .5f) * 2f * bowAmount, weight * .86f);
+        }
+
+        /// A stable 0..1 from a seed and a salt. Two integers in, one hash out: no Random, because a painter
+        /// runs again on every repaint and a day that redrew itself differently each time would shimmer.
+        static float Noise(int seed, int salt)
+        {
+            unchecked
             {
-                if (deg <= 0) return;
-                p.strokeColor = colour; p.lineWidth = width; p.lineCap = LineCap.Butt;
-                p.BeginPath(); p.MoveTo(new(left, Y(deg))); p.LineTo(new(right, Y(deg))); p.Stroke();
+                uint h = (uint)(seed * 374761393 + salt * 668265263);
+                h = (h ^ (h >> 13)) * 1274126177u;
+                return ((h ^ (h >> 16)) & 0xFFFFu) / 65535f;
             }
-            Rule(ceiling, Good.At(.45f), 2);
-            Rule(target, Target.At(.8f), 2.5f);
+        }
 
-            // A floor for the line to stand on. Without it the plot is a block of colour with a line in it,
-            // and the eye has nothing to read the last point's height against.
-            p.strokeColor = Line.At(.5f); p.lineWidth = 1.5f; p.lineCap = LineCap.Butt;
-            p.BeginPath(); p.MoveTo(new(left, bottom)); p.LineTo(new(right, bottom)); p.Stroke();
-
-            // The measurement.
-            p.strokeColor = Progress; p.lineWidth = 4.5f; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
+        /// A rounded cell. Corners rather than a plain rect because a grid of 84 squares with sharp corners
+        /// reads as a table, and this is a run of days.
+        static void Cell(Painter2D p, float x, float y, float w, float h, float radius, bool stroke = false)
+        {
+            float rr = Mathf.Max(0, Mathf.Min(radius, Mathf.Min(w, h) * .5f));
             p.BeginPath();
-            p.MoveTo(new(X(0), Y(history[0].medianPeakDeg)));
-            for (int i = 1; i < history.Length; i++) p.LineTo(new(X(i), Y(history[i].medianPeakDeg)));
-            if (history.Length > 1) p.Stroke();
-
-            // Hollow dots, so the line reads through them; the last one filled, because "where you are now"
-            // is the one point on this chart anybody looks for first.
-            for (int i = 0; i < history.Length; i++)
-            {
-                bool latest = i == history.Length - 1;
-                var at = new Vector2(X(i), Y(history[i].medianPeakDeg));
-                p.fillColor = latest ? Progress : Panel;
-                p.strokeColor = Progress; p.lineWidth = 4;
-                p.BeginPath(); p.Arc(at, latest ? 9 : 6, Angle.Degrees(0), Angle.Degrees(360));
-                p.Fill(); p.Stroke();
-            }
+            p.MoveTo(new(x + rr, y));
+            p.LineTo(new(x + w - rr, y));
+            p.Arc(new(x + w - rr, y + rr), rr, Angle.Degrees(-90), Angle.Degrees(0));
+            p.LineTo(new(x + w, y + h - rr));
+            p.Arc(new(x + w - rr, y + h - rr), rr, Angle.Degrees(0), Angle.Degrees(90));
+            p.LineTo(new(x + rr, y + h));
+            p.Arc(new(x + rr, y + h - rr), rr, Angle.Degrees(90), Angle.Degrees(180));
+            p.LineTo(new(x, y + rr));
+            p.Arc(new(x + rr, y + rr), rr, Angle.Degrees(180), Angle.Degrees(270));
+            p.ClosePath();
+            if (stroke) p.Stroke(); else p.Fill();
         }
 
         // ------------------------------------------------------------------ the envelope
@@ -466,59 +568,6 @@ namespace Kinesthetic.Menu
             painter.strokeColor = Target; painter.lineWidth = 4;
             painter.BeginPath(); painter.Arc(new(here, mid), thickness * .5f, Angle.Degrees(0), Angle.Degrees(360));
             painter.Fill(); painter.Stroke();
-        }
-
-        // ------------------------------------------------------------------ the dose
-
-        /// Reps that counted against reps attempted, one column per session, with the prescribed count as
-        /// the line across. Attempted-but-not-counted is drawn as the pale remainder of the same column
-        /// rather than as a second bar: the reps happened, they are one effort, and splitting them into two
-        /// bars invites reading the pale one as a mistake.
-        static void DrawDose(MeshGenerationContext ctx, Rect r,
-                             MenuDashboardModel.WeekPoint[] history, int prescribed)
-        {
-            if (r.width < 24 || r.height < 16 || history.Length == 0) return;
-            var p = ctx.painter2D;
-
-            float bottom = r.height - 2, top = 12;
-            int ceiling = Mathf.Max(prescribed, history.Max(h => Mathf.Max(h.attempted, h.valid)));
-            if (ceiling <= 0) return;
-            float Y(float reps) => bottom - Mathf.Clamp01(reps / ceiling) * (bottom - top);
-
-            float gap = Mathf.Clamp(r.width * .035f, 4, 10);
-            float width = (r.width - gap * (history.Length - 1)) / history.Length;
-            float radius = Mathf.Min(width * .28f, 6);
-
-            for (int i = 0; i < history.Length; i++)
-            {
-                float x = i * (width + gap);
-                p.fillColor = Reference.At(.18f);
-                Column(p, x, Y(history[i].attempted), width, bottom - Y(history[i].attempted), radius);
-                p.fillColor = Good;
-                Column(p, x, Y(history[i].valid), width, bottom - Y(history[i].valid), radius);
-            }
-
-            // What was prescribed, as the line the columns are read against.
-            if (prescribed <= 0) return;
-            p.strokeColor = Target.At(.7f); p.lineWidth = 2; p.lineCap = LineCap.Butt;
-            p.BeginPath(); p.MoveTo(new(0, Y(prescribed))); p.LineTo(new(r.width, Y(prescribed))); p.Stroke();
-        }
-
-        /// A column with its top corners rounded and its base square, so a row of them reads as standing on
-        /// the same floor.
-        static void Column(Painter2D p, float x, float y, float width, float height, float radius)
-        {
-            if (height <= .5f) return;
-            float rr = Mathf.Min(radius, Mathf.Min(width, height) * .5f);
-            p.BeginPath();
-            p.MoveTo(new(x, y + height));
-            p.LineTo(new(x, y + rr));
-            p.Arc(new(x + rr, y + rr), rr, Angle.Degrees(180), Angle.Degrees(270));
-            p.LineTo(new(x + width - rr, y));
-            p.Arc(new(x + width - rr, y + rr), rr, Angle.Degrees(270), Angle.Degrees(360));
-            p.LineTo(new(x + width, y + height));
-            p.ClosePath();
-            p.Fill();
         }
 
         // ------------------------------------------------------------------ plumbing

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
 using UnityEngine.UIElements;
 
 namespace Kinesthetic
@@ -25,8 +27,19 @@ namespace Kinesthetic
         public float maxDistance = 12;
         public float releaseSeconds = .25f;     // brief grace so a shaky head does not reset the ring
 
+        /// The element under the ray changed; null when the ray left the last one.
         public event Action<string> Entered;
         public event Action<string> Committed;
+
+        /// Whether the centre of the view is a head at all: a tracked headset, or the Mac's look-drag
+        /// (DevFreeLook) steered off its rest pose. A scripted camera that never moves is neither, and a
+        /// dwell on whatever it happens to rest on is a press nobody made. BoardSet gates its dwells on this.
+        public static bool HeadDriven(Camera cam)
+        {
+            foreach (var device in InputSystem.devices) if (device is XRHMD) return true;
+            var look = cam ? cam.GetComponent<DevFreeLook>() : null;
+            return look && look.Steered;
+        }
 
         UIDocument document;
         GazeReticle reticle;
@@ -51,7 +64,7 @@ namespace Kinesthetic
             {
                 lost += Time.unscaledDeltaTime;
                 if (lost < releaseSeconds && hot != null) { reticle.Show(cam, held / dwellSeconds); return; }
-                hot = null; held = 0; reticle.Hide(); return;
+                Leave(); return;
             }
 
             lost = 0;
@@ -69,6 +82,17 @@ namespace Kinesthetic
             if (Kinesthetic.UI.Remote.RemoteBoard.Intercepts(gameObject, button)) return;
             Committed?.Invoke(fired);
         }
+
+        /// The ray left whatever it was on: subscribers hear a null so a highlight does not stick.
+        void Leave()
+        {
+            bool had = hot != null;
+            hot = null; hotButton = null; held = 0;
+            reticle.Hide();
+            if (had) Entered?.Invoke(null);
+        }
+
+        void OnDisable() { if (reticle) Leave(); }
 
         // The name of the Button under the centre of the view, or null.
         string Under(Camera cam)

@@ -4,6 +4,7 @@ using System.Linq;
 using Kinesthetic;
 using Kinesthetic.Menu;
 using Kinesthetic.Shell;
+using Kinesthetic.UI.Remote;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -82,11 +83,14 @@ public static class MainMenuSetup
         // already on the object — which here is the 16x9 one UIDocument maintains for its own panel — and
         // resizes it to its worldSize, 1.2 x 0.78 m. That would shrink the board's pickable area to a patch
         // in the middle, and both the dwell and the pointer resolve elements through that collider.
-        GameObject Pane(string label, string uxml, bool board_)
+        // Every pane is a board on the wire (UI/Remote): the Mac mirrors its tree to the headset's copy of
+        // this scene, where a pane with the same id shows it and sends its presses back. The id is the slot's.
+        GameObject Pane(string label, string uxml, bool board_, string boardId)
         {
             var go = board_
                 ? new GameObject(label, typeof(UIDocument), typeof(MainMenuController), typeof(GazeDwell), typeof(PanePointerInput))
                 : new GameObject(label, typeof(UIDocument), typeof(GazeDwell), typeof(PanePointerInput));
+            go.AddComponent<RemoteBoard>().id = boardId;
             var d = go.GetComponent<UIDocument>();
             d.panelSettings = panel;
             d.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;
@@ -121,10 +125,10 @@ public static class MainMenuSetup
         // widens as the panes come closer — 9 degrees at 57 against 6 at 60 — and 57 still keeps 1.3 degrees
         // of clearance past the board's own edge, where 56 leaves only 0.3.
         carousel.spacingDegrees = 62;
-        var menu = Pane("RehabMii activity menu", "MainMenu.uxml", true);
-        var coaching = Pane("Coaching", "Coaching.uxml", false);
-        var gallery = Pane("Activity gallery", "Gallery.uxml", false);
-        var friendsPane = Pane("Friends", "Friends.uxml", false);
+        var menu = Pane("RehabMii activity menu", "MainMenu.uxml", true, "menu.home");
+        var coaching = Pane("Coaching", "Coaching.uxml", false, "menu.coaching");
+        var gallery = Pane("Activity gallery", "Gallery.uxml", false, "menu.gallery");
+        var friendsPane = Pane("Friends", "Friends.uxml", false, "menu.friends");
         carousel.Frame(eye.position, board.position);
         carousel.Adopt(
             new PaneCarousel.Slot("home", "Today", menu.transform, 0),
@@ -134,8 +138,9 @@ public static class MainMenuSetup
 
         // The arrows ride their own panel, wider than the panes and a little further out, so the facing pane
         // answers the gaze everywhere in front of it and the arrows answer only past its edge.
-        CarouselChrome.Stand(carousel, Panel("CarouselPanel", 1, world: true),
+        var chrome = CarouselChrome.Stand(carousel, Panel("CarouselPanel", 1, world: true),
             AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Kinesthetic/Shell/CarouselChrome.uxml"));
+        chrome.gameObject.AddComponent<RemoteBoard>().id = "menu.chrome";
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
         ConfigureMacBuildScenes();
         return "Main menu created. Golf, Movement Studio and Bowling are included; menu is the default launch scene.";

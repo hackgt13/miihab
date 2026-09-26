@@ -31,6 +31,10 @@ namespace Kinesthetic
         Quaternion baseRotation, lastWritten;
         bool written;
 
+        /// The view is off its rest pose because someone dragged it there — the one sign on a Mac that the
+        /// centre of the view is being aimed rather than parked by a script. Middle-click clears it.
+        public bool Steered => enabled && (yaw != 0 || pitch != 0);
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Install()
         {

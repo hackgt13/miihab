@@ -346,6 +346,18 @@ namespace Kinesthetic.Coach
 
         void OnDestroy() => exercise?.Dispose();
 
+        /// Where the coach sits, from the patient's seat and facing: 40° to their right and 2.34 m off,
+        /// turned to face them. Past 33° so the Measure board (UI/Boards, +25° at 1.5 m, nine degrees
+        /// wide) stands beside the coach rather than in front of them; inside 45° so the coach is in a
+        /// headset's view without a turn. The mirror stands 36° to the left at 2.72 m (MirrorPanel).
+        /// QuestRehabSetup seats the headset's copy of the coach with this too, so both sides agree.
+        public static Pose SeatPose(Vector3 seat, Vector3 forward)
+        {
+            var right = Vector3.Cross(Vector3.up, forward);
+            var at = seat + right * 1.5f + forward * 1.8f;
+            return new Pose(at, Quaternion.LookRotation(Vector3.ProjectOnPlane(seat - at, Vector3.up), Vector3.up));
+        }
+
         // The coach joins the rehab scene automatically, beside the patient, without editing that scene.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void JoinRehabScene()
@@ -364,9 +376,8 @@ namespace Kinesthetic.Coach
             // person, first person and the headset. (The Mii faces local -Z; its anatomical right is local -X.)
             var basePos = patient ? (patient.transform.parent ? patient.transform.parent.position : patient.transform.position) : Vector3.zero;
             var forward = patient ? Vector3.ProjectOnPlane(patient.transform.TransformDirection(Vector3.back), Vector3.up).normalized : Vector3.forward;
-            var right = Vector3.Cross(Vector3.up, forward);
-            coach.transform.position = basePos + right * 1.0f + forward * 2.1f;
-            coach.transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(basePos - coach.transform.position, Vector3.up), Vector3.up);
+            var seat = SeatPose(basePos, forward);
+            coach.transform.SetPositionAndRotation(seat.position, seat.rotation);
             // On the Mac the coach talks: Alex, the ElevenLabs voice PT. The headset renders the Mac's coach instead.
             if (scene.name == "Rehab") coach.AddComponent<CoachVoice>();
         }
