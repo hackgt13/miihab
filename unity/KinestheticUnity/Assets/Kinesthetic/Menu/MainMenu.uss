@@ -403,6 +403,7 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
    overlay panel (980px) floating on a board that fills all 1600 — three widths, which did not matter
    while only one was ever on screen. It matters now: the neighbours' edges are visible as the ring
    turns, so three widths read as three different kinds of thing, and the sliver either side changes
+   size depending on which pane happens to be standing there. */
 .pane-screen > .sheet,
 .pane-screen > .friends-panel { width: 100%; height: 100%; }
 
