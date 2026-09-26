@@ -153,14 +153,16 @@ sunken sand ground set into paper, for paper-coloured things that need something
 owns its padding, background, edge and radius. A scrim's blocking behavior and visibility remain
 with the screen. These variants and `KText` are also shown in `Specimen.uxml`.
 
-### `KSheet` — `entrance`, plus everything `KSurface` has
+### `KSheet` — `entrance`, `exit`, plus everything `KSurface` has
 
 A surface that is handed to you and taken away again: the briefing a venue opens with and the summary
 it closes on are the same object at two ends of a session, so they are one component. Entrances:
 `Right`, `Left`, `Below` — chosen for where the giver stands in the room, not for the layout, so in the
-studio the briefing arrives from the coach's side. `Present()`, `Dismiss()` and `Hide()` (no exit, for a
-reset or a rebuilt tree) drive it; `Presented` is where it is heading, not whether the motion has
-finished.
+studio the briefing arrives from the coach's side. `exit` is which side it leaves by — `Back` (default)
+retraces the entrance, which is right for something that was only being shown, while a page you have
+finished with is swept aside instead, and that is a different side from the one that handed it to you.
+`Present()`, `Dismiss()` and `Hide()` (no exit, for a reset or a rebuilt tree) drive it; `Presented` is
+where it is heading, not whether the motion has finished.
 
 It is the first animation in the library, and the reason motion belongs to a component: `transition` is
 paint, so a sealed screen may not write it. `Sheet.uss` carries the entrance (ease-out-back, a few

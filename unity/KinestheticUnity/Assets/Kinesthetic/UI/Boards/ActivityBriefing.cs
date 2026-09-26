@@ -162,7 +162,7 @@ namespace Kinesthetic.UI.Boards
         void Build()
         {
             host.Clear();
-            sheet = new KSheet { name = "briefing-sheet", entrance = KSheet.Entrance.Right };
+            sheet = new KSheet { name = "briefing-sheet", entrance = KSheet.Entrance.Right, exit = KSheet.Exit.Left };
             sheet.AddToClassList(Block);
             KStyles.Attach(sheet, "Briefing");
 
