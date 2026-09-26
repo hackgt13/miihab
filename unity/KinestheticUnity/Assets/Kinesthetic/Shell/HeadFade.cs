@@ -89,7 +89,14 @@ namespace Kinesthetic.Shell
 
         void Follow()
         {
-            if (!attached) return;
+            // Right after a scene swap the camera it followed is gone and the new one may only appear at
+            // render time; take it here, before this frame renders, or the new scene shows through uncovered.
+            if (!attached)
+            {
+                var cam = Camera.main;
+                if (!cam) return;
+                Attach(cam);
+            }
             var eye = attached.transform;
             transform.SetPositionAndRotation(eye.position + eye.rotation * new Vector3(0, 0, Distance), eye.rotation);
         }
@@ -97,7 +104,7 @@ namespace Kinesthetic.Shell
         void Attach(Camera cam)
         {
             attached = cam;
-            if (!cam) { render.enabled = false; return; }
+            if (!cam) return;   // stays where it was, still drawn: whatever renders next is covered
             fov = cam.fieldOfView; aspect = cam.aspect;
             // Wide enough that the view's corners stay inside it with room to spare, on any camera.
             float side = 2 * Mathf.Tan(fov * .5f * Mathf.Deg2Rad) * Distance * Mathf.Max(aspect, 1) * Margin;
@@ -110,7 +117,7 @@ namespace Kinesthetic.Shell
             if (!material || !render) return;
             material.SetFloat(CoverId, cover);
             material.SetFloat(TunnelId, tunnel);
-            render.enabled = attached && (cover > 0 || tunnel > 0);
+            render.enabled = cover > 0 || tunnel > 0;   // never gated on a camera: the swap frame has none
         }
 
         /// Unscaled time, like every other piece of shell motion: a scene that paused the game must still be
