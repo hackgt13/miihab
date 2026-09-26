@@ -361,7 +361,18 @@ const server = createServer(async (request, response) => {
         }
         if (request.method === 'POST' && url.pathname === '/api/friends/introductions/answer') {
           const body = await readJson(request) as {id?: string; yes?: boolean};
-          const answered = introductions.answer(String(body.id ?? ''), me, body.yes ? 'yes' : 'no');
+          const id = String(body.id ?? '');
+          let answered = introductions.answer(id, me, body.yes ? 'yes' : 'no');
+          // The local stand-in for the other side. Every profile in the local
+          // directory is synthetic — there is no second coordinator to answer —
+          // so a yes here completes the pair instead of waiting forever. With a
+          // real backend this whole branch goes away and the wait is real; the
+          // double opt-in in introductions.ts is untouched either way.
+          if (body.yes && !IntroductionStore.joined(answered)) {
+            const other = answered.pair[0] === me ? answered.pair[1] : answered.pair[0];
+            const synthetic = (await directory.profiles()).some(p => p.personId === other);
+            if (synthetic) answered = introductions.answer(id, other, 'yes');
+          }
           if (!IntroductionStore.joined(answered)) return json(200, {joined: false});
           // Both said yes. Mint a code and redeem it, which is exactly what two
           // people who exchanged one by hand would have done.
@@ -369,7 +380,7 @@ const server = createServer(async (request, response) => {
           const profiles = await directory.profiles();
           const known = profiles.find(p => p.personId === other);
           const person = friends.has(other) ? friends.person(other)
-            : friends.accept(friends.invite(), known ? 'A match' : 'A friend');
+            : friends.accept(friends.invite(), known?.displayName || 'A friend');
           return json(201, {joined: true, person});
         }
         if (request.method === 'GET' && url.pathname === '/api/friends/spotlight') {

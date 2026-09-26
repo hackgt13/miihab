@@ -23,6 +23,9 @@ import { AGE_BANDS, type AgeBandId } from './norms.ts';
 /** Everything a match is computed from. No measurements, by design. */
 export interface Profile {
   personId: string;
+  /// Revealed only once both sides have said yes. reason() never reads it, so
+  /// it cannot leak into the anonymous card.
+  displayName?: string;
   /** From plan.goal.components, lowercased: 'shoulder elevation', 'grip'. */
   goalComponents: string[];
   /** Exercise kind ids prescribed to them, e.g. 'shoulder-raise.v1'. */

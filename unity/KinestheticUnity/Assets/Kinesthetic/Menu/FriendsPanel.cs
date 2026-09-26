@@ -126,6 +126,7 @@ namespace Kinesthetic.Menu
         string pendingPhotoId;
         string spotlightId;
         SpotlightInfo insight;
+        IntroductionsCard introductions;
 
         public void Attach(VisualElement tree, ActivityNavigation nav)
         {
@@ -170,6 +171,11 @@ namespace Kinesthetic.Menu
             { if (!overlay.ClassListContains("hidden")) { Close(); e.StopPropagation(); } });
 
             BuildQuickChips();
+            // Mounted only where the tree offers a home for it, so a screen that
+            // has not adopted the card is not broken by its absence.
+            var introMount = root.Q("introductions");
+            if (introMount != null)
+                introductions = new IntroductionsCard(this, introMount, () => StartCoroutine(LoadRoster()));
             StartCoroutine(LoadRoster());
         }
 
@@ -224,6 +230,8 @@ namespace Kinesthetic.Menu
             // Deliberately not awaited: a model call is seconds, and the panel is
             // already correct without it. It repaints if and when it lands.
             StartCoroutine(LoadInsight());
+            // After the roster, so anyone already a friend is excluded from it.
+            introductions?.Refresh();
         }
 
         /// Asks the coordinator who deserves the spotlight and what each person has
