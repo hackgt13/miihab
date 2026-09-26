@@ -139,6 +139,12 @@ export function available(): boolean {
   return anthropic() !== null;
 }
 
+/// Degrading silently makes "no key" and "the request failed" look identical
+/// from the outside. The feature still degrades; it just says why first.
+function warn(where: string, error: unknown) {
+  console.warn(`social-ai: ${where} unavailable —`, error instanceof Error ? error.message : error);
+}
+
 const cache = new Map<string, { at: number; value: unknown }>();
 function cached<T>(key: string): T | undefined {
   const hit = cache.get(key);
@@ -217,7 +223,8 @@ export async function spotlight(people: Candidate[]): Promise<Spotlight | null> 
     const value = normaliseSpotlight(input, people);
     cache.set(key, { at: Date.now(), value });
     return value;
-  } catch {
+  } catch (error) {
+    warn('spotlight', error);
     return null;
   }
 }
@@ -257,7 +264,8 @@ export async function recap(otherName: string, messages: RecapMessage[]): Promis
     const value = input.recap.trim().slice(0, 160);
     cache.set(key, { at: Date.now(), value });
     return value;
-  } catch {
+  } catch (error) {
+    warn('recap', error);
     return null;
   }
 }
