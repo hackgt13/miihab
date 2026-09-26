@@ -51,20 +51,6 @@
                         </ui:VisualElement>
                     </ui:VisualElement>
 
-                    <ui:VisualElement class="tile tile-calendar">
-                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
-                            <ui:Label text="CONSISTENCY" class="tile-label" />
-                            <ui:Label name="calendar-note" text="" class="tile-note accent" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="calendar-days" picking-mode="Ignore">
-                            <ui:Label text="M" class="day-letter" /><ui:Label text="T" class="day-letter" />
-                            <ui:Label text="W" class="day-letter" /><ui:Label text="T" class="day-letter" />
-                            <ui:Label text="F" class="day-letter" /><ui:Label text="S" class="day-letter" />
-                            <ui:Label text="S" class="day-letter" />
-                        </ui:VisualElement>
-                        <ui:VisualElement name="calendar-grid" class="calendar-grid" picking-mode="Ignore" />
-                    </ui:VisualElement>
-
                     <ui:Button name="start-activity" class="cta">
                         <ui:VisualElement class="cta-copy" picking-mode="Ignore">
                             <ui:Label name="cta-title" text="Start first activity" class="cta-title" picking-mode="Ignore" />
@@ -97,6 +83,20 @@
                             </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:Label name="goal-copy" text="" class="goal-copy" picking-mode="Ignore" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="tile tile-calendar">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="CONSISTENCY" class="tile-label" />
+                            <ui:Label name="calendar-note" text="" class="tile-note accent" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="calendar-days" picking-mode="Ignore">
+                            <ui:Label text="M" class="day-letter" /><ui:Label text="T" class="day-letter" />
+                            <ui:Label text="W" class="day-letter" /><ui:Label text="T" class="day-letter" />
+                            <ui:Label text="F" class="day-letter" /><ui:Label text="S" class="day-letter" />
+                            <ui:Label text="S" class="day-letter" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="calendar-grid" class="calendar-grid" picking-mode="Ignore" />
                     </ui:VisualElement>
 
                     <ui:VisualElement class="tile tile-today">

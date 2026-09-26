@@ -154,6 +154,9 @@ namespace Kinesthetic.Menu
     /// the panel is the state, and this writes into it.
     public static class MenuDashboard
     {
+        /// The top of the dial. Functional shoulder elevation, not the anatomical 180.
+        const float Ceiling = 120;
+
         // Taken from Palette.cs by role, not by hex, so retuning the system moves these with it.
         // The calendar ramp is the jungle scale because its role is exactly what a done day is —
         // Good, "counted, done, reached" — and depth of green then reads as how much was done.
@@ -265,75 +268,76 @@ namespace Kinesthetic.Menu
 
         /// The reach, drawn as the movement instead of as a chart.
         ///
-        /// A line graph of shoulder degrees is generic — it could be plotting anything, and "93°" does
-        /// not feel like a distance until you see the arm sweep it. So this is a fan pivoting at the
-        /// shoulder: a pale wedge for where week one reached, a bright band for everything gained
-        /// since, and a tick at the clinician's target. The gain is the band, which is the one thing
-        /// worth looking at.
+        /// A line graph of shoulder degrees is generic — it could be plotting anything, and "93°"
+        /// does not feel like a distance until you see the arm sweep it. So this is an arc pivoting
+        /// at the shoulder, read like a dial: a faint track for the range a shoulder has, a quiet
+        /// band for where week one stopped, and a solid band for everything gained since.
+        ///
+        /// Three bands and two marks, and nothing else. The earlier version drew guide spokes, a
+        /// filled pie, an arm, a hand and a separate edge line on top of each other, which is why it
+        /// read as clutter rather than as a diagram.
         static void DrawRangeFan(MeshGenerationContext ctx, Rect r, MenuDashboardModel model)
         {
             if (r.width < 24 || r.height < 24 || model.history.Length == 0) return;
             var p = ctx.painter2D;
-            float now = model.history[^1].medianPeakDeg;
-            float start = model.history[0].medianPeakDeg;
-            float target = model.targetDeg;
+            float now = Mathf.Clamp(model.history[^1].medianPeakDeg, 0, Ceiling);
+            float start = Mathf.Clamp(model.history[0].medianPeakDeg, 0, Ceiling);
+            float target = Mathf.Clamp(model.targetDeg, 0, Ceiling);
 
-            // Arm at the side points down; raising it sweeps towards horizontal. Painter2D measures
-            // from +X clockwise, so straight down is 90 and an elevation of E sits at 90 - E.
-            float radius = Mathf.Min(r.width, r.height) * .94f;
-            var pivot = new Vector2((r.width - radius) * .5f, (r.height - radius) * .5f);
-            float Ang(float elevation) => 90 - elevation;
+            // Arm at the side points down; raising it sweeps towards horizontal and past it. Painter2D
+            // measures from +X clockwise, so straight down is 90 and an elevation of E sits at 90 - E.
+            // Drawing 0..Ceiling covers a box `radius` wide and `radius * (1 + sin(Ceiling - 90))` tall.
+            float Ang(float e) => 90 - e;
+            float tall = 1 + Mathf.Sin((Ceiling - 90) * Mathf.Deg2Rad);
+            float radius = Mathf.Min(r.width, r.height / tall) * .96f;
+            var pivot = new Vector2((r.width - radius) * .5f,
+                                    (r.height - radius * tall) * .5f + radius * (tall - 1));
 
-            void Wedge(float from, float to, Color fill)
+            float thickness = radius * .17f;
+            float mid = radius - thickness * .5f;
+
+            void Band(float from, float to, Color colour)
             {
-                p.fillColor = fill;
+                if (to <= from) return;
+                p.strokeColor = colour;
+                p.lineWidth = thickness;
+                p.lineCap = LineCap.Butt;
                 p.BeginPath();
-                p.MoveTo(pivot);
-                p.Arc(pivot, radius, Angle.Degrees(Ang(to)), Angle.Degrees(Ang(from)));
-                p.ClosePath();
-                p.Fill();
-            }
-            void Spoke(float elevation, float inner, float outer, Color colour, float width)
-            {
-                float a = Ang(elevation) * Mathf.Deg2Rad;
-                var dir = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-                p.strokeColor = colour; p.lineWidth = width; p.lineCap = LineCap.Round;
-                p.BeginPath();
-                p.MoveTo(pivot + dir * (radius * inner));
-                p.LineTo(pivot + dir * (radius * outer));
+                p.Arc(pivot, mid, Angle.Degrees(Ang(to)), Angle.Degrees(Ang(from)));
                 p.Stroke();
             }
 
-            // Faint guides every 30°, so the fan reads as a measurement and not just a shape.
-            for (int deg = 30; deg <= 150; deg += 30)
-                Spoke(deg, .22f, 1.02f, Reference.At(.20f), 1.5f);
+            Band(0, Ceiling, Palette.Line.At(.20f));    // the range a shoulder has
+            Band(0, start, Reference.At(.55f));         // where week one stopped
+            Band(start, now, Progress);                 // everything gained since
 
-            Wedge(0, start, Reference.At(.24f));
-            Wedge(start, now, Progress.At(.62f));
+            // The target, as a notch cut across the band rather than a line laid over it.
+            float ta = Ang(target) * Mathf.Deg2Rad;
+            var tdir = new Vector2(Mathf.Cos(ta), Mathf.Sin(ta));
+            p.strokeColor = Target; p.lineWidth = 4; p.lineCap = LineCap.Round;
+            p.BeginPath();
+            p.MoveTo(pivot + tdir * (mid - thickness * .62f));
+            p.LineTo(pivot + tdir * (mid + thickness * .62f));
+            p.Stroke();
 
-            // The target tick sits outside the fan when it has been passed, which is the point.
-            Spoke(target, .84f, 1.14f, Target, 5);
-
-            // The arm itself, ending in the hand.
-            float armA = Ang(now) * Mathf.Deg2Rad;
-            var armDir = new Vector2(Mathf.Cos(armA), Mathf.Sin(armA));
-            p.strokeColor = Ink;
-            p.lineWidth = 9; p.lineCap = LineCap.Round;
-            p.BeginPath(); p.MoveTo(pivot); p.LineTo(pivot + armDir * radius); p.Stroke();
+            // The arm. Without it the arc floats and the shoulder dot reads as a stray speck —
+            // this is the line that makes the whole figure a reach rather than a gauge.
+            float na = Ang(now) * Mathf.Deg2Rad;
+            var ndir = new Vector2(Mathf.Cos(na), Mathf.Sin(na));
+            p.strokeColor = Ink; p.lineWidth = 6; p.lineCap = LineCap.Round;
+            p.BeginPath();
+            p.MoveTo(pivot);
+            p.LineTo(pivot + ndir * (mid - thickness * .5f));
+            p.Stroke();
 
             p.fillColor = Ink;
-            p.BeginPath(); p.Arc(pivot, 11, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
-            p.fillColor = Panel;
-            p.strokeColor = Ink; p.lineWidth = 5;
-            p.BeginPath(); p.Arc(pivot + armDir * radius, 13, Angle.Degrees(0), Angle.Degrees(360));
-            p.Fill(); p.Stroke();
+            p.BeginPath(); p.Arc(pivot, 9, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
 
-            // Where week one stopped, so the band has a visible near edge.
-            float oldA = Ang(start) * Mathf.Deg2Rad;
-            var oldDir = new Vector2(Mathf.Cos(oldA), Mathf.Sin(oldA));
-            p.strokeColor = Reference;
-            p.lineWidth = 3;
-            p.BeginPath(); p.MoveTo(pivot + oldDir * (radius * .12f)); p.LineTo(pivot + oldDir * radius); p.Stroke();
+            // The hand, sitting on the band at today's reach.
+            p.fillColor = Panel;
+            p.strokeColor = Progress; p.lineWidth = 5;
+            p.BeginPath(); p.Arc(pivot + ndir * mid, thickness * .58f, Angle.Degrees(0), Angle.Degrees(360));
+            p.Fill(); p.Stroke();
         }
 
         // ------------------------------------------------------------------ consistency
@@ -362,14 +366,13 @@ namespace Kinesthetic.Menu
                 p.fillColor = cells[i].level <= 0 ? Empty : Levels[Mathf.Clamp(cells[i].level - 1, 0, Levels.Length - 1)];
                 RoundedSquare(p, x, y, cell, radius);
 
-                // Today gets a ring rather than a different fill, so "where am I" and "did I train"
-                // stay two separate readings instead of one ambiguous colour.
+                // Today is outlined rather than filled differently, so "where am I" and "did I
+                // train" stay two separate readings. An outline on the square itself sits in the
+                // grid; a circle over it looked like a separate mark that had landed there.
                 if (cells[i].date != today) continue;
-                p.strokeColor = Palette.Attention;
+                p.strokeColor = Target;
                 p.lineWidth = 3;
-                p.BeginPath();
-                p.Arc(new Vector2(x + cell * .5f, y + cell * .5f), cell * .62f, Angle.Degrees(0), Angle.Degrees(360));
-                p.Stroke();
+                RoundedRect(p, x - 2.5f, y - 2.5f, cell + 5, radius + 2, cell + 5, stroke: true);
             }
         }
 
@@ -388,6 +391,9 @@ namespace Kinesthetic.Menu
         }
 
         static void RoundedSquare(Painter2D p, float x, float y, float size, float radius, float height = -1)
+            => RoundedRect(p, x, y, size, radius, height);
+
+        static void RoundedRect(Painter2D p, float x, float y, float size, float radius, float height = -1, bool stroke = false)
         {
             float w = size, hgt = height > 0 ? height : size;
             float rr = Mathf.Min(radius, Mathf.Min(w, hgt) * .5f);
@@ -402,7 +408,7 @@ namespace Kinesthetic.Menu
             p.LineTo(new(x, y + rr));
             p.Arc(new(x + rr, y + rr), rr, Angle.Degrees(180), Angle.Degrees(270));
             p.ClosePath();
-            p.Fill();
+            if (stroke) p.Stroke(); else p.Fill();
         }
 
         // ------------------------------------------------------------------ ring

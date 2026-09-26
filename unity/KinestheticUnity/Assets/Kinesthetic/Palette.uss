@@ -47,6 +47,7 @@
     --slate-60: #4D6187;
     --slate-70: #33456A;
     --prussian-60: #1B2C4A;
+    --prussian-50: #2F3A4E;
     --prussian-70: #0E1C36;
     --prussian-80: #08111F;
 
@@ -73,6 +74,9 @@
     --prussian-70-a88: rgba(14, 28, 54, .88);
     --prussian-70-a90: rgba(14, 28, 54, .9);
     --prussian-70-a95: rgba(14, 28, 54, 0.95);
+    --sand-00-a24: rgba(253, 251, 246, .24);
+    --sand-00-a40: rgba(253, 251, 246, .40);
+    --prussian-70-a24: rgba(14, 28, 54, .24);
     --sand-00-a70: rgba(253, 251, 246, .7);
     --sand-00-a80: rgba(253, 251, 246, .8);
     --sand-00-a82: rgba(253, 251, 246, .82);

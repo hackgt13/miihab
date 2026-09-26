@@ -66,13 +66,14 @@ namespace Kinesthetic
         public static readonly Color Slate50 = Hex("6B7EA4");
         public static readonly Color Slate60 = Hex("4D6187");
         public static readonly Color Slate70 = Hex("33456A");
+        public static readonly Color Prussian50 = Hex("2F3A4E");
         public static readonly Color Prussian60 = Hex("1B2C4A");
         public static readonly Color Prussian70 = Hex("0E1C36");   // published
         public static readonly Color Prussian80 = Hex("08111F");
 
         /// What each hue is *for*, so a call site reads as intent rather than as a swatch. Reach for
         /// these first; drop to a numbered step only when a surface needs a specific tint.
-        public static readonly Color Ink = Prussian70;        // headings and figures on a light panel
+        public static readonly Color Ink = Prussian50;        // headings and figures on a light panel
         public static readonly Color Body = Slate70;          // paragraph copy on a light panel
         public static readonly Color Muted = Slate50;         // captions, units, things read second
         public static readonly Color Panel = Sand00;          // the light panel itself
