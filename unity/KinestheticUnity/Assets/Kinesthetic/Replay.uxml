@@ -1,0 +1,24 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="Replay.uss" />
+    <ui:VisualElement class="shell" picking-mode="Ignore">
+        <ui:VisualElement class="panel">
+            <ui:Label text="KINESTHETIC / MOTION PROOF" class="eyebrow" />
+            <ui:Label text="Movement in view." class="title" />
+            <ui:Label text="Original camera observations drive an articulated Unity character." class="description" />
+            <ui:TextField name="capturePath" label="Capture file path" />
+            <ui:Button name="load" text="Load local capture" />
+            <ui:Button name="live" text="Connect camera bridge" />
+            <ui:Label name="status" class="status" />
+            <ui:Label name="source" class="description" />
+            <ui:Slider name="timeline" low-value="0" high-value="1" />
+            <ui:VisualElement class="row">
+                <ui:Button name="play" text="Play" />
+                <ui:Button name="restart" text="Restart" />
+                <ui:Button name="view" text="Change view" />
+            </ui:VisualElement>
+            <ui:Label name="tracking" class="metric" />
+            <ui:Label name="angles" class="metric" />
+            <ui:Label text="Integration estimates, not validated clinical ROM. Untracked joints and the seated lower body use a reference pose. The target is an engineering test, not a prescribed exercise." class="note" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

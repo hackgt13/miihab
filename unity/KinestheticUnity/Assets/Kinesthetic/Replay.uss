@@ -1,0 +1,15 @@
+.shell { flex-grow: 1; padding: 28px; color: #e9f2f4; }
+.panel { width: 370px; background-color: rgba(12, 20, 24, 0.95); padding: 22px; border-radius: 12px; }
+.eyebrow { color: #77d8c5; font-size: 12px; -unity-font-style: bold; margin-bottom: 10px; }
+.title { font-size: 25px; -unity-font-style: bold; margin-bottom: 10px; }
+.description { white-space: normal; font-size: 13px; margin-bottom: 16px; color: #adbec7; }
+.status { white-space: normal; color: #77d8c5; margin-top: 14px; margin-bottom: 12px; }
+.metric { white-space: normal; font-size: 14px; margin-bottom: 12px; }
+.row { flex-direction: row; margin-top: 12px; margin-bottom: 12px; }
+.row > Button { flex-grow: 1; margin-right: 6px; }
+Button { background-color: #27434c; color: #ffffff; border-width: 0; border-radius: 6px; padding: 9px; min-height: 34px; }
+Button { margin-bottom: 5px; }
+Button:hover { background-color: #37616a; }
+TextField { margin-bottom: 10px; }
+TextField .unity-base-text-field__input { background-color: #1e3038; color: #ffffff; padding: 8px; }
+.note { white-space: normal; font-size: 12px; color: #a1b2bc; margin-top: 12px; }
