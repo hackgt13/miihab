@@ -318,15 +318,20 @@ namespace Kinesthetic.Menu
 
         // ------------------------------------------------------------------ the whole program
 
-        /// Every day of the program at once: weeks across, days down, one square each.
+        /// Every day of the program at once: weeks across, days down, one square each, and a day you have done
+        /// crossed off by hand.
         ///
         /// The question this answers is the one nobody could answer from this pane before — *how long is this,
-        /// and when am I done* — so the shape is the program's own length, and the block simply stops where the
-        /// program stops. A day already worked is filled in the green the board's consistency grid uses for the
-        /// same thing, a day gone by without work is a faint square rather than a gap (a gap would read as a day
-        /// that does not exist), a day still to come is fainter still, today is ringed, and the last day carries
-        /// the mark this product gives a target. Read left to right it is: what I have done, where I am, what is
-        /// left, and the date it ends.
+        /// and when am I done* — so the shape is the program's own length and the block stops where the program
+        /// stops. Read left to right it is what I have crossed off, where I am, what is left, and the date it
+        /// ends.
+        ///
+        /// The crossing-off is drawn rather than filled because that is what a person does to a paper plan on a
+        /// fridge, and because a wall of flat green squares says "data" where two pen strokes say "I did that".
+        /// Every stroke is bowed and its ends are jittered, so no two X's are the same and none of them is
+        /// straight — but the jitter comes from the date, so a day's X is the same X on every repaint. A missed
+        /// day is not crossed and not marked either: this pane is not a report card, and the calendar's job is
+        /// to say where the program has got to.
         ///
         /// The rect is divided into columns x 7 with no aspect cap, so the day letters and week numbers beside
         /// it — laid out by flex on the same rect — land on the same rows and columns without either side
@@ -348,26 +353,86 @@ namespace Kinesthetic.Menu
             {
                 var date = monday.AddDays(column * 7 + row);
                 if (date < start || date > finish) continue;      // the program's own edges, not the week's
-                float x = column * (cw + gap), y = row * (ch + gap);
-
+                var cell = new Rect(column * (cw + gap), row * (ch + gap), cw, ch);
                 levels.TryGetValue(date.Date, out int level);
-                p.fillColor = level > 0 ? Good.At(Mathf.Lerp(.45f, 1f, Mathf.Clamp01(level / 4f)))
+                bool done = level > 0, now = date == today;
+
+                // The paper the day is written on: a wash under a day that has work in it, a plain square for a
+                // day gone by, and the faintest one for a day still to come.
+                p.fillColor = now ? Progress.At(.20f)
+                            : done ? Good.At(.16f)
                             : date < today ? Reference.At(.20f)
                             : Reference.At(.11f);
-                Cell(p, x, y, cw, ch, radius);
+                Cell(p, cell.x, cell.y, cell.width, cell.height, radius);
 
-                // Today is outlined rather than filled differently, so "where am I" and "did I train" stay two
-                // separate readings — the same choice the board's calendar makes.
-                if (date == today)
+                // Today is ringed rather than filled differently, so "where am I" and "did I train" stay two
+                // separate readings — and it is ringed twice as thick as the finish, because it is the one square
+                // a person looks for.
+                if (now)
                 {
-                    p.strokeColor = Progress; p.lineWidth = 3;
-                    Cell(p, x - 2.5f, y - 2.5f, cw + 5, ch + 5, radius + 2, stroke: true);
+                    p.strokeColor = Progress; p.lineWidth = 4;
+                    Cell(p, cell.x - 3, cell.y - 3, cell.width + 6, cell.height + 6, radius + 2, stroke: true);
                 }
                 else if (date == finish)
                 {
                     p.strokeColor = Target; p.lineWidth = 3;
-                    Cell(p, x - 2.5f, y - 2.5f, cw + 5, ch + 5, radius + 2, stroke: true);
+                    Cell(p, cell.x - 2.5f, cell.y - 2.5f, cell.width + 5, cell.height + 5, radius + 2, stroke: true);
                 }
+
+                if (done) CrossOff(p, cell, date.DayOfYear * 31 + date.Year, level);
+            }
+        }
+
+        /// Two bowed strokes through a day, drawn as a hand would: each end wanders, each stroke overshoots the
+        /// square by a little and bows off true, one is heavier than the other, and the second starts slightly
+        /// after the first crosses it. `seed` is the date, so the same day is crossed off the same way every
+        /// repaint; `level` is how much work landed, and a fuller day presses harder.
+        static void CrossOff(Painter2D p, Rect cell, int seed, int level)
+        {
+            float size = Mathf.Min(cell.width, cell.height);
+            if (size < 10) return;
+
+            float wander = size * .14f;          // how far an end misses the corner it was aiming at
+            float overshoot = size * .10f;       // how far past the square the stroke carries on
+            float weight = Mathf.Clamp(size * .085f, 2.2f, 5.4f) + level * .25f;
+
+            float Jitter(int salt) => (Noise(seed, salt) - .5f) * 2f * wander;
+            Vector2 Corner(bool right, bool low, int salt) => new(
+                (right ? cell.xMax + overshoot : cell.x - overshoot) + Jitter(salt),
+                (low ? cell.yMax + overshoot : cell.y - overshoot) + Jitter(salt + 7));
+
+            p.lineCap = LineCap.Round;
+            p.strokeColor = Good;
+
+            // Top-left to bottom-right, then top-right to bottom-left. The bow is perpendicular to the stroke
+            // and its side comes off the seed, so some X's bulge out and some in.
+            void Stroke(Vector2 from, Vector2 to, float bow, float width)
+            {
+                var mid = (from + to) * .5f;
+                var away = new Vector2(-(to - from).y, (to - from).x).normalized;
+                p.lineWidth = width;
+                p.BeginPath();
+                p.MoveTo(from);
+                p.QuadraticCurveTo(mid + away * bow, to);
+                p.Stroke();
+            }
+
+            float bowAmount = size * .07f;
+            Stroke(Corner(false, false, 1), Corner(true, true, 2),
+                   (Noise(seed, 3) - .5f) * 2f * bowAmount, weight);
+            Stroke(Corner(true, false, 4), Corner(false, true, 5),
+                   (Noise(seed, 6) - .5f) * 2f * bowAmount, weight * .86f);
+        }
+
+        /// A stable 0..1 from a seed and a salt. Two integers in, one hash out: no Random, because a painter
+        /// runs again on every repaint and a day that redrew itself differently each time would shimmer.
+        static float Noise(int seed, int salt)
+        {
+            unchecked
+            {
+                uint h = (uint)(seed * 374761393 + salt * 668265263);
+                h = (h ^ (h >> 13)) * 1274126177u;
+                return ((h ^ (h >> 16)) & 0xFFFFu) / 65535f;
             }
         }
 
