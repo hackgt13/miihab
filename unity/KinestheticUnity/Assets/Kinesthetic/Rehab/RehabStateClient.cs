@@ -20,6 +20,8 @@ namespace Kinesthetic.Rehab
         LatestSocket socket; List<Transform> patientBones, coachBones; Kinesthetic.Coach.CoachDemonstrator coach;
         float lastStateAt = -99;
         string side = "right", kind = "arm-elevation.v1"; float target = 80, band = 15; float? angle; bool handoff;
+        RepFeel feel;
+        public RepFeel Feel => Time.unscaledTime - lastStateAt < 1 ? feel : default;
 
         public PoseRig Rig => rig;
         public string Side => side;
@@ -35,6 +37,8 @@ namespace Kinesthetic.Rehab
             var config = Resources.Load<QuestHostConfig>(QuestHostConfig.ResourcePath);
             rig.Initialize(); rig.Apply(null);
             patientBones = GolfStateFormat.Bones(rig);
+            // The same in-world mechanics the Mac runs, driven by the feel it publishes.
+            Mechanics.RepMechanics.AttachAll(gameObject, this);
             socket = !Application.isEditor && config ? new LatestSocket(config.Url("/rehab-state?role=client")) : new LatestSocket(url);
         }
 
@@ -53,6 +57,16 @@ namespace Kinesthetic.Rehab
             target = (float?)s["target"] ?? target; band = (float?)s["band"] ?? band;
             angle = s["angle"]?.Type is JTokenType.Float or JTokenType.Integer ? (float)s["angle"] : null;
             handoff = (bool?)s["handoff"] ?? false;
+            if (s["feel"] is JObject f)
+                feel = new RepFeel
+                {
+                    InRep = (bool?)f["rep"] ?? false, Phase = (string)f["phase"] ?? "",
+                    Speed = (float?)f["speed"] ?? 0, TempoSpeed = (float?)f["tempo"] ?? 0,
+                    HasTempo = (bool?)f["hasTempo"] ?? false, HasHold = (bool?)f["hasHold"] ?? false,
+                    HoldFraction = (float?)f["hold"] ?? 0, Holding = (bool?)f["holding"] ?? false, HoldMet = (bool?)f["met"] ?? false,
+                    Hitches = (int?)f["hitches"] ?? 0, Streak = (int?)f["streak"] ?? 0, Fast = (bool?)f["fast"] ?? false,
+                    Valid = (int?)f["valid"] ?? 0, Prescribed = (int?)f["prescribed"] ?? 0,
+                };
             Pose(s["patient"], patientBones);
             if (s["coach"] is JObject c)
             {

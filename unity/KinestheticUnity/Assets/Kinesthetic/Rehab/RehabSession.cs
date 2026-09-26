@@ -74,6 +74,7 @@ namespace Kinesthetic.Rehab
         float IRehabView.TargetDeg => targetDeg;
         float IRehabView.BandDeg => bandDeg;
         bool IRehabView.CoachHandingOff => coach && coach.HandingOff;
+        RepFeel IRehabView.Feel => feel;
         bool startingSession, stoppingSession, sessionError, summaryReceived;
         public bool IsBusy => startingSession || stoppingSession;
         // IActivity. The shell drives this without knowing it is a therapy session.
@@ -125,6 +126,10 @@ namespace Kinesthetic.Rehab
         KArc holdRing; KReadout holdReadout, streakReadout, bestHoldReadout; Label formNoteLabel; VisualElement formRow;
         bool HoldPrescribed => planHoldMs > 0;
         float HoldTargetMs => Mathf.Max(holdTargetMs, planHoldMs);
+        // The rep as the in-world mechanics feel it (Mechanics/): the coordinator's live judgements plus the speed
+        // of the angle being shown. Published to a headset with the rest of the state.
+        RepFeel feel; float speedDegS;
+        System.Collections.Generic.HashSet<string> qualityIds;   // which qualities this session is judged on; null until it starts
         // The band around the measured arm: cerulean at rest, sand while the rep is being made,
         // green once the target is reached, and coral only when something is wrong and has to be seen.
         static readonly Color Idle = Palette.Cerulean20.At(.55f), Active = Palette.Sand30.At(.9f),
@@ -143,6 +148,8 @@ namespace Kinesthetic.Rehab
             if (!GetComponent<StudioCamera>()) gameObject.AddComponent<StudioCamera>().session = this;
             // A headset renders this studio from what it publishes (RehabStateClient in QuestRehab).
             if (!GetComponent<RehabStatePublisher>()) gameObject.AddComponent<RehabStatePublisher>().session = this;
+            // The in-world mechanics: the ball balanced on the hand, the pace to follow. They read this view's Feel.
+            Mechanics.RepMechanics.AttachAll(gameObject, this);
             // Not armed yet. The set begins when the patient puts the briefing down, not when the sensor
             // happens to hold still for a second and a half.
             autoArmed = false; enteredAt = Time.unscaledTime;
@@ -461,12 +468,35 @@ namespace Kinesthetic.Rehab
             ReadExercise();
             ReadReadiness();
             DrawGuides();
+            UpdateFeel();
             // While the coach demonstrates and hands over, the cue is theirs; the measurement status follows after.
             coach ??= FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>();
             statusLabel.text = Cue = running && coach && coach.Demonstrating ? "Watch Alex. Raise, hold, lower."
                 : running && coach && coach.HandingOff ? "Your turn. Follow your mirror." : status;
             UpdateStudioUI();
             UpdatePlayHud();
+        }
+
+        /// The rep in progress as the mechanics feel it: the coordinator's live quality readouts, the speed of the
+        /// shown angle, and the speed the plan asks for in this phase (target over the raise time on the way up,
+        /// the top of the band over the lowering time on the way down).
+        void UpdateFeel()
+        {
+            var tempo = liveQuality?["tempo"] as JObject; var hold = liveQuality?["hold"] as JObject; var control = liveQuality?["control"] as JObject;
+            bool inRep = running && calibrated && liveQuality != null && !(coach && coach.Demonstrating);
+            string phase = inRep ? (string)tempo?["phase"] ?? (hold?["holding"]?.Value<bool>() == true ? "hold" : "raise") : "";
+            bool hasTempo = qualityIds?.Contains("tempo") ?? true, hasHold = qualityIds?.Contains("hold") ?? HoldPrescribed;
+            feel = new RepFeel
+            {
+                InRep = inRep, Phase = phase, Speed = speedDegS,
+                TempoSpeed = !hasTempo ? 0 : phase == "lower" ? (targetDeg + bandDeg * .5f) / Mathf.Max(.1f, lowerMs / 1000f) : targetDeg / Mathf.Max(.1f, raiseMs / 1000f),
+                HasTempo = hasTempo, HasHold = hasHold,
+                HoldFraction = hold?["fraction"]?.Value<float>() ?? 0,
+                Holding = hold?["holding"]?.Value<bool>() == true, HoldMet = hold?["met"]?.Value<bool>() == true,
+                Hitches = control?["hitches"]?.Value<int>() ?? 0, Streak = streak,
+                Fast = (string)tempo?["guidance"] == "slower",
+                Valid = valid, Prescribed = prescribedReps,
+            };
         }
 
         void UpdatePlayHud()
@@ -574,7 +604,10 @@ namespace Kinesthetic.Rehab
             // At rest the Mii still takes the movement's posture (arm out for 90/90, standing for a leg raise), so
             // the patient can see how to set up before the first rep.
             bool live = running && Fresh && liveAngle.HasValue;
-            if (live) shownAngle = Mathf.Lerp(shownAngle, liveAngle.Value, 1 - Mathf.Exp(-12 * Time.unscaledDeltaTime));
+            float before = shownAngle, dt = Time.unscaledDeltaTime;
+            if (live) shownAngle = Mathf.Lerp(shownAngle, liveAngle.Value, 1 - Mathf.Exp(-12 * dt));
+            // The speed of the angle being shown, for the mechanics' feel. Presentation only; the tempo verdict is the coordinator's.
+            speedDegS = live && dt > 0 ? Mathf.Lerp(speedDegS, (shownAngle - before) / dt, 1 - Mathf.Exp(-10 * dt)) : 0;
             rig.ApplyMovement(Body, side == "left", live ? shownAngle : 0);
         }
 
@@ -587,7 +620,12 @@ namespace Kinesthetic.Rehab
                 if (currentExerciseId != null && (string)m["exerciseId"] != currentExerciseId) continue;   // an earlier session closing
                 switch ((string)m["type"])
                 {
-                    case "exercise.started": exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0; UpdatePlanLabels(); break;
+                    case "exercise.started":
+                        exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0;
+                        // Which qualities this set is judged on, so a mechanic with nothing to answer to can hide.
+                        if (p["qualities"] is JArray qualities)
+                            qualityIds = new System.Collections.Generic.HashSet<string>(qualities.OfType<JObject>().Select(q => (string)q["id"]).Where(id => id != null));
+                        UpdatePlanLabels(); break;
                     case "exercise.sample":
                         phase = (string)p["phase"] ?? phase;
                         liveAngle = p["valid"]?.Value<bool>() == true && p["angleDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? p["angleDeg"].Value<float>() : null;
