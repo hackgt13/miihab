@@ -95,10 +95,11 @@ test('server: a shoulder raise reads the patient\'s wrist AirPod from the motion
     env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:join(dir, 'rec'), KINESTHETIC_PLANS_DIRECTORY:join(dir, 'plans'),
       KINESTHETIC_PROPOSALS_DIRECTORY:join(dir, 'prop'), KINESTHETIC_SOCIAL_DIRECTORY:join(dir, 'social'),
       // The raise is worn on the wrist strap, so it reads /bowling-motion; the club stream must not be used.
-      KINESTHETIC_WRIST_MOTION_URL:'ws://127.0.0.1:18781/bowling-motion?role=viewer', KINESTHETIC_MOTION_URL:'ws://127.0.0.1:1/golf'}});
+      KINESTHETIC_WRIST_MOTION_URL:'ws://127.0.0.1:18781/bowling-motion?role=viewer', KINESTHETIC_MOTION_URL:'ws://127.0.0.1:1/golf',
+      KINESTHETIC_HEAD_URL:'ws://127.0.0.1:18781/head?role=viewer'}});
   const post = (path: string, body?: unknown) => fetch(base + path, {method:'POST', body: body ? JSON.stringify(body) : undefined});
   let session = 0;
-  const run = async (peaks: number[], opts: { gapAt?: number } = {}, body: Record<string, unknown> = {}) => {
+  const run = async (peaks: number[], opts: { gapAt?: number; leanM?: number } = {}, body: Record<string, unknown> = {}) => {
     const started = await (await post('/exercise/start', {prescribedReps: peaks.length, ...body})).json();
     while (!viewers.size) await new Promise(r => setTimeout(r, 20));
     const sessionId = `airpod-session-${session++}`;
@@ -108,17 +109,23 @@ test('server: a shoulder raise reads the patient\'s wrist AirPod from the motion
       const packet = (playerId: string) => JSON.stringify({type:'bowling.motion', playerId, sourceId:'Left', sessionId, sequence:i,
         sensorTime: imu.hostMonotonicMs / 1000, quaternion: imu.quaternion, rotationRate: imu.rotationRate, hostMonotonicMs: imu.hostMonotonicMs});
       for (const ws of viewers) { ws.send(packet('patient')); ws.send(packet('friend')); }   // the friend's AirPod is ignored
+      // The headset, when asked: upright through the still start of the set, then leaning forward by leanM for the rest.
+      if (opts.leanM != null) for (const ws of viewers)
+        ws.send(JSON.stringify({type:'head.pose', seq:i, p:[0, 0, i < 30 ? 0 : opts.leanM], q:[0,0,0,1], hostMonotonicMs: imu.hostMonotonicMs}));
     });
     await new Promise(r => setTimeout(r, 200));
     return { started, stopped: await (await post('/exercise/stop')).json() };
   };
   try {
     await ready(child);
-    const first = await run([52, 70]);
+    const first = await run([52, 70], { leanM: .08 });
     assert.equal(first.started.sensor, 'imu'); assert.equal(first.started.prescriptionId, 'arm-elevation-right');
     assert.equal(first.stopped.sensor, 'imu'); assert.equal(first.stopped.attempted, 2, 'one AirPod counted, not two');
     assert.equal(first.stopped.valid, 2); assert.equal(first.stopped.overshoots, 1); assert.equal(first.stopped.simulated, false);
     assert.equal(first.stopped.progression.decision, 'hold');
+    // The headset leaned 8 cm forward through both reps: flagged, measured from how the patient sat, never uncounting a rep.
+    assert.equal(first.stopped.headLean.available, true); assert.equal(first.stopped.headLean.repsOverThreshold, 2);
+    assert.equal(first.stopped.headLean.maxCm, 8);
     const gap = await run([52, 52], { gapAt: 0 });
     assert.deepEqual(gap.stopped.reps.map((r: any) => r.reason), ['tracking_lost', null], 'a silent relay stream is tracking loss');
     await run([52, 53]); const up = (await run([54, 52])).stopped;

@@ -63,3 +63,4 @@ td button.small-btn { padding: 4px 10px; }
 .proposal-head span { color: var(--text-2); } .proposal .why { color: var(--text-2); margin: 2px 0; }
 .proposal-actions { display: flex; gap: 8px; margin-top: 6px; }
 #proposals h3 { margin: 12px 0 6px; font-weight: 600; }
+.lean-flag { color: var(--warn-ink); background: var(--warn-bg); border-radius: 4px; padding: 0 4px; }
