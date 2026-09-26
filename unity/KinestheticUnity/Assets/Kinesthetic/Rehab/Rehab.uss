@@ -38,3 +38,7 @@
 .summary-metric { flex-grow: 1; flex-basis: 0; align-items: center; }
 .summary-actions { flex-direction: row; }
 .summary-close { margin-left: 16px; }
+
+/* The corner figure sits opposite the eyebrow, on the same line. Layout only. */
+.corner-row { flex-direction: row; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.match-readout { align-items: flex-end; }

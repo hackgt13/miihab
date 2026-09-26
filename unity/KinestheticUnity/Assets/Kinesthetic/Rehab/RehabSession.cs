@@ -112,7 +112,7 @@ namespace Kinesthetic.Rehab
         // what starts the set.
         readonly ActivityBriefing briefing = new();
         bool briefedWarning;
-        KReadout repCount, angleReadout;
+        KReadout repCount, angleReadout, matchReadout;
         KChip sensorStatus; KTag cueStep;
         KArc repRing; KMeter angleMeter;
         string coachingNote = "";
@@ -213,6 +213,7 @@ namespace Kinesthetic.Rehab
             if (button == start && boundGeneration == boards.Generation) return true;
             boundGeneration = boards.Generation;
             repCount = root.Q<KReadout>("rep-count"); angleReadout = root.Q<KReadout>("angle-readout");
+            matchReadout = root.Q<KReadout>("match-readout");
             statusLabel = root.Q<Label>("status");
             summaryCard = root.Q<KSheet>("summary-card");
             progressNote = root.Q<Label>("progress-note");
@@ -538,6 +539,16 @@ namespace Kinesthetic.Rehab
             // nudge when the arm is coming down faster than the tempo. All from the coordinator; nothing timed here.
             var hold = live ? liveQuality?["hold"] as JObject : null;
             var tempo = live ? liveQuality?["tempo"] as JObject : null;
+            // The corner figure. `percent` is null until the rep has enough of itself to judge, and
+            // that is shown as a dash rather than a number nobody should believe yet.
+            if (matchReadout != null)
+            {
+                var match = live ? liveQuality?["trajectory"] as JObject : null;
+                var percent = match?["percent"];
+                bool known = percent != null && percent.Type != JTokenType.Null;
+                matchReadout.value = known ? $"{percent.Value<float>():0}%" : "—";
+                matchReadout.caption = known ? "on track" : "";
+            }
             bool holding = hold?["holding"]?.Value<bool>() == true, holdMet = hold?["met"]?.Value<bool>() == true;
             bool tooFast = (string)tempo?["guidance"] == "slower";
             string phase = (string)tempo?["phase"];

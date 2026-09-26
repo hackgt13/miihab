@@ -314,7 +314,136 @@ export const consistency: RepQuality<{ fatigueDropDeg: number }, never, never, C
 
 // ── Registry and binding ────────────────────────────────────────────────────────────────────────
 
-export const QUALITIES: readonly RepQuality<any, any, any, any>[] = [hold, tempo, control, consistency];
+
+// ── Trajectory ──────────────────────────────────────────────────────────────────────────────────
+// How closely the arc follows the shape it was prescribed, said as a percentage while it is being
+// made. The others judge properties of the movement — did it pause, was it steady, was it paced. This
+// one judges the whole path against a reference.
+//
+// The reference is generated, not recorded. The prescription already fixes both ends of it: rest to
+// targetDeg over raiseMs and back over lowerMs. Flash & Hogan's minimum-jerk model says an unimpaired
+// point-to-point movement follows the fifth-order polynomial that minimises jerk, which is the
+// bell-shaped velocity profile a therapist is describing when they say "smooth, no jerking". So the
+// curve costs one function and no capture session, and it re-derives from the plan rather than from
+// whoever happened to record it.
+//
+// Live rather than after the fact on purpose. DTW and spectral arc length are the better measures of a
+// finished rep, and they need a finished rep: neither can produce a number during one. Because the
+// prescription fixes the duration, the reference is a known function of time since the rep began, so
+// the live comparison needs no phase estimation — at 1400 ms in, the curve says what the angle should
+// be, and the trace says what it is.
+//
+// Two things it deliberately does not do. It does not open at 100% and fall: a rep with too few samples
+// to judge reports null and the corner stays blank. And it aggregates over the rep so far rather than
+// reporting the instantaneous error, which at 50 Hz reads as noise and, in an app someone uses on their
+// worst day, as failure.
+
+/**
+ * The prescribed angle at `tMs` after the rep began: minimum jerk up, the pause at the top, minimum
+ * jerk down.
+ *
+ * The hold is part of the arc, not a detail. A raise is prescribed with one, and a reference that
+ * descends while the arm is being held marks the best reps down and the rushed ones up — which is
+ * exactly what it did before this took holdMs.
+ */
+export function referenceDeg(tMs: number, restDeg: number, targetDeg: number, raiseMs: number, holdMs: number, lowerMs: number): number {
+  // The fifth-order polynomial with zero velocity and acceleration at both ends.
+  const ease = (u: number) => { const c = clamp01(u); return c * c * c * (10 - 15 * c + 6 * c * c); };
+  if (tMs <= 0) return restDeg;
+  if (tMs < raiseMs) return restDeg + (targetDeg - restDeg) * ease(tMs / raiseMs);
+  if (tMs < raiseMs + holdMs) return targetDeg;
+  const down = (tMs - raiseMs - holdMs) / Math.max(1, lowerMs);
+  return down >= 1 ? restDeg : targetDeg + (restDeg - targetDeg) * ease(down);
+}
+
+export interface TrajectoryLive {
+  /** 0..100, or null before there is enough of the rep to say anything honest. */
+  percent: number | null;
+  deviationDeg: number;
+}
+export interface TrajectoryVerdict extends RepVerdict { meanDeviationDeg: number; percent: number }
+export interface TrajectorySet { medianPercent: number | null; bestPercent: number | null }
+
+export const trajectory: RepQuality<
+  { toleranceDeg: number; raiseMs: number; holdTargetMs: number; lowerMs: number }, TrajectoryLive, TrajectoryVerdict, TrajectorySet
+> = {
+  id: 'trajectory',
+  // The tolerance is the width at which closeness reaches zero. A default near the band's own margin
+  // rather than a number invented here: inside the prescribed corridor should read as on track.
+  // holdTargetMs is the hold quality's key on purpose: it is the same prescribed pause, and the two
+  // must agree about the shape of one rep. Naming it holdMs would collide with the engine's own param
+  // — the floor a rep needs to count — and quietly rewrite rep detection.
+  // holdTargetMs is the hold quality's key and its bounds, on purpose: it is the same prescribed
+  // pause, and two qualities disagreeing about one rep's shape is a bug waiting to happen. Naming it
+  // holdMs would be worse still — that is the engine's own param, the floor a rep needs to count.
+  defaults: { toleranceDeg: 18, raiseMs: 2000, holdTargetMs: 2000, lowerMs: 3000 },
+  limits: { toleranceDeg: [5, 45], raiseMs: [400, 8000], holdTargetMs: [500, 10000], lowerMs: [400, 12000] },
+
+  begin(params, config) {
+    // The arc starts where the rep started, not at restMaxDeg — that is the threshold for counting an
+    // arm as returned, not the angle it rests at. Reading it as a position put the whole reference 30°
+    // above the arm and cost every rep about 7° of phantom error.
+    let restDeg = 0;
+    // The pause the patient is asked for, never less than the floor a rep needs to count — the same
+    // rule the hold quality applies, so the two agree about the shape of one rep. A plan with no hold
+    // (a curl, a march) has no plateau in its arc either.
+    const holdMs = (params.holdMs ?? 0) > 0 ? Math.max(config.holdTargetMs, params.holdMs ?? 0) : 0;
+    // Smoothed over about a second: a figure recomputed per sample flickers, and a flickering
+    // percentage is the first thing a person stops believing.
+    const Smoothing = 1000;
+    let smoothed: number | null = null, lastMs: number | null = null;
+    let sum = 0, count = 0;
+
+    const closeness = (trace: RepTrace) => {
+      const last = trace.samples[trace.samples.length - 1];
+      if (!last) return null;
+      // Shape, not amplitude. Whether the arm got there is the engine's question and the band's; this
+      // one asks how the path was travelled. So the arc is drawn to the height actually reached —
+      // never below the target, so falling short still shows — and a rep taken honestly past the
+      // target is not marked down for it.
+      const amplitude = Math.max(params.targetDeg, trace.peakDeg);
+      restDeg = trace.samples[0]?.angleDeg ?? 0;
+      const since = last.tMs - trace.startMs;
+      const want = referenceDeg(since, restDeg, amplitude, config.raiseMs, holdMs, config.lowerMs);
+      // The plateau is the hold quality's business, and every rep matches the reference while it sits
+      // there. Counting it averages the differences away: a rep snapped up in 400ms scored barely
+      // below one taken over two seconds, because most of both was the pause.
+      const travelling = since < config.raiseMs || since > config.raiseMs + holdMs;
+      return { deviation: Math.abs(last.angleDeg - want), travelling };
+    };
+
+    return {
+      step(trace) {
+        const now = closeness(trace);
+        if (!now) return { percent: null, deviationDeg: 0 };
+        if (now.travelling) { sum += now.deviation; count++; }
+
+        const fraction = clamp01(1 - now.deviation / config.toleranceDeg);
+        const dt = lastMs == null ? Smoothing : Math.max(0, trace.endMs - lastMs);
+        lastMs = trace.endMs;
+        const weight = clamp01(dt / Smoothing);
+        smoothed = smoothed == null ? fraction : smoothed + (fraction - smoothed) * weight;
+
+        // Three samples is the least that is not just the first instant of the rep.
+        const ready = trace.samples.length >= 3;
+        return { percent: ready ? round(smoothed * 100) : null, deviationDeg: round(now.deviation, 1) };
+      },
+      finish() {
+        const meanDeviation = count ? sum / count : 0;
+        const score = clamp01(1 - meanDeviation / config.toleranceDeg);
+        return { ok: score >= 0.5, score: round(score, 2), percent: round(score * 100),
+          meanDeviationDeg: round(meanDeviation, 1) };
+      },
+    };
+  },
+
+  set(verdicts) {
+    const percents = verdicts.map(v => v.percent);
+    return { medianPercent: median(percents), bestPercent: percents.length ? Math.max(...percents) : null };
+  },
+};
+
+export const QUALITIES: readonly RepQuality<any, any, any, any>[] = [hold, tempo, control, consistency, trajectory];
 
 export interface QualityBinding { quality: RepQuality<any, any, any, any>; config: Record<string, number> }
 

@@ -87,7 +87,8 @@ export const LIBRARY: Record<string, LibraryExercise> = {
     defaults: { targetDeg: 45, ceilingMarginDeg: 15, prescribedReps: 8, holdMs: 400, sets: 1, loadKg: 0, assistance: 'active' },
     limits: { sets: [1, 5], loadKg: [0, 5] },
     // The pause at the top is the point of a raise, and dropping the arm is the usual way to cheat it.
-    qualities: ['hold', 'tempo', 'control', 'consistency'],
+    // Trajectory is on the raise first: it is the movement with the clearest prescribed shape.
+    qualities: ['hold', 'tempo', 'control', 'consistency', 'trajectory'],
   },
   'elbow-flexion.v1': {
     kind: 'elbow-flexion.v1', movement: 'biceps_curl', label: 'Seated biceps curl', sensor: 'AirPod on the handle',

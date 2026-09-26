@@ -6,7 +6,12 @@
          measured angle against the target. -->
     <ui:VisualElement name="measure-board" class="board" picking-mode="Ignore">
         <k:KSurface class="progress-card" density="Compact" picking-mode="Ignore">
-            <k:KEyebrow text="YOUR SET" />
+            <!-- The corner: how closely this rep is following the arc it was prescribed, while it is
+                 being made. Blank between reps and until there is enough of one to say. -->
+            <ui:VisualElement class="corner-row" picking-mode="Ignore">
+                <k:KEyebrow text="YOUR SET" />
+                <k:KReadout name="match-readout" value="—" caption="on track" size="Compact" class="match-readout" />
+            </ui:VisualElement>
             <k:KArc name="rep-ring" form="Segmented" tone="Good" segments="8" class="rep-ring">
                 <k:KReadout name="rep-count" value="0" caption="of 8 reps" size="Large" />
             </k:KArc>
