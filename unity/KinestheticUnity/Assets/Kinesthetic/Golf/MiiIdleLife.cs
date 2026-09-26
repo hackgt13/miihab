@@ -56,15 +56,19 @@ namespace Kinesthetic.Golf
         bool Effort()
         {
             float dt=Time.time-lastT;bool effort=false;
-            var down=-(rig.avatar.up);
             foreach(var (tracked,shoulder,elbow) in new[]{(rig.LeftArmTracked,shoulderL,elbowL),(rig.RightArmTracked,shoulderR,elbowR)})
                 if(tracked && shoulder && elbow && Vector3.Angle(elbow.position-shoulder.position,Vector3.down)>62)effort=true;
+            // PoseRig.Bone() returns null for a name this avatar does not have, so the hands are only
+            // there on a rig that names them. The arm test above already guards its bones; this one did
+            // not, and threw every LateUpdate on any rig without hand.L/hand.R.
+            var handL=rig.LeftHand;var handR=rig.RightHand;
+            if(!handL || !handR){lastT=-1;return effort;}
             if(lastT>0 && dt>0 && dt<.2f)
             {
-                float speed=Mathf.Max((rig.LeftHand.position-lastHandL).magnitude,(rig.RightHand.position-lastHandR).magnitude)/dt;
+                float speed=Mathf.Max((handL.position-lastHandL).magnitude,(handR.position-lastHandR).magnitude)/dt;
                 if((rig.LeftArmTracked||rig.RightArmTracked) && speed>1.6f)effort=true;
             }
-            lastHandL=rig.LeftHand.position;lastHandR=rig.RightHand.position;lastT=Time.time;
+            lastHandL=handL.position;lastHandR=handR.position;lastT=Time.time;
             return effort;
         }
         void SetEyes(Texture2D texture)
