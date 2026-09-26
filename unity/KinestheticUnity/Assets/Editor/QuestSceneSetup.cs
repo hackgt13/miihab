@@ -111,7 +111,7 @@ public static class QuestSceneSetup
     public static string BootHeadsetScene() => SetBootScene(ScenePath);
 
     [MenuItem("Kinesthetic/Quest/Boot menu scene (back to Mac)")]
-    public static string BootMenuScene() => SetBootScene(MenuScenePath);
+    public static string BootMenuScene() => MainMenuSetup.ConfigureMacBuildScenes();
 
     static string SetBootScene(string path)
     {

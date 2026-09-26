@@ -33,7 +33,7 @@ export async function loadReplay(recordings: string, exerciseId: string) {
       p: f.imageLandmarks.map(q => [Math.round(q.x * 1000) / 1000, Math.round(q.y * 1000) / 1000, Math.round((q.visibility ?? 0) * 100) / 100]) });
   }
   return {
-    exerciseId, side, planVersion: summary.planVersion, targetDeg: summary.config?.targetDeg, maxTrunkDeviationDeg: summary.config?.maxTrunkDeviationDeg,
+    exerciseId, side, planVersion: summary.planVersion, targetDeg: summary.config?.targetDeg, maxTrunkDeviationDeg: summary.config?.maxTrunkDeviationDeg ?? summary.config?.maxCompensationDeg,
     simulated: summary.simulated ?? null, endedAt: summary.endedAt,
     reps: reps.map((r: any) => ({ ...r, startMs: r.startMs - start, endMs: r.endMs - start })),
     frames: out,

@@ -290,6 +290,8 @@ export class RepSession<R extends string = string> {
       calibration: this.reference ? this.kind.calibration(this.reference) : null,
       attempted: reps.length,
       valid: valid.length,
+      // Reps that went above the safe ceiling (targetMaxDeg). Flagged, never extra credit.
+      overshoots: this.params.targetMaxDeg != null ? reps.filter(r => r.aboveTargetMax).length : null,
       prescribed: this.params.prescribedReps ?? null,
       completed: this.params.prescribedReps != null ? Math.min(valid.length, this.params.prescribedReps) : valid.length,
       invalidReasons: reasons,
@@ -305,7 +307,7 @@ export class RepSession<R extends string = string> {
       reps: reps.map(r => ({ rep: r.rep, startMs: r.startMs, endMs: r.tMs, valid: r.valid, reason: r.reason,
         peakDeg: Math.round(r.peakDeg * 10) / 10,
         compensationMaxDeg: Math.round(r.compensationMaxDeg * 10) / 10,
-        durationMs: r.durationMs })),
+        durationMs: r.durationMs, aboveTargetMax: r.aboveTargetMax })),
       measurementNote: this.kind.measurementNote,
     } as Record<string, unknown>;
   }

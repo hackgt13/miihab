@@ -55,3 +55,18 @@ test('game state: one host fans out to Quest clients, late joiners get the lates
     assert.equal(JSON.parse((await bye)[0].toString()).type,'golf.host-disconnected');
   }finally{for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true});}
 });
+
+test('only the local capture page may watch motion from a browser, and never produce it',{timeout:10000},async()=>{
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18774',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-origin-'))}});
+  const clients:WebSocket[]=[];
+  const open=(path:string,origin:string)=>{const ws=new WebSocket(`ws://127.0.0.1:18774${path}`,{origin});clients.push(ws);
+    return new Promise<boolean>(r=>{ws.once('open',()=>r(true));ws.once('error',()=>r(false));});};
+  try {
+    await once(proc.stdout,'data');
+    assert.equal(await open('/golf?role=viewer','http://127.0.0.1:8766'),true);
+    assert.equal(await open('/bowling-motion?role=viewer','http://localhost:8766'),true);
+    assert.equal(await open('/golf?role=viewer','https://example.com'),false);
+    assert.equal(await open('/golf?role=producer&player=patient','http://127.0.0.1:8766'),false);
+  }finally{for(const ws of clients)ws.terminate();proc.kill('SIGTERM');}
+});

@@ -41,7 +41,26 @@ namespace Kinesthetic.Golf
             (rigs[activePlayer].RightArmTracked || rigs[activePlayer].LeftArmTracked);
         public Vector3 HudAim => AimDirection();
         public Vector3 GetLie(int index) => lies[index];
-        public float HudPower => Phase=="Address" ? (IMUReady && swing.Calibrated ? SwingPower(new Vector3(latest.rotationRate[0],latest.rotationRate[1],latest.rotationRate[2]).magnitude) : 0) : lastShotPower;
+        public float HudPower => Phase=="Address" ? (IMUReady && swing.Calibrated ? SwingPower(new Vector3(latest.rotationRate[0],latest.rotationRate[1],latest.rotationRate[2]).magnitude)*PowerCap : 0) : lastShotPower;
+        // Rehab unlocks golf (coordinator/dashboard.ts golfUnlock): the patient's swing reaches this share of a full
+        // drive, rising with each rehab level. The friend is uncapped. Offline it stays 1, so golf is unchanged.
+        float patientPowerCap=1; string unlockMessage;
+        float PowerCap => activePlayer==0 ? patientPowerCap : 1;
+        IEnumerator LoadUnlock()
+        {
+            using var request=UnityWebRequest.Get(bridge+"/api/golf-unlock");
+            request.timeout=3;
+            yield return request.SendWebRequest();
+            if(request.result!=UnityWebRequest.Result.Success)yield break;
+            try
+            {
+                var unlock=Newtonsoft.Json.Linq.JObject.Parse(request.downloadHandler.text);
+                float cap=unlock["swingPowerCap"]?.ToObject<float>() ?? 1;
+                if(PoseMath.Finite(cap))patientPowerCap=Mathf.Clamp(cap,.1f,1);
+                unlockMessage=(string)unlock["message"];
+            }
+            catch(Exception){}
+        }
         float lastShotPower;
         static double Now=>System.Diagnostics.Stopwatch.GetTimestamp()/(double)System.Diagnostics.Stopwatch.Frequency;
         // Recorded AirPod swings peak around 10-16 rad/s, so the old 7 rad/s ceiling made nearly every swing full power.
@@ -107,7 +126,7 @@ namespace Kinesthetic.Golf
             hitAudio.playOnAwake=false; hitAudio.spatialBlend=0;
             // Headsets render this host's state; they never run their own shot simulation.
             if(!GetComponent<GolfStatePublisher>())gameObject.AddComponent<GolfStatePublisher>();
-            BindUI(); BeginTurn(0); StartCapture();
+            BindUI(); BeginTurn(0); StartCapture(); StartCoroutine(LoadUnlock());
         }
         bool BindUI()
         {
@@ -276,7 +295,7 @@ namespace Kinesthetic.Golf
                 if(StrikePoseReady && IMUReady && strikeZone.CrossedNear(motionContactAt))
                 {
                     pendingSpatial=false;
-                    Launch(SwingPower(pendingSpeed),"airpod",pendingSpeed);
+                    Launch(SwingPower(pendingSpeed)*PowerCap,"airpod",pendingSpeed);
                 }
                 else if(Now-motionContactAt>.12)
                 {
@@ -369,6 +388,7 @@ namespace Kinesthetic.Golf
                 hitAudio.PlayOneShot(hitClip,Mathf.Lerp(.45f,.8f,power)*(clubIndex==2?.45f:1f));
             }
             Message=clubNames[clubIndex]+" · "+Mathf.RoundToInt(power*100)+"% virtual power";
+            if(source=="airpod" && activePlayer==0 && patientPowerCap<1 && !string.IsNullOrEmpty(unlockMessage))Message+=" · "+unlockMessage;
             Log("shot",source,angularSpeed,power);ResetSwing(false);
             foreach(var r in rigs)r.GetComponent<MiiIdleLife>()?.Surprise(1.2f);   // both friends watch the ball go
             return true;

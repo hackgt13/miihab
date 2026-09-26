@@ -21,7 +21,7 @@ export const shoulderRaise: ExerciseKind<'trunk_compensation'> = {
   compensationReason: 'trunk_compensation',
   compensationKey: 'trunkDeviation',
   defaults: {},
-  limits: { targetDeg: [35, 160], prescribedReps: [1, 30], holdMs: [0, 3000], maxCompensationDeg: [3, 45] },
+  limits: { targetDeg: [35, 160], targetMaxDeg: [40, 170], prescribedReps: [1, 30], holdMs: [0, 3000], maxCompensationDeg: [3, 45] },
   measurementNote: 'Estimated shoulder elevation from monocular pose; not a goniometer reading. Symptoms are patient-reported.',
 
   landmarks: (p: ResolvedParams) => [IDX.shoulder[p.side], IDX.elbow[p.side], ...IDX.hips, ...IDX.shoulders],

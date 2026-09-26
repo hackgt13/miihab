@@ -146,13 +146,24 @@
                             <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
                         </ui:VisualElement>
                     </ui:Button>
-                    <ui:Button name="studio-card" class="activity-card" tooltip="Open the Movement Studio">
+                    <ui:Button name="studio-card" class="activity-card studio-card" tooltip="Open the Movement Studio">
                         <ui:Label text="YOUR DAILY PRACTICE" class="preview-tag" picking-mode="Ignore" />
                         <ui:VisualElement class="card-info" picking-mode="Ignore">
                             <ui:VisualElement name="studio-icon" class="mode-icon" picking-mode="Ignore" />
                             <ui:VisualElement class="card-copy" picking-mode="Ignore">
                                 <ui:Label text="Movement Studio" class="card-title" picking-mode="Ignore" />
                                 <ui:Label text="Gentle raises. Personal progress." class="card-description" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:Button>
+                    <ui:Button name="bowling-card" class="activity-card" tooltip="Play bowling with your wrist-mounted AirPod">
+                        <ui:Label text="A GENTLE ROLL" class="preview-tag" picking-mode="Ignore" />
+                        <ui:VisualElement class="card-info" picking-mode="Ignore">
+                            <ui:VisualElement name="bowling-icon" class="mode-icon" picking-mode="Ignore" />
+                            <ui:VisualElement class="card-copy" picking-mode="Ignore">
+                                <ui:Label text="Bowling" class="card-title" picking-mode="Ignore" />
+                                <ui:Label text="Line up. Swing. Watch them fall." class="card-description" picking-mode="Ignore" />
                             </ui:VisualElement>
                             <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
                         </ui:VisualElement>
@@ -173,6 +184,8 @@
                 <ui:Label text="Choose Golf, then use the camera button to start tracking. Calibrate your mounted club before your first swing." class="help-copy" />
                 <ui:Label text="Movement Studio" class="help-heading" />
                 <ui:Label text="Sit comfortably with your shoulders, arms, and hips in view. Start your session and follow the target in your prescribed plan." class="help-copy" />
+                <ui:Label text="Bowling" class="help-heading" />
+                <ui:Label text="Today we will practice bowling. Secure your AirPod at your wrist, face down the lane, and hold still. Swing gently to roll." class="help-copy" />
                 <ui:Label text="Getting around" class="help-heading" />
                 <ui:Label text="Look at a panel and hold your gaze to choose it, or click. Press Esc or choose Menu during an activity to return here." class="help-copy" />
                 <ui:Button name="help-close" text="Let's play  ›" class="sheet-close primary" />

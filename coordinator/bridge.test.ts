@@ -13,7 +13,7 @@ test('pose routing, source isolation, freshness, recording, and disconnect', {ti
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-bridge-'));
   const port = 18766;
   const child = spawn(process.execPath, ['server.ts'], {cwd:import.meta.dirname,
-    env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:directory, KINESTHETIC_PLANS_DIRECTORY:join(directory,"plans")}, stdio:['ignore','pipe','pipe']});
+    env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:directory, KINESTHETIC_PLANS_DIRECTORY:join(directory,"plans"), KINESTHETIC_PROPOSALS_DIRECTORY:join(directory,"proposals")}, stdio:['ignore','pipe','pipe']});
   const connections: WebSocket[] = [];
   try {
     await Promise.race([once(child.stdout, 'data'), once(child, 'exit').then(() => { throw Error('Bridge did not start'); })]);

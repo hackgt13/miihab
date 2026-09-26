@@ -72,7 +72,7 @@ test('an unmet prescription is flagged incomplete', () => {
 
 test('live: an activity posts its own session record and it appears alongside exercise sessions', {timeout: 15000}, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-activity-'));
-  const port = 18775;   // 18766-18773 are taken by the other suites; keep every test isolated
+  const port = 18783;   // every suite has its own ports (18766-18782 are taken); keep every test isolated
   const child = spawn(process.execPath, ['server.ts'], {cwd: import.meta.dirname,
     env: {...process.env, KINESTHETIC_PORT: String(port), KINESTHETIC_RECORDINGS_DIRECTORY: directory,
           KINESTHETIC_PLANS_DIRECTORY: join(directory, 'plans')}, stdio: ['ignore', 'pipe', 'pipe']});
