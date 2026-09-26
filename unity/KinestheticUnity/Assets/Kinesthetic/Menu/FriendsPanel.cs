@@ -5,6 +5,7 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UIElements;
+using Kinesthetic.UI;
 
 namespace Kinesthetic.Menu
 {
@@ -127,6 +128,8 @@ namespace Kinesthetic.Menu
         string spotlightId;
         SpotlightInfo insight;
         IntroductionsCard introductions;
+        VisualElement pageMessages, pageMeet;
+        Button tabMessages, tabMeet;
 
         public void Attach(VisualElement tree, ActivityNavigation nav)
         {
@@ -152,6 +155,10 @@ namespace Kinesthetic.Menu
             spotlightName = root.Q<Label>("spotlight-name");
             spotlightLine = root.Q<Label>("spotlight-line");
             spotlightReply = root.Q<Button>("spotlight-reply");
+            pageMessages = root.Q("page-messages");
+            pageMeet = root.Q("page-meet");
+            tabMessages = root.Q<Button>("tab-messages");
+            tabMeet = root.Q<Button>("tab-meet");
             composer = root.Q<TextField>("composer-text");
             sendButton = root.Q<Button>("composer-send");
             photoButton = root.Q<Button>("composer-photo");
@@ -177,12 +184,15 @@ namespace Kinesthetic.Menu
                 root.RegisterCallback<NavigationCancelEvent>(e =>
                 { if (!overlay.ClassListContains("hidden")) { Close(); e.StopPropagation(); } });
 
+            if (tabMessages != null) tabMessages.clicked += () => ShowPage(false);
+            if (tabMeet != null) tabMeet.clicked += () => ShowPage(true);
+
             BuildQuickChips();
             // Mounted only where the tree offers a home for it, so a screen that
             // has not adopted the card is not broken by its absence.
             var introMount = root.Q("introductions");
             if (introMount != null)
-                introductions = new IntroductionsCard(this, introMount, () => StartCoroutine(LoadRoster()));
+                introductions = new IntroductionsCard(this, introMount, () => StartCoroutine(LoadRoster()), ShowMeetEmpty);
             StartCoroutine(LoadRoster());
         }
 
@@ -197,6 +207,28 @@ namespace Kinesthetic.Menu
                 chip.clicked += () => StartCoroutine(Send(captured));
                 quickRow.Add(chip);
             }
+        }
+
+        /// One page at a time. The tabs are KButtons, so the look of the chosen one
+        /// is a tone rather than a class this screen paints.
+        void ShowPage(bool meet)
+        {
+            if (pageMessages == null || pageMeet == null) return;
+            navigation?.PlaySelect();
+            pageMessages.EnableInClassList("hidden", meet);
+            pageMeet.EnableInClassList("hidden", !meet);
+            if (tabMessages is KButton a) a.tone = meet ? KButton.Tone.Quiet : KButton.Tone.Primary;
+            if (tabMeet is KButton b) b.tone = meet ? KButton.Tone.Primary : KButton.Tone.Quiet;
+            // Ask again on arrival: someone may have become a friend since the last look.
+            if (meet) introductions?.Refresh();
+        }
+
+        /// The meet page is a column of its own, so it says when there is nobody
+        /// rather than leaving the space blank — unlike the card on a shared page,
+        /// which simply goes away.
+        void ShowMeetEmpty(bool empty)
+        {
+            root?.Q<Label>("meet-empty")?.EnableInClassList("hidden", !empty);
         }
 
         public void Open()

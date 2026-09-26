@@ -225,8 +225,8 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 
 .friends-body { flex-direction: row; flex-grow: 1; margin-top: 18px; }
 
-.friends-list-pane { width: 360px; margin-right: 22px; }
-.friends-list { flex-grow: 1; }
+.friends-list-pane { width: 360px; margin-right: 22px; min-height: 0; }
+.friends-list { flex-grow: 1; min-height: 0; }
 
 .friend-row {
     flex-direction: row;
@@ -284,11 +284,11 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .code-field { flex-grow: 1; margin-right: 6px; height: 40px; font-size: 16px; }
 .friends-notice { font-size: 14px; color: var(--slate-50); margin-top: 6px; white-space: normal; }
 
-.thread-pane { flex-grow: 1; flex-direction: column; }
+.thread-pane { flex-grow: 1; flex-direction: column; min-height: 0; }
 .thread-head { flex-direction: row; align-items: center; margin-bottom: 10px; }
 .thread-face { width: 30px; height: 30px; border-radius: 15px; margin-right: 10px; }
 .thread-name { font-size: 20px; color: var(--prussian-50); -unity-font-style: bold; }
-.thread { flex-grow: 1; border-radius: 18px; background-color: var(--sand-30-a70); padding: 12px; }
+.thread { flex-grow: 1; min-height: 0; border-radius: 18px; background-color: var(--sand-30-a70); padding: 12px; }
 
 /* Messages read as speech, so they are asymmetric: mine tinted, theirs white. */
 .bubble { max-width: 74%; border-radius: 16px; padding: 9px 13px; margin-bottom: 8px; }
@@ -503,3 +503,21 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .introduction-actions { flex-direction: row; justify-content: flex-end; margin-top: 12px; }
 .introduction-actions > Button { margin-left: 8px; }
 .introduction-card.hidden { display: none; }
+
+/* ---- Friends, two pages ---------------------------------------------------
+   Layout only: the tabs are KButtons and carry their own look through a tone,
+   so nothing here dresses them. */
+
+/* The header holds its height: squeezed, its heading and tabs overflowed onto
+   the page below it. */
+.friends-header { flex-direction: row; align-items: flex-start; justify-content: space-between; flex-shrink: 0; }
+.friends-tabs { flex-direction: row; flex-shrink: 0; }
+.friends-tabs > Button { margin-left: 8px; }
+
+/* Both pages are the same body row, so switching one for the other does not
+   move anything around them. */
+#page-messages, #page-meet { flex-direction: row; flex-grow: 1; min-height: 0; }
+
+.meet-column { flex-grow: 1; flex-basis: 0; min-width: 0; min-height: 0; margin-right: 22px; }
+.meet-column:last-child { margin-right: 0; }
+.meet-heading { margin-bottom: 10px; }

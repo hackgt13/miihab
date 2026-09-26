@@ -38,6 +38,9 @@ namespace Kinesthetic.Menu
         readonly MonoBehaviour owner;
         readonly VisualElement mount;
         readonly Action roster;          // a mutual yes adds a friend; the list must catch up
+        /// Told whether there is anyone to show. On a page of its own the space
+        /// needs a line when there is nobody; on a shared page the card just goes.
+        readonly Action<bool> empty;
 
         KSurface card;
         KTag kind;
@@ -45,9 +48,9 @@ namespace Kinesthetic.Menu
         KButton yes, no;
         Introduction showing;
 
-        public IntroductionsCard(MonoBehaviour owner, VisualElement mount, Action roster)
+        public IntroductionsCard(MonoBehaviour owner, VisualElement mount, Action roster, Action<bool> empty = null)
         {
-            this.owner = owner; this.mount = mount; this.roster = roster;
+            this.owner = owner; this.mount = mount; this.roster = roster; this.empty = empty;
             Build();
             Hide();
         }
@@ -92,6 +95,7 @@ namespace Kinesthetic.Menu
         {
             yield return Fetch("peer");
             if (showing == null) yield return Fetch("mentor");
+            empty?.Invoke(showing == null);
         }
 
         IEnumerator Fetch(string which)
@@ -116,6 +120,7 @@ namespace Kinesthetic.Menu
         void Show(Introduction next)
         {
             showing = next;
+            empty?.Invoke(false);
             // "Further along" rather than "mentor": nobody wants to be told they
             // are the one who needs mentoring.
             kind.text = next.kind == "mentor" ? "Further along" : "Same stage";
