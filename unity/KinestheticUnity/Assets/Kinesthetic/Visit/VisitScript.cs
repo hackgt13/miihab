@@ -15,6 +15,7 @@ namespace Kinesthetic.Visit
     {
         public sealed class Update { public string Kind, Heading, Detail; }
         public sealed class Line { public string Id, Text, Audio; public int Reveal; }
+        public sealed class QuickReply { public string Kind, Label; }
 
         public string TherapistName = "Alex", Credentials = "PT, DPT";
         public bool SampleTherapist = true;
@@ -25,6 +26,9 @@ namespace Kinesthetic.Visit
         public bool Live;
         /// The plan version this visit talks about, which the visit marks seen once it has been through it.
         public int PlanVersion;
+        /// The question the visit ends on, or null when there is nobody to relay an answer to (offline).
+        public string AskPrompt;
+        public QuickReply[] QuickReplies = new QuickReply[0];
 
         public static VisitScript FromCoordinator(JObject json)
         {
@@ -45,6 +49,9 @@ namespace Kinesthetic.Visit
                     Id = (string)l["id"], Text = (string)l["text"] ?? "", Audio = (string)l["audio"], Reveal = (int?)l["reveal"] ?? 0,
                 }).ToArray() ?? new Line[0],
                 PlanVersion = (int?)json["planVersion"] ?? 0,
+                AskPrompt = (string)json["ask"]?["prompt"],
+                QuickReplies = json["ask"]?["quickReplies"]?.Select(r => new QuickReply { Kind = (string)r["kind"], Label = (string)r["label"] })
+                    .ToArray() ?? new QuickReply[0],
                 Live = true,
             };
         }

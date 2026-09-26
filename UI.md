@@ -177,7 +177,9 @@ activity describes itself and lays nothing out. A venue adopts it with one eleme
 ```
 
 and a `Bind(host, onBegin)` from wherever it binds its boards; `Describe(briefing)` rewrites the sheet
-in place when numbers arrive late. **Dismissing it is the point**: an activity gates its own start on
+in place when numbers arrive late. It stands at the `Reading` station, inside arm's reach, and waits for
+`HeadFade` to lift before it is offered — an activity is entered behind the curtain, and a sheet that
+arrives during it is handed to nobody. **Dismissing it is the point**: an activity gates its own start on
 `Dismissed`, so a set begins because someone decided to begin it.
 
 Every field is content the activity already has. A briefing that invented a clinician, a date or a
@@ -220,7 +222,8 @@ menu, not opened by a host. Making them full panes is a change to the menu's own
 
 A screen in a venue is not one document any more but a few **boards** standing at fixed **stations**
 around the seated patient: `Dock` (0° yaw, −22° pitch, 1.2 m: what to do now), `Focus` (0°, 0°, 1.4 m:
-modals), `Score` (−25°, +12°, 2.0 m) and `Measure` (+25°, −5°, 1.5 m: live figures) — all within ±30° of
+modals), `Score` (−25°, +12°, 2.0 m), `Measure` (+25°, −5°, 1.5 m: live figures) and `Reading` (0°, −14°,
+0.55 m: a page held, not a card looked at — only a document passing through occupies it) — all within ±30° of
 yaw so nobody is asked to turn, and a venue that reserves a side takes a station's `Mirrored` image. A
 board lays out at **px/m = 1000 / distance**, so a 19px body line subtends the same angle at every
 station. `SeatRig` is the seat anchor and stands boards at stations; `BoardSet` is the venue's boards as

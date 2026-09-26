@@ -19,7 +19,13 @@
 .visit-speech.quiet .visit-bubble { display: none; }
 .visit-line { margin-top: 4px; }
 
-/* Dock, 667 x 183 px at 1.2 m. */
+/* Dock, 750 x 350 px at 1.2 m: the controls, and the relay under them once the board is done. */
 .visit-dock { flex-direction: row; align-items: center; }
 .visit-dock-copy { flex-grow: 1; flex-shrink: 1; }
 .visit-action { margin-left: 16px; flex-shrink: 0; }
+.visit-relay { margin-top: 8px; }
+.visit-quick { flex-direction: row; flex-wrap: wrap; margin-top: 8px; }
+.visit-quick-reply { margin-right: 8px; margin-bottom: 6px; }
+.visit-write { flex-direction: row; align-items: center; margin-top: 4px; }
+.visit-field { flex-grow: 1; flex-shrink: 1; }
+.visit-send { margin-left: 10px; flex-shrink: 0; }

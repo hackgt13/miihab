@@ -1,4 +1,5 @@
 using System;
+using Kinesthetic.Shell;
 using UnityEngine.UIElements;
 
 namespace Kinesthetic.UI.Boards
@@ -52,6 +53,9 @@ namespace Kinesthetic.UI.Boards
 
         const string Block = "k-briefing";
 
+        /// How long after the room appears before the sheet is offered.
+        const long BeatMilliseconds = 260;
+
         VisualElement host, lineBox, noteBox;
         KSheet sheet;
         KEyebrow eyebrow, noteFrom;
@@ -60,6 +64,7 @@ namespace Kinesthetic.UI.Boards
         Action began;
         Briefing content;
         bool described;
+        IVisualElementScheduledItem waiting;
 
         /// Whether the person has put the sheet down. An activity gates its own start on this.
         public bool Dismissed { get; private set; }
@@ -74,7 +79,7 @@ namespace Kinesthetic.UI.Boards
             this.host = host;
             Build();
             if (described) Fill();
-            if (Dismissed) sheet.Hide(); else sheet.Present();
+            if (Dismissed) sheet.Hide(); else HandOverWhenVisible();
             return true;
         }
 
@@ -92,6 +97,7 @@ namespace Kinesthetic.UI.Boards
         public void Dismiss()
         {
             Dismissed = true;
+            waiting?.Pause(); waiting = null;
             sheet?.Dismiss();
         }
 
@@ -99,8 +105,35 @@ namespace Kinesthetic.UI.Boards
         public void Present()
         {
             Dismissed = false;
-            sheet?.Present();
+            if (sheet != null) HandOverWhenVisible();
         }
+
+        /// An activity is entered behind HeadFade's curtain, which takes PlazaApproach.ClearSeconds to come
+        /// down. A sheet handed over during it is handed to nobody: the entrance plays against a covered
+        /// view and by the time the room appears the sheet is already standing there. So it waits for the
+        /// curtain, and then for a beat, so the hand-over reads as something that happened to you rather
+        /// than as the state the room was found in.
+        void HandOverWhenVisible()
+        {
+            waiting?.Pause(); waiting = null;
+            if (ViewIsClear) { HandOverAfterABeat(); return; }
+            waiting = sheet.schedule.Execute(() =>
+            {
+                if (!ViewIsClear) return;
+                waiting?.Pause(); waiting = null;
+                HandOverAfterABeat();
+            });
+            waiting.Every(32);
+        }
+
+        void HandOverAfterABeat()
+        {
+            waiting = sheet.schedule.Execute(() => sheet.Present());
+            waiting.ExecuteLater(BeatMilliseconds);
+        }
+
+        /// Nothing has raised a curtain (the scene was entered straight from the editor), or it is down.
+        static bool ViewIsClear => HeadFade.Current == null || HeadFade.Current.Cover <= .01f;
 
         void Build()
         {

@@ -52,12 +52,27 @@ namespace Kinesthetic.UI
         public void Present()
         {
             Presented = true;
-            pending?.Pause(); pending = null;
+            Cancel();
             RemoveFromClassList(Gone);
             AddToClassList(Offstage);
-            // One frame offstage first. Going from display:none straight to the landed style computes no
-            // "from" value, and the sheet would appear already landed instead of travelling.
-            pending = schedule.Execute(() => RemoveFromClassList(Offstage)); pending.ExecuteLater(1);
+            // The offstage style has to be laid out once before the landed style is somewhere to travel
+            // from. A sheet built and shown inside a single frame has no resolved geometry yet, so dropping
+            // the class straight away computes no "from" value and the sheet just appears where it landed.
+            // Geometry is the signal; the timer covers a rebuild at a size the sheet already had.
+            RegisterCallback<GeometryChangedEvent>(Land);
+            pending = schedule.Execute(() => Land(null)); pending.ExecuteLater(96);
+        }
+
+        void Land(GeometryChangedEvent _)
+        {
+            Cancel();
+            if (Presented) RemoveFromClassList(Offstage);
+        }
+
+        void Cancel()
+        {
+            UnregisterCallback<GeometryChangedEvent>(Land);
+            pending?.Pause(); pending = null;
         }
 
         /// Take it away, and drop it out of layout once it has left.
@@ -65,7 +80,7 @@ namespace Kinesthetic.UI
         {
             if (!Presented) { Hide(); return; }
             Presented = false;
-            pending?.Pause(); pending = null;
+            Cancel();
             AddToClassList(Offstage);
             pending = schedule.Execute(() => AddToClassList(Gone)); pending.ExecuteLater(ExitMilliseconds);
         }
@@ -75,7 +90,7 @@ namespace Kinesthetic.UI
         public void Hide()
         {
             Presented = false;
-            pending?.Pause(); pending = null;
+            Cancel();
             AddToClassList(Offstage); AddToClassList(Gone);
         }
     }

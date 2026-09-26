@@ -2,13 +2,11 @@
     <Style src="../Palette.uss" />
     <Style src="../UI/Base.uss" />
     <Style src="Rehab.uss" />
-    <!-- Focus station: the two documents of a session, at the two ends of it. The briefing is handed over
-         on arrival and read before anything starts; the summary arrives when the set is done. Neither is
-         ever up at the same time as the other, so they share the station the stations were given "a
-         summary, a setup" for. No scrim: a board standing in a room does not dim the room. -->
+    <!-- Focus station: the session summary, a modal at reading distance. The whole board is the card; it
+         is hidden until a set ends, so the station is empty air the rest of the time. The briefing is the
+         session's other document and stands nearer, on its own board — a page handed to you is held, not
+         looked at across the room. No scrim: a board standing in a room does not dim the room. -->
     <ui:VisualElement name="focus-board" class="board" picking-mode="Ignore">
-        <!-- ActivityBriefing builds the sheet in here; the venue only says where it stands. -->
-        <ui:VisualElement name="briefing" class="briefing-host" picking-mode="Ignore" />
         <k:KSheet name="summary-card" class="summary-card" entrance="Below" density="Comfortable">
             <k:KTag text="SESSION SAVED" tone="Good" class="summary-badge" />
             <k:KText name="summary-title" text="Your set is complete" size="Title" />

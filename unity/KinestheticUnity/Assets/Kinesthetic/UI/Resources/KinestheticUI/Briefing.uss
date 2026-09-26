@@ -2,7 +2,7 @@
    measure and a board does not, and ruled between its lines so the dose reads as a prescription rather
    than as a row of statistics. */
 .k-briefing {
-    max-width: 520px;
+    max-width: 620px;
     align-self: center;
     flex-grow: 0;
     flex-shrink: 1;

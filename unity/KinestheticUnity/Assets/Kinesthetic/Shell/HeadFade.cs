@@ -9,9 +9,11 @@ namespace Kinesthetic.Shell
     /// of chrome that has to exist on the headset: it is what hides the cut between two scenes.
     ///
     /// One per process, and it outlives scenes: it is at full cover at the moment a scene is swapped, and it
-    /// has to still be there, on the new scene's camera, to fade back up. It re-parents itself to Camera.main
-    /// whenever that changes, and sizes the quad from the camera's field of view so the same tunnel setting
-    /// reads the same on a Mac window and in a headset eye.
+    /// has to still be there, in front of the new scene's camera, to fade back up. So it is never a child of
+    /// a camera — a child dies with its parent when the old scene unloads, and the new scene would simply
+    /// appear. It stays a root object and follows Camera.main every frame, again just before render so a
+    /// tracked head never sees it lag, and sizes the quad from the camera's field of view so the same tunnel
+    /// setting reads the same on a Mac window and in a headset eye.
     public sealed class HeadFade : MonoBehaviour
     {
         const string ShaderPath = "Shell/HeadFade";
@@ -35,6 +37,11 @@ namespace Kinesthetic.Shell
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { instance = null; }
+
+        /// The curtain if there is one, and null if nothing has raised one. Unlike Ensure, asking does
+        /// not build it: a scene entered straight from the editor has no curtain, and giving it one just
+        /// because something wanted to know would put a quad in front of the camera for no reason.
+        public static HeadFade Current => instance;
 
         public static HeadFade Ensure()
         {
@@ -70,19 +77,27 @@ namespace Kinesthetic.Shell
             triangles = new[] { 0, 2, 1, 0, 3, 2 },
         };
 
+        void OnEnable() { Application.onBeforeRender += Follow; }
+        void OnDisable() { Application.onBeforeRender -= Follow; }
+
         void LateUpdate()
         {
             var cam = Camera.main;
             if (cam != attached || (cam && (cam.fieldOfView != fov || cam.aspect != aspect))) Attach(cam);
+            Follow();
+        }
+
+        void Follow()
+        {
+            if (!attached) return;
+            var eye = attached.transform;
+            transform.SetPositionAndRotation(eye.position + eye.rotation * new Vector3(0, 0, Distance), eye.rotation);
         }
 
         void Attach(Camera cam)
         {
             attached = cam;
-            if (!cam) { transform.SetParent(null, false); render.enabled = false; return; }
-            transform.SetParent(cam.transform, false);
-            transform.localPosition = new Vector3(0, 0, Distance);
-            transform.localRotation = Quaternion.identity;
+            if (!cam) { render.enabled = false; return; }
             fov = cam.fieldOfView; aspect = cam.aspect;
             // Wide enough that the view's corners stay inside it with room to spare, on any camera.
             float side = 2 * Mathf.Tan(fov * .5f * Mathf.Deg2Rad) * Distance * Mathf.Max(aspect, 1) * Margin;

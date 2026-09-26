@@ -300,6 +300,12 @@ const server = createServer(async (request, response) => {
         if (!plans.get(version)) return json(404, {error:`Plan v${body.planVersion} does not exist`});
         return json(200, visit.markSeen(version));
       }
+      // What the patient relays at the end of a visit, for the clinician; the reply carries what Alex says back.
+      if (request.method === 'GET' && url.pathname === '/api/visit/replies') return json(200, visit.replies());
+      if (request.method === 'POST' && url.pathname === '/api/visit/replies') {
+        const body = await readJson(request);
+        return json(201, visit.addReply({kind: body.kind, text: body.text, planVersion: body.planVersion ?? plans.active().version}));
+      }
       if (request.method === 'GET' && url.pathname === '/api/visit/notes') return json(200, visit.list());
       if (request.method === 'POST' && url.pathname === '/api/visit/notes') {
         const body = await readJson(request);   // text and author only: seeded and planVersion are not the client's to set
