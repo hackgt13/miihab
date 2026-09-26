@@ -88,7 +88,7 @@ namespace Kinesthetic.Menu
             ["golf.adaptive"] = "Golf",
             ["bowling.adaptive"] = "Bowling",
         };
-        // All four registered kinds (coordinator/exercise/registry.ts), not just the two the LIBRARY names:
+        // Every registered kind (coordinator/exercise/registry.ts), not just the two the LIBRARY names:
         // the demo plan on disk prescribes the camera kind, and a pane that answered "shoulder-raise.v1 ·
         // right" would be showing the patient a database key. The camera and AirPod kinds measure the same
         // movement with different sensors, so they share a name; only one is ever prescribed at a time.
@@ -98,6 +98,22 @@ namespace Kinesthetic.Menu
             ["shoulder-raise.v1"] = "Seated shoulder raise",
             ["elbow-flexion.v1"] = "Seated biceps curl",
             ["trunk-rotation.v1"] = "Seated trunk rotation",
+            // The single-AirPod library (coordinator/exercise/imu-library.ts).
+            ["neck-flexion.v1"] = "Seated neck flexion",
+            ["neck-extension.v1"] = "Seated neck extension",
+            ["neck-lateral-flexion.v1"] = "Seated neck side bend",
+            ["shoulder-abduction.v1"] = "Seated side arm raise",
+            ["scaption.v1"] = "Seated scaption raise",
+            ["arm-hold.v1"] = "Seated raise and hold",
+            ["forearm-rotation.v1"] = "Seated forearm turn",
+            ["shoulder-external-rotation.v1"] = "Shoulder rotation at 90/90",
+            ["trunk-flexion.v1"] = "Seated forward bend",
+            ["trunk-lateral-flexion.v1"] = "Seated side bend",
+            ["trunk-extension.v1"] = "Standing back bend",
+            ["knee-extension.v1"] = "Seated knee straightening",
+            ["straight-leg-raise.v1"] = "Straight-leg raise",
+            ["hip-abduction.v1"] = "Standing side leg raise",
+            ["seated-march.v1"] = "Seated march",
         };
 
         public static CoachingPlanModel FromCoordinator(JObject j)
