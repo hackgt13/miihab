@@ -14,6 +14,7 @@ if [[ -z "$node_exe" ]]; then print -u2 'Kinesthetic: Node.js is unavailable.'; 
 
 pose_ready() { /usr/bin/curl -fsS --max-time 1 http://127.0.0.1:8766/health >/dev/null 2>&1; }
 golf_ready() { /usr/bin/curl -fsS --max-time 1 http://127.0.0.1:8767/ >/dev/null 2>&1; }
+voice_ready() { /usr/bin/curl -fsS --max-time 1 http://127.0.0.1:8769/health >/dev/null 2>&1; }
 
 if ! pose_ready; then
   # --env-file-if-exists so a repo-root .env (ANTHROPIC_API_KEY for the friends
@@ -44,3 +45,8 @@ case "${1:-club}" in
   *) print -u2 'Motion activity must be club or bowling.'; exit 1 ;;
 esac
 if [[ -d "$app" ]] && golf_ready; then /usr/bin/open -a "$app"; fi
+
+# Alex, the ElevenLabs voice PT behind the studio coach. Needs voice/.env (ElevenLabs + Supabase keys).
+if [[ -f voice/.env ]] && ! voice_ready; then
+  (cd voice && nohup "$node_exe" --env-file=.env server.ts >../local-data/logs/voice.log 2>&1 </dev/null &)
+fi
