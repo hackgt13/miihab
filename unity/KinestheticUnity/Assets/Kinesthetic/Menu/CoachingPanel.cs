@@ -271,6 +271,7 @@ namespace Kinesthetic.Menu
             foreach (var cell in dashboard.calendar) levels[cell.date.Date] = cell.level;
 
             Paint(root, "program-grid", (ctx, r) => DrawProgram(ctx, r, start, columns, finish, levels));
+            PlaceEndFlag(root, columns, totalDays);
             Paint(root, "envelope-ladder", (ctx, r) => DrawEnvelope(ctx, r, primary));
         }
 
@@ -333,11 +334,15 @@ namespace Kinesthetic.Menu
         /// ends.
         ///
         /// The crossing-off is drawn rather than filled because that is what a person does to a paper plan on a
-        /// fridge, and because a wall of flat green squares says "data" where two pen strokes say "I did that".
-        /// Every stroke is bowed and its ends are jittered, so no two X's are the same and none of them is
-        /// straight — but the jitter comes from the date, so a day's X is the same X on every repaint. A missed
-        /// day is not crossed and not marked either: this pane is not a report card, and the calendar's job is
-        /// to say where the program has got to.
+        /// fridge, and because a wall of flat coloured squares says "data" where two pen strokes say "that one
+        /// is behind me". Every stroke is bowed and its ends are jittered, so no two X's are the same and none
+        /// of them is straight — but the jitter comes from the date, so a day's X is the same X on every repaint.
+        ///
+        /// Every day that has gone by is crossed, whether it had rehab in it or not. A calendar on a wall gets
+        /// crossed off because the day is over, and crossing only the days with a session would quietly turn
+        /// this into an attendance record — which is the board's consistency grid, not this. A day with work in
+        /// it is pressed a little harder, and that is the whole of the difference. Today is never crossed: it is
+        /// where the person is, not something they have finished.
         ///
         /// The rect is divided into columns x 7 with no aspect cap, so the day letters and week numbers beside
         /// it — laid out by flex on the same rect — land on the same rows and columns without either side
@@ -349,9 +354,7 @@ namespace Kinesthetic.Menu
             var p = ctx.painter2D;
             var today = DateTime.Today;
 
-            float gap = Mathf.Clamp(Mathf.Min(r.width / columns, r.height / 7f) * .14f, 3, 9);
-            float cw = (r.width - gap * (columns - 1)) / columns;
-            float ch = (r.height - gap * 6) / 7f;
+            var (cw, ch, gap) = Grid(r, columns);
             float radius = Mathf.Min(cw, ch) * .28f;
 
             for (int column = 0; column < columns; column++)
@@ -361,7 +364,7 @@ namespace Kinesthetic.Menu
                 if (date > finish) continue;                      // the tail of the last week, if it has one
                 var cell = new Rect(column * (cw + gap), row * (ch + gap), cw, ch);
                 levels.TryGetValue(date.Date, out int level);
-                bool done = level > 0, now = date == today;
+                bool now = date == today;
 
                 // The paper the day is written on. A crossed-off day keeps the plain square a past day has —
                 // the pen is the mark, and tinting the paper under it as well would say the same thing twice.
@@ -382,9 +385,58 @@ namespace Kinesthetic.Menu
                     Cell(p, cell.x - 3, cell.y - 3, cell.width + 6, cell.height + 6, radius + 2, stroke: true);
                 }
 
-                if (done) CrossOff(p, cell, date.DayOfYear * 31 + date.Year, level);
+                if (date < today) CrossOff(p, cell, date.DayOfYear * 31 + date.Year, level);
             }
         }
+
+        /// How the grid divides its rect: columns across, seven down, with a gap that comes off the cell size so
+        /// a twelve-week block and a thirty-week one are spaced the same way. Shared, so anything that has to
+        /// land on a particular day lands where the pen does.
+        static (float cw, float ch, float gap) Grid(Rect r, int columns)
+        {
+            float gap = Mathf.Clamp(Mathf.Min(r.width / columns, r.height / 7f) * .14f, 3, 9);
+            return ((r.width - gap * (columns - 1)) / columns, (r.height - gap * 6) / 7f, gap);
+        }
+
+        /// "END" written on the last day of the program, because a coral square at the end of the block says
+        /// something is there without saying what. Painter2D draws no text, so this is a label placed on the
+        /// cell — positioned from the same Grid() the painter uses, and put back whenever the grid is resized.
+        static void PlaceEndFlag(VisualElement root, int columns, int totalDays)
+        {
+            var grid = root.Q("program-grid");
+            if (grid == null) return;
+
+            var flag = grid.Q<Label>("end-flag");
+            if (flag == null)
+            {
+                flag = new Label("END") { name = "end-flag", pickingMode = PickingMode.Ignore };
+                flag.AddToClassList("end-flag");
+                grid.Add(flag);
+            }
+
+            int column = (totalDays - 1) / 7, row = (totalDays - 1) % 7;
+            void Put()
+            {
+                var r = grid.contentRect;
+                if (r.width < 40 || r.height < 40) return;
+                var (cw, ch, gap) = Grid(r, columns);
+                flag.style.left = column * (cw + gap);
+                flag.style.top = row * (ch + gap);
+                flag.style.width = cw;
+                flag.style.height = ch;
+            }
+
+            // One callback per element, for the same reason there is one painter per element: Populate runs
+            // again when the plan arrives from the bridge.
+            if (placers.TryGetValue(grid, out var previous))
+            { grid.UnregisterCallback(previous); placers.Remove(grid); }
+            EventCallback<GeometryChangedEvent> place = _ => Put();
+            grid.RegisterCallback(place);
+            placers.Add(grid, place);
+            Put();
+        }
+
+        static readonly ConditionalWeakTable<VisualElement, EventCallback<GeometryChangedEvent>> placers = new();
 
         /// Two bowed strokes through a day, drawn as a hand would: each end wanders, each stroke overshoots the
         /// square by a little and bows off true, one is heavier than the other, and the second starts slightly
@@ -395,14 +447,17 @@ namespace Kinesthetic.Menu
             float size = Mathf.Min(cell.width, cell.height);
             if (size < 10) return;
 
-            float wander = size * .14f;          // how far an end misses the corner it was aiming at
-            float overshoot = size * .10f;       // how far past the square the stroke carries on
-            float weight = Mathf.Clamp(size * .085f, 2.2f, 5.4f) + level * .25f;
+            // The stroke aims at a point inside the square, not at its corner. Aiming at the corner and then
+            // overshooting put every X across its neighbours, and fourteen of them made a mesh rather than
+            // fourteen crossed-off days — on a grid this tight the hand has to stay inside the box.
+            float inset = size * .15f;           // where the stroke starts, in from the corner
+            float wander = size * .07f;          // how far its end misses that
+            float weight = Mathf.Clamp(size * .062f, 1.8f, 3.6f) + level * .2f;
 
             float Jitter(int salt) => (Noise(seed, salt) - .5f) * 2f * wander;
             Vector2 Corner(bool right, bool low, int salt) => new(
-                (right ? cell.xMax + overshoot : cell.x - overshoot) + Jitter(salt),
-                (low ? cell.yMax + overshoot : cell.y - overshoot) + Jitter(salt + 7));
+                (right ? cell.xMax - inset : cell.x + inset) + Jitter(salt),
+                (low ? cell.yMax - inset : cell.y + inset) + Jitter(salt + 7));
 
             p.lineCap = LineCap.Round;
             p.strokeColor = Pen;
@@ -420,7 +475,7 @@ namespace Kinesthetic.Menu
                 p.Stroke();
             }
 
-            float bowAmount = size * .07f;
+            float bowAmount = size * .055f;
             Stroke(Corner(false, false, 1), Corner(true, true, 2),
                    (Noise(seed, 3) - .5f) * 2f * bowAmount, weight);
             Stroke(Corner(true, false, 4), Corner(false, true, 5),

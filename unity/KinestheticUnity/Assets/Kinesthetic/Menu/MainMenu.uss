@@ -450,6 +450,9 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .program-plot { flex-grow: 1; min-width: 0; min-height: 0; }
 .program-weeks { flex-direction: row; flex-shrink: 0; height: 24px; }
 .program-grid { flex-grow: 1; min-height: 0; }
+/* "END" sits on the last day of the program. CoachingPanel positions it from the same geometry the grid
+   divides its rect by; everything here is what it looks like once it is there. */
+.end-flag { position: absolute; font-size: 14px; letter-spacing: .5px; color: var(--coral-60); -unity-text-align: middle-center; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 
 /* ---- what the plan is pushing right now */
 
