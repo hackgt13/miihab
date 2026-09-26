@@ -261,6 +261,7 @@ namespace Kinesthetic.Rehab
                         break;
                     case "exercise.event": OnEvent(p); break;
                     case "exercise.summary": ShowSummary(p); break;
+                    case "exercise.progression": ShowProgression(p); break;
                 }
             }
         }
@@ -316,12 +317,41 @@ namespace Kinesthetic.Rehab
             root.Q<Label>("summary-attempted").text = attempted.ToString();
             root.Q<Label>("summary-peak").text = median;
             root.Q<Label>("summary-plan").text = $"{side.ToUpperInvariant()} ARM  ·  TARGET {targetDeg:0}°  ·  {prescribedReps} REPS";
+            root.Q<Label>("summary-progress")?.AddToClassList("hidden");   // filled by the progression verdict that follows
             summaryLabel.text = notes.Length > 0 ? notes.ToString().TrimEnd() : attempted == 0 ? "Return to the studio when you're ready to begin." : "Nice work.";
             root.Q<Label>("summary-saved").text = s["simulated"]?.Value<bool>() == true ? "Demo session · simulated movement" : "Session saved · available to your care team";
             summaryCard.RemoveFromClassList("hidden");
             root.Q<Button>("summary-close").Focus();
             Kinesthetic.Menu.ActivityNavigation.Ensure().PlaySelect();
             status = "Session saved";
+        }
+
+        // The progression rules' verdict on this session (coordinator/progression.ts), in the patient's words.
+        // Arrives just after the summary; a level change inside the clinician's envelope has already applied.
+        void ShowProgression(JObject p)
+        {
+            var label = GetComponent<UIDocument>().rootVisualElement.Q<Label>("summary-progress");
+            if (label == null) return;
+            string decision = (string)p["decision"];
+            bool applied = (string)p["status"] == "applied";
+            var to = p["to"]?["targetDeg"]?.Value<float>();
+            int good = p["goodSessions"]?["count"]?.Value<int>() ?? 0, needed = p["goodSessions"]?["needed"]?.Value<int>() ?? 0;
+            var (text, tone) = decision switch
+            {
+                "progress" when applied => ($"Level up! Next session your target is {to:0}°", "up"),
+                "progress" => ($"Ready for {to:0}° · your care team will confirm the next level", "up"),
+                "regress" when applied => ($"Next session eases back to {to:0}° to let your arm settle", "easy"),
+                "regress" => ("Your care team will look at easing the target a little", "easy"),
+                "clinician_review" => ("Great progress · your care team will set your next goal", "up"),
+                _ when needed > 0 && good > 0 => ($"{good} of {needed} good sessions toward the next level", ""),
+                _ when needed > 0 => ($"{needed} good sessions in a row unlock the next level", ""),
+                _ => ("", ""),
+            };
+            label.text = text;
+            label.EnableInClassList("hidden", text.Length == 0);
+            label.EnableInClassList("up", tone == "up");
+            label.EnableInClassList("easy", tone == "easy");
+            if (tone == "up" && applied) { Flash(Good); Kinesthetic.Menu.ActivityNavigation.Ensure().PlaySelect(); }
         }
 
         void Flash(Color c) { flash = c; flashUntil = Time.unscaledTime + .6f; }

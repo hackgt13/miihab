@@ -1,5 +1,8 @@
 using System;
+using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -13,10 +16,10 @@ namespace Kinesthetic.Menu
     /// the way `/api/sessions` reports it. So replacing Placeholder() with a fetch is a swap of this
     /// one object, not a rewrite of the panel.
     ///
-    /// Until that fetch exists every number is invented by Placeholder(), from a fixed seed so the
-    /// board looks identical between runs and can actually be judged as a design. The reach trend is
-    /// the one exception: those figures are the authored demo history in
-    /// `coordinator/fixtures/history.json`. Nothing here is measured, and the board says so.
+    /// FromCoordinator() fills it from `/api/dashboard` (coordinator/dashboard.ts). Until the patient has
+    /// a real session, everything but today's prescription and the goal comes from Placeholder(): invented
+    /// from a fixed seed so the board looks identical between runs, with the reach trend taken from the
+    /// authored demo history in `coordinator/fixtures/history.json`. The board labels which it is showing.
     public sealed class MenuDashboardModel
     {
         public string patientName = MenuProfile.DefaultName;
@@ -80,6 +83,32 @@ namespace Kinesthetic.Menu
         }
 
         public int RecentActiveDays => RecentDays(28).Count(c => c.level > 0);
+
+        /// The coordinator's figures. Today's list and the goal always come from the live plan; the rest
+        /// only once `measured` says a real session exists, so a new patient still sees a readable board.
+        public static MenuDashboardModel FromCoordinator(JObject j)
+        {
+            var model = Placeholder();
+            model.goal = (string)j["goal"] ?? model.goal;
+            if (j["targetDeg"]?.Type is JTokenType.Float or JTokenType.Integer) model.targetDeg = j["targetDeg"].Value<float>();
+            if (j["today"] is JArray today)
+                model.today = today.Select(t => new TodayTask { activityId = (string)t["activityId"], title = (string)t["title"],
+                    detail = (string)t["detail"], done = (bool?)t["done"] ?? false }).ToArray();
+            if (j["measured"]?.Value<bool>() != true) return model;
+
+            model.measured = true;
+            model.streakDays = (int?)j["streakDays"] ?? 0;
+            model.bestStreakDays = (int?)j["bestStreakDays"] ?? model.streakDays;
+            model.weekSessionsDone = (int?)j["weekSessionsDone"] ?? 0;
+            model.weekSessionsGoal = (int?)j["weekSessionsGoal"] ?? model.weekSessionsGoal;
+            model.programDay = (int?)j["programDay"] ?? 1;
+            model.programTotalDays = (int?)j["programTotalDays"] ?? model.programTotalDays;
+            model.history = (j["history"] as JArray ?? new JArray()).Select(h => new WeekPoint { label = (string)h["label"],
+                attempted = (int?)h["attempted"] ?? 0, valid = (int?)h["valid"] ?? 0, medianPeakDeg = (float?)h["medianPeakDeg"] ?? 0 }).ToArray();
+            model.calendar = (j["calendar"] as JArray ?? new JArray()).Select(c => new DayCell {
+                date = DateTime.ParseExact((string)c["date"], "yyyy-MM-dd", CultureInfo.InvariantCulture), level = (int?)c["level"] ?? 0 }).ToArray();
+            return model;
+        }
 
         public static MenuDashboardModel Placeholder()
         {
@@ -219,11 +248,18 @@ namespace Kinesthetic.Menu
             Paint(root, "program-ring", (ctx, r) => DrawRing(ctx, r, model.ProgramFraction));
         }
 
+        // One painter per element: Populate runs again when fresh data arrives, and a second handler
+        // would draw the old model underneath the new one.
+        static readonly ConditionalWeakTable<VisualElement, Action<MeshGenerationContext>> painters = new();
+
         static void Paint(VisualElement root, string name, Action<MeshGenerationContext, Rect> draw)
         {
             var element = root.Q(name);
             if (element == null) return;
-            element.generateVisualContent += ctx => draw(ctx, element.contentRect);
+            if (painters.TryGetValue(element, out var previous)) { element.generateVisualContent -= previous; painters.Remove(element); }
+            Action<MeshGenerationContext> paint = ctx => draw(ctx, element.contentRect);
+            element.generateVisualContent += paint;
+            painters.Add(element, paint);
             element.MarkDirtyRepaint();
         }
 

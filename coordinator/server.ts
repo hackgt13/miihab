@@ -17,6 +17,7 @@ import { activitySummaryFromExercise, parseActivitySummary } from './activity.ts
 import { NORMS, compareToNorm, type Sex, type Side } from './norms.ts';
 import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from './progression.ts';
 import { LIBRARY } from './exercises.ts';
+import { buildDashboard } from './dashboard.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const captureRoot = resolve(root, 'spikes/pose-capture');
@@ -230,6 +231,11 @@ const server = createServer(async (request, response) => {
         return json(201, plans.approve(body));
       }
       if (request.method === 'GET' && url.pathname === '/api/exercises') return json(200, LIBRARY);
+      if (request.method === 'GET' && url.pathname === '/api/dashboard') {
+        const envelopes = await Promise.all((await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f))
+          .map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
+        return json(200, buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes}));
+      }
       if (request.method === 'GET' && url.pathname === '/api/proposals') return json(200, proposals.list().slice(0, 50));
       if (request.method === 'POST' && url.pathname === '/api/progression/evaluate') {
         const body = await readJson(request);

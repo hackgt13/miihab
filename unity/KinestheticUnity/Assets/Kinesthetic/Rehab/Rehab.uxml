@@ -87,6 +87,7 @@
                 <ui:Label name="summary-title" text="Your set is complete" class="summary-title" />
                 <ui:Label name="summary-subtitle" text="Here's what your camera measured today." class="summary-subtitle" />
                 <ui:Label name="summary-plan" text="" class="summary-plan" />
+                <ui:Label name="summary-progress" text="" class="summary-progress hidden" />
                 <ui:VisualElement class="summary-metrics">
                     <ui:VisualElement class="summary-metric"><ui:Label name="summary-valid" text="—" class="metric-value" /><ui:Label text="COUNTED REPS" class="metric-label" /></ui:VisualElement>
                     <ui:VisualElement class="summary-metric metric-middle"><ui:Label name="summary-attempted" text="—" class="metric-value" /><ui:Label text="ATTEMPTED" class="metric-label" /></ui:VisualElement>

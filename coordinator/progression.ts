@@ -38,6 +38,8 @@ export interface Proposal {
   from: { targetDeg: number; targetMaxDeg: number };
   to: { targetDeg: number; targetMaxDeg: number } | null;
   reasons: string[];
+  /** Toward the next level: consecutive good sessions so far, and how many the envelope asks for. */
+  goodSessions: { count: number; needed: number };
   evidence: { exerciseId: string; endedAt: string; inBand: number; prescribed: number; overshoots: number; simulated: boolean }[];
   pain: { flare: boolean; max: number | null; rise: number | null } | null;
   status: 'applied' | 'pending' | 'approved' | 'dismissed' | 'superseded' | 'info';
@@ -100,7 +102,7 @@ export function evaluate(plans: Plan[], prescriptionId: string, sessions: Sessio
   const margin = x.targetMaxDeg - x.targetDeg;
   const level = (t: number) => ({ targetDeg: t, targetMaxDeg: t + margin });
   const reasons: string[] = [];
-  let decision: Decision = 'hold', to: Proposal['to'] = null;
+  let decision: Decision = 'hold', to: Proposal['to'] = null, goodCount = 0;
 
   const latest = scored[0];
   if (!latest) reasons.push(`No ${opts.includeSimulated ? '' : 'real '}sessions at ${x.targetDeg}° yet.`);
@@ -113,7 +115,7 @@ export function evaluate(plans: Plan[], prescriptionId: string, sessions: Sessio
   } else {
     const run = scored.slice(0, p.sessionsToProgress);
     const good = (r: typeof scored[number]) => r.ratio >= p.inBandRatio && r.overshoots === 0;
-    const streak = run.findIndex(r => !good(r)); const goodCount = streak < 0 ? run.length : streak;
+    const streak = run.findIndex(r => !good(r)); goodCount = streak < 0 ? run.length : streak;
     if (goodCount >= p.sessionsToProgress) {
       reasons.push(`${goodCount} sessions in a row with ≥${Math.round(p.inBandRatio * 100)}% of reps in the ${x.targetDeg}–${x.targetMaxDeg}° band and no overshoots.`);
       const target = x.targetDeg + p.stepDeg;
@@ -131,6 +133,7 @@ export function evaluate(plans: Plan[], prescriptionId: string, sessions: Sessio
     prescriptionId: x.id, exerciseLabel: LIBRARY[prescription.exerciseKind]?.label ?? prescription.exerciseKind, decision, from, to, reasons,
     evidence: scored.slice(0, Math.max(p.sessionsToProgress, 1)).map(r => ({ exerciseId: r.s.exerciseId, endedAt: r.s.endedAt,
       inBand: r.inBand, prescribed: r.s.prescribed, overshoots: r.overshoots, simulated: r.s.simulated })),
+    goodSessions: { count: goodCount, needed: p.sessionsToProgress },
     pain, status: decision === 'hold' ? 'info' : 'pending', appliedPlanVersion: null,
   };
 }

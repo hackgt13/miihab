@@ -1,0 +1,89 @@
+// What the Unity menu board shows (Menu/MenuDashboard.cs): today's prescription, consistency, and the
+// reach trend — computed from the plan and the sessions actually recorded, in the shape the board's
+// MenuDashboardModel already reads. Simulated sessions and sessions that never calibrated (a setup
+// failure) are not the patient's work and are left out. `measured` is false until a real session exists;
+// the board then keeps its labelled demo figures for everything except the prescription.
+import type { ActivityPrescription, Plan } from './plans.ts';
+import { LIBRARY } from './exercises.ts';
+
+export const PROGRAM_DAYS = 84;        // a 12-week block
+export const WEEK_SESSIONS_GOAL = 5;
+const CALENDAR_WEEKS = 16;
+
+const TITLES: Record<string, string> = { 'rehab.studio': 'Movement Studio', 'golf.adaptive': 'Golf' };
+
+/** Local calendar day, YYYY-MM-DD, as the patient experiences it. */
+export const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+function taskDetail(a: ActivityPrescription): string {
+  if (a.activityId === 'golf.adaptive') return `${a.targetCount} holes with a friend`;
+  if (!a.exerciseKind) return a.note || `${a.targetCount} to do`;
+  const name = (LIBRARY[a.exerciseKind]?.label ?? a.exerciseKind).replace(/^Seated /, '').toLowerCase();
+  return `${a.targetCount} ${name}s · ${a.params.side ?? 'right'} · to ${a.params.targetDeg}°`;
+}
+
+/** Does this summary belong to that prescription? Summaries from before prescription ids name only the camera raise. */
+const belongsTo = (s: any, a: ActivityPrescription) =>
+  s.prescriptionId ? s.prescriptionId === a.id : s.exercise === 'seated_shoulder_raise' && a.id.startsWith('shoulder-raise');
+
+export function buildDashboard(args: { plans: Plan[]; summaries: any[]; envelopes: any[]; now?: Date }) {
+  const now = args.now ?? new Date(), today = startOfDay(now), todayKey = dayKey(today);
+  const active = args.plans[args.plans.length - 1];
+  // Exercise sessions that are the patient's own work; every activity record is checked against them.
+  const excluded = new Set(args.summaries.filter(s => s.simulated || s.calibrated === false || !(s.attempted > 0)).map(s => String(s.exerciseId)));
+  const summaries = args.summaries.filter(s => !excluded.has(String(s.exerciseId)));
+  const envelopes = args.envelopes.filter(e => !excluded.has(String(e.activitySessionId)) && Date.parse(e.endedAt) <= now.getTime());
+
+  // Consistency: how many sessions ended on each local day.
+  const perDay = new Map<string, number>();
+  for (const e of envelopes) { const k = dayKey(new Date(e.endedAt)); perDay.set(k, (perDay.get(k) ?? 0) + 1); }
+
+  let streakDays = 0;
+  // A streak is still alive today until today ends, so it counts back from yesterday if today is empty.
+  for (let d = perDay.has(todayKey) ? today : addDays(today, -1); perDay.has(dayKey(d)); d = addDays(d, -1)) streakDays++;
+  const days = [...perDay.keys()].sort();
+  let bestStreakDays = 0, run = 0, prev: Date | null = null;
+  for (const k of days) {
+    const d = new Date(`${k}T00:00:00`);
+    run = prev && dayKey(addDays(prev, 1)) === k ? run + 1 : 1;
+    bestStreakDays = Math.max(bestStreakDays, run); prev = d;
+  }
+
+  const monday = addDays(today, -((today.getDay() + 6) % 7));
+  const weekSessionsDone = [...perDay.keys()].filter(k => k >= dayKey(monday) && k <= todayKey).length;
+
+  // Program day counts from the first approved plan: the day the program started.
+  const started = startOfDay(new Date(args.plans[0]?.approvedAt ?? now));
+  const programDay = Math.max(1, Math.round((today.getTime() - started.getTime()) / 86_400_000) + 1);
+
+  // 16 weeks, starting on a Sunday so each column is a clean week (same shape as the board's demo grid).
+  let first = addDays(today, -(CALENDAR_WEEKS * 7 - 1)); first = addDays(first, -first.getDay());
+  const calendar: { date: string; level: number }[] = [];
+  for (let d = first; d <= today; d = addDays(d, 1)) calendar.push({ date: dayKey(d), level: Math.min(4, perDay.get(dayKey(d)) ?? 0) });
+
+  const today_ = active.activities.map(a => {
+    const doneToday = a.exerciseKind
+      ? summaries.some(s => belongsTo(s, a) && dayKey(new Date(s.endedAt)) === todayKey && (s.valid ?? 0) >= a.targetCount)
+      : envelopes.some(e => e.activityId === a.activityId && e.completed && dayKey(new Date(e.endedAt)) === todayKey);
+    return { activityId: a.activityId, title: TITLES[a.activityId] ?? a.activityId, detail: taskDetail(a), done: doneToday };
+  });
+
+  // Reach trend: the first measured prescription, its last eight real sessions.
+  const primary = active.activities.find(a => a.exerciseKind);
+  const history = primary ? summaries.filter(s => belongsTo(s, primary) && s.medianValidPeakDeg != null)
+    .sort((a, b) => String(a.endedAt).localeCompare(String(b.endedAt))).slice(-8)
+    .map(s => ({ label: new Date(s.endedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      attempted: s.attempted, valid: s.valid, medianPeakDeg: Math.round(s.medianValidPeakDeg * 10) / 10 })) : [];
+
+  return {
+    goal: active.goal.text,
+    measured: envelopes.length > 0,
+    streakDays, bestStreakDays,
+    weekSessionsDone, weekSessionsGoal: WEEK_SESSIONS_GOAL,
+    programDay, programTotalDays: PROGRAM_DAYS,
+    targetDeg: primary ? Number(primary.params.targetDeg) : null,
+    today: today_, history, calendar,
+  };
+}
