@@ -140,12 +140,17 @@ A straight measure. `Pips` (default) for a count a person can check — "4 of 5"
 for a continuous value at 8px. The screen sets the width. Same track and tones as `KArc`, so a ring and a
 bar on one panel read as one system.
 
-### Not built: surfaces, sheets and overlays
+### `KText` — `size`, `tone`
 
-The cards, modal sheets and scrims every screen redraws are the largest remaining duplication (five
-scrims, five modal sheets with nine widths). **Nobody owns them yet.** `Panes/` deliberately excludes
-them — panes are plural and non-blocking, modals are singular and blocking — and they were held back
-from this first pass to stay clear of the pane and panel work. They are the next thing to decide.
+Readable headings and instructions. Sizes: `Title` (36px), `Heading` (26px), `Body` (19px),
+`Caption` (15px). Tones: `Ink`, `Soft`, `OnDark`, `Success`. Text wraps by default.
+
+### `KSurface` — `tone`, `density`
+
+Shared surfaces for compact HUDs and summaries. Tones: `Paper`, `Glass`, `Scrim`. Densities:
+`Compact`, `Comfortable`, `Flush`. The screen positions the surface and its children; the component
+owns its padding, background, edge and radius. A scrim's blocking behavior and visibility remain
+with the screen. These variants and `KText` are also shown in `Specimen.uxml`.
 
 ## What a screen may do
 
@@ -192,9 +197,9 @@ One screen at a time, by whoever owns it:
 
 ## Known limits
 
-- **Not yet rendered in the editor.** The components compile clean against Unity 6000.6.2f1 with the UI
-  Toolkit source generator (checked out-of-tree), and the checks pass, but nobody has opened
-  `Specimen.uxml` in UI Builder yet. Do that before migrating the first screen.
+- **Studio migration verified in Play mode.** The studio uses the shared components, including its
+  connection state, repetition ring, angle meter and summary. Other screens remain on their legacy
+  sheets until migrated; run the UI check and inspect each migration in the Game view.
 - **The same px is not the same size on every screen.** Golf and Replay panels use a 1400×900 reference
   resolution; Bowling, Navigation and Rehab use 1600×900; the menu board is world-space. So a 16px
   button renders about 14% larger in Golf. The fix is in the `PanelSettings` assets, which this system

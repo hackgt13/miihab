@@ -42,6 +42,7 @@ namespace Kinesthetic.Coach
         AudioClip mic; int micRead; string micDevice; float[] micChunk = new float[0];
         readonly System.Collections.Generic.List<float> micPending = new();
 
+        Kinesthetic.Golf.MiiIdleLife miiLife;
         Transform head, mouthLocator, mouth;
         Vector3 mouthInHead; Quaternion mouthFacingInHead; bool mouthPlaced;
 
@@ -52,7 +53,8 @@ namespace Kinesthetic.Coach
             var bones = GetComponentsInChildren<Transform>(true);
             head = Array.Find(bones, t => t.name == "head");
             mouthLocator = Array.Find(bones, t => t.name == "mouth");
-            BuildMouth();
+            miiLife = GetComponentInChildren<Kinesthetic.Golf.MiiIdleLife>();
+            if (!miiLife) BuildMouth();
             source = gameObject.AddComponent<AudioSource>();
             source.spatialBlend = .35f; source.loop = true; source.playOnAwake = false;
         }
@@ -251,7 +253,7 @@ namespace Kinesthetic.Coach
         {
             float target = Mathf.Clamp01(outputRms * 7f);
             level = Mathf.Lerp(level, target, 1 - Mathf.Exp(-(target > level ? 30f : 12f) * Time.deltaTime));
-            if (level > .03f) lastSpokeAt = Time.unscaledTime;
+            if (level > .03f) { lastSpokeAt = Time.unscaledTime; if (miiLife) miiLife.Surprise(.12f); }
             if (mouth && mouthLocator && head)
             {
                 bool open = level > .03f;

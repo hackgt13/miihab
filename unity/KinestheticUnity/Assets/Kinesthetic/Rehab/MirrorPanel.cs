@@ -13,9 +13,9 @@ namespace Kinesthetic.Rehab
     public sealed class MirrorPanel : MonoBehaviour
     {
         public IRehabView view;
-        public float width = .9f, height = 1.2f, depth = .5f;
+        public float width = 1.12f, height = 1.42f, depth = .34f;
         [Tooltip("Metres from the patient's hips: to their left, and forward.")]
-        public float offsetLeft = 1.0f, offsetForward = 1.35f;
+        public float offsetLeft = 1.6f, offsetForward = 2.2f;
 
         Transform source, copy, window;
         Material frameMaterial;
@@ -52,12 +52,12 @@ namespace Kinesthetic.Rehab
             window.SetPositionAndRotation(centre, Quaternion.LookRotation(facing.sqrMagnitude > 1e-4f ? facing.normalized : -left));
 
             // Frame: a shallow box, so the reflection sits inside it rather than on a flat sheet.
-            frameMaterial = Lit(Palette.Slate30); var backMaterial = Lit(Palette.Sand10);
-            const float t = .05f;
-            Box(window, "Frame top", new Vector3(0, height * .5f + t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, depth), frameMaterial);
-            Box(window, "Frame bottom", new Vector3(0, -height * .5f - t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, depth), frameMaterial);
-            Box(window, "Frame left", new Vector3(-width * .5f - t * .5f, 0, -depth * .5f), new Vector3(t, height, depth), frameMaterial);
-            Box(window, "Frame right", new Vector3(width * .5f + t * .5f, 0, -depth * .5f), new Vector3(t, height, depth), frameMaterial);
+            frameMaterial = Lit(Palette.Sand00); var backMaterial = Lit(Palette.Sand10);
+            const float t = .018f;
+            Box(window, "Frame top", new Vector3(0, height * .5f + t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, .065f), frameMaterial);
+            Box(window, "Frame bottom", new Vector3(0, -height * .5f - t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, .065f), frameMaterial);
+            Box(window, "Frame left", new Vector3(-width * .5f - t * .5f, 0, -depth * .5f), new Vector3(t, height, .065f), frameMaterial);
+            Box(window, "Frame right", new Vector3(width * .5f + t * .5f, 0, -depth * .5f), new Vector3(t, height, .065f), frameMaterial);
             Box(window, "Backing", new Vector3(0, 0, -depth), new Vector3(width, height, .02f), backMaterial);
 
             // The copy is made inside an inactive holder, so none of its scripts (the rig, the face) ever wake.
@@ -114,7 +114,7 @@ namespace Kinesthetic.Rehab
             DrawGhosts();
             // When the coach hands over, the frame pulses to draw the patient's eye here.
             float pulse = view.CoachHandingOff ? .5f + .5f * Mathf.Sin(Time.time * 7) : 0;
-            frameMaterial.color = Color.Lerp(Palette.Slate30, Palette.Cerulean40, pulse);
+            frameMaterial.color = Color.Lerp(Palette.Sand00, Palette.Cerulean40, pulse);
         }
 
         // Ghost arms and the band are drawn on the real patient's geometry, then carried through the reflection,
@@ -158,11 +158,11 @@ namespace Kinesthetic.Rehab
             Color bandColor = angle is not float a ? Fade(Palette.Cerulean20, .7f)
                 : a > ceiling ? Palette.Coral40 : a >= target ? Palette.Jungle40 : Palette.Cerulean40;
             band.startColor = band.endColor = bandColor;
-            var ghost = Fade(Color.white, .42f);
+            var ghost = Fade(Palette.Sand00, .42f);
             var ceilingGhostColor = Fade(Palette.Coral40, angle is float over && over > ceiling ? .85f : .38f);
             targetGhost.startColor = targetGhost.endColor = targetGhostForearm.startColor = targetGhostForearm.endColor = ghost;
             ceilingGhost.startColor = ceilingGhost.endColor = ceilingGhostForearm.startColor = ceilingGhostForearm.endColor = ceilingGhostColor;
-            targetHand.GetComponent<Renderer>().material.color = Fade(Color.white, .7f);
+            targetHand.GetComponent<Renderer>().material.color = Fade(Palette.Sand00, .7f);
             ceilingHand.GetComponent<Renderer>().material.color = Fade(Palette.Coral40, .7f);
         }
 

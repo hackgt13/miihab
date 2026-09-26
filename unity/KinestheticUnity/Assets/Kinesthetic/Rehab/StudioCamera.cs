@@ -15,6 +15,9 @@ namespace Kinesthetic.Rehab
         Camera view; Transform seat, head; PoseRig rig;
         float blend; bool manual, manualFirstPerson;
 
+        public bool InSeatedView => blend > .5f;
+        public void ToggleView() { manual = true; manualFirstPerson = blend < .5f; }
+
         void Start()
         {
             rig = session.rig; rig.Initialize();
@@ -28,8 +31,8 @@ namespace Kinesthetic.Rehab
         {
             if (!view || !view.enabled) return;   // another view is live (V toggle)
             var keyboard = Keyboard.current;
-            if (keyboard != null && keyboard.cKey.wasPressedThisFrame) { manual = true; manualFirstPerson = blend < .5f; }
-            bool firstPerson = manual ? manualFirstPerson : session.IsRunning;
+            if (keyboard != null && keyboard.cKey.wasPressedThisFrame) ToggleView();
+            bool firstPerson = manual ? manualFirstPerson : session.IsRunning && session.Calibrated;
             if (manual && !session.IsRunning && !manualFirstPerson && blend <= 0) manual = false;   // hand back once home
             blend = Mathf.MoveTowards(blend, firstPerson ? 1 : 0, Time.unscaledDeltaTime / glideSeconds);
             float k = Mathf.SmoothStep(0, 1, blend);
@@ -38,13 +41,13 @@ namespace Kinesthetic.Rehab
             var forward = Vector3.ProjectOnPlane(rig.transform.TransformDirection(Vector3.back), Vector3.up).normalized;
             var right = Vector3.Cross(Vector3.up, forward);
             var chair = seat.position;
-            var thirdPosition = chair - forward * 3.1f + Vector3.up * 2.05f + right * .45f;
-            var thirdRotation = Quaternion.LookRotation(chair + forward * 1.4f + Vector3.up * .85f - thirdPosition);
+            var thirdPosition = chair - forward * 4.4f + Vector3.up * 2.55f + right * 1.35f;
+            var thirdRotation = Quaternion.LookRotation(chair + forward * 1.15f + Vector3.up * .85f - thirdPosition);
             var eye = (head ? head.position : chair + Vector3.up * 1.15f) + forward * .07f + Vector3.up * .03f;
             var firstRotation = Quaternion.LookRotation(Quaternion.AngleAxis(9, right) * forward);   // a little down, toward your own arm
 
             view.transform.SetPositionAndRotation(Vector3.Lerp(thirdPosition, eye, k), Quaternion.Slerp(thirdRotation, firstRotation, k));
-            view.fieldOfView = Mathf.Lerp(42, 74, k);
+            view.fieldOfView = Mathf.Lerp(46, 82, k);
             view.nearClipPlane = Mathf.Lerp(.1f, .03f, k);
             // Inside your own head, hide it (FirstPersonView already put it on its own layer).
             const int ownBody = FirstPersonView.OwnBodyLayer;

@@ -12,9 +12,11 @@ namespace Kinesthetic.Coach
     // Movement shape comes from real rehab motion capture (UI-PRMD, median of 90 repetitions); the peak is scaled
     // to the physician's active plan target, with the plan's hold at the top. The coach always shows ideal form:
     // the recorded trunk sway is deliberately not reproduced. Facing the patient, the coach mirrors the side.
+    [DefaultExecutionOrder(30)]
     public sealed class CoachDemonstrator : MonoBehaviour
     {
         public Transform model;
+        public PoseRig miiRig;
         public string motionName = "shoulder_scaption";
         public string planUrl = "http://127.0.0.1:8766/api/plans/active";
         public bool mirrorPatient = true;          // patient raises right → coach (facing them) raises left
@@ -67,6 +69,7 @@ namespace Kinesthetic.Coach
             plane = motion["planeDeg"].Select(v => (float)v).ToArray();
             elbow = motion["elbowFlexDeg"].Select(v => (float)v).ToArray();
             shrug = motion["shrugMm"].Select(v => (float)v).ToArray();
+            if (miiRig) { miiRig.Initialize(); miiRig.Apply(null); }
             BindBones();
             StartCoroutine(LoadPlan());
             cycleStart = Time.time;
@@ -74,12 +77,24 @@ namespace Kinesthetic.Coach
             spine3 = Bone("spine_3"); spine4 = Bone("spine_4");
             foreach (var t in new[] { spine3, spine4, neck, head }) if (t) rest[t] = t.localRotation;
             if (eyeRenderer) eyeMaterial = eyeRenderer.material;
-            var patient = FindObjectsByType<PoseRig>(FindObjectsSortMode.None).FirstOrDefault(r => r.seated);
+            var patient = FindObjectsByType<PoseRig>().FirstOrDefault(r => r.seated && r != miiRig);
             if (patient) patientHead = patient.avatar.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "head");
             nextBlink = Time.time + 2;
         }
 
-        Transform Bone(string n) => model.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == n);
+        Transform Bone(string n)
+        {
+            if (miiRig) n = n switch {
+                "clavicle_l" => "collar.L", "clavicle_r" => "collar.R",
+                "arm_l1" => "bicep.L", "arm_l2" => "forearm.L", "wrist_l" => "hand.L",
+                "arm_r1" => "bicep.R", "arm_r2" => "forearm.R", "wrist_r" => "hand.R",
+                "leg_l1" => "thigh.L", "leg_l2" => "calf.L", "ankle_l" => "foot.L",
+                "leg_r1" => "thigh.R", "leg_r2" => "calf.R", "ankle_r" => "foot.R",
+                "spine_3" => "spine.001", "spine_4" => "spine.002", _ => n };
+            return model.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == n);
+        }
+        Vector3 Facing => miiRig ? miiRig.transform.TransformDirection(Vector3.back)
+            : Bone("toe_l").position - Bone("ankle_l").position;
         void BindBones()
         {
             string s = mirrorPatient ? (patientSide == "right" ? "l" : "r") : (patientSide == "right" ? "r" : "l");
@@ -95,15 +110,16 @@ namespace Kinesthetic.Coach
             up = (neck.position - hip.position).normalized;
             var outward = (upper.position - Bone(s == "l" ? "arm_r1" : "arm_l1").position).normalized;
             right = Vector3.ProjectOnPlane(outward, up).normalized;                     // toward the demonstrating arm
-            var toe = Bone("toe_l").position - Bone("ankle_l").position;
+            var toe = Facing;
             forward = Vector3.ProjectOnPlane(toe, up).normalized;                      // feet point where the body faces
         }
 
         // Seated: thighs forward, shins down. Legs are posed once and never animated.
         void SeatLegs()
         {
+            if (miiRig) return;
             var down = -(Bone("neck").position - Bone("hip").position).normalized;
-            var fwd = Vector3.ProjectOnPlane(Bone("toe_l").position - Bone("ankle_l").position, down).normalized;
+            var fwd = Vector3.ProjectOnPlane(Facing, down).normalized;
             foreach (var s in new[] { "l", "r" })
             {
                 Aim(Bone("leg_" + s + "1"), Bone("leg_" + s + "2"), fwd);
@@ -115,7 +131,7 @@ namespace Kinesthetic.Coach
         void RelaxOtherArm(string s)
         {
             var up = (Bone("neck").position - Bone("hip").position).normalized;
-            var fwd = Vector3.ProjectOnPlane(Bone("toe_l").position - Bone("ankle_l").position, up).normalized;
+            var fwd = Vector3.ProjectOnPlane(Facing, up).normalized;
             var arm1 = Bone("arm_" + s + "1"); var arm2 = Bone("arm_" + s + "2"); var hand = Bone("wrist_" + s);
             var outward = Vector3.ProjectOnPlane(arm1.position - Bone(s == "l" ? "arm_r1" : "arm_l1").position, up).normalized;
             Aim(arm1, arm2, (-up + outward * .16f + fwd * .12f).normalized);
@@ -153,7 +169,7 @@ namespace Kinesthetic.Coach
             {
                 JObject m; try { m = JObject.Parse(text); } catch (Exception) { continue; }
                 var type = (string)m["type"]; var e = m["payload"] as JObject;
-                if (type == "exercise.started") { SetMode(demoReps > 0 ? CoachMode.Demo : CoachMode.Calibrating); calibratedDuringDemo = false; StartCoroutine(LoadPlan()); }
+                if (type == "exercise.started") { SetMode(CoachMode.Calibrating); calibratedDuringDemo = false; StartCoroutine(LoadPlan()); }
                 else if (type == "exercise.summary")
                 {   // Celebrate real work only; an empty or abandoned session just returns to demonstrating.
                     if (((int?)m["payload"]?["valid"] ?? 0) > 0) SetMode(CoachMode.Celebrate); else { SetMode(CoachMode.Loop); cycleStart = Time.time + 1f; }
@@ -164,6 +180,7 @@ namespace Kinesthetic.Coach
                         case "calibration.complete":
                             // During the demonstration the patient is only getting ready; the lead starts after the handoff.
                             if (mode is CoachMode.Demo or CoachMode.HandOff) calibratedDuringDemo = true;
+                            else if (demoReps > 0) { calibratedDuringDemo = true; SetMode(CoachMode.Demo); }
                             else { SetMode(CoachMode.Lead); BeginStage(Stage.Raise); }
                             break;
                         case "target.reached": patientReachedAt = Time.time; break;
@@ -180,8 +197,9 @@ namespace Kinesthetic.Coach
         {
             if (upper == null) return;
             ReadSession();
+            if (miiRig) miiRig.Apply(null);
             // A script reload clears the captured rest pose; skip the frame rather than throw.
-            foreach (var t in new[] { clavicle, upper, fore, wrist }) { if (!t || !rest.TryGetValue(t, out var r)) return; t.localRotation = r; }
+            foreach (var t in new[] { clavicle, upper, fore, wrist }) { if (!t) continue; if (!rest.TryGetValue(t, out var r)) return; t.localRotation = r; }
             foreach (var kv in relaxedOther) kv.Key.localRotation = kv.Value;
             ApplyBodyLife();
             float rep = (float)motion["repSeconds"] * tempo;
@@ -298,6 +316,7 @@ namespace Kinesthetic.Coach
                 var to = lookAt - head.position; var flat = Vector3.ProjectOnPlane(to, up);
                 float yaw = Mathf.Clamp(Vector3.SignedAngle(forward, flat, up), -55, 55);
                 float pitch = Mathf.Clamp(-Vector3.SignedAngle(flat, to, Vector3.Cross(up, flat)), -20, 20);
+                if (miiRig) { pitch = 0; yaw = Mathf.Clamp(yaw, -25, 25); }
                 float nod = Time.time - nodStart < .6f ? Mathf.Sin((Time.time - nodStart) / .6f * Mathf.PI) * 12 : 0;
                 var side = Vector3.Cross(up, forward).normalized;
                 var target = Quaternion.AngleAxis(yaw, up) * Quaternion.AngleAxis(pitch + nod, side);
@@ -346,7 +365,7 @@ namespace Kinesthetic.Coach
             var basePos = patient ? (patient.transform.parent ? patient.transform.parent.position : patient.transform.position) : Vector3.zero;
             var forward = patient ? Vector3.ProjectOnPlane(patient.transform.TransformDirection(Vector3.back), Vector3.up).normalized : Vector3.forward;
             var right = Vector3.Cross(Vector3.up, forward);
-            coach.transform.position = basePos + right * 1.0f + forward * 1.35f;
+            coach.transform.position = basePos + right * 1.0f + forward * 2.1f;
             coach.transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(basePos - coach.transform.position, Vector3.up), Vector3.up);
             // On the Mac the coach talks: Alex, the ElevenLabs voice PT. The headset renders the Mac's coach instead.
             if (scene.name == "Rehab") coach.AddComponent<CoachVoice>();

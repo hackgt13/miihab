@@ -208,9 +208,16 @@ final class ClubAppDelegate: NSObject, NSApplicationDelegate {
                         Text("Patient").tag("patient");Text("Friend").tag("friend")
                     }.disabled(bridge.running)
                 }
-                HStack {
-                    TextField("Relay Mac (127.0.0.1 for this Mac)",text:$bridge.relayHost)
-                    SecureField("Pairing token (another Mac only)",text:$bridge.pairToken)
+                // Labelled, because a filled field loses its placeholder and the two are easy to swap.
+                Grid(alignment:.leading,horizontalSpacing:10,verticalSpacing:8) {
+                    GridRow {
+                        Text("Relay Mac IP").foregroundStyle(.secondary)
+                        TextField("127.0.0.1 = this Mac",text:$bridge.relayHost)
+                    }
+                    GridRow {
+                        Text("Pairing token").foregroundStyle(.secondary)
+                        SecureField("Only when the relay is another Mac",text:$bridge.pairToken)
+                    }
                 }.textFieldStyle(.roundedBorder).onSubmit { if bridge.monitoring { bridge.start() } }
                 Text(bridge.status).fixedSize(horizontal:false,vertical:true)
                 Text("Reporting AirPod: \(bridge.source)")

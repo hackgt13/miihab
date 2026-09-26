@@ -1,117 +1,62 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements">
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
     <Style src="../Palette.uss" />
+    <Style src="../UI/Base.uss" />
     <Style src="Rehab.uss" />
     <ui:VisualElement name="studio-screen" class="studio-screen" picking-mode="Ignore">
-        <ui:VisualElement class="studio-header">
-            <ui:VisualElement class="brand-mark"><ui:Label text="m" /></ui:VisualElement>
-            <ui:VisualElement class="brand-copy">
-                <ui:Label text="rehabmii" class="brand-name" />
-                <ui:Label text="MOVEMENT STUDIO" class="eyebrow" />
+        <k:KSurface class="exercise-card" density="Comfortable">
+            <k:KEyebrow text="REHABMII / MOVEMENT STUDIO" />
+            <k:KText text="Today we will practice" tone="Soft" class="intro" />
+            <k:KText name="title" text="Shoulder raises" size="Title" />
+            <ui:VisualElement class="exercise-meta">
+                <ui:VisualElement class="side-tag"><k:KTag name="side-label" text="RIGHT ARM" tone="Info" /></ui:VisualElement>
+                <k:KText name="plan" text="8 reps · 85° target" size="Caption" tone="Soft" class="plan" />
             </ui:VisualElement>
-            <ui:VisualElement class="header-space" />
-            <ui:VisualElement name="camera-chip" class="connection-chip">
-                <ui:VisualElement class="connection-dot" />
-                <ui:Label name="camera-status" text="Camera on standby" />
+        </k:KSurface>
+        <k:KChip name="sensor-status" text="Connecting to AirPod…" state="Live" class="sensor-status" />
+        <k:KSurface class="progress-card" density="Compact">
+            <k:KEyebrow text="YOUR SET" />
+            <k:KArc name="rep-ring" form="Segmented" tone="Good" segments="8" class="rep-ring">
+                <k:KReadout name="rep-count" value="0" caption="of 8 reps" size="Large" />
+            </k:KArc>
+            <k:KText name="progress-note" text="One at a time." size="Caption" tone="Soft" class="progress-note" />
+            <ui:VisualElement name="angle-details" class="angle-details hidden">
+                <k:KReadout name="angle-readout" value="—" caption="Target 85°" size="Compact" />
+                <k:KMeter name="angle-meter" form="Bar" class="angle-meter" />
+                <k:KText name="angle-note" text="Raise slowly" size="Caption" tone="Soft" class="angle-note" />
             </ui:VisualElement>
-            <ui:Label text="YOUR DAILY PRACTICE" class="header-note" />
-        </ui:VisualElement>
-        <ui:VisualElement class="exercise-card card">
-            <ui:VisualElement class="section-heading">
-                <ui:Label text="01" class="exercise-number" />
-                <ui:Label text="SEATED MOBILITY" class="eyebrow" />
-            </ui:VisualElement>
-            <ui:Label name="title" text="Shoulder raises" class="exercise-title" />
-            <ui:Label name="side-label" text="RIGHT ARM" class="side-label" />
-            <ui:Label text="Today we will practice&#10;shoulder raises." class="exercise-intro" />
-            <ui:VisualElement class="card-divider" />
-            <ui:ScrollView class="exercise-scroll" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto">
-            <ui:Label text="FIND YOUR RHYTHM" class="eyebrow" />
-            <ui:VisualElement class="instruction-row">
-                <ui:Label text="1" class="step-number" />
-                <ui:VisualElement class="instruction-copy">
-                    <ui:Label text="Sit comfortably" class="step-title" />
-                    <ui:Label text="Keep shoulders and hips in view." class="step-detail" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-            <ui:VisualElement class="instruction-row">
-                <ui:Label text="2" class="step-number" />
-                <ui:VisualElement class="instruction-copy">
-                    <ui:Label text="Reach your target" class="step-title" />
-                    <ui:Label text="Raise your arm, then hold gently." class="step-detail" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-            <ui:VisualElement class="instruction-row">
-                <ui:Label text="3" class="step-number" />
-                <ui:VisualElement class="instruction-copy">
-                    <ui:Label text="Return slowly" class="step-title" />
-                    <ui:Label text="Lower with control. Take your time." class="step-detail" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-            <ui:VisualElement class="plan-inset">
-                <ui:Label text="YOUR PRESCRIBED SET" class="eyebrow" />
-                <ui:Label name="plan" text="8 repetitions · reach 80°" class="plan" />
-            </ui:VisualElement>
-            </ui:ScrollView>
-        </ui:VisualElement>
-        <ui:VisualElement class="progress-card card">
-            <ui:Label text="TODAY'S SET" class="eyebrow" />
-            <ui:VisualElement name="rep-ring" class="rep-ring">
-                <ui:Label name="reps" text="0" class="rep-value" />
-                <ui:Label name="rep-goal" text="of 8 repetitions" class="rep-goal" />
-            </ui:VisualElement>
-            <ui:Label name="progress-note" text="Take your time." class="progress-note" />
-            <ui:VisualElement class="card-divider" />
-            <ui:VisualElement class="angle-heading">
-                <ui:Label text="ARM RAISE" class="eyebrow" />
-                <ui:Label name="target-label" text="Target 80°" class="target-label" />
-            </ui:VisualElement>
-            <ui:Label name="angle" text="—" class="angle-value" />
-            <ui:ProgressBar name="angle-meter" low-value="0" high-value="100" value="0" title="" class="angle-meter" />
-            <ui:Label name="angle-note" text="Your range appears when you begin" class="angle-note" />
-        </ui:VisualElement>
-        <ui:VisualElement class="studio-caption" picking-mode="Ignore">
-            <ui:Label text="THE MOVEMENT STUDIO" class="studio-caption-title" />
-            <ui:Label text="Move at your pace." class="studio-caption-detail" />
-        </ui:VisualElement>
-        <ui:VisualElement name="play-hud" class="play-hud" picking-mode="Ignore">
-            <ui:VisualElement class="hud-chip hud-reps" picking-mode="Ignore">
-                <ui:Label name="hud-reps" text="0/8" class="hud-big" />
-                <ui:Label text="REPS" class="hud-small" />
-            </ui:VisualElement>
-            <ui:VisualElement class="hud-chip hud-angle" picking-mode="Ignore">
-                <ui:Label name="hud-angle" text="—" class="hud-big" />
-                <ui:Label name="hud-target" text="TARGET 85°" class="hud-small" />
-            </ui:VisualElement>
-            <ui:VisualElement name="hud-coach" class="hud-coach hidden" picking-mode="Ignore">
-                <ui:Label text="COACH ALEX" class="hud-small" />
-                <ui:Label name="hud-coach-line" text="" class="hud-coach-line" />
-            </ui:VisualElement>
-        </ui:VisualElement>
-        <ui:VisualElement class="coaching-dock">
-            <ui:VisualElement name="cue-icon" class="cue-icon"><ui:Label name="cue-symbol" text="1" /></ui:VisualElement>
+        </k:KSurface>
+        <k:KSurface name="hud-coach" class="voice-caption hidden" tone="Glass" density="Compact" picking-mode="Ignore">
+            <k:KEyebrow text="ALEX · YOUR COACH" backdrop="Dark" />
+            <k:KText name="hud-coach-line" text="" tone="OnDark" class="voice-line" />
+        </k:KSurface>
+        <k:KSurface name="coaching-dock" class="coaching-dock" density="Compact">
+            <ui:VisualElement class="cue-step"><k:KTag name="cue-step" text="GET READY" tone="Info" /></ui:VisualElement>
             <ui:VisualElement class="coaching-copy">
-                <ui:Label name="cue-title" text="Sit comfortably." class="cue-title" />
-                <ui:Label name="status" text="Rest your arms. Press Start session." class="status" />
+                <k:KText name="cue-title" text="Secure your AirPod." size="Heading" />
+                <k:KText name="status" text="Rest your arm. We’ll begin when you’re ready." tone="Soft" class="status" />
             </ui:VisualElement>
-            <ui:Button name="start" text="Start session  ›" class="start" />
-        </ui:VisualElement>
-        <ui:Label text="Move at your pace." class="footer-note" />
-        <ui:VisualElement name="summary-card" class="summary-overlay hidden">
-            <ui:VisualElement class="summary-card card">
-                <ui:Label text="✓" class="summary-check" />
-                <ui:Label name="summary-title" text="Your set is complete" class="summary-title" />
-                <ui:Label name="summary-subtitle" text="Your session summary." class="summary-subtitle" />
-                <ui:Label name="summary-plan" text="" class="summary-plan" />
-                <ui:Label name="summary-progress" text="" class="summary-progress hidden" />
+            <k:KButton name="start" text="Connecting…" tone="Secondary" size="Medium" class="session-action" />
+        </k:KSurface>
+        <k:KButton name="view-toggle" text="Seated view" tone="Secondary" size="Small" class="view-toggle" />
+        <k:KSurface name="summary-card" tone="Scrim" density="Flush" class="summary-overlay hidden">
+            <k:KSurface class="summary-card">
+                <k:KTag text="SESSION SAVED" tone="Good" class="summary-badge" />
+                <k:KText name="summary-title" text="Your set is complete" size="Title" />
+                <k:KText name="summary-subtitle" text="Your session summary." tone="Soft" class="summary-subtitle" />
+                <k:KText name="summary-plan" text="" size="Caption" tone="Soft" class="summary-plan" />
+                <k:KText name="summary-progress" text="" tone="Success" class="summary-progress hidden" />
                 <ui:VisualElement class="summary-metrics">
-                    <ui:VisualElement class="summary-metric"><ui:Label name="summary-valid" text="—" class="metric-value" /><ui:Label text="COUNTED REPS" class="metric-label" /></ui:VisualElement>
-                    <ui:VisualElement class="summary-metric metric-middle"><ui:Label name="summary-attempted" text="—" class="metric-value" /><ui:Label text="ATTEMPTED" class="metric-label" /></ui:VisualElement>
-                    <ui:VisualElement class="summary-metric"><ui:Label name="summary-peak" text="—" class="metric-value" /><ui:Label text="MEDIAN PEAK" class="metric-label" /></ui:VisualElement>
+                    <k:KReadout name="summary-valid" value="—" caption="Counted reps" class="summary-metric" />
+                    <k:KReadout name="summary-attempted" value="—" caption="Attempts" class="summary-metric" />
+                    <k:KReadout name="summary-peak" value="—" caption="Median peak" class="summary-metric" />
                 </ui:VisualElement>
-                <ui:ScrollView class="summary-notes" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto"><ui:Label name="summary" text="" class="summary-text" /></ui:ScrollView>
-                <ui:Label name="summary-saved" text="Session saved" class="summary-saved" />
-                <ui:VisualElement class="summary-actions"><ui:Button name="summary-menu" text="Choose activity" class="summary-secondary" /><ui:Button name="summary-close" text="Back to studio  ›" class="start summary-button" /></ui:VisualElement>
-            </ui:VisualElement>
-        </ui:VisualElement>
+                <ui:ScrollView class="summary-notes" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto"><k:KText name="summary" text="" size="Caption" tone="Soft" /></ui:ScrollView>
+                <k:KText name="summary-saved" text="Session saved" size="Caption" tone="Soft" class="summary-saved" />
+                <ui:VisualElement class="summary-actions">
+                    <k:KButton name="summary-menu" text="Choose activity" />
+                    <ui:VisualElement class="summary-close"><k:KButton name="summary-close" text="Back to studio" tone="Primary" /></ui:VisualElement>
+                </ui:VisualElement>
+            </k:KSurface>
+        </k:KSurface>
     </ui:VisualElement>
 </ui:UXML>

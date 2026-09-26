@@ -44,7 +44,8 @@ public static class RehabSceneSetup
         chair.transform.localRotation = Quaternion.Euler(0, 180, 0);
         actor.gameObject.AddComponent<Kinesthetic.Golf.MiiIdleLife>(); // blink + breathing, paused while arms are tracked
 
-        RehabStudioBuilder.Build();
+        var studio = AssetDatabase.LoadAssetAtPath<GameObject>(Root + "/Studio/RehabStudio.prefab");
+        if (studio) PrefabUtility.InstantiatePrefab(studio); else RehabStudioBuilder.Build();
         slot.position = Vector3.up * .062f;
         // The patient faces into the room — windows, plants — so first person looks at the studio, with the
         // coach ahead-right and the mirror ahead-left, not at the open side of the set.
@@ -72,22 +73,22 @@ public static class RehabSceneSetup
 
         var camera = new GameObject("Patient view camera").AddComponent<Camera>();
         // Third person from behind the chair (StudioCamera glides it into the patient's eyes during a session).
-        camera.transform.position = new Vector3(-.45f, 2.05f, -3.05f); camera.transform.LookAt(new Vector3(0, .9f, 1.4f));
-        camera.fieldOfView = 40; camera.nearClipPlane = .1f; camera.farClipPlane = 50;
-        camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(.83f, .92f, .91f);
+        camera.transform.position = new Vector3(1.35f, 2.55f, -4.34f); camera.transform.LookAt(new Vector3(0, .9f, 1.4f));
+        camera.fieldOfView = 46; camera.nearClipPlane = .1f; camera.farClipPlane = 50;
+        camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = Palette.Cerulean10;
         camera.tag = "MainCamera";
         camera.gameObject.AddComponent<AudioListener>();
         var light = new GameObject("Key light").AddComponent<Light>();
-        light.type = LightType.Directional; light.intensity = 1.05f; light.color = new Color(1, .97f, .89f);
-        light.shadows = LightShadows.Soft; light.shadowStrength = .25f; light.shadowBias = .03f;
+        light.type = LightType.Directional; light.intensity = 1.05f; light.color = Palette.Sand10;
+        light.shadows = LightShadows.Soft; light.shadowStrength = .38f; light.shadowBias = .03f;
         light.transform.rotation = Quaternion.Euler(42, -145, 0);
         var fill = new GameObject("Soft front fill").AddComponent<Light>();
-        fill.type = LightType.Directional; fill.intensity = .45f; fill.color = new Color(.86f, .94f, 1);
+        fill.type = LightType.Directional; fill.intensity = .6f; fill.color = Palette.Cerulean10;
         fill.transform.rotation = Quaternion.Euler(25, 20, 0);
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(.79f, .85f, .85f);
-        RenderSettings.ambientEquatorColor = new Color(.72f, .77f, .71f);
-        RenderSettings.ambientGroundColor = new Color(.55f, .49f, .39f);
+        RenderSettings.ambientSkyColor = Palette.Sand10 * .7f;
+        RenderSettings.ambientEquatorColor = Palette.Sand30 * .6f;
+        RenderSettings.ambientGroundColor = Palette.Slate70 * .6f;
 
         var ui = new GameObject("Rehab session");
         var panel = AssetDatabase.LoadAssetAtPath<PanelSettings>(Root + "/RehabPanel.asset");
