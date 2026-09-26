@@ -473,13 +473,20 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 
 .tile-prescription { flex-grow: 1; min-height: 0; margin-bottom: 0; }
 .prescription-list { flex-grow: 1; min-height: 0; }
-/* Room between the last word of a row and the scrollbar. Without it the bar sits on the text, and a scroller
-   with nothing either side of it reads as part of the list rather than as its edge. */
-.prescription-list .unity-scroll-view__vertical-scroller { margin-left: 10px; margin-right: 2px; }
-.tile-prescription .task-row { padding: 7px 0; }
+/* The list scrolls but shows no scrollbar: the editor's default scroller is a grey desktop control standing
+   in a sand tile, and the three or four things a plan carries fit without it. A longer plan still scrolls. */
+.prescription-list .unity-scroll-view__vertical-scroller { display: none; }
+/* Rows sit tighter than the board's and top-align, so the bar at the left runs the height of a row that has
+   wrapped. The pill shares the title's line (CoachingPanel.PrescriptionRow), and the dose wraps under both,
+   because a title, a pill and a dose across one line is more than a third of a pane holds. */
+.tile-prescription .task-row { padding: 7px 0; align-items: stretch; }
+.prescription-head { flex-direction: row; align-items: center; justify-content: space-between; }
+.prescription-head .task-title { flex-shrink: 1; min-width: 0; font-size: 21px; overflow: hidden; text-overflow: ellipsis; }
+.prescription-head .task-status { margin-left: 10px; font-size: 13px; padding: 3px 10px; }
+.tile-prescription .task-detail { white-space: normal; font-size: 15px; margin-top: 2px; }
 /* A bar rather than a dot, and cerulean only where something is actually measured: play is prescribed too,
    and marking it with the colour this product uses for "measured" would say it produces numbers. */
-.prescription-mark { width: 4px; height: 38px; border-radius: 2px; background-color: var(--slate-30); margin-right: 14px; flex-shrink: 0; }
+.prescription-mark { width: 4px; border-radius: 2px; background-color: var(--slate-30); margin: 4px 14px 4px 0; flex-shrink: 0; }
 .prescription-mark.measured { background-color: var(--cerulean-50); }
 /* The clinician's own words, once, under what they asked for. The only sentence on the pane. */
 .coaching-note { white-space: normal; margin-top: 9px; flex-shrink: 0; }

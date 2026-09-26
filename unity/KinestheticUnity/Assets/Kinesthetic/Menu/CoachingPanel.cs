@@ -275,9 +275,13 @@ namespace Kinesthetic.Menu
             Paint(root, "envelope-ladder", (ctx, r) => DrawEnvelope(ctx, r, primary));
         }
 
-        /// One prescribed thing, built as the board builds a thing to do: the movement, then its dose and any
-        /// form note on one line under it, then where it is done as a pill on the right. Same .task-row the
-        /// Today tile uses, so a prescription and today's work read as the same kind of object.
+        /// One prescribed thing, built as the board builds a thing to do: the movement with where it is done
+        /// as a pill beside it, then its dose and any form note under both. Same .task-row the Today tile
+        /// uses, so a prescription and today's work read as the same kind of object.
+        ///
+        /// The pill shares the title's line rather than standing at the row's right edge because this column
+        /// is a third of the pane: a title, a pill and a dose across one line ran the dose under the pill and
+        /// clipped it. With the pill up beside the title, the dose gets the row's full width and wraps.
         static VisualElement PrescriptionRow(CoachingPlanModel.Prescription p, bool first)
         {
             var row = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -291,13 +295,17 @@ namespace Kinesthetic.Menu
 
             var copy = new VisualElement { pickingMode = PickingMode.Ignore };
             copy.AddToClassList("task-copy");
-            copy.Add(Styled("task-title", p.movement));
-            // The note joins the dose rather than taking a third line: two lines a row is what keeps four
-            // prescriptions inside the tile instead of inside a scrollbar.
+
+            var head = new VisualElement { pickingMode = PickingMode.Ignore };
+            head.AddToClassList("prescription-head");
+            head.Add(Styled("task-title", p.movement));
+            head.Add(Styled("task-status", p.where));
+            copy.Add(head);
+
+            // The note joins the dose rather than taking a line of its own, and the line wraps: a cue such as
+            // "stop at the line" is what the row is for, and a cue cut off at the tile's edge is no cue.
             copy.Add(Styled("task-detail", string.IsNullOrWhiteSpace(p.note) ? p.Dose : $"{p.Dose} · {p.note}"));
             row.Add(copy);
-
-            row.Add(Styled("task-status", p.where));
             return row;
         }
 
