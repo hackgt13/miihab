@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -36,7 +37,16 @@ namespace Kinesthetic.Shell
             public string title;     // shown in the dots' tooltip, and by anything that narrates
             public Transform pane;
 
-            public Slot(string id, string title, Transform pane) { this.id = id; this.title = title; this.pane = pane; }
+            /// Where this pane stands, in degrees clockwise from the person's facing. NaN means "wherever
+            /// its position in the list puts it", which is what a list of equals wants. Name the angle when
+            /// the layout is part of the design rather than a consequence of ordering — the gallery is 90°
+            /// to the LEFT because that is where it lives, not because it happens to be second.
+            public float yawDegrees;
+
+            public Slot(string id, string title, Transform pane, float yawDegrees = float.NaN)
+            {
+                this.id = id; this.title = title; this.pane = pane; this.yawDegrees = yawDegrees;
+            }
         }
 
         [Tooltip("Degrees between neighbouring slots. 90 keeps every pane a clean quarter-turn away.")]
@@ -164,12 +174,31 @@ namespace Kinesthetic.Shell
             if (announce && slots.Count > 0) { Changed?.Invoke(Current); Settled?.Invoke(Current); }
         }
 
-        void Snap() => ring.localRotation = Quaternion.Euler(0, -index * spacingDegrees, 0);
+        void Snap() => ring.localRotation = Quaternion.Euler(0, -Yaw(index), 0);
+
+        /// A slot's angle: the one it was given, or the one its position implies.
+        float Yaw(int slot)
+        {
+            if (slot < 0 || slot >= slots.Count) return 0;
+            float named = slots[slot].yawDegrees;
+            return float.IsNaN(named) ? slot * spacingDegrees : named;
+        }
+
+        /// Stepping order is the ring's own order — by angle, not by the order Adopt happened to be called
+        /// in. So the right arrow always fetches whatever is standing to the right, whoever adopted it first.
+        int Step(int by)
+        {
+            if (slots.Count == 0) return 0;
+            var order = Enumerable.Range(0, slots.Count)
+                .OrderBy(i => Mathf.Repeat(Yaw(i), 360f)).ToList();
+            int at = order.IndexOf(index);
+            return order[((at + by) % order.Count + order.Count) % order.Count];
+        }
 
         /// Out along the slot's heading, turned to face back down it.
         void Place(int slot)
         {
-            float yaw = slot * spacingDegrees;
+            float yaw = Yaw(slot);
             var heading = Quaternion.Euler(0, yaw, 0);
             var pane = slots[slot].pane;
             pane.SetParent(ring, false);
@@ -186,8 +215,8 @@ namespace Kinesthetic.Shell
             return found >= 0;
         }
 
-        public void Next() => TurnTo(index + 1);
-        public void Previous() => TurnTo(index - 1);
+        public void Next() => TurnTo(Step(1));
+        public void Previous() => TurnTo(Step(-1));
 
         void TurnTo(int wanted)
         {
@@ -199,7 +228,7 @@ namespace Kinesthetic.Shell
             // right". Signed degrees rather than slot arithmetic keeps the wrap honest: slot 3 to slot 0 is
             // +90, not -270.
             float current = ring.localEulerAngles.y;
-            float delta = Mathf.DeltaAngle(current, -target * spacingDegrees);
+            float delta = Mathf.DeltaAngle(current, -Yaw(target));
 
             Leaving?.Invoke(Current);
             from = current;

@@ -140,3 +140,7 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .help-copy { font-size: 18px; white-space: normal; color: var(--slate-50); }
 
 .hidden { display: none; }
+
+/* A pane standing in the ring is the surface itself, so it needs no shade behind it — there is nothing
+   behind it. It only has to fill its panel and centre what it carries. */
+.pane-screen { flex-grow: 1; align-items: center; justify-content: center; }

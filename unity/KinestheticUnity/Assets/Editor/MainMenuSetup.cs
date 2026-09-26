@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using Kinesthetic;
 using Kinesthetic.Menu;
+using Kinesthetic.Shell;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -71,18 +72,45 @@ public static class MainMenuSetup
         // The menu is geometry standing on the plaza, not an overlay painted over it. That is what lets a
         // moving head work at all: a screen-space panel is composited to the backbuffer after the camera
         // renders, so it stays glued to the screen wherever the camera looks, and never reaches a stereo eye.
-        var menu = new GameObject("RehabMii activity menu", typeof(UIDocument), typeof(MainMenuController), typeof(GazeDwell));
-        menu.transform.SetPositionAndRotation(board.position, board.rotation);
-        var menuDoc = menu.GetComponent<UIDocument>(); menuDoc.panelSettings = panel;
-        menuDoc.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;
-        menuDoc.worldSpaceSize = new Vector2(1600, 900);     // panel pixels, not metres; the transform maps them
         // A world-space panel lays its pixels out first and the transform maps them to metres; worldSpaceSize
         // alone does not govern the result. It lays out 100 panel pixels per world unit — confirmed from the
         // collider UIDocument maintains, which comes out 16x9 for a 1600x900 panel — so scale from that to the
         // width the plaza wants. Element rects are in those same units, which is how GazeDwell resolves them.
         const float pixelsPerUnit = 100f, wantedWidth = 3.7f;
-        menu.transform.localScale = Vector3.one * (wantedWidth / (menuDoc.worldSpaceSize.x / pixelsPerUnit));
-        menuDoc.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(Root + "/MainMenu.uxml");
+
+        GameObject Pane(string label, string uxml, bool board_)
+        {
+            var go = board_
+                ? new GameObject(label, typeof(UIDocument), typeof(MainMenuController), typeof(GazeDwell))
+                : new GameObject(label, typeof(UIDocument), typeof(GazeDwell));
+            var d = go.GetComponent<UIDocument>();
+            d.panelSettings = panel;
+            d.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;
+            d.worldSpaceSize = new Vector2(1600, 900);   // panel pixels, not metres; the transform maps them
+            d.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(Root + "/" + uxml);
+            go.transform.localScale = Vector3.one * (wantedWidth / (d.worldSpaceSize.x / pixelsPerUnit));
+            return go;
+        }
+
+        // Three panes standing in a ring around the viewpoint rather than three layers stacked on one board.
+        // The gallery is a quarter-turn to the LEFT and friends a quarter-turn to the RIGHT, named as angles
+        // because that is the design rather than a consequence of the order they were adopted in. Nothing
+        // behind: a seated person should never be asked to turn around, and the ring brings panes to them.
+        var rig = new GameObject("Menu carousel", typeof(PaneCarousel));
+        var carousel = rig.GetComponent<PaneCarousel>();
+        var menu = Pane("RehabMii activity menu", "MainMenu.uxml", true);
+        var gallery = Pane("Activity gallery", "Gallery.uxml", false);
+        var friendsPane = Pane("Friends", "Friends.uxml", false);
+        carousel.Frame(eye.position, board.position);
+        carousel.Adopt(
+            new PaneCarousel.Slot("home", "Today", menu.transform, 0),
+            new PaneCarousel.Slot("gallery", "Activities", gallery.transform, -90),
+            new PaneCarousel.Slot("friends", "Friends", friendsPane.transform, 90));
+
+        // The arrows ride their own panel, wider than the panes and a little further out, so the facing pane
+        // answers the gaze everywhere in front of it and the arrows answer only past its edge.
+        CarouselChrome.Stand(carousel, Panel("CarouselPanel", 1, world: true),
+            AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Kinesthetic/Shell/CarouselChrome.uxml"));
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
         ConfigureMacBuildScenes();
         return "Main menu created. Golf, Movement Studio and Bowling are included; menu is the default launch scene.";
