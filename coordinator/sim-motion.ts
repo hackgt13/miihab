@@ -56,6 +56,7 @@ const { path, type } = CHANNELS[channelArg];
 // real one in the clinical record, which is the one outcome a simulator must never cause.
 const sessionId = `simulated-${randomUUID()}`;
 
+let finished = false;   // declared before the handlers: a close can arrive during the open handshake
 const socket = new WebSocket(`${relay}${path}?role=producer&player=${player}`);
 socket.on('unexpected-response', (_req, res) => {
   console.error(`Relay refused the producer socket (${res.statusCode}). Another producer may hold "${player}" — ` +
@@ -63,7 +64,20 @@ socket.on('unexpected-response', (_req, res) => {
   process.exit(1);
 });
 socket.on('error', error => { console.error(`Cannot reach the relay at ${relay}: ${(error as Error).message}\n` +
-  'Start it with: node golf-relay.ts   (or scripts/start_demo_services.sh)'); process.exit(1); });
+  'Start it with: zsh scripts/start_demo_services.sh from the repo root.'); process.exit(1); });
+// The relay refuses a second producer for the same player, and refuses malformed samples, by closing
+// AFTER the upgrade -- so without this every mode streamed happily into a dead socket and reported
+// success while the engine received nothing. A closed socket is a failure, never a quiet no-op.
+socket.on('close', (code, reason) => {
+  const why = String(reason || '');
+  if (code === 1008 && /already has a motion source/i.test(why))
+    console.error(`\nThe relay already has a motion source for "${player}" — a real AirPod is probably connected.\n` +
+      'Quit the Kinesthetic Motion app (or unpair the AirPod), then run this again.');
+  else if (code === 1008)
+    console.error(`\nThe relay rejected a sample as invalid (${why}). This is a bug in sim-motion.ts, not your setup.`);
+  else if (!finished) console.error(`\nThe relay closed the stream (${code}${why ? ' ' + why : ''}).`);
+  process.exit(finished && code !== 1008 ? 0 : 1);
+});
 await once(socket, 'open');
 
 let sequence = 0, sensorTime = 0;
@@ -213,5 +227,6 @@ if (mode === 'replay') {
 }
 
 // Let the relay flush before the socket drops, or the last samples never reach a viewer.
+finished = true;
 await delay(250);
 socket.close();
