@@ -74,18 +74,9 @@ python3 scripts/fetch_editing_sources.py
 
 This downloads a pinned, checksum-verified archive from this repository's private `team-art-sources-v1` release. It includes the editable/export Mii Blender files, profiles, previews, source notes, supplied Golf Blender file/textures, and optional Wuhu OBJ/MTL/textures. The files are placed in ignored `art/mii/` and `art/course-reference/`. Wuhu is a reference asset and is not the playable course. Existing different files are preserved unless you pass `--overwrite`.
 
-## Optional voice environment
+## Voice
 
-The current demo does not require the local voice weights. For voice experiments on Apple Silicon, install Python 3.12 and `uv`, then:
-
-```bash
-cd coach
-uv sync --frozen
-cd ..
-python3 scripts/fetch_voice_models.py
-```
-
-The downloader retrieves `kokoro-v1.0.onnx` and `voices-v1.0.bin` from the pinned upstream `model-files-v1.0` release, checks SHA-256, and stores them in ignored `coach/models/`. See [coach/README.md](coach/README.md). Voice samples are committed; a finished voice coach/evidence agent is still integration work.
+Voice uses ElevenLabs. No local speech-model download is required.
 
 ## Verify your setup
 
