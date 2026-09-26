@@ -8,8 +8,9 @@ import { shoulderRaise } from './shoulder-raise.ts';
 import { seatedTrunkRotation } from './seated-trunk-rotation.ts';
 import { armElevation, elbowFlexion } from './arm-elevation.ts';
 import { IMU_LIBRARY } from './imu-library.ts';
+import { TWO_IMU } from './two-imu.ts';
 
-export const EXERCISES: readonly ExerciseKind<any>[] = [shoulderRaise, seatedTrunkRotation, armElevation, elbowFlexion, ...IMU_LIBRARY];
+export const EXERCISES: readonly ExerciseKind<any>[] = [shoulderRaise, seatedTrunkRotation, armElevation, elbowFlexion, ...IMU_LIBRARY, ...TWO_IMU];
 // New rehab prescriptions are measured by the AirPod. The camera kinds stay registered so plans and
 // sessions recorded with them still read, but camera measurement is off (see server.ts).
 export const DEFAULT_EXERCISE = armElevation.id;

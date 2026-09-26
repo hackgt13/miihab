@@ -133,7 +133,7 @@ test('server: an IMU prescription reads the patient\'s handle AirPod from the mo
     await post('/exercise/stop');
     // A gallery movement the plan does not prescribe: a practice set at the library defaults, never progressed.
     const brief = await (await fetch(base + '/api/prescription?activityId=movement.neck-flexion')).json();
-    assert.equal(brief.practice, true); assert.equal(brief.label, 'Seated neck flexion'); assert.equal(brief.prescription.params.targetDeg, 30);
+    assert.equal(brief.practice, true); assert.equal(brief.label, 'Chin to chest'); assert.equal(brief.prescription.params.targetDeg, 30);
     const neck = await (await post('/exercise/start', {activityId:'movement.neck-flexion'})).json();
     assert.equal(neck.exerciseKind, 'neck-flexion.v1'); assert.equal(neck.practice, true); assert.equal(neck.config.targetDeg, 30);
     const neckDone = await (await post('/exercise/stop')).json();

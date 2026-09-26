@@ -125,38 +125,54 @@ function feed(events: RepEvent[], sourceSessionId: string | null) {
 // IMU exercises read an AirPod from the motion relay while they run: the club's (Club Motion app, /golf) by default,
 // or a wrist strap's (Bowling Motion app, /bowling-motion) when the prescription says imuSource: 'wrist'. The wrist
 // pair is usually a second pair on another Mac, sending to this relay with the pairing token.
+//
+// A two-AirPod movement (exercise/two-imu.ts) reads both at once, one socket per role: `imu` is the measured limb
+// and steps the engine; `ref` is the neighbouring segment and only keeps its latest sample, which rides along with
+// the next `imu` step. The engine holds the latest of each channel, so there is no fusion here beyond the shared
+// host clock both relays stamp.
 const MOTION_SOURCES = {
   club: {url: process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767/golf?role=viewer', type: 'club.motion'},
   wrist: {url: process.env.KINESTHETIC_WRIST_MOTION_URL ?? 'ws://127.0.0.1:8767/bowling-motion?role=viewer', type: 'bowling.motion'},
 } as const;
 type MotionSource = keyof typeof MOTION_SOURCES;
+type MotionRole = 'imu' | 'ref';
 const motionPlayer = process.env.KINESTHETIC_MOTION_PLAYER ?? 'patient';
-let motion: WebSocket | null = null, motionSource: MotionSource = 'club';
-function watchMotion(source: MotionSource = motionSource) {
-  if (motion && source === motionSource) return;
-  if (motion) { const old = motion; motion = null; old.close(); }
-  motionSource = source;
-  const ws = new WebSocket(MOTION_SOURCES[source].url); motion = ws;
+const feeds: Record<MotionRole, {ws: WebSocket | null; source: MotionSource}> = {imu: {ws: null, source: 'club'}, ref: {ws: null, source: 'wrist'}};
+let lastRef: {sample: ImuSample; hostMs: number} | null = null;
+const motionSource = () => feeds.imu.source;
+function unwatchMotion(role: MotionRole) {
+  const ws = feeds[role].ws; feeds[role].ws = null; ws?.close();
+  if (role === 'ref') lastRef = null;
+}
+function watchMotion(role: MotionRole, source: MotionSource = feeds[role].source) {
+  const feed_ = feeds[role];
+  if (feed_.ws && source === feed_.source) return;
+  unwatchMotion(role);
+  feed_.source = source;
+  const ws = new WebSocket(MOTION_SOURCES[source].url); feed_.ws = ws;
   ws.on('message', data => {
-    if (!exercise?.kind.requires.includes('imu') || motion !== ws) return;
+    if (!exercise?.kind.requires.includes(role) || feed_.ws !== ws) return;
     let p: any; try { p = JSON.parse(String(data)); } catch { return; }
     if (p.type !== MOTION_SOURCES[source].type || p.playerId !== motionPlayer) return;
-    exerciseSource ??= `airpod:${source}:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only
-    exerciseLog?.write(JSON.stringify({type:'motion.sample', exerciseId, payload:p})+'\n');
+    exerciseLog?.write(JSON.stringify({type:'motion.sample', exerciseId, role, payload:p})+'\n');
     // Both relays stamp the shared host clock (hostclock.ts); older relays did not, so fall back to local time.
     const t = Number.isFinite(p.hostMonotonicMs) ? Number(p.hostMonotonicMs) : hostMonotonicMs();
+    const sample: ImuSample = {quaternion: p.quaternion, rotationRate: p.rotationRate, hostMonotonicMs: t};
+    if (role === 'ref') { lastRef = {sample, hostMs: t}; return; }
+    exerciseSource ??= `airpod:${source}:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only
     if (t <= lastImuMs) return;
     // The relay only forwards samples, so a silent stream is seen here: step the engine with no IMU at the
     // moment the gap passed, which is tracking loss, before the sample that ends it.
     if (lastImuMs > -Infinity && t - lastImuMs > exercise.params.trackingGapMs)
       feed(exercise.pushFused({tMs: lastImuMs + exercise.params.trackingGapMs + 1, imu: null}), p.sessionId);
     lastImuMs = t;
-    const imu: ImuSample = {quaternion: p.quaternion, rotationRate: p.rotationRate, hostMonotonicMs: t};
     const pose = lastPose && Math.abs(t - lastPose.hostMs) < 250 ? lastPose.frame : null;
-    feed(exercise.pushFused({tMs: t, imu, pose}), p.sessionId);
+    // A second AirPod that has gone quiet is no second AirPod: the step fails its `ref` channel, which is tracking loss.
+    const ref = lastRef && Math.abs(t - lastRef.hostMs) < exercise.params.trackingGapMs ? lastRef.sample : null;
+    feed(exercise.pushFused({tMs: t, imu: sample, pose, ref}), p.sessionId);
   });
-  // A socket replaced by another source is not reconnected; the current one is, while an IMU exercise runs.
-  ws.on('close', () => { if (motion !== ws) return; motion = null; if (exercise?.kind.requires.includes('imu')) setTimeout(() => watchMotion(), 1000); });
+  // A socket replaced by another source is not reconnected; the current one is, while an exercise reading it runs.
+  ws.on('close', () => { if (feed_.ws !== ws) return; feed_.ws = null; if (exercise?.kind.requires.includes(role)) setTimeout(() => watchMotion(role), 1000); });
   ws.on('error', () => {});
 }
 async function readJson(request: import('node:http').IncomingMessage) {
@@ -230,7 +246,8 @@ const server = createServer(async (request, response) => {
       const x = launched ? launched.prescription : plan.activities.find(a => a.id === body.prescriptionId);
       if (!x?.exerciseKind) throw Error(body.prescriptionId ? `No measured prescription "${body.prescriptionId}" in plan v${plan.version}` : `Plan v${plan.version} prescribes nothing measured`);
       // `exercise` measures this prescription with another kind (e.g. by camera): a development override.
-      const kind = exerciseKind(body.exercise ?? x.exerciseKind);
+      // A movement tile measures with its own kind, which may be a better sensor setup than the plan's for the same movement.
+      const kind = exerciseKind(body.exercise ?? launched?.measureWith ?? x.exerciseKind);
       if (kind.requires.includes('pose') && !cameraMeasurement)
         throw Error(`Camera (MediaPipe) measurement is off; measure "${x.id}" with the AirPod (change "Measured with" in the portal).`);
       await finishExercise();
@@ -246,11 +263,18 @@ const server = createServer(async (request, response) => {
         // The prescription's params tune the qualities the exercise is coached on (holdTargetMs, lowerMs, …).
         {...p, ...body});
       exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; exercisePractice = !!launched?.practice; lastImuMs = -Infinity;
-      if (kind.requires.includes('imu')) watchMotion(p.imuSource === 'wrist' ? 'wrist' : 'club');
+      if (kind.requires.includes('imu')) {
+        // Two AirPods: the limb is the wrist pair and the neighbouring segment the club pair, unless imuSource says otherwise.
+        const twoImu = kind.requires.includes('ref');
+        const limb: MotionSource = p.imuSource === 'wrist' || (twoImu && p.imuSource !== 'club') ? 'wrist' : 'club';
+        watchMotion('imu', limb);
+        if (twoImu) { lastRef = null; watchMotion('ref', limb === 'wrist' ? 'club' : 'wrist'); } else unwatchMotion('ref');
+      }
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
       exerciseStartedAt = new Date().toISOString();
       exerciseLog = createWriteStream(resolve(recordings, `exercise-${exerciseId}.jsonl`));
-      const started = {exerciseId, prescriptionId: x.id, practice: exercisePractice, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', imuSource: kind.requires.includes('imu') ? motionSource : null, config: exercise.params,
+      const started = {exerciseId, prescriptionId: x.id, practice: exercisePractice, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', imuSource: kind.requires.includes('imu') ? motionSource() : null,
+        referenceSource: kind.requires.includes('ref') ? feeds.ref.source : null, config: exercise.params,
         qualities: exercise.qualities.configs};
       exerciseBroadcast({type:'exercise.started', payload: started});
       response.writeHead(200, {'Content-Type':'application/json'}).end(JSON.stringify(started));
@@ -694,7 +718,7 @@ server.listen(port, '127.0.0.1', () => console.log(`Kinesthetic local pose bridg
 // Shutdown must actually terminate (see golf-relay.ts): a peer that vanished without a closing handshake,
 // or the outgoing motion-relay socket, would otherwise keep the process alive.
 function shutdown() {
-  recording?.end(); exercise = null; motion?.terminate();
+  recording?.end(); exercise = null; feeds.imu.ws?.terminate(); feeds.ref.ws?.terminate();
   for (const ws of sockets.clients) ws.terminate(); sockets.close();
   server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 500).unref();
 }

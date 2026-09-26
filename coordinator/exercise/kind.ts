@@ -16,7 +16,8 @@ export type Side = 'left' | 'right';
 export interface Point { x: number; y: number; z: number; visibility?: number }
 export interface Frame { sourceMediaTimeMs: number; imageLandmarks: Point[]; worldLandmarks: Point[] }
 export type Vec = [number, number, number];
-export type ChannelId = 'pose' | 'imu';
+/** 'ref' is a second IMU on the neighbouring segment (the chest under a raised arm, the upper arm above a curl). */
+export type ChannelId = 'pose' | 'imu' | 'ref';
 
 /** A mounted IMU sample, already on the shared host axis (see hostclock.ts). */
 export interface ImuSample {
@@ -37,6 +38,7 @@ export interface ObservationInput {
   tMs: number;                 // step time, on whichever axis the caller drives
   pose?: Frame | null;
   imu?: ImuSample | null;
+  ref?: ImuSample | null;      // the second IMU, when the kind reads one
 }
 
 /** Reasons that mean the same thing for every exercise. A kind names its own compensation reason. */
@@ -168,12 +170,14 @@ export class RepSession<R extends string = string> {
     for (const channel of this.kind.requires) {
       if (channel === 'pose' && !this.poseUsable(input.pose)) return null;
       if (channel === 'imu' && !this.imuUsable(input.imu)) return null;
+      if (channel === 'ref' && !this.imuUsable(input.ref)) return null;
     }
     // A channel the kind does not require may still be present and useful — a wrist exercise reads
     // compensation from pose when the camera can see the patient, and simply does without otherwise.
     const pose = this.poseUsable(input.pose) ? input.pose : null;
     const imu = this.imuUsable(input.imu) ? input.imu : null;
-    return this.kind.observe({ tMs: input.tMs, pose, imu }, this.params, this.reference);
+    const ref = this.imuUsable(input.ref) ? input.ref : null;
+    return this.kind.observe({ tMs: input.tMs, pose, imu, ref }, this.params, this.reference);
   }
 
   private poseUsable(frame: Frame | null | undefined): boolean {

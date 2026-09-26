@@ -339,6 +339,15 @@ namespace Kinesthetic
                 case "thigh": Aim(Bone("thigh" + s), Bone("calf" + s), direction); break;
                 case "shank": Aim(Bone("calf" + s), Bone("foot" + s), direction); break;
                 case "leg": Aim(Bone("thigh" + s), Bone("calf" + s), direction); Aim(Bone("calf" + s), Bone("foot" + s), direction); break;
+                // A squat: both legs, the thigh forward by half the knee angle and the shin back by the other half.
+                case "knees":
+                    foreach (var side in new[] { ".L", ".R" })
+                    {
+                        bool l = side == ".L";
+                        Aim(Bone("thigh" + side), Bone("calf" + side), BodyToWorld(model.At(deg / 2), l));
+                        Aim(Bone("calf" + side), Bone("foot" + side), BodyToWorld(model.At(-deg / 2), l));
+                    }
+                    break;
                 // Aimed like a limb rather than turned from the authored pose, whose neck and spine lean about 12
                 // degrees: the drawn angle has to be the measured one, measured from upright.
                 case "head": Aim(Bone("neck"), Bone("head"), direction); break;
@@ -366,12 +375,14 @@ namespace Kinesthetic
                 "thigh" => (Bone("thigh" + s).position, Span("thigh" + s, "calf" + s)),
                 "shank" => (Bone("calf" + s).position, Span("calf" + s, "foot" + s)),
                 "leg" => (Bone("thigh" + s).position, Span("thigh" + s, "calf" + s, "foot" + s)),
+                "knees" => (Bone("thigh" + s).position, Span("thigh" + s, "calf" + s)),
                 // The head bone sits at the base of the skull; the crown is about as far again.
                 "head" => (Bone("neck").position, Span("neck", "head") * 2.2f),
                 "trunk" => (Bone("spine.001").position, Span("spine.001", "neck")),
                 _ => (Vector3.zero, 0f),
             };
-            direction = BodyToWorld(model.At(deg), left);
+            // A squat's ghost is the thigh, which carries half the knee angle.
+            direction = BodyToWorld(model.At(model.Segment == "knees" ? deg / 2 : deg), left);
             return length > 0;
         }
 

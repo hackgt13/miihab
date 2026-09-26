@@ -92,6 +92,11 @@ export const EXERCISE_MOVEMENT: Readonly<Record<string, string | null>> = {
   'straight-leg-raise.v1': null,
   'hip-abduction.v1': null,
   'seated-march.v1': null,
+  // The one raise fit to compare: the chest AirPod certifies the trunk stayed upright, so the peak is shoulder
+  // elevation rather than shoulder plus lean. Forward is the flexion table.
+  'arm-raise.v1': 'shoulder_flexion',
+  'biceps-curl.v1': null,
+  'squat.v1': null,
 };
 
 export function ageBandFor(years: number): AgeBandId | null {

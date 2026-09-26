@@ -36,7 +36,22 @@ namespace Kinesthetic.Rehab
         // draws a curl as a curl.
         ActivityEntry Modelled => ActivityCatalog.MovementFor(exerciseKind);
         BodyModel Body => Modelled?.Body;
-        string SensorPlacement => Modelled?.CardTag?.Split(' ').LastOrDefault()?.ToLowerInvariant() ?? (wristMotion ? "wrist" : "handle");
+        // Where each tracker is, from the card's tag: "AIRPODS ON WRIST AND CHEST" → ["wrist", "chest"].
+        string[] Placements
+        {
+            get
+            {
+                var tag = Modelled?.CardTag?.ToLowerInvariant();
+                if (tag == null) return new[] { wristMotion ? "wrist" : "handle" };
+                int at = Mathf.Max(tag.LastIndexOf(" on ", StringComparison.Ordinal), tag.LastIndexOf(" in ", StringComparison.Ordinal));
+                var places = at < 0 ? tag : tag.Substring(at + 4);
+                return places.Replace("the ", "").Replace("your ", "").Split(new[] { " and " }, StringSplitOptions.None);
+            }
+        }
+        string SensorPlacement => Placements[0];
+        /// The tracker still missing, so the status line names the one to fix.
+        string MissingPlacement => TwoImu && limb.Fresh && !second.Fresh && Placements.Length > 1 ? Placements[1] : SensorPlacement;
+        string AllPlacements => string.Join(" and ", Placements);
         // A movement tile from the gallery (activities.json group "movement"): this studio measures that one kind, as
         // the plan prescribes it or, when the plan does not, as a practice set at the library's defaults. The
         // coordinator decides which (GET /api/prescription); null when the studio was opened as itself.
@@ -44,10 +59,16 @@ namespace Kinesthetic.Rehab
         string movementLabel, movementPosture;
         bool practice;
         bool autoArmed, servicesStarting;
-        long motionTicks; float stillSince = -1, enteredAt;
-        string motionSession; long motionSequence = -1;
-        bool MotionFresh => LivePoseClient.Fresh(motionTicks);
-        public bool ReadyToBegin => useCameraPose ? Fresh : MotionFresh && stillSince >= 0 && Time.unscaledTime - stillSince >= 1.5f;
+        float enteredAt;
+        // One watch per AirPod pair. A two-AirPod movement (the catalog's requires "ref", coordinator/exercise/two-imu.ts)
+        // needs both live and still before a set may start: the limb is the wrist pair unless the plan pins it to the
+        // club pair, and the neighbouring segment is the other one — the coordinator reads them the same way.
+        readonly MotionWatch limb = new(), second = new();
+        string imuSource;
+        bool TwoImu => Modelled?.Requires.Contains("ref") == true;
+        bool LimbOnWrist => TwoImu ? imuSource != "club" : wristMotion;
+        bool MotionFresh => limb.Fresh && (!TwoImu || second.Fresh);
+        public bool ReadyToBegin => useCameraPose ? Fresh : limb.Still && (!TwoImu || second.Still);
         public bool Calibrated => calibrated;
         public Transform targetOrb, liveMarker;
         public LineRenderer targetBand, armGuide;
@@ -183,20 +204,10 @@ namespace Kinesthetic.Rehab
         {
             if (!useCameraPose)
             {
-                var motion = SensorHub.Instance?.MotionFor(wristMotion ? wristMotionUrl : motionUrl);
-                while (motion != null && motion.Take(out var text, out var ticks))
-                {
-                    ClubMotionPacket packet;
-                    try { packet = JsonUtility.FromJson<ClubMotionPacket>(text); } catch (Exception) { continue; }
-                    if (packet == null || packet.type != (wristMotion ? "bowling.motion" : "club.motion") || packet.playerId != "patient" || !LivePoseClient.Fresh(ticks)) continue;
-                    if (packet.sessionId != motionSession) { motionSession = packet.sessionId; motionSequence = -1; stillSince = -1; }
-                    if (packet.sequence <= motionSequence || packet.rotationRate?.Length != 3 || packet.quaternion?.Length != 4) continue;
-                    motionSequence = packet.sequence; motionTicks = ticks;
-                    float speed = new Vector3(packet.rotationRate[0], packet.rotationRate[1], packet.rotationRate[2]).magnitude;
-                    if (!float.IsFinite(speed) || speed > .35f) stillSince = -1;
-                    else if (stillSince < 0) stillSince = Time.unscaledTime;
-                }
-                if (!MotionFresh || Time.timeScale == 0) stillSince = -1;
+                bool wrist = LimbOnWrist;
+                limb.Read(wrist ? wristMotionUrl : motionUrl, wrist ? "bowling.motion" : "club.motion");
+                if (TwoImu) second.Read(wrist ? motionUrl : wristMotionUrl, wrist ? "club.motion" : "bowling.motion");
+                else second.Reset();
             }
             if (autoArmed && !running && !IsBusy && !sessionError && Time.timeScale > 0 && exercise?.connected == true && ReadyToBegin)
                 StartCoroutine(Begin());
@@ -293,8 +304,9 @@ namespace Kinesthetic.Rehab
             movementLabel = (string)reply["label"] ?? movementLabel;
             movementPosture = (string)reply["posture"];
             var p = x["params"] as JObject;
-            bool nextWrist = (string)p?["imuSource"] == "wrist";
-            if (nextWrist != wristMotion) { wristMotion = nextWrist; motionTicks = 0; motionSequence = -1; motionSession = null; stillSince = -1; }
+            imuSource = (string)p?["imuSource"];
+            bool nextWrist = imuSource == "wrist";
+            if (nextWrist != wristMotion) { wristMotion = nextWrist; limb.Reset(); second.Reset(); }
             side = (string)p?["side"] ?? side;
             targetDeg = Num(p?["targetDeg"]) ?? targetDeg;
             if (Num(p?["targetMaxDeg"]) is float ceiling && ceiling > targetDeg) bandDeg = ceiling - targetDeg;
@@ -347,7 +359,7 @@ namespace Kinesthetic.Rehab
             catch (Exception) { currentExerciseId = null; }
             running = true; calibrated = false; attempted = valid = 0; liveAngle = null;
             liveQuality = null; streak = 0; bestHoldMs = 0; holdMetRep = 0; formNote = "";
-            status = useCameraPose ? "Hold still with your arms relaxed · calibrating" : $"Keep your {SensorPlacement} still · calibrating";
+            status = useCameraPose ? "Hold still with your arms relaxed · calibrating" : $"Keep your {AllPlacements} still · calibrating";
             start.text = "Finish set";
         }
 
@@ -357,8 +369,9 @@ namespace Kinesthetic.Rehab
             var e = plan["exercise"] as JObject; if (e == null) return;
             var prescription = (plan["activities"] as JArray)?.OfType<JObject>().FirstOrDefault(a => !string.IsNullOrEmpty((string)a["exerciseKind"]));
             exerciseKind = (string)prescription?["exerciseKind"] ?? exerciseKind;
-            bool nextWrist = (string)prescription?["params"]?["imuSource"] == "wrist";
-            if (nextWrist != wristMotion) { wristMotion = nextWrist; motionTicks = 0; motionSequence = -1; motionSession = null; stillSince = -1; }
+            imuSource = (string)prescription?["params"]?["imuSource"];
+            bool nextWrist = imuSource == "wrist";
+            if (nextWrist != wristMotion) { wristMotion = nextWrist; limb.Reset(); second.Reset(); }
             planVersion = plan["version"]?.Value<int>() ?? planVersion;
             side = (string)e["side"] ?? side;
             targetDeg = e["targetDeg"]?.Value<float>() ?? targetDeg;
@@ -529,7 +542,7 @@ namespace Kinesthetic.Rehab
             bool over = live && liveAngle.Value > targetDeg + bandDeg;
             sensorStatus.state = sessionError || running && !fresh ? KChip.State.Trouble : fresh ? KChip.State.Good : KChip.State.Live;
             sensorStatus.text = useCameraPose ? (fresh ? "Camera connected" : "Connecting camera…")
-                : fresh ? "AirPod connected" : "Connecting AirPod…";
+                : fresh ? (TwoImu ? "Both AirPods connected" : "AirPod connected") : TwoImu ? "Connecting AirPods…" : "Connecting AirPod…";
             repCount.value = valid.ToString();
             repRing.segments = prescribedReps; repRing.fraction = (float)valid / Mathf.Max(1, prescribedReps);
             progressNote.text = valid >= prescribedReps ? "Set complete" : valid == 0 ? "One at a time." : $"{prescribedReps - valid} to go";
@@ -573,7 +586,7 @@ namespace Kinesthetic.Rehab
                 formNoteLabel.EnableInClassList("hidden", !running || formNote.Length == 0);
             }
             if (!running && !startingSession && !sessionError)
-                statusLabel.text = Cue = summaryReceived ? "Your session is saved." : !fresh ? $"Connect the AirPod on your {SensorPlacement}." : ReadyToBegin ? "Starting automatically…" : $"Keep your {SensorPlacement} still. We’ll begin automatically.";
+                statusLabel.text = Cue = summaryReceived ? "Your session is saved." : !fresh ? $"Connect the AirPod on your {MissingPlacement}." : ReadyToBegin ? "Starting automatically…" : $"Keep your {AllPlacements} still. We’ll begin automatically.";
             start.text = stoppingSession ? "Saving…" : running ? "Finish set" : startingSession ? "Starting…" : summaryReceived ? "Practice again" : sessionError ? "Retry connection" : "Connecting…";
             bool retry = sessionError || (!fresh || exercise?.connected != true) && Time.unscaledTime - enteredAt > 8;
             if (retry && !running && !IsBusy) start.text = "Retry connection";
@@ -675,6 +688,8 @@ namespace Kinesthetic.Rehab
                         status = (string)e["reason"] switch {
                             "did_not_reach_target" => "Almost — reach a little higher and hold",
                             "trunk_compensation" => "Keep your chest facing forward — that one didn't count",
+                            "trunk_lean" => "Keep your chest still — leaning doesn't count",
+                            "upper_arm_swing" => "Keep your elbow at your side — that one didn't count",
                             "tracking_lost" => useCameraPose ? "Tracking paused. Try again." : "AirPod disconnected. Try again.",
                             "too_fast" => "Slow it down and control the movement",
                             _ => "That one didn't count" };
@@ -802,6 +817,33 @@ namespace Kinesthetic.Rehab
             if (showMeasured && liveAngle.Value >= targetDeg) color = Good;
             targetBand.startColor = targetBand.endColor = color;
             targetOrb.GetComponent<Renderer>().material.color = color;
+        }
+
+        /// One AirPod pair's stream from the relay, reduced to what readiness needs: is it live, and has it been still
+        /// long enough to calibrate against. The coordinator scores; this only decides when a set may begin.
+        sealed class MotionWatch
+        {
+            long ticks, sequence = -1; string session; float stillSince = -1;
+            public bool Fresh => LivePoseClient.Fresh(ticks);
+            public bool Still => Fresh && stillSince >= 0 && Time.unscaledTime - stillSince >= 1.5f;
+            public void Reset() { ticks = 0; sequence = -1; session = null; stillSince = -1; }
+            public void Read(string url, string type)
+            {
+                var motion = SensorHub.Instance?.MotionFor(url);
+                while (motion != null && motion.Take(out var text, out var t))
+                {
+                    ClubMotionPacket packet;
+                    try { packet = JsonUtility.FromJson<ClubMotionPacket>(text); } catch (Exception) { continue; }
+                    if (packet == null || packet.type != type || packet.playerId != "patient" || !LivePoseClient.Fresh(t)) continue;
+                    if (packet.sessionId != session) { session = packet.sessionId; sequence = -1; stillSince = -1; }
+                    if (packet.sequence <= sequence || packet.rotationRate?.Length != 3 || packet.quaternion?.Length != 4) continue;
+                    sequence = packet.sequence; ticks = t;
+                    float speed = new Vector3(packet.rotationRate[0], packet.rotationRate[1], packet.rotationRate[2]).magnitude;
+                    if (!float.IsFinite(speed) || speed > .35f) stillSince = -1;
+                    else if (stillSince < 0) stillSince = Time.unscaledTime;
+                }
+                if (!Fresh || Time.timeScale == 0) stillSince = -1;
+            }
         }
 
         void OnDestroy() { exercise?.Dispose(); }   // the hub owns the pose channel

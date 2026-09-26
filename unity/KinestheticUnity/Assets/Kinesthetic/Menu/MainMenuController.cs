@@ -466,11 +466,14 @@ namespace Kinesthetic.Menu
             Line(new(31, 20), new(31, 37));
             Line(new(20, 33), new(31, 24), new(42, 33));
             Line(new(24, 52), new(31, 37), new(38, 52));
+            // One dot for each AirPod the tag names: two for a two-AirPod movement.
             string tag = entry.CardTag ?? "";
-            Vector2 at = tag.Contains("EARS") ? new(37, 14) : tag.Contains("CHEST") ? new(31, 27)
-                : tag.Contains("THIGH") ? new(35, 43) : tag.Contains("ANKLE") ? new(37, 49) : new(42, 33);
+            var mounts = new (string word, Vector2 at)[] {
+                ("EARS", new(37, 14)), ("CHEST", new(31, 27)), ("UPPER ARM", new(37, 28)), ("WRIST", new(42, 33)), ("HANDLE", new(42, 33)),
+                ("THIGH", new(35, 43)), ("SHIN", new(37, 47)), ("ANKLE", new(38, 51)) };
             p.fillColor = Palette.Cerulean40; p.strokeColor = Palette.Sand00; p.lineWidth = 2;
-            p.BeginPath(); p.Arc(at, 5, Angle.Degrees(0), Angle.Degrees(360)); p.Fill(); p.Stroke();
+            foreach (var (word, at) in mounts)
+                if (tag.Contains(word)) { p.BeginPath(); p.Arc(at, 5, Angle.Degrees(0), Angle.Degrees(360)); p.Fill(); p.Stroke(); }
         }
 
         static void DrawBowlingIcon(MeshGenerationContext ctx)

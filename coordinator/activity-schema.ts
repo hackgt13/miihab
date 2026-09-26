@@ -5,7 +5,8 @@ import { EXERCISES } from './exercise/registry.ts';
 import type { BodyModel } from './exercises.ts';
 
 export const CATALOG_SCHEMA = 'kinesthetic.activities.v1';
-export type ChannelId = 'pose' | 'imu';
+/** 'ref': a second AirPod, for a two-IMU movement. */
+export type ChannelId = 'pose' | 'imu' | 'ref';
 /** 'movement': one exercise kind as its own gallery tile, generated from the library (movement-activities.ts). */
 export type ActivityGroup = 'movement';
 
@@ -45,7 +46,7 @@ export interface Activity {
   body: BodyModel | null;
 }
 
-const SEGMENTS = ['arm', 'forearm', 'head', 'trunk', 'thigh', 'shank', 'leg'];
+const SEGMENTS = ['arm', 'forearm', 'head', 'trunk', 'thigh', 'shank', 'leg', 'knees'];
 const HOLDS = ['upperArm', 'forearm', 'thigh', 'shank', 'legs'];
 const isVec = (v: unknown) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite) && v.some(x => x !== 0);
 function parseBody(b: any, where: string): BodyModel | null {
@@ -57,7 +58,7 @@ function parseBody(b: any, where: string): BodyModel | null {
   return { segment: b.segment, rest: b.rest, toward: b.toward, ...(b.roll ? { roll: true } : {}), ...(b.hold ? { hold: b.hold } : {}) };
 }
 
-const CHANNELS: readonly ChannelId[] = ['pose', 'imu'];
+const CHANNELS: readonly ChannelId[] = ['pose', 'imu', 'ref'];
 
 export function parseCatalog(raw: any, source: string): Activity[] {
   if (raw?.schema !== CATALOG_SCHEMA) throw Error(`${source}: schema must be "${CATALOG_SCHEMA}"`);

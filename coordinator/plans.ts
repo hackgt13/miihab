@@ -252,20 +252,23 @@ function upgrade(raw: any): StoredPlan {
 /** A change to one prescription, by id. Params and progression merge over what the plan has. */
 /**
  * What launching an activity measures. A movement tile (movement-activities.ts) runs the plan's prescription for
- * its kind when the plan has one, so the clinician's band still applies; otherwise a practice set at the
- * library's defaults, which is recorded but never progresses the plan. Any other activity runs the plan's
- * first measured prescription, as the studio always has.
+ * its movement when the plan has one, so the clinician's band still applies — measured with the tile's own kind, which
+ * may be the better sensor setup for the same movement (a two-AirPod arm raise for a prescribed one-AirPod raise).
+ * Otherwise a practice set at the library's defaults, recorded but never progressing the plan. Any other activity
+ * runs the plan's first measured prescription, as the studio always has.
  */
-export function prescriptionForActivity(plan: Plan, activity: Activity): { prescription: ActivityPrescription | null; practice: boolean } {
-  if (activity.group !== 'movement') return { prescription: plan.activities.find(a => a.exerciseKind) ?? null, practice: false };
+export function prescriptionForActivity(plan: Plan, activity: Activity):
+  { prescription: ActivityPrescription | null; practice: boolean; measureWith: string | null } {
+  if (activity.group !== 'movement') return { prescription: plan.activities.find(a => a.exerciseKind) ?? null, practice: false, measureWith: null };
   const kind = activity.exerciseKinds[0];
-  const planned = plan.activities.find(a => a.exerciseKind === kind);
-  if (planned) return { prescription: planned, practice: false };
   const x = LIBRARY[kind];
   if (!x) throw Error(`${activity.id} measures "${kind}", which has no library entry to practise it from.`);
+  const planned = plan.activities.find(a => a.exerciseKind === kind)
+    ?? plan.activities.find(a => a.exerciseKind && LIBRARY[a.exerciseKind]?.movement === x.movement);
+  if (planned) return { prescription: planned, practice: false, measureWith: kind };
   const d = x.defaults, ceiling = exerciseKind(kind).limits.targetMaxDeg?.[1] ?? 180;
   return {
-    practice: true,
+    practice: true, measureWith: kind,
     prescription: {
       id: `practice-${kind.replace(/\.v\d+$/, '')}-right`, activityId: activity.id, exerciseKind: kind, order: 0,
       targetCount: d.prescribedReps,

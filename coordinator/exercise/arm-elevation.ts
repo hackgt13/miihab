@@ -27,9 +27,9 @@ export const elbowFlexion = imuTilt({
   measurementNote: 'Elbow flexion from an IMU in the hand (a curl): tilt from the calibrated rest attitude against gravity, valid only while the upper arm stays still at the side. Not a goniometer reading.',
 });
 
-export class ArmElevationSession extends RepSession<'trunk_compensation'> {
+export class ArmElevationSession extends RepSession {
   constructor(params: RepParams) { super(armElevation, params); }
 }
-export class ElbowFlexionSession extends RepSession<'trunk_compensation'> {
+export class ElbowFlexionSession extends RepSession {
   constructor(params: RepParams) { super(elbowFlexion, params); }
 }
