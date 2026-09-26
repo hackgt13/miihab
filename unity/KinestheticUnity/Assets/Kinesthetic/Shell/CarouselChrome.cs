@@ -4,9 +4,9 @@ using UnityEngine.UIElements;
 namespace Kinesthetic.Shell
 {
     /// The two arrows and the row of dots that frame the ring. Lives on its own `UIDocument` rather than
-    /// inside each window, for two reasons: every window would otherwise have to carry a copy of the chrome
-    /// in its own UXML, and — more importantly — chrome that rode the ring would turn away exactly when it
-    /// was needed. This panel does not rotate. It is the one fixed thing in the scene.
+    /// inside each pane, for two reasons: every pane would otherwise have to carry a copy of the chrome in
+    /// its own UXML, and — more importantly — chrome that rode the ring would turn away exactly when it was
+    /// needed. This panel does not rotate. It is the one fixed thing in the scene.
     ///
     /// Gaze reaches it the same way it reaches anything else. `GazeDwell` raycasts from the centre of the
     /// view and takes the first collider it meets, so as long as this panel is wider than the windows and
@@ -15,7 +15,7 @@ namespace Kinesthetic.Shell
     [RequireComponent(typeof(UIDocument))]
     public sealed class CarouselChrome : MonoBehaviour
     {
-        public WindowCarousel carousel;
+        public PaneCarousel carousel;
 
         VisualElement dots;
         Button previous, next;
@@ -42,15 +42,15 @@ namespace Kinesthetic.Shell
             }
 
             dots = root.Q("carousel-dots");
-            if (dots == null || carousel.Windows.Count == 0) return;
-            if (dots.childCount != carousel.Windows.Count)
+            if (dots == null || carousel.Slots.Count == 0) return;
+            if (dots.childCount != carousel.Slots.Count)
             {
                 dots.Clear();
-                foreach (var window in carousel.Windows)
+                foreach (var slot in carousel.Slots)
                 {
-                    var dot = new VisualElement { name = $"dot-{window.id}" };
+                    var dot = new VisualElement { name = $"dot-{slot.id}" };
                     dot.AddToClassList("dot");
-                    dot.tooltip = window.title;
+                    dot.tooltip = slot.title;
                     dots.Add(dot);
                 }
             }
@@ -62,7 +62,7 @@ namespace Kinesthetic.Shell
         {
             if (dots == null) return;
             for (int i = 0; i < dots.childCount; i++)
-                dots[i].EnableInClassList("here", carousel.Current != null && i == carousel.Current.Slot);
+                dots[i].EnableInClassList("here", i == carousel.CurrentIndex);
         }
 
         /// What a dwell commits. Takes the element name `GazeDwell` reports, so the head path and the pointer
