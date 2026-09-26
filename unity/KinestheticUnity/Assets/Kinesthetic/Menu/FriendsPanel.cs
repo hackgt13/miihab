@@ -41,8 +41,9 @@ namespace Kinesthetic.Menu
         [Serializable] class Recap { public string recap; }
 #pragma warning restore 0649
 
-        // Fixed vocabulary. A tap is a whole message, which is the point: on a bad
-        // day, typing is a barrier and a chip is not.
+        // The stored vocabulary, kept for reading rather than sending: a message
+        // already in a thread carries a `kind`, and this is what turns it back into
+        // words. See LabelFor.
         static readonly (string kind, string label)[] Quick =
         {
             ("nice_one", "Nice one"),
@@ -114,7 +115,7 @@ namespace Kinesthetic.Menu
             return element;
         }
 
-        VisualElement root, overlay, facesRow, list, threadView, quickRow, threadFace;
+        VisualElement root, overlay, facesRow, list, threadView, threadFace;
         VisualElement spotlight, spotlightFace;
         Label badge, threadName, threadHint, inviteCode, notice, spotlightName, spotlightLine;
         Button spotlightReply;
@@ -141,7 +142,6 @@ namespace Kinesthetic.Menu
             closeButton = root.Q<Button>("friends-close");
             list = root.Q<ScrollView>("friends-list")?.contentContainer;
             threadView = root.Q<ScrollView>("thread")?.contentContainer;
-            quickRow = root.Q("quick-row");
             threadFace = root.Q("thread-face");
             threadName = root.Q<Label>("thread-name");
             inviteButton = root.Q<Button>("friends-invite");
@@ -187,26 +187,12 @@ namespace Kinesthetic.Menu
             if (tabMessages != null) tabMessages.clicked += () => ShowPage(false);
             if (tabMeet != null) tabMeet.clicked += () => ShowPage(true);
 
-            BuildQuickChips();
             // Mounted only where the tree offers a home for it, so a screen that
             // has not adopted the card is not broken by its absence.
             var introMount = root.Q("introductions");
             if (introMount != null)
                 introductions = new IntroductionsCard(this, introMount, () => StartCoroutine(LoadRoster()), ShowMeetEmpty);
             StartCoroutine(LoadRoster());
-        }
-
-        void BuildQuickChips()
-        {
-            quickRow.Clear();
-            foreach (var (kind, label) in Quick)
-            {
-                var chip = new Button { text = label };
-                chip.AddToClassList("quick-chip");
-                string captured = kind;
-                chip.clicked += () => StartCoroutine(Send(captured));
-                quickRow.Add(chip);
-            }
         }
 
         /// One page at a time. The tabs are KButtons, so the look of the chosen one

@@ -307,21 +307,6 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 
 .thread-empty { font-size: 16px; color: var(--slate-50); -unity-text-align: middle-center; margin-top: 30px; white-space: normal; }
 
-/* One tap is the whole message. Most encouragement should cost nothing. */
-.quick-row { flex-direction: row; flex-wrap: wrap; flex-shrink: 0; margin-top: 10px; }
-.quick-chip {
-    height: 30px;
-    padding: 0 14px;
-    margin-right: 6px;
-    margin-bottom: 6px;
-    border-radius: 15px;
-    border-width: 1px;
-    border-color: var(--slate-50-a32);
-    background-color: var(--sand-00-a95);
-    color: var(--prussian-50);
-    font-size: 15px;
-}
-.quick-chip:hover { background-color: var(--cerulean-10-a95); border-color: var(--cerulean-50); }
 
 .composer { flex-direction: row; align-items: center; flex-shrink: 0; margin-top: 8px; }
 /* Photo and Send sit side by side, so they are one size: Send's. */

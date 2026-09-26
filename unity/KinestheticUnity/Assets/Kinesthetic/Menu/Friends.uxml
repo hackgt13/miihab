@@ -30,7 +30,6 @@
                         <ui:Label name="thread-hint" text="" class="thread-hint" />
                     </ui:VisualElement>
                     <ui:ScrollView name="thread" class="thread" />
-                    <ui:VisualElement name="quick-row" class="quick-row" />
                     <ui:VisualElement class="composer">
                         <ui:TextField name="composer-text" class="composer-text" max-length="240" />
                         <ui:Button name="composer-photo" text="Photo" class="ghost-button" />
