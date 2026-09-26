@@ -1,6 +1,7 @@
 /* KOption: a whole row you press. Paper with a slate edge and a lip, like a KButton laid flat; the
    highlight is jungle because it means something good is in it. Hover and focus are cerulean for every
-   tone, and a press halves the lip, as on KButton. Children are the screen's; this sets none of their paint.
+   tone, and a press halves the lip, as on KButton. Unlike KButton it never grows on hover: options live in
+   scrolling lists, whose viewport clips anything that swells past the row's own box. Children are the screen's; this sets none of their paint.
 
    KMiiTag lives here too: it exists to sit on these rows. */
 
@@ -16,10 +17,10 @@
 .k-option.k-option--highlight { background-color: var(--jungle-10); border-color: var(--jungle-40); border-bottom-color: var(--jungle-50); }
 
 .k-option.k-option--plain:hover, .k-option.k-option--plain:focus, .k-option.k-option--plain.k-hot {
-    background-color: var(--cerulean-10); border-color: var(--cerulean-50); scale: 1.01;
+    background-color: var(--cerulean-10); border-color: var(--cerulean-50);
 }
 .k-option.k-option--highlight:hover, .k-option.k-option--highlight:focus, .k-option.k-option--highlight.k-hot {
-    border-color: var(--cerulean-50); scale: 1.01;
+    border-color: var(--cerulean-50);
 }
 .k-option.k-option--plain:active, .k-option.k-option--plain.k-pressed,
 .k-option.k-option--highlight:active, .k-option.k-option--highlight.k-pressed { border-bottom-width: 2px; scale: 1; }
