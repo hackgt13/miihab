@@ -6,6 +6,11 @@
 // An ExerciseKind contributes only geometry: which landmarks must be trustworthy, and how to
 // turn one frame into a primary angle plus a compensation angle. Adding an exercise must not
 // require editing this file; if it does, the interface is wrong.
+//
+// Rep qualities (quality.ts) ride alongside: they never decide whether a rep counts, only how well
+// it was made, and the engine only tells them when a rep begins, what it measures, and when it ends.
+
+import { QualityTrack, type QualityBinding, type RepVerdict } from './quality.ts';
 
 export type Side = 'left' | 'right';
 export interface Point { x: number; y: number; z: number; visibility?: number }
@@ -87,7 +92,9 @@ export type RepEvent<R extends string = string> =
   | { type: 'rep.started'; tMs: number; rep: number }
   | { type: 'target.reached'; tMs: number; rep: number; angleDeg: number }
   | { type: 'rep.completed'; tMs: number; rep: number; valid: boolean; reason: SharedInvalidReason | R | null;
-      peakDeg: number; durationMs: number; compensationMaxDeg: number; aboveTargetMax: boolean; startMs: number }
+      peakDeg: number; durationMs: number; compensationMaxDeg: number; aboveTargetMax: boolean; startMs: number;
+      // How well it was made (quality.ts), keyed by quality id; score is null for a rep that did not count.
+      quality: Record<string, RepVerdict>; score: number | null; streak: number }
   | { type: 'tracking.lost'; tMs: number; rep: number | null }
   | { type: 'tracking.recovered'; tMs: number };
 
@@ -137,19 +144,23 @@ export class RepSession<R extends string = string> {
   private rep: { start: number; peak: number; compMax: number; heldMs: number; reached: boolean; lost: boolean; lastT: number } | null = null;
   private lastValidT = -Infinity;
   private lost = false;
+  readonly qualities: QualityTrack;
 
   get phase() { return this.state; }
   get currentRep() { return this.state === 'rep' ? this.repCount : null; }
   get calibrated() { return !!this.reference; }
   get calibrationReference() { return this.reference; }
+  /** The qualities' live readouts for the rep in progress (null between reps). */
+  get live() { return this.qualities.current; }
 
-  constructor(kind: ExerciseKind<R>, params: RepParams) {
+  constructor(kind: ExerciseKind<R>, params: RepParams, qualities: QualityBinding[] = []) {
     this.kind = kind;
     if (!Number.isFinite(params.targetDeg) || params.targetDeg <= 0 || params.targetDeg >= 180)
       throw Error('targetDeg must be in (0,180)');
     this.params = { ...BASE_DEFAULTS, ...kind.defaults, ...params } as ResolvedParams;
     if (this.params.restMaxDeg + this.params.hysteresisDeg >= this.params.targetDeg)
       throw Error('targetDeg must exceed the rest band');
+    this.qualities = new QualityTrack(this.params, qualities);
   }
 
   /** Validate every channel the kind declares, then hand the input over. No state change. */
@@ -240,6 +251,7 @@ export class RepSession<R extends string = string> {
       if (a > c.restMaxDeg + c.hysteresisDeg) {
         this.repCount++; this.state = 'rep';
         this.rep = { start: t, peak: a, compMax: comp, heldMs: 0, reached: false, lost: false, lastT: t };
+        this.qualities.begin(this.repCount, t, a);
         emit({ type: 'rep.started', tMs: t, rep: this.repCount });
       }
       return out;
@@ -248,6 +260,7 @@ export class RepSession<R extends string = string> {
     const r = this.rep!;
     const dt = Math.min(t - r.lastT, c.trackingGapMs); r.lastT = t;
     r.peak = Math.max(r.peak, a); r.compMax = Math.max(r.compMax, comp);
+    this.qualities.step(t, a);
     if (a >= c.targetDeg) {
       r.heldMs += dt;
       if (!r.reached && r.heldMs >= c.holdMs) {
@@ -262,8 +275,10 @@ export class RepSession<R extends string = string> {
         : r.compMax > c.maxCompensationDeg ? this.kind.compensationReason
         : durationMs < c.minRepMs ? 'too_fast'
         : null;
+      const judged = this.qualities.finish({ valid: !reason, peakDeg: r.peak, durationMs });
       emit({ type: 'rep.completed', tMs: t, rep: this.repCount, valid: !reason, reason, peakDeg: r.peak, durationMs,
-        compensationMaxDeg: r.compMax, aboveTargetMax: c.targetMaxDeg != null && r.peak > c.targetMaxDeg, startMs: r.start });
+        compensationMaxDeg: r.compMax, aboveTargetMax: c.targetMaxDeg != null && r.peak > c.targetMaxDeg, startMs: r.start,
+        quality: judged.quality, score: judged.score, streak: judged.streak });
       this.rep = null; this.state = 'rest';
     }
     return out;
@@ -307,7 +322,9 @@ export class RepSession<R extends string = string> {
       reps: reps.map(r => ({ rep: r.rep, startMs: r.startMs, endMs: r.tMs, valid: r.valid, reason: r.reason,
         peakDeg: Math.round(r.peakDeg * 10) / 10,
         compensationMaxDeg: Math.round(r.compensationMaxDeg * 10) / 10,
-        durationMs: r.durationMs, aboveTargetMax: r.aboveTargetMax })),
+        durationMs: r.durationMs, aboveTargetMax: r.aboveTargetMax, quality: r.quality, score: r.score })),
+      // How well the counted reps were made, per quality (quality.ts). Never affects `valid`.
+      quality: this.qualities.summary(),
       measurementNote: this.kind.measurementNote,
     } as Record<string, unknown>;
   }

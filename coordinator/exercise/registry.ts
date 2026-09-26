@@ -3,11 +3,13 @@
 // Registering an exercise is one import and one array entry.
 
 import { RepSession, type ExerciseKind, type RepParams } from './kind.ts';
+import { bindQualities } from './quality.ts';
 import { shoulderRaise } from './shoulder-raise.ts';
 import { seatedTrunkRotation } from './seated-trunk-rotation.ts';
 import { armElevation, elbowFlexion } from './arm-elevation.ts';
+import { IMU_LIBRARY } from './imu-library.ts';
 
-export const EXERCISES: readonly ExerciseKind<any>[] = [shoulderRaise, seatedTrunkRotation, armElevation, elbowFlexion];
+export const EXERCISES: readonly ExerciseKind<any>[] = [shoulderRaise, seatedTrunkRotation, armElevation, elbowFlexion, ...IMU_LIBRARY];
 // New rehab prescriptions are measured by the AirPod. The camera kinds stay registered so plans and
 // sessions recorded with them still read, but camera measurement is off (see server.ts).
 export const DEFAULT_EXERCISE = armElevation.id;
@@ -23,9 +25,15 @@ export function exerciseKind(id: string | undefined | null): ExerciseKind<any> {
 export function exerciseKindForPlanType(type: string | undefined | null): ExerciseKind<any> {
   return exerciseKind(LEGACY_PLAN_TYPE[String(type)] ?? type ?? DEFAULT_EXERCISE);
 }
-export function createSession(id: string | undefined | null, params: RepParams) {
-  return new RepSession(exerciseKind(id), params);
+/**
+ * A measured session, judged on the exercise's rep qualities. `qualityParams` are the prescription's
+ * params: any that name a quality config key (holdTargetMs, lowerMs, …) tune that quality.
+ */
+export function createSession(id: string | undefined | null, params: RepParams, qualityParams: Record<string, unknown> = {}) {
+  const kind = exerciseKind(id);
+  return new RepSession(kind, params, bindQualities(kind.id, qualityParams));
 }
 
 export { RepSession } from './kind.ts';
 export type { ExerciseKind, RepParams } from './kind.ts';
+export { QUALITIES, bindQualities, qualityIdsFor, qualityLimits } from './quality.ts';

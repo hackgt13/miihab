@@ -72,6 +72,26 @@ export const EXERCISE_MOVEMENT: Readonly<Record<string, string | null>> = {
   // shoulder norms, so there is no age-banded table to compare against and inventing one would
   // repeat the mistake this file warns about. Explicitly none until an elbow table is gathered.
   'elbow-flexion.v1': null,
+  'shoulder-abduction.v1': 'shoulder_abduction',
+  // ER norms are taken in abduction, which is the 90/90 position this exercise requires.
+  'shoulder-external-rotation.v1': 'shoulder_external_rotation',
+  // Scaption sits between the flexion and abduction tables and matches neither; a hold is prescribed
+  // below the patient's range, so its peak is not a range-of-motion measurement at all.
+  'scaption.v1': null,
+  'arm-hold.v1': null,
+  // Same reason as elbow flexion: form-reference-data.md surveyed shoulder norms only. No neck, trunk,
+  // forearm, hip or knee table has been gathered, so none is compared.
+  'neck-flexion.v1': null,
+  'neck-extension.v1': null,
+  'neck-lateral-flexion.v1': null,
+  'forearm-rotation.v1': null,
+  'trunk-flexion.v1': null,
+  'trunk-lateral-flexion.v1': null,
+  'trunk-extension.v1': null,
+  'knee-extension.v1': null,
+  'straight-leg-raise.v1': null,
+  'hip-abduction.v1': null,
+  'seated-march.v1': null,
 };
 
 export function ageBandFor(years: number): AgeBandId | null {

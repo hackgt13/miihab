@@ -13,6 +13,7 @@
             <k:KText name="summary-subtitle" text="Your session summary." tone="Soft" class="summary-subtitle" />
             <k:KText name="summary-plan" text="" size="Caption" tone="Soft" class="summary-plan" />
             <k:KText name="summary-progress" text="" tone="Success" class="summary-progress hidden" />
+            <k:KText name="summary-form" text="" size="Caption" tone="Soft" class="summary-form hidden" />
             <ui:VisualElement class="summary-metrics">
                 <k:KReadout name="summary-valid" value="—" caption="Counted reps" class="summary-metric" />
                 <k:KReadout name="summary-attempted" value="—" caption="Attempts" class="summary-metric" />

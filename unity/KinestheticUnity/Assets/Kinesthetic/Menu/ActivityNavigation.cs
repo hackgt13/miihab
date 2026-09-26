@@ -144,6 +144,14 @@ namespace Kinesthetic.Menu
             if (!Application.CanStreamedLevelBeLoaded(entry.Scene)) { ShowUnavailable(); return; }
             PlaySelect(); StartCoroutine(Load(entry.Scene, entry.Venue));
         }
+        /// Straight back to the menu, no confirmation: for an activity whose own screen already asked (the
+        /// therapist visit's "Got it!"). A running activity still finishes its session first, as through
+        /// the dialog.
+        public void ReturnToMenuNow()
+        {
+            if (Busy || menuActive || !supported || !Bind()) return;
+            StartCoroutine(ReturnToMenu());
+        }
         public void OpenReturn()
         {
             if (Busy || menuActive || !supported || !Bind()) return;

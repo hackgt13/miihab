@@ -42,7 +42,7 @@ namespace Kinesthetic.Visit
         string saying = ""; float said;     // the balloon: the current line and how much of it is out
         bool writing, writeSkip, finished;
         int boundGeneration = -1;
-        KButton boundSkip, boundReplay, boundSend;
+        KButton boundSkip, boundReplay, boundSend, boundDone, boundRelayDone;
         readonly HashSet<KButton> boundQuick = new();
         KField boundField;
         bool sending;
@@ -89,7 +89,7 @@ namespace Kinesthetic.Visit
             if (reload || script == null) { Status("Your therapist is getting ready…"); yield return Load(); }
             written = new float[script.Updates.Length];
             finished = false; saying = ""; said = 0;
-            BuildRows(); Render();
+            BuildRows(); Render(); Show(Dock.Talking);
             Status(script.Live ? $"{script.TherapistName} is going over your program." : "Your program couldn't be reached on this Mac.");
 
             int revealed = 0;
@@ -115,8 +115,8 @@ namespace Kinesthetic.Visit
             }
             else
             {
-                saying = ""; Render();
-                Status("That's everything for today. Hear it again, or head back to the menu when you're ready.");
+                saying = ""; Render(); Show(Dock.Answered);
+                Status("That's everything for today.");
             }
             running = null;
         }
@@ -136,14 +136,34 @@ namespace Kinesthetic.Visit
                 button.EnableInClassList("hidden", offered == null);
                 if (offered != null) button.text = offered.Label;
             }
-            relay.RemoveFromClassList("hidden");
+            Show(Dock.Asking);
             // A world-space field is never clicked into, so it takes the keyboard as soon as it appears.
             var field = boards.Q<KField>("relay-text");
             if (field != null) { field.value = ""; field.Focus(); }
-            Status("Pick one, or type a message and press Enter.");
         }
 
         void CloseRelay() { boards?.Q("relay")?.AddToClassList("hidden"); }
+
+        enum Dock { Talking, Asking, Answered }
+
+        /// The dock shows what can be done now and nothing else: Next and Hear it again while Alex talks; the
+        /// relay, with Got it! for nothing to add, once the board is done; Got it! alone after an answer.
+        void Show(Dock state)
+        {
+            if (!boards) return;
+            boards.Q("dock-controls")?.EnableInClassList("hidden", state == Dock.Asking);
+            boards.Q("relay")?.EnableInClassList("hidden", state != Dock.Asking);
+            boards.Q<KButton>("visit-skip")?.EnableInClassList("hidden", state != Dock.Talking);
+            boards.Q<KButton>("visit-replay")?.EnableInClassList("hidden", state != Dock.Talking);
+            boards.Q<KButton>("visit-done")?.EnableInClassList("hidden", state != Dock.Answered);
+        }
+
+        /// Got it!: the visit is over. Back through the shell, which knows how to leave any activity.
+        void Done()
+        {
+            var navigation = Kinesthetic.Menu.ActivityNavigation.Instance;
+            if (navigation) navigation.ReturnToMenuNow();
+        }
 
         void Relay(string kind, string text)
         {
@@ -155,7 +175,6 @@ namespace Kinesthetic.Visit
         IEnumerator SendReply(string kind, string text)
         {
             sending = true;
-            Status("Sending…");
             var body = new JObject { ["kind"] = kind, ["text"] = text ?? "", ["planVersion"] = script.PlanVersion }.ToString();
             using var request = new UnityWebRequest(ReplyUrl, UnityWebRequest.kHttpVerbPOST)
             {
@@ -172,11 +191,12 @@ namespace Kinesthetic.Visit
             if (answer == null)
             {
                 // Nothing was relayed, so the therapist does not pretend it was.
-                Status("That didn't send: the coordinator on this Mac isn't answering. Try again in a moment.");
+                var prompt = boards.Q<Label>("relay-prompt");
+                if (prompt != null) prompt.text = "THAT DIDN'T SEND: THE COORDINATOR ON THIS MAC ISN'T ANSWERING. TRY AGAIN.";
                 yield break;
             }
-            CloseRelay();
-            Status("Sent to your care team. Head back to the menu whenever you're ready.");
+            Show(Dock.Answered);
+            Status("Sent to your care team.");
             var line = new VisitScript.Line { Id = "acknowledgement", Text = answer };
             saying = answer; said = 0; Render();
             yield return voice.Say(line, p => { said = p; Render(); });
@@ -252,6 +272,10 @@ namespace Kinesthetic.Visit
             }
             var field = boards.Q<KField>("relay-text");
             var send = boards.Q<KButton>("relay-send");
+            var done = boards.Q<KButton>("visit-done");
+            if (done != null && done != boundDone) { done.clicked += Done; boundDone = done; }
+            var relayDone = boards.Q<KButton>("relay-done");
+            if (relayDone != null && relayDone != boundRelayDone) { relayDone.clicked += Done; boundRelayDone = relayDone; }
             if (send != null && send != boundSend) { send.clicked += () => Relay("message", boards.Q<KField>("relay-text")?.value); boundSend = send; }
             if (field != null && field != boundField)
             {

@@ -17,7 +17,7 @@
 // coach — keep working while they move over. That view is computed, never persisted.
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { exerciseKind, exerciseKindForPlanType, DEFAULT_EXERCISE } from './exercise/registry.ts';
+import { exerciseKind, exerciseKindForPlanType, bindQualities, qualityLimits, DEFAULT_EXERCISE } from './exercise/registry.ts';
 import { requireActivity } from './activities.ts';
 import { LIBRARY } from './exercises.ts';
 
@@ -115,7 +115,8 @@ export const SEED_PLAN: Omit<StoredPlan, 'approvedAt'> = {
 
 function limitsOf(exerciseKindId: string | null): Readonly<Record<string, readonly [number, number]>> {
   if (!exerciseKindId) return UNMEASURED_LIMITS;
-  return { ...exerciseKind(exerciseKindId).limits, ...LIBRARY[exerciseKindId]?.limits };
+  // A quality's config keys (holdTargetMs, lowerMs, …) are prescribable like any other param.
+  return { ...exerciseKind(exerciseKindId).limits, ...LIBRARY[exerciseKindId]?.limits, ...qualityLimits(exerciseKindId) };
 }
 
 function bounded(key: string, value: unknown, limits: Readonly<Record<string, readonly [number, number]>>) {
@@ -189,6 +190,10 @@ function normaliseActivity(input: any, order: number): ActivityPrescription {
     const target = Number(params.targetDeg);
     params.targetMaxDeg ??= Math.min(limits.targetMaxDeg?.[1] ?? 180, target + (catalog?.defaults.ceilingMarginDeg ?? 15));
     if (Number(params.targetMaxDeg) <= target) throw Error(`${id}: the safe ceiling (targetMaxDeg) must be above the target.`);
+    // What the set is judged on beyond the count — the hold, the tempo — is written into the prescription
+    // too, so the studio can read it out before the set and the record says what was asked.
+    for (const binding of bindQualities(kindId, params))
+      for (const [key, value] of Object.entries(binding.config)) params[key] ??= value;
     progression = progressionOf(input?.progression, target, kindId, id);
   }
   return {

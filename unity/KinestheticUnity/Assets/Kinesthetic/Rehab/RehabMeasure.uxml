@@ -11,6 +11,12 @@
                 <k:KReadout name="rep-count" value="0" caption="of 8 reps" size="Large" />
             </k:KArc>
             <k:KText name="progress-note" text="One at a time." size="Caption" tone="Soft" class="progress-note" />
+            <!-- Form: the streak of reps made well, the best hold so far, and the last rep's verdict in words. -->
+            <ui:VisualElement name="form-row" class="form-row hidden">
+                <k:KReadout name="streak" value="0" caption="in a row" size="Compact" class="form-metric" />
+                <k:KReadout name="best-hold" value="—" caption="best hold" size="Compact" class="form-metric" />
+            </ui:VisualElement>
+            <k:KText name="form-note" text="" size="Caption" tone="Soft" class="form-note hidden" />
             <ui:VisualElement name="angle-details" class="angle-details hidden">
                 <k:KReadout name="angle-readout" value="—" caption="Target 85°" size="Compact" />
                 <k:KMeter name="angle-meter" form="Bar" class="angle-meter" />

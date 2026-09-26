@@ -10,7 +10,13 @@
             <k:KButton name="view-toggle" text="Seated view" tone="Ghost" size="Small" class="view-toggle" />
         </ui:VisualElement>
         <k:KSurface name="coaching-dock" class="coaching-dock" density="Compact">
-            <ui:VisualElement class="cue-step"><k:KTag name="cue-step" text="GET READY" tone="Info" /></ui:VisualElement>
+            <!-- The step, and under it the hold timer: a ring that fills while the arm stays in the band. -->
+            <ui:VisualElement class="cue-step">
+                <k:KTag name="cue-step" text="GET READY" tone="Info" />
+                <k:KArc name="hold-ring" form="Continuous" tone="Progress" class="hold-ring hidden">
+                    <k:KReadout name="hold-readout" value="0.0" caption="s" size="Compact" />
+                </k:KArc>
+            </ui:VisualElement>
             <ui:VisualElement class="coaching-copy">
                 <k:KText name="cue-title" text="Secure your AirPod." size="Heading" />
                 <k:KText name="status" text="Rest your arm. We’ll begin when you’re ready." tone="Soft" class="status" />

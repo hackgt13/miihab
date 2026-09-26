@@ -5,6 +5,8 @@
 //
 //   Synthesise a clean set of reps (deterministic, for checking rep counting and validity):
 //     node sim-motion.ts reps [count] [--peak 52] [--channel club|wrist] [--short] [--fast]
+//   …and the rep qualities' feedback (a short hold, a dropped arm, a hitch, a tiring set):
+//     node sim-motion.ts reps 8 --hold 500 | --lower 600 | --hitch | --fade 3
 //
 //   Drive it by hand from the keyboard (arrow keys raise and lower, space swings):
 //     node sim-motion.ts hand [--channel club|wrist]
@@ -118,8 +120,12 @@ if (mode === 'replay') {
   const reps = Number(argv[1]) || 8;
   const peak = flag('peak', has('short') ? 30 : 52);   // --short lands inside the rest band: invalid reps
   const hz = 50, dt = 1 / hz;
-  const riseMs = has('fast') ? 250 : 900;              // --fast trips the minRepMs floor
-  const holdMs = 600, restMs = 900;
+  const riseMs = has('fast') ? 250 : flag('raise', 2000);   // --fast trips the minRepMs floor
+  // The rep qualities (exercise/quality.ts) judge the pause at the top and the lowering; the defaults here
+  // meet them (2s hold, 3s down). --hold 500 fails the hold, --lower 600 is a dropped arm, --hitch catches
+  // and bounces on the way down, --fade shrinks each peak so the set reads as fatigue.
+  const holdMs = flag('hold', 2000), lowerMs = flag('lower', 3000), restMs = 900;
+  const fade = has('fade') ? flag('fade', 2) : 0;
 
   const at = (deg: number, rateRadS: number) => {
     const t = (deg * Math.PI) / 180 / 2;
@@ -140,9 +146,11 @@ if (mode === 'replay') {
   await still(0, 2000);
   for (let rep = 1; rep <= reps; rep++) {
     process.stdout.write(`\r  rep ${rep} of ${reps}`);
-    await ramp(0, peak, riseMs);
-    await still(peak, holdMs);
-    await ramp(peak, 0, riseMs);
+    const top = peak - fade * (rep - 1);
+    await ramp(0, top, riseMs);
+    await still(top, holdMs);
+    if (has('hitch')) { await ramp(top, top * .55, lowerMs * .4); await ramp(top * .55, top * .7, 200); await ramp(top * .7, 0, lowerMs * .6); }
+    else await ramp(top, 0, lowerMs);
     await still(0, restMs);
   }
   console.log('\n  done.');
@@ -222,6 +230,7 @@ if (mode === 'replay') {
 } else {
   console.error('Usage:\n  node sim-motion.ts replay <recording.jsonl> [--speed N] [--loop]\n' +
     '  node sim-motion.ts reps [count] [--peak 52] [--channel club|wrist] [--short] [--fast]\n' +
+    '                          [--raise 2000] [--hold 2000] [--lower 3000] [--hitch] [--fade [deg]]\n' +
     '  node sim-motion.ts hand [--channel club|wrist]');
   process.exit(2);
 }

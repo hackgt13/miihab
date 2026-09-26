@@ -14,7 +14,22 @@
         "shoulder-raise.v1",
         "trunk-rotation.v1",
         "arm-elevation.v1",
-        "elbow-flexion.v1"
+        "elbow-flexion.v1",
+        "neck-flexion.v1",
+        "neck-extension.v1",
+        "neck-lateral-flexion.v1",
+        "shoulder-abduction.v1",
+        "scaption.v1",
+        "arm-hold.v1",
+        "forearm-rotation.v1",
+        "shoulder-external-rotation.v1",
+        "trunk-flexion.v1",
+        "trunk-lateral-flexion.v1",
+        "trunk-extension.v1",
+        "knee-extension.v1",
+        "straight-leg-raise.v1",
+        "hip-abduction.v1",
+        "seated-march.v1"
       ],
       "requires": [
         "imu"

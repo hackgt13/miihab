@@ -115,7 +115,8 @@ function exerciseBroadcast(message: any) {
 function feed(events: RepEvent[], sourceSessionId: string | null) {
   if (!exercise) return;
   const sample = exercise.samples.at(-1);
-  if (sample) exerciseBroadcast({type:'exercise.sample', payload:{...sample, phase:exercise.phase, rep:exercise.currentRep}});
+  // `quality` is the rep qualities' live readout (hold timer, tempo pace, hitches) while a rep runs; null between reps.
+  if (sample) exerciseBroadcast({type:'exercise.sample', payload:{...sample, phase:exercise.phase, rep:exercise.currentRep, quality:exercise.live}});
   for (const event of events) { exerciseBroadcast({type:'exercise.event', payload:event}); exerciseLog?.write(JSON.stringify({type:'exercise.event', exerciseId, sourceSessionId, payload:event})+'\n'); }
 }
 // IMU exercises read an AirPod from the motion relay while they run: the club's (Club Motion app, /golf) by default,
@@ -235,13 +236,16 @@ const server = createServer(async (request, response) => {
         prescribedReps: Number(body.prescribedReps ?? x.targetCount),
         holdMs: Number(body.holdMs ?? p.holdMs ?? 400),
         ...(compensation != null ? {maxCompensationDeg: Number(compensation)} : {}),
-        planVersion: plan.version});
+        planVersion: plan.version},
+        // The prescription's params tune the qualities the exercise is coached on (holdTargetMs, lowerMs, …).
+        {...p, ...body});
       exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; lastImuMs = -Infinity;
       if (kind.requires.includes('imu')) watchMotion(p.imuSource === 'wrist' ? 'wrist' : 'club');
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
       exerciseStartedAt = new Date().toISOString();
       exerciseLog = createWriteStream(resolve(recordings, `exercise-${exerciseId}.jsonl`));
-      const started = {exerciseId, prescriptionId: x.id, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', imuSource: kind.requires.includes('imu') ? motionSource : null, config: exercise.params};
+      const started = {exerciseId, prescriptionId: x.id, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', imuSource: kind.requires.includes('imu') ? motionSource : null, config: exercise.params,
+        qualities: exercise.qualities.configs};
       exerciseBroadcast({type:'exercise.started', payload: started});
       response.writeHead(200, {'Content-Type':'application/json'}).end(JSON.stringify(started));
     } catch (error) { response.writeHead(400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }

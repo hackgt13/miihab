@@ -1,5 +1,6 @@
 using System;
 using Kinesthetic.Shell;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Kinesthetic.UI.Boards
@@ -56,6 +57,13 @@ namespace Kinesthetic.UI.Boards
         /// How long after the room appears before the sheet is offered.
         const long BeatMilliseconds = 260;
 
+        /// Unity's own Ignore Raycast layer. A board on it is still drawn and no longer raycast, which is
+        /// exactly the state a dismissed sheet's board wants. Resolved on use, never in an initialiser:
+        /// this class is built from a MonoBehaviour's field initialiser, where NameToLayer throws.
+        static int Untouchable => LayerMask.NameToLayer("Ignore Raycast");
+
+        GameObject board;
+        int boardLayer;
         VisualElement host, lineBox, noteBox;
         KSheet sheet;
         KEyebrow eyebrow, noteFrom;
@@ -71,16 +79,31 @@ namespace Kinesthetic.UI.Boards
 
         /// Mount into `host`, building the sheet the first time and after any rebuild of the board's tree.
         /// Idempotent: calling it every frame from a venue's bind is the intended use.
-        public bool Bind(VisualElement host, Action onBegin)
+        /// `board` is the object the host stands on, and may be null. A briefing board is nearer the eye
+        /// than anything else in the room, and a ray stops at the nearest collider — so while the sheet is
+        /// down its board would silently eat every press meant for the boards behind it.
+        public bool Bind(VisualElement host, GameObject board, Action onBegin)
         {
             began = onBegin;
             if (host == null) return false;
+            if (!ReferenceEquals(this.board, board))
+            {
+                this.board = board;
+                boardLayer = board ? board.layer : 0;
+            }
             if (ReferenceEquals(this.host, host) && sheet != null && sheet.panel != null) return true;
             this.host = host;
             Build();
             if (described) Fill();
-            if (Dismissed) sheet.Hide(); else HandOverWhenVisible();
+            if (Dismissed) { sheet.Hide(); Reachable(false); } else HandOverWhenVisible();
             return true;
+        }
+
+        /// Whether the board answers a ray at all. Its own layer is remembered rather than assumed, so a
+        /// venue that puts its boards on a layer of its own gets that layer back.
+        void Reachable(bool yes)
+        {
+            if (board) board.layer = yes ? boardLayer : Untouchable;
         }
 
         /// Say what the activity is. Safe to call whenever the numbers change — a plan arriving from the
@@ -98,6 +121,7 @@ namespace Kinesthetic.UI.Boards
         {
             Dismissed = true;
             waiting?.Pause(); waiting = null;
+            Reachable(false);   // the exit still plays; it just stops standing in the way while it does
             sheet?.Dismiss();
         }
 
@@ -128,7 +152,7 @@ namespace Kinesthetic.UI.Boards
 
         void HandOverAfterABeat()
         {
-            waiting = sheet.schedule.Execute(() => sheet.Present());
+            waiting = sheet.schedule.Execute(() => { Reachable(true); sheet.Present(); });
             waiting.ExecuteLater(BeatMilliseconds);
         }
 

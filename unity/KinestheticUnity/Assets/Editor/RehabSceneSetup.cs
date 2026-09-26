@@ -33,7 +33,7 @@ public static class RehabSceneSetup
         new("Dock board",    "rehab.dock",    Root + "/RehabDock.uxml",    Stations.Dock,           new Vector2(.80f, .34f)),
         new("Focus board",   "rehab.focus",   Root + "/RehabFocus.uxml",   Stations.Focus,          new Vector2(.92f, .68f)),
         new("Measure board", "rehab.measure", Root + "/RehabMeasure.uxml", Stations.Measure,        new Vector2(.48f, .60f)),
-        new("Brief board",   "rehab.brief",   Root + "/RehabBrief.uxml",   Stations.Reading,        new Vector2(.40f, .46f)),
+        new("Brief board",   "rehab.brief",   Root + "/RehabBrief.uxml",   Stations.Reading,        new Vector2(.216f, .279f)),
     };
 
     /// Refuse to touch scenes while the editor is playing or any open scene has unsaved work. Saving a

@@ -202,8 +202,8 @@ public static class MenuPlazaBuilder
         Box("East wall", pavilion, new(w / 2, h / 2 + .18f, 0), new(.28f, h, d), stucco);
         Box("Front wall lower", pavilion, new(-2.55f, h / 2 + .18f, -d / 2), new(2.1f, h, .28f), stucco);
         Box("Front wall east", pavilion, new(2.2f, h / 2 + .18f, -d / 2), new(2.8f, h, .28f), stucco);
-        Box("Front header", pavilion, new(-.35f, 2.86f, -d / 2), new(2.5f, .96f, .28f), stucco);
-        Doorway(pavilion, "studio", -.35f, .18f, -d / 2, .28f, 2.3f, stucco);
+        Box("Front header", pavilion, new(-.35f, 2.86f, -d / 2), new(2.5f, .96f, .28f), stucco);   // underside at 2.38
+        Doorway(pavilion, "studio", -.35f, .18f, -d / 2, .28f, 2.3f, stucco, jambHeight: 2.38f - .18f);
 
         var window = Group("Front window", pavilion); window.localPosition = new(2.2f, 1.72f, -d / 2 - .02f);
         Box("Window shade", window, new(0, 0, .12f), new(1.7f, 1.34f, .12f), Material("Window interior", "8CA8AE"));
@@ -265,8 +265,10 @@ public static class MenuPlazaBuilder
     // of the vestibule rather than in the walker's face. The vestibule is a shade-painted box a little wider
     // than the leaf and 1.2 m deep, closed on every side but the doorway: once a head is inside it, the view
     // is dark everywhere except behind, and HeadFade finishes the job. Stop is where the walker rests.
+    // `jambHeight` is the building's header underside above `floorY`: the jambs stop exactly there, so
+    // jamb and header never share a front face to fight over.
     static void Doorway(Transform building, string venue, float x, float floorY, float wallZ, float wallThickness, float opening, Material wall,
-                        float width = 1.5f, float height = 2.12f, float depth = 1.2f)
+                        float jambHeight, float width = 1.5f, float height = 2.12f, float depth = 1.2f)
     {
         float front = wallZ - wallThickness / 2;            // the wall's outer face
         var doorway = Group("Doorway " + venue, building); doorway.localPosition = new(x, floorY, front);
@@ -274,8 +276,9 @@ public static class MenuPlazaBuilder
         float jamb = (opening - w - .2f) / 2;
         if (jamb > .01f)
             for (int i = -1; i <= 1; i += 2)
-                Box("Jamb " + (i < 0 ? "west" : "east"), doorway, new(i * (w / 2 + .1f + jamb / 2), (h + .3f) / 2, wallThickness / 2), new(jamb, h + .3f, wallThickness), wall);
-        Box("Vestibule floor", doorway, new(0, -.02f, depth / 2), new(w + .2f, .04f, depth), shadeDark);
+                Box("Jamb " + (i < 0 ? "west" : "east"), doorway, new(i * (w / 2 + .1f + jamb / 2), jambHeight / 2, wallThickness / 2), new(jamb, jambHeight, wallThickness), wall);
+        // A threshold slightly proud of the plinth: a slab flush with it z-fights along its whole length.
+        Box("Vestibule floor", doorway, new(0, .005f, depth / 2), new(w + .2f, .05f, depth), shadeDark);
         Box("Vestibule ceiling", doorway, new(0, h + .05f, depth / 2), new(w + .2f, .1f, depth), shadeDark);
         Box("Vestibule back", doorway, new(0, h / 2, depth + .05f), new(w + .2f, h + .2f, .1f), shadeDark);
         Box("Vestibule west", doorway, new(-w / 2 - .05f, h / 2, depth / 2), new(.1f, h + .2f, depth), shadeDark);
@@ -303,11 +306,13 @@ public static class MenuPlazaBuilder
         Box("East wall", hut, new(w / 2, h / 2 + .18f, 0), new(.26f, h, d), wall);
         Box("Front wall west", hut, new(-(opening + side) / 2, h / 2 + .18f, -d / 2), new(side, h, .26f), wall);
         Box("Front wall east", hut, new((opening + side) / 2, h / 2 + .18f, -d / 2), new(side, h, .26f), wall);
-        Box("Front header", hut, new(0, .18f + (door + .24f + h) / 2, -d / 2), new(opening, h - door - .24f, .26f), wall);
+        // The header's underside meets the corridor ceiling's top, so nothing shows through above it.
+        float lintel = .18f + door + .2f, top = h + .18f;
+        Box("Front header", hut, new(0, (lintel + top) / 2, -d / 2), new(opening, top - lintel, .26f), wall);
         Roof("Hut roof", hut, new(0, h + .18f, 0), w + 1.2f, d + 1.2f, 1.1f, 1f, terracotta);
         Box("Hut fascia", hut, new(0, h + .24f, -(d + 1.2f) / 2), new(w + 1.3f, .14f, .12f), trim);
         WallText("Hut sign", hut, sign, new(0, h + .18f - .16f, -d / 2 - .15f), .04f, signColor);
-        Doorway(hut, venue, 0, .18f, -d / 2, .26f, opening, wall, height: door);
+        Doorway(hut, venue, 0, .18f, -d / 2, .26f, opening, wall, jambHeight: door + .2f, height: door);
     }
 
     // ---------------------------------------------------------------- props

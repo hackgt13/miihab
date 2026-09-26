@@ -92,7 +92,7 @@
                                 <ui:Label name="prescription-note" text="" class="tile-note accent" />
                             </ui:VisualElement>
                             <ui:ScrollView name="prescription-list" class="prescription-list"
-                                           horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" />
+                                           horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Hidden" />
                             <ui:Label name="coaching-note" text="" class="task-detail coaching-note" picking-mode="Ignore" />
                         </ui:VisualElement>
 

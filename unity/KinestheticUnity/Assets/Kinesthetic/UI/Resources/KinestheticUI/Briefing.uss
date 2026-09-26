@@ -1,11 +1,12 @@
 /* The briefing sheet: a form, read once. Narrower than the board it stands on, because a document has a
    measure and a board does not, and ruled between its lines so the dose reads as a prescription rather
    than as a row of statistics. */
+/* The sheet is the page: it fills the board, which is cut to the size of real paper, so what you are
+   handed is a sheet rather than a card floating on one. */
 .k-briefing {
-    max-width: 620px;
-    align-self: center;
-    flex-grow: 0;
+    flex-grow: 1;
     flex-shrink: 1;
+    align-self: stretch;
 }
 
 .k-briefing .hidden { display: none; }
@@ -37,4 +38,5 @@
 }
 .k-briefing__note-from { margin-bottom: 4px; }
 
-.k-briefing__action { margin-top: 20px; align-self: flex-end; }
+/* At the foot of the page, where a form is signed: margin-top auto takes whatever the page has left. */
+.k-briefing__action { margin-top: auto; align-self: flex-end; }
