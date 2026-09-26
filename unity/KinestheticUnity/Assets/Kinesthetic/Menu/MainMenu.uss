@@ -47,3 +47,240 @@ Button.activity-card:active { border-color: #1688be; background-color: #eaf8ff; 
 .help-copy { font-size: 16px; white-space: normal; color: #5d7e90; }
 .help-close { align-self: flex-end; margin-top: 28px; font-size: 17px; }
 .hidden { display: none; }
+
+/* ---- Friends -------------------------------------------------------------
+   Same cool palette as the activity cards (#268cbe accents, #5d7e90 secondary
+   text, 12-28px radii). No red and no counts of missed days: this surface has
+   to feel welcoming on the days someone has not shown up. */
+
+.utility-left { flex-direction: row; align-items: center; }
+
+.friends-button {
+    flex-direction: row;
+    align-items: center;
+    height: 36px;
+    padding: 0 14px 0 8px;
+    margin-right: 18px;
+    border-radius: 18px;
+    border-width: 1px;
+    border-color: rgba(38, 140, 190, 0.22);
+    background-color: rgba(255, 255, 255, 0.72);
+    transition-property: background-color, border-color;
+    transition-duration: 0.14s;
+}
+.friends-button:hover { background-color: rgb(255, 255, 255); border-color: rgba(38, 140, 190, 0.45); }
+.friends-button:focus { border-color: #319acb; }
+.friends-faces { flex-direction: row; align-items: center; height: 26px; margin-right: 8px; }
+.friends-label { font-size: 14px; color: #3d657a; -unity-font-style: bold; }
+
+/* A gentle count of who is waiting, never a red alert. */
+.friends-badge {
+    margin-left: 8px;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    background-color: #53b7e4;
+    color: rgb(255, 255, 255);
+    font-size: 12px;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+}
+.friends-badge.hidden { display: none; }
+
+/* Stacked Mii faces, overlapping like an avatar group. */
+.friend-face {
+    width: 26px;
+    height: 26px;
+    border-radius: 13px;
+    margin-right: -8px;
+    border-width: 2px;
+    border-color: rgb(255, 255, 255);
+}
+
+.friends-overlay {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(17, 47, 63, 0.34);
+}
+.friends-overlay.hidden { display: none; }
+
+.friends-panel {
+    width: 860px;
+    height: 560px;
+    border-radius: 28px;
+    background-color: rgb(255, 255, 255);
+    padding: 26px 28px 24px;
+}
+.friends-header { flex-direction: row; justify-content: space-between; align-items: flex-start; }
+.friends-heading { flex-direction: column; }
+.friends-title { font-size: 26px; color: #2b566b; -unity-font-style: bold; }
+.friends-subtitle { font-size: 13px; color: #7895a5; margin-top: 2px; }
+.panel-close { min-width: 92px; font-size: 13px; }
+
+.friends-body { flex-direction: row; flex-grow: 1; margin-top: 18px; }
+
+.friends-list-pane { width: 268px; margin-right: 22px; }
+.friends-list { flex-grow: 1; }
+
+.friend-row {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+    padding: 9px 10px;
+    margin-bottom: 6px;
+    border-radius: 14px;
+    background-color: rgba(236, 245, 250, 0.7);
+}
+.friend-row:hover { background-color: rgb(228, 241, 248); }
+.friend-row.selected { background-color: rgba(38, 140, 190, 0.14); }
+.friend-row-face { width: 34px; height: 34px; border-radius: 17px; margin-right: 10px; }
+.friend-row-copy { flex-grow: 1; flex-shrink: 1; flex-direction: column; overflow: hidden; margin-right: 8px; }
+.friend-row-name { font-size: 14px; color: #3d657a; -unity-font-style: bold; overflow: hidden; text-overflow: ellipsis; }
+.friend-row-meta { font-size: 11px; color: #8397a2; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; }
+.friend-row-dot { width: 8px; height: 8px; border-radius: 4px; background-color: #53b7e4; margin-left: 6px; }
+.friend-row-dot.hidden { display: none; }
+
+.follow-pill {
+    flex-shrink: 0;
+    min-width: 76px;
+    height: 26px;
+    font-size: 11px;
+    border-radius: 13px;
+    border-width: 1px;
+    border-color: rgba(38, 140, 190, 0.35);
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #3386b6;
+}
+.follow-pill.following { background-color: #268cbe; color: rgb(255, 255, 255); border-color: #268cbe; }
+
+.invite-block { margin-top: 12px; }
+.ghost-button {
+    height: 32px;
+    font-size: 12px;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: rgba(38, 140, 190, 0.3);
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #3386b6;
+}
+.invite-code {
+    font-size: 20px;
+    color: #268cbe;
+    -unity-font-style: bold;
+    letter-spacing: 4px;
+    -unity-text-align: middle-center;
+    margin-top: 8px;
+}
+.invite-code.hidden { display: none; }
+.code-row { flex-direction: row; align-items: center; margin-top: 8px; }
+.code-field { flex-grow: 1; margin-right: 6px; height: 32px; font-size: 13px; }
+.friends-notice { font-size: 11px; color: #8397a2; margin-top: 6px; white-space: normal; }
+
+.thread-pane { flex-grow: 1; flex-direction: column; }
+.thread-head { flex-direction: row; align-items: center; margin-bottom: 10px; }
+.thread-face { width: 30px; height: 30px; border-radius: 15px; margin-right: 10px; }
+.thread-name { font-size: 17px; color: #3d657a; -unity-font-style: bold; }
+.thread { flex-grow: 1; border-radius: 18px; background-color: rgba(236, 245, 250, 0.55); padding: 12px; }
+
+/* Messages read as speech, so they are asymmetric: mine tinted, theirs white. */
+.bubble { max-width: 74%; border-radius: 16px; padding: 9px 13px; margin-bottom: 8px; }
+.bubble-mine { align-self: flex-end; background-color: #268cbe; }
+.bubble-theirs { align-self: flex-start; background-color: rgb(255, 255, 255); }
+.bubble-text { font-size: 13px; white-space: normal; }
+.bubble-mine .bubble-text { color: rgb(255, 255, 255); }
+.bubble-theirs .bubble-text { color: #3d657a; }
+.bubble-kind { font-size: 13px; -unity-font-style: bold; }
+.bubble-mine .bubble-kind { color: rgb(255, 255, 255); }
+.bubble-theirs .bubble-kind { color: #268cbe; }
+.bubble-photo { width: 190px; height: 128px; border-radius: 12px; margin-top: 6px; }
+.bubble-time { font-size: 10px; margin-top: 3px; }
+.bubble-mine .bubble-time { color: rgba(255, 255, 255, 0.72); }
+.bubble-theirs .bubble-time { color: #a8bcc6; }
+
+.thread-empty { font-size: 13px; color: #8397a2; -unity-text-align: middle-center; margin-top: 30px; white-space: normal; }
+
+/* One tap is the whole message. Most encouragement should cost nothing. */
+.quick-row { flex-direction: row; flex-wrap: wrap; margin-top: 10px; }
+.quick-chip {
+    height: 30px;
+    padding: 0 14px;
+    margin-right: 6px;
+    margin-bottom: 6px;
+    border-radius: 15px;
+    border-width: 1px;
+    border-color: rgba(38, 140, 190, 0.28);
+    background-color: rgba(255, 255, 255, 0.95);
+    color: #3386b6;
+    font-size: 12px;
+}
+.quick-chip:hover { background-color: rgb(226, 241, 249); border-color: #53b7e4; }
+
+.composer { flex-direction: row; align-items: center; margin-top: 8px; }
+.composer-text { flex-grow: 1; height: 36px; font-size: 13px; margin-right: 6px; }
+.send-button {
+    min-width: 84px;
+    height: 36px;
+    margin-left: 6px;
+    border-radius: 18px;
+    background-color: #268cbe;
+    color: rgb(255, 255, 255);
+    font-size: 13px;
+    -unity-font-style: bold;
+    border-width: 0;
+}
+.send-button:hover { background-color: #319acb; }
+
+
+/* ---- Spotlight: one friend, on the landing page ---------------------------
+   Shows a message a friend actually sent. When there is none it states the
+   friendship rather than inventing a quote — putting words in a real person's
+   mouth would be a betrayal of someone at a low point. */
+.friend-spotlight {
+    position: absolute;
+    right: 46px;
+    bottom: 38px;
+    flex-direction: row;
+    align-items: center;
+    max-width: 420px;
+    padding: 12px 16px 12px 12px;
+    border-radius: 26px;
+    background-color: rgba(255, 255, 255, 0.94);
+    border-width: 1px;
+    border-color: rgba(38, 140, 190, 0.18);
+}
+.friend-spotlight.hidden { display: none; }
+.spotlight-face { width: 52px; height: 52px; border-radius: 26px; margin-right: 12px; flex-shrink: 0; }
+.spotlight-copy { flex-direction: column; flex-grow: 1; flex-shrink: 1; overflow: hidden; }
+.spotlight-name { font-size: 13px; color: #268cbe; -unity-font-style: bold; }
+.spotlight-line { font-size: 14px; color: #3d657a; white-space: normal; margin-top: 1px; }
+.spotlight-reply {
+    flex-shrink: 0;
+    height: 30px;
+    margin-left: 12px;
+    padding: 0 14px;
+    border-radius: 15px;
+    border-width: 1px;
+    border-color: rgba(38, 140, 190, 0.3);
+    background-color: rgba(255, 255, 255, 0.95);
+    color: #3386b6;
+    font-size: 12px;
+}
+.spotlight-reply:hover { background-color: rgb(226, 241, 249); border-color: #53b7e4; }
+
+.thread-hint { font-size: 12px; color: #8397a2; margin-left: 10px; }
+
+/* A per-row Message button, so sending is never hidden behind selection. */
+.message-pill {
+    flex-shrink: 0;
+    min-width: 74px;
+    height: 26px;
+    margin-left: 6px;
+    font-size: 11px;
+    border-radius: 13px;
+    border-width: 0;
+    background-color: rgba(38, 140, 190, 0.12);
+    color: #268cbe;
+}
+.message-pill:hover { background-color: rgba(38, 140, 190, 0.22); }

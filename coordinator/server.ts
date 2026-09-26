@@ -7,6 +7,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { writeFile, readdir, readFile } from 'node:fs/promises';
 import { PlanStore } from './plans.ts';
+import { FriendStore } from './friends.ts';
+import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
 import { ShoulderRaiseSession, type ExerciseConfig } from './measurement.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -15,6 +17,23 @@ const recordings = resolve(process.env.KINESTHETIC_RECORDINGS_DIRECTORY ?? resol
 mkdirSync(recordings, { recursive: true });
 const port = Number(process.env.KINESTHETIC_PORT ?? 8766);
 const plans = new PlanStore(resolve(process.env.KINESTHETIC_PLANS_DIRECTORY ?? resolve(root, 'local-data/plans')));
+const socialDir = resolve(process.env.KINESTHETIC_SOCIAL_DIRECTORY ?? resolve(root, 'local-data/social'));
+const friends = new FriendStore(socialDir);
+const messages = new MessageStore(socialDir);
+
+/// Reads a bounded request body. Photos are the only binary upload here.
+function readBytes(request: import('node:http').IncomingMessage, limit: number): Promise<Buffer> {
+  return new Promise((done, fail) => {
+    const chunks: Buffer[] = []; let size = 0;
+    request.on('data', chunk => {
+      size += chunk.length;
+      if (size > limit) { fail(Object.assign(new Error('Photo is larger than 4 MB'), {status:413})); request.destroy(); return; }
+      chunks.push(chunk);
+    });
+    request.on('end', () => done(Buffer.concat(chunks)));
+    request.on('error', fail);
+  });
+}
 const portalRoot = resolve(root, 'coordinator/portal');
 const historyFixture = resolve(root, 'coordinator/fixtures/history.json');
 const allowedOrigins = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:8765', 'http://127.0.0.1:8765']);
@@ -89,6 +108,13 @@ const server = createServer(async (request, response) => {
     } catch (error) { response.writeHead(400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }
     return;
   }
+  // Photos are served as bytes, so this sits ahead of the JSON API block.
+  if (request.method === 'GET' && url.pathname.startsWith('/api/friends/photo/')) {
+    const photo = messages.photo(decodeURIComponent(url.pathname.slice('/api/friends/photo/'.length)));
+    if (!photo) { response.writeHead(404).end(); return; }
+    response.writeHead(200, {'Content-Type':photo.contentType,'Cache-Control':'private, max-age=86400'}).end(photo.bytes);
+    return;
+  }
   if (url.pathname.startsWith('/api/')) {
     if (request.headers.origin && !allowedOrigins.has(request.headers.origin)) { response.writeHead(403).end(); return; }
     const json = (status: number, value: unknown) => response.writeHead(status, {'Content-Type':'application/json','Cache-Control':'no-store'}).end(JSON.stringify(value));
@@ -97,6 +123,47 @@ const server = createServer(async (request, response) => {
       if (request.method === 'GET' && url.pathname === '/api/plans/active') return json(200, plans.active());
       if (request.method === 'POST' && url.pathname === '/api/plans') return json(201, plans.approve(await readJson(request)));
       if (request.method === 'GET' && url.pathname === '/api/history') return json(200, JSON.parse(await readFile(historyFixture, 'utf8')));
+      if (url.pathname.startsWith('/api/friends')) {
+        const me = friends.me().id;
+        if (request.method === 'GET' && url.pathname === '/api/friends') {
+          const people = friends.list();
+          const unread = messages.unread(me, people.map(p => p.id));
+          return json(200, {
+            me: friends.me(),
+            encouragements: ENCOURAGEMENTS,
+            friends: people.map(p => ({...p, unread: unread[p.id] ?? 0})),
+          });
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/name')
+          return json(200, friends.setName((await readJson(request) as {displayName?:string}).displayName ?? ''));
+        if (request.method === 'POST' && url.pathname === '/api/friends/invite')
+          return json(201, {code: friends.invite()});
+        if (request.method === 'POST' && url.pathname === '/api/friends/accept') {
+          const body = await readJson(request) as {code?:string; displayName?:string};
+          return json(201, friends.accept(body.code ?? '', body.displayName));
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/follow') {
+          const body = await readJson(request) as {id?:string; following?:boolean};
+          friends.follow(body.id ?? '', body.following !== false);
+          return json(200, {ok:true});
+        }
+        if (request.method === 'GET' && url.pathname === '/api/friends/thread') {
+          const other = url.searchParams.get('id') ?? '';
+          if (!friends.has(other)) return json(404, {error:'Unknown person'});
+          messages.markSeen(me, other);
+          return json(200, {person: friends.person(other), messages: messages.thread(me, other)});
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/message') {
+          const body = await readJson(request) as {to?:string; kind?:string; text?:string; photoId?:string};
+          if (!friends.has(body.to ?? '')) return json(404, {error:'Unknown person'});
+          return json(201, messages.send(me, body.to!, body));
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/photo') {
+          const bytes = await readBytes(request, 4 * 1024 * 1024);
+          return json(201, {photoId: messages.savePhoto(bytes, String(request.headers['content-type'] ?? ''))});
+        }
+        return json(404, {error:'Not found'});
+      }
       if (request.method === 'GET' && url.pathname === '/api/sessions') {
         const files = (await readdir(recordings)).filter(f => /^exercise-.*\.summary\.json$/.test(f));
         const sessions = await Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));

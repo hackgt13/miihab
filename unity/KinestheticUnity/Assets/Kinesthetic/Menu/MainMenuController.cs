@@ -48,6 +48,9 @@ namespace Kinesthetic.Menu
             var backdrop = root.Q("backdrop");
             backdrop.generateVisualContent += c => DrawBackdrop(c, backdrop.contentRect);
             backdrop.schedule.Execute(backdrop.MarkDirtyRepaint).Every(40);
+            // Added at runtime so the generated menu scene needs no change.
+            var friends = GetComponent<FriendsPanel>() ?? gameObject.AddComponent<FriendsPanel>();
+            friends.Attach(root, navigation);
             root.schedule.Execute(() => cards[selected].Focus());
         }
 
