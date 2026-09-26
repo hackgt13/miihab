@@ -1,7 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:Style src="MainMenu.uss" />
     <ui:VisualElement name="menu-screen" class="menu-screen">
-        <ui:VisualElement name="backdrop" class="backdrop" picking-mode="Ignore" />
         <ui:VisualElement class="menu-content">
             <ui:VisualElement class="utility-row">
                 <ui:Label text="A LITTLE MOVEMENT. A LOT OF POSSIBILITY." class="welcome" />
@@ -17,9 +16,7 @@
             </ui:VisualElement>
             <ui:VisualElement class="activities">
                 <ui:Button name="golf-card" class="activity-card golf-card selected" tooltip="Play adaptive golf">
-                    <ui:VisualElement class="activity-preview golf-preview" picking-mode="Ignore">
-                        <ui:Label text="PLAY TOGETHER" class="preview-tag" picking-mode="Ignore" />
-                    </ui:VisualElement>
+                    <ui:Label text="PLAY TOGETHER" class="preview-tag" picking-mode="Ignore" />
                     <ui:VisualElement class="card-info" picking-mode="Ignore">
                         <ui:VisualElement name="golf-icon" class="mode-icon" picking-mode="Ignore" />
                         <ui:VisualElement class="card-copy" picking-mode="Ignore">
@@ -30,9 +27,7 @@
                     </ui:VisualElement>
                 </ui:Button>
                 <ui:Button name="studio-card" class="activity-card" tooltip="Open the Movement Studio">
-                    <ui:VisualElement class="activity-preview studio-preview" picking-mode="Ignore">
-                        <ui:Label text="YOUR DAILY PRACTICE" class="preview-tag" picking-mode="Ignore" />
-                    </ui:VisualElement>
+                    <ui:Label text="YOUR DAILY PRACTICE" class="preview-tag" picking-mode="Ignore" />
                     <ui:VisualElement class="card-info" picking-mode="Ignore">
                         <ui:VisualElement name="studio-icon" class="mode-icon" picking-mode="Ignore" />
                         <ui:VisualElement class="card-copy" picking-mode="Ignore">
