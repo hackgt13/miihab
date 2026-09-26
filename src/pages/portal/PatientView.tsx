@@ -3,6 +3,7 @@ import { useParams } from '@tanstack/react-router'
 import { getPatientData } from '../../data/seed'
 import { evaluateTrigger, computeNextSession } from '../../data/rules'
 import { useSessionSocket } from '../../hooks/useSessionSocket'
+import { useLatestSession } from '../../hooks/useLatestSession'
 import { LiveReadings } from '../../ui/LiveReadings'
 import { SessionTrendChart } from '../../ui/SessionTrendChart'
 import type { PatientStatus } from '../../data/types'
@@ -44,7 +45,7 @@ const GOALS: Record<string, { short: string; shortTarget: string; long: string; 
 
 const PRECAUTIONS: Record<string, string[]> = {
   'marcus-r': [
-    'Monitor trunk deviation — stop if > 10° sustained',
+    'Monitor trunk deviation: stop if > 10° sustained',
     'No overhead lifting outside supervised sessions',
     'Skin integrity check required prior to each session',
   ],
@@ -59,7 +60,7 @@ const PRECAUTIONS: Record<string, string[]> = {
     'Report locking or giving-way immediately',
   ],
   'elena-v': [
-    'Fall precaution — balance tasks near support surface only',
+    'Fall precaution: balance tasks near support surface only',
     'Notify caregiver of session schedule',
     'Monitor medication timing relative to session start',
   ],
@@ -136,7 +137,8 @@ const RIGHT_TABS = ['Overview', 'Goals', 'RTM']
 export function PatientView() {
   const { patientId } = useParams({ from: '/portal/$patientId' })
   const data = getPatientData(patientId)
-  const { status: wsStatus } = useSessionSocket({ url: 'ws://localhost:8766', enabled: true })
+  const { status: wsStatus } = useSessionSocket({ url: 'ws://localhost:8766', enabled: false })
+  const { override } = useLatestSession(patientId, 10_000)  // re-fetch every 10 s
   const [activeTab, setActiveTab] = useState('Summary')
   const [rightTab, setRightTab]   = useState('Overview')
 
@@ -231,8 +233,7 @@ export function PatientView() {
             <span className={`text-[10px] font-semibold px-2 py-[2px] rounded-[2px] ${badge.cls}`}>
               {badge.label}
             </span>
-            <span className={`flex items-center gap-1 text-[10px] ${isLive ? 'text-[#166534]' : 'text-[#92400E]'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-[#4ADE80] animate-pulse' : 'bg-[#FBB040]'}`} />
+            <span className={`text-[10px] px-1.5 py-[2px] rounded-[2px] font-medium ${isLive ? 'bg-[#D1FAE5] text-[#166534]' : 'bg-[#FEF3C7] text-[#92400E]'}`}>
               {isLive ? 'Live' : 'Replay'}
             </span>
           </div>
@@ -308,7 +309,7 @@ export function PatientView() {
 
           {/* Live VR readings */}
           <SectionLabel label="Current Session" />
-          <LiveReadings session={session} wsStatus={wsStatus} baselineDeg={baselineDeg} />
+          <LiveReadings session={session} wsStatus={wsStatus} baselineDeg={baselineDeg} override={override} />
 
           {/* Clinical alert */}
           {trigger.fired && (
@@ -364,7 +365,7 @@ export function PatientView() {
           </table>
 
           {/* ROM + trunk trend chart */}
-          <SectionLabel label="ROM & Trunk Deviation — All Sessions" />
+          <SectionLabel label="ROM & Trunk Deviation · All Sessions" />
           <div className="px-3 pt-2 pb-4">
             <SessionTrendChart
               data={sessions}

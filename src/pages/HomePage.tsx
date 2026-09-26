@@ -16,7 +16,7 @@ export function HomePage() {
         </h1>
 
         <p className="text-[#A3B0B6] text-base max-w-sm mb-10 leading-relaxed">
-          Every session your patients complete — measured, stored, ready when you are.
+          Every session your patients complete: measured, stored, ready when you are.
         </p>
 
         <div className="flex gap-2.5">
