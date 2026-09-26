@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { frame } from './synthetic-pose.ts';
+import { ready, stop } from './test-process.ts';
 
 test('live exercise: pose stream → rep events on /exercise, pose viewers untouched, summary saved', {timeout:40000}, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-exercise-'));
@@ -17,7 +18,7 @@ test('live exercise: pose stream → rep events on /exercise, pose viewers untou
   const sockets: WebSocket[] = [];
   const open = async (path: string) => { const ws = new WebSocket(`ws://127.0.0.1:${port}${path}`); sockets.push(ws); await once(ws, 'open'); return ws; };
   try {
-    await once(child.stdout, 'data');
+    await ready(child);
     const poseViewer = await open('/pose?role=viewer');
     const poseTypes = new Set<string>(); poseViewer.on('message', m => poseTypes.add(JSON.parse(m.toString()).type));
     const exerciseViewer = await open('/exercise?role=viewer');
@@ -60,7 +61,7 @@ test('live exercise: pose stream → rep events on /exercise, pose viewers untou
     assert.equal((await fetch(`http://127.0.0.1:${port}/exercise/stop`, {method:'POST'})).status, 409);
   } finally {
     for (const ws of sockets) ws.close();
-    child.kill(); await once(child, 'exit');
+    await stop(child);
     await rm(directory, {recursive:true, force:true});
   }
 });

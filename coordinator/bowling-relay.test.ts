@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocket } from 'ws';
+import { ready, stop } from './test-process.ts';
 
 test('bowling has an isolated state channel, late join, host exclusivity and disconnect recovery', {timeout:40000}, async()=>{
   const dir=mkdtempSync(join(tmpdir(),'bowling-test-'));
@@ -13,7 +14,7 @@ test('bowling has an isolated state channel, late join, host exclusivity and dis
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18772',KINESTHETIC_GOLF_RECORDINGS:dir}});
   const clients:WebSocket[]=[];
   try {
-    await once(proc.stdout,'data');
+    await ready(proc);
     async function open(path:string,role:string) {
       const ws=new WebSocket(`ws://127.0.0.1:18772/${path}?role=${role}`);clients.push(ws);
       const messages:any[]=[]; ws.on('message',b=>messages.push(JSON.parse(b.toString())));
@@ -34,7 +35,7 @@ test('bowling has an isolated state channel, late join, host exclusivity and dis
     const replacement=await open('bowling-state','host');
     const resumed=once(quest.ws,'message');replacement.ws.send('{"type":"bowling.state","seq":1}');
     assert.equal(JSON.parse((await resumed)[0].toString()).seq,1);
-  } finally { for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true}); }
+  } finally { for(const ws of clients)ws.terminate();await stop(proc);rmSync(dir,{recursive:true,force:true}); }
 });
 
 test('wrist motion and club motion cannot cross activity channels', {timeout:40000}, async()=>{
@@ -43,7 +44,7 @@ test('wrist motion and club motion cannot cross activity channels', {timeout:400
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18773',KINESTHETIC_GOLF_RECORDINGS:dir}});
   const clients:WebSocket[]=[];
   try {
-    await once(proc.stdout,'data');
+    await ready(proc);
     async function open(path:string,role:string) {
       const ws=new WebSocket(`ws://127.0.0.1:18773/${path}?role=${role}&player=patient`);clients.push(ws);
       const messages:any[]=[];ws.on('message',b=>messages.push(JSON.parse(b.toString())));await once(ws,'open');return {ws,messages};
@@ -64,5 +65,5 @@ test('wrist motion and club motion cannot cross activity channels', {timeout:400
     wrist.ws.send(JSON.stringify(packet('club.motion',3)));
     assert.equal((await invalid)[0],1008);assert.equal(JSON.parse((await disconnected)[0].toString()).type,'bowling.disconnected');
     assert.equal(golf.messages.length,1,'bowling disconnect must not stop golf');
-  } finally {for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true});}
+  } finally {for(const ws of clients)ws.terminate();await stop(proc);rmSync(dir,{recursive:true,force:true});}
 });

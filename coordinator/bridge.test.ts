@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { WebSocket } from 'ws';
+import { ready, stop } from './test-process.ts';
 
 test('pose routing, source isolation, freshness, recording, and disconnect', {timeout:40000}, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-bridge-'));
@@ -16,7 +17,7 @@ test('pose routing, source isolation, freshness, recording, and disconnect', {ti
     env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:directory, KINESTHETIC_PLANS_DIRECTORY:join(directory,"plans"), KINESTHETIC_PROPOSALS_DIRECTORY:join(directory,"proposals")}, stdio:['ignore','pipe','pipe']});
   const connections: WebSocket[] = [];
   try {
-    await Promise.race([once(child.stdout, 'data'), once(child, 'exit').then(() => { throw Error('Bridge did not start'); })]);
+    await ready(child);
     async function connect(role: string) {
       const socket = new WebSocket(`ws://127.0.0.1:${port}/pose?role=${role}`);
       connections.push(socket); await once(socket, 'open'); return socket;
@@ -64,7 +65,6 @@ test('pose routing, source isolation, freshness, recording, and disconnect', {ti
     assert.equal((await closed)[0], 1008);
   } finally {
     for (const socket of connections) socket.terminate();
-    const exited = once(child, 'exit'); child.kill('SIGTERM');
-    await exited; await rm(directory, {recursive:true, force:true});
+    await stop(child); await rm(directory, {recursive:true, force:true});
   }
 });

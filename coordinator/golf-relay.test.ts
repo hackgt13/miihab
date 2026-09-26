@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocket } from 'ws';
+import { ready, stop } from './test-process.ts';
 
 test('golf relay preserves player identity and rejects stale, duplicate and malformed motion',{timeout:40000},async()=>{
   const dir=mkdtempSync(join(tmpdir(),'golf-test-'));
@@ -13,7 +14,7 @@ test('golf relay preserves player identity and rejects stale, duplicate and malf
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18767',KINESTHETIC_GOLF_RECORDINGS:dir}});
   const clients:WebSocket[]=[];
   try {
-    await once(proc.stdout,'data');
+    await ready(proc);
     async function connect(query:string){const ws=new WebSocket('ws://127.0.0.1:18767/golf?'+query);clients.push(ws);await once(ws,'open');return ws;}
     const viewer=await connect('role=viewer');const received:any[]=[];
     viewer.on('message',b=>received.push(JSON.parse(b.toString())));
@@ -32,7 +33,7 @@ test('golf relay preserves player identity and rejects stale, duplicate and malf
     const [code]=await closed;assert.equal(code,1008);
     const closeFriend=once(friend,'close');friend.send(JSON.stringify({...packet('friend',2,2),quaternion:[0,0,0,0]}));
     const [badQuaternion]=await closeFriend;assert.equal(badQuaternion,1008);
-  }finally{for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true});}
+  }finally{for(const ws of clients)ws.terminate();await stop(proc);rmSync(dir,{recursive:true,force:true});}
 });
 
 test('only the local capture page may watch motion from a browser, and never produce it',{timeout:40000},async()=>{
@@ -42,12 +43,12 @@ test('only the local capture page may watch motion from a browser, and never pro
   const open=(path:string,origin:string)=>{const ws=new WebSocket(`ws://127.0.0.1:18774${path}`,{origin});clients.push(ws);
     return new Promise<boolean>(r=>{ws.once('open',()=>r(true));ws.once('error',()=>r(false));});};
   try {
-    await once(proc.stdout,'data');
+    await ready(proc);
     assert.equal(await open('/golf?role=viewer','http://127.0.0.1:8766'),true);
     assert.equal(await open('/bowling-motion?role=viewer','http://localhost:8766'),true);
     assert.equal(await open('/golf?role=viewer','https://example.com'),false);
     assert.equal(await open('/golf?role=producer&player=patient','http://127.0.0.1:8766'),false);
-  }finally{for(const ws of clients)ws.terminate();proc.kill('SIGTERM');}
+  }finally{for(const ws of clients)ws.terminate();await stop(proc);}
 });
 
 test('a second Mac may send motion with the pairing token; nothing else reaches the relay from the network', {timeout:10000}, async()=>{
@@ -60,11 +61,11 @@ test('a second Mac may send motion with the pairing token; nothing else reaches 
   const open=(query:string)=>{const ws=new WebSocket(`ws://${lan}:18785/bowling-motion?${query}`);clients.push(ws);
     return new Promise<boolean>(r=>{ws.once('open',()=>r(true));ws.once('error',()=>r(false));});};
   try {
-    await once(proc.stdout,'data');
+    await ready(proc);
     assert.equal(await open('role=producer&player=patient&token=pair-secret'),true,'wrist AirPod on the teammate\'s Mac');
     assert.equal(await open('role=producer&player=friend'),false,'no token');
     assert.equal(await open('role=viewer&token=pair-secret'),false,'watching motion stays on this Mac');
     assert.equal((await fetch(`http://${lan}:18785/?token=pair-secret`)).status,200);
     assert.equal((await fetch(`http://${lan}:18785/`)).status,403);
-  } finally { for(const ws of clients)ws.terminate(); proc.kill('SIGTERM'); await once(proc,'exit'); }
+  } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
 });

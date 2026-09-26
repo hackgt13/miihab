@@ -5,10 +5,10 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { ArmElevationSession, ElbowFlexionSession, verticalInDevice } from './arm-elevation.ts';
 import type { ImuSample, RepSession } from './kind.ts';
+import { ready, stop } from '../test-process.ts';
 
 type Q = [number, number, number, number];
 const axisAngle = (axis: [number, number, number], deg: number): Q => {
@@ -112,7 +112,7 @@ test('server: an IMU prescription reads the patient\'s handle AirPod from the mo
     return { started, stopped: await (await post('/exercise/stop')).json() };
   };
   try {
-    await once(child.stdout, 'data');
+    await ready(child);
     const first = await run([52, 70]);
     assert.equal(first.started.sensor, 'imu'); assert.equal(first.started.prescriptionId, 'arm-elevation-right');
     assert.equal(first.stopped.sensor, 'imu'); assert.equal(first.stopped.attempted, 2, 'one AirPod counted, not two');
@@ -133,5 +133,5 @@ test('server: an IMU prescription reads the patient\'s handle AirPod from the mo
     await post('/exercise/stop');
     const sessions = await (await fetch(base + '/api/activity-sessions')).json();
     assert.ok(sessions.some((s: any) => s.exerciseKinds.includes('elbow-flexion.v1')), 'every session also lands in the activity record');
-  } finally { child.kill(); await once(child, 'exit'); relay.close(); }
+  } finally { await stop(child); relay.close(); }
 });

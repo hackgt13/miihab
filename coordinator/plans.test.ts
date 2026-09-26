@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { PlanStore } from './plans.ts';
 import { frame } from './synthetic-pose.ts';
+import { ready, stop } from './test-process.ts';
 
 test('plan store seeds a goal-based plan, approves immutable versions, and validates prescriptions by id', () => {
   const dir = mkdtempSync(join(tmpdir(), 'plans-'));
@@ -70,7 +71,7 @@ test('approving v2 through the API changes the next session but not the running 
     stdio:['ignore','pipe','pipe']});
   const post = (path: string, body?: unknown) => fetch(base + path, {method:'POST', body: body ? JSON.stringify(body) : undefined});
   try {
-    await once(child.stdout, 'data');
+    await ready(child);
     const producer = new WebSocket(`ws://127.0.0.1:${port}/pose?role=producer`); await once(producer, 'open');
     const sessionId = randomUUID(); let seq = 0, t = 0;
     const send = (arm: number) => { producer.send(JSON.stringify({schemaVersion:'kinesthetic.session.v1', type:'pose.frame', sessionId, sourceId:'t', sequence:seq++,
@@ -108,7 +109,7 @@ test('approving v2 through the API changes the next session but not the running 
     assert.equal((await post('/exercise/start', {prescriptionId:'golf.adaptive'})).status, 400, 'golf measures nothing');
     assert.equal((await fetch(base + '/portal/')).status, 200);
     producer.close();
-  } finally { child.kill(); await once(child, 'exit'); }
+  } finally { await stop(child); }
 });
 
 test('plan v2 prescribes several activities, including one that measures nothing clinical', () => {

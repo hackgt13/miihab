@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ACTIVITY_SUMMARY_SCHEMA, activitySummaryFromExercise, parseActivitySummary } from './activity.ts';
+import { ready, stop } from './test-process.ts';
 
 const golfRound = (over: Record<string, unknown> = {}) => ({
   schema: ACTIVITY_SUMMARY_SCHEMA,
@@ -69,7 +69,7 @@ test('live: an activity posts its own session record and it appears alongside ex
     env: {...process.env, KINESTHETIC_PORT: String(port), KINESTHETIC_RECORDINGS_DIRECTORY: directory,
           KINESTHETIC_PLANS_DIRECTORY: join(directory, 'plans')}, stdio: ['ignore', 'pipe', 'pipe']});
   try {
-    await once(child.stdout, 'data');
+    await ready(child);
     const post = (body: unknown) => fetch(`http://127.0.0.1:${port}/activity/session`, {method: 'POST', body: JSON.stringify(body)});
 
     const created = await post(golfRound());
@@ -97,7 +97,7 @@ test('live: an activity posts its own session record and it appears alongside ex
     const exercises = await (await fetch(`http://127.0.0.1:${port}/api/sessions`)).json();
     assert.deepEqual(exercises, [], 'golf is not an exercise-engine session');
   } finally {
-    child.kill(); await once(child, 'exit');
+    await stop(child);
     await rm(directory, {recursive: true, force: true});
   }
 });
