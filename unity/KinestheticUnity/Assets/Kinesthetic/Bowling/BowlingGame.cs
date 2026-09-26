@@ -1,13 +1,16 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Text;
+using Kinesthetic.Activities;
 using Kinesthetic.Golf;
+using UnityEngine.Networking;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace Kinesthetic.Bowling
 {
-    public sealed class BowlingGame : MonoBehaviour
+    public sealed class BowlingGame : MonoBehaviour, IActivity
     {
         public Rigidbody ball;
         public Rigidbody[] pins;
@@ -15,6 +18,7 @@ namespace Kinesthetic.Bowling
         public LineRenderer aimLine;
         public BowlingAvatar avatar;
         public string motionUrl = "ws://127.0.0.1:8767/bowling-motion?role=viewer";
+        public string bridge = "http://127.0.0.1:8766";
         public bool startServices = true;
         public bool renderOnly;
         public const float BallRadius = .12655f, HeadPinZ = 18.825f;
@@ -29,8 +33,23 @@ namespace Kinesthetic.Bowling
         public bool MotionReady => client != null && client.connected && Age(lastArrival) < .3;
         public bool Paused { get; private set; }
         public bool CanRecalibrate => Phase == "Ready" || Phase == "Setup";
+        // IActivity. The shell drives this the same way it drives golf and a therapy session.
+        public string ActivityId => "bowling.adaptive";
+        public bool IsRunning => !renderOnly && !gameReported;
+        public bool IsBusy => postingGame;
+        /// <summary>Raised once when the tenth frame closes, carrying the recorded session id.</summary>
+        public event Action<string> Completed;
+        /// <summary>Nothing server-side to close, but do not leave mid-POST or the game is lost.</summary>
+        public IEnumerator RequestExit(Action<bool> succeeded)
+        {
+            while (postingGame) yield return null;
+            succeeded?.Invoke(true);
+        }
+        DateTime gameStartedUtc = DateTime.UtcNow;
+        bool gameReported, postingGame;
+        int rolls, reconnectsAtStart;
         public string Cue => Paused ? "Paused" : Phase == "Rolling" ? "Nice and easy." : Phase == "Result" || Phase == "Complete" ? Result : !MotionReady ? Connection : Swing.Cue;
-        GolfMotionClient client;
+        GolfMotionClient client => SensorHub.Instance?.MotionFor(motionUrl);
         Vector3[] pinPositions;
         Quaternion[] pinRotations;
         bool[] standing;
@@ -51,7 +70,7 @@ namespace Kinesthetic.Bowling
             pinPositions = new Vector3[pins.Length]; pinRotations = new Quaternion[pins.Length]; standing = new bool[pins.Length];
             for (int i = 0; i < pins.Length; i++) { pinPositions[i] = pins[i].position; pinRotations[i] = pins[i].rotation; }
             if (spectator) { cameraHome = spectator.transform.position; cameraRotation = spectator.transform.rotation; }
-            client = new GolfMotionClient(motionUrl);
+            SensorHub.Ensure().MotionFor(motionUrl);
             RestartRound();
             if (startServices) Connect();
         }
@@ -171,15 +190,64 @@ namespace Kinesthetic.Bowling
                 Freeze(pins[i]);
             }
             Freeze(ball); LastPins = knocked;
+            rolls++;
             int before = Score.Standing;
             newRack = Score.Add(knocked);
             Result = knocked == 10 ? "Strike!" : knocked == before ? "Spare!" : knocked == 0 ? "Try again. You've got this." : $"{knocked} pins. Nice roll!";
             Phase = Score.Complete ? "Complete" : "Result"; resultUntil = Time.time + 2.7f;
+            if (Score.Complete) CompleteGame();
+        }
+        void CompleteGame()
+        {
+            if (gameReported) return;
+            gameReported = true;
+            string id = Guid.NewGuid().ToString();
+            var endedUtc = DateTime.UtcNow;
+            int lost = (SensorHub.Instance?.MotionReconnectsFor(motionUrl) ?? 0) - reconnectsAtStart;
+            var marks = new string[10];
+            for (int f = 0; f < 10; f++) marks[f] = Score.Marks(f);
+            var envelope = new {
+                schema = "kinesthetic.activity.v1", activitySessionId = id, activityId = ActivityId,
+                exerciseKinds = new string[0], venueId = "bowling-alley",
+                patientId = (string)null, planVersion = (int?)null,
+                startedAt = gameStartedUtc.ToString("o"), endedAt = endedUtc.ToString("o"),
+                durationMs = (int)Mathf.Clamp((float)(endedUtc - gameStartedUtc).TotalMilliseconds, 0, 86_400_000),
+                completed = true,
+                // One subject: the relay only accepts playerId "patient" on this channel.
+                subjects = new object[] { new {
+                    subjectId = "patient", role = "patient",
+                    // Every roll counts in bowling, so attempted and valid are the same number. The
+                    // figure that travels across activities is how much the person moved, not the score.
+                    dose = new { prescribed = (int?)null, attempted = rolls, valid = rolls },
+                    primaryMetric = new { name = "score", value = (double)Score.Total, unit = "pins" },
+                } },
+                trackingQuality = new { validFrameRatio = (double?)null, lossEvents = lost },
+                flags = lost > 0 ? new[] { "tracking_lost" } : new string[0],
+                payload = new { kind = "bowling.game", schemaVersion = "1",
+                    data = new { total = Score.Total, rolls, frames = marks } },
+            };
+            Completed?.Invoke(id);
+            StartCoroutine(PostGame(id, Newtonsoft.Json.JsonConvert.SerializeObject(envelope)));
+        }
+        IEnumerator PostGame(string id, string body)
+        {
+            postingGame = true;
+            using var request = new UnityWebRequest(bridge + "/activity/session", "POST") {
+                uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
+                downloadHandler = new DownloadHandlerBuffer(), timeout = 5 };
+            request.SetRequestHeader("Content-Type", "application/json");
+            yield return request.SendWebRequest();
+            postingGame = false;
+            // A failed POST must never interrupt play; the game is over and the person is done.
+            if (request.result != UnityWebRequest.Result.Success)
+                Debug.LogWarning($"Bowling game {id} was not recorded: {request.error} {request.downloadHandler?.text}");
         }
         public void RestartRound()
         {
             if (renderOnly || pinPositions == null) return;
             Time.timeScale = 1; Paused = false; Score = new BowlingScore(); LastAim = LastPower = 0; Result = "";
+            gameStartedUtc = DateTime.UtcNow; gameReported = false; rolls = 0;
+            reconnectsAtStart = SensorHub.Instance?.MotionReconnectsFor(motionUrl) ?? 0;
             Swing.Reset(); readySince = -1; PrepareBall(true);
         }
         void PrepareBall(bool fullRack)
@@ -209,6 +277,6 @@ namespace Kinesthetic.Bowling
             spectator.transform.position = Vector3.Lerp(spectator.transform.position, target, 1 - Mathf.Exp(-3 * Time.unscaledDeltaTime));
             spectator.transform.rotation = cameraRotation;
         }
-        void OnDestroy() { client?.Dispose(); if (!renderOnly) Time.timeScale = 1; }
+        void OnDestroy() { if (!renderOnly) Time.timeScale = 1; }   // the hub owns the motion channel
     }
 }
