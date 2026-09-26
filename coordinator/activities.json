@@ -1,0 +1,54 @@
+{
+  "schema": "kinesthetic.activities.v1",
+  "note": "The activity catalog: one source of truth for both halves of the app. The coordinator reads this file directly; Unity reads a generated copy under Resources. Adding an activity is an entry here, not a code change.",
+  "activities": [
+    {
+      "id": "rehab.studio",
+      "displayName": "Movement Studio",
+      "tagline": "Gentle raises. Personal progress.",
+      "category": "therapy",
+      "scene": "Rehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "shoulder-raise.v1",
+        "trunk-rotation.v1",
+        "arm-elevation.v1"
+      ],
+      "requires": [
+        "pose"
+      ],
+      "subjects": 1,
+      "prescribable": true
+    },
+    {
+      "id": "golf.adaptive",
+      "displayName": "Golf",
+      "tagline": "Fresh air. Friendly competition.",
+      "category": "play",
+      "scene": "AdaptiveGolf",
+      "venue": "resort-course",
+      "exerciseKinds": [],
+      "requires": [
+        "pose",
+        "imu"
+      ],
+      "subjects": 2,
+      "prescribable": true
+    },
+    {
+      "id": "bowling.adaptive",
+      "displayName": "Bowling",
+      "tagline": "Take your turn. Knock them down.",
+      "category": "play",
+      "scene": "Bowling",
+      "venue": "bowling-alley",
+      "exerciseKinds": [],
+      "requires": [
+        "pose",
+        "imu"
+      ],
+      "subjects": 2,
+      "prescribable": false
+    }
+  ]
+}

@@ -12,6 +12,7 @@ import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, exerciseKindForPlanType, type RepParams, type RepSession } from './exercise/registry.ts';
 import { activitySummaryFromExercise, parseActivitySummary } from './activity.ts';
 import { NORMS, compareToNorm, type Sex, type Side } from './norms.ts';
+import { requireActivity } from './activities.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const captureRoot = resolve(root, 'spikes/pose-capture');
@@ -57,8 +58,9 @@ async function finishExercise() {
     simulated: /synthetic|fixture|simulat/i.test(exerciseSource ?? ''), endedAt: new Date().toISOString(),
     ...measured, config: measured.params};
   await writeFile(resolve(recordings, `exercise-${exerciseId}.summary.json`), JSON.stringify(summary, null, 2));
-  const envelope = activitySummaryFromExercise({activitySessionId: exerciseId, activityId: 'rehab.studio',
-    venueId: 'studio', startedAt: exerciseStartedAt || summary.endedAt, endedAt: summary.endedAt, measured});
+  const studio = requireActivity('rehab.studio');
+  const envelope = activitySummaryFromExercise({activitySessionId: exerciseId, activityId: studio.id,
+    venueId: studio.venue, startedAt: exerciseStartedAt || summary.endedAt, endedAt: summary.endedAt, measured});
   await writeFile(resolve(recordings, `session-${exerciseId}.json`), JSON.stringify(envelope, null, 2));
   exerciseBroadcast({type:'exercise.summary', payload:summary});
   exerciseLog?.end(); exerciseLog = null;
