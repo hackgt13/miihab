@@ -505,3 +505,17 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .meet-column { flex-grow: 1; flex-basis: 0; min-width: 0; min-height: 0; margin-right: 22px; }
 .meet-column:last-child { margin-right: 0; }
 .meet-heading { margin-bottom: 10px; }
+
+/* ---- A friend's profile ---------------------------------------------------
+   Layout only. It sits over the thread, so it takes the same box. */
+
+/* Takes the conversation's place rather than floating over it: a translucent
+   card would need a background, and paint belongs to the components. */
+.friend-profile { flex-grow: 1; min-height: 0; flex-direction: column; }
+.friend-profile.hidden { display: none; }
+.profile-head { flex-direction: row; align-items: center; margin-bottom: 18px; }
+.profile-face { margin-right: 14px; }
+.profile-titles { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.profile-stats { flex-direction: row; flex-wrap: wrap; margin-bottom: 18px; }
+.profile-stat { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: center; }
+.profile-days { height: 22px; flex-shrink: 0; margin-bottom: 10px; }

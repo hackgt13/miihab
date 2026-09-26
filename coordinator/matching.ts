@@ -34,6 +34,26 @@ export interface Profile {
   ageBand: AgeBandId | null;
   /** Whole weeks since their programme was approved. */
   programWeek: number;
+  /** What a friend may see of them. Never used for matching — see `activity`
+   *  below and the note at the top of this file. */
+  activity?: FriendActivity;
+}
+
+/**
+ * The shareable half of how someone is doing. friends.ts draws the line: activity
+ * is shareable, measurement is not, because six weeks post-op and six months are
+ * not comparable and a number invites the comparison anyway. So: whether they
+ * turned up, never how far they reached.
+ */
+export interface FriendActivity {
+  streakDays: number;
+  bestStreakDays: number;
+  weekSessionsDone: number;
+  weekSessionsGoal: number;
+  programDay: number;
+  programTotalDays: number;
+  /** Day keys they were active on, newest last, for the little calendar. */
+  daysActive: string[];
 }
 
 export interface Term { name: string; score: number; weight: number; shared: string[] }

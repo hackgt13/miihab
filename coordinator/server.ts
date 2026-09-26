@@ -10,7 +10,7 @@ import { PlanStore } from './plans.ts';
 import { FriendStore } from './friends.ts';
 import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
 import { spotlight, recap, daysSince } from './social-ai.ts';
-import { weeksSince, type Profile } from './matching.ts';
+import { weeksSince, type Profile, type FriendActivity } from './matching.ts';
 import { IntroductionStore, LocalDirectory } from './introductions.ts';
 import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
@@ -411,6 +411,25 @@ const server = createServer(async (request, response) => {
           const person = friends.has(other) ? friends.person(other)
             : friends.accept(friends.invite(), known?.displayName || 'A friend');
           return json(201, {joined: true, person});
+        }
+        // A friend's profile. Activity only: friends.ts holds that one patient's
+        // measurements are not another's business, so nothing here carries a
+        // degree, a rep count or how close to target they got — only whether they
+        // turned up. `measured: false` is how the panel knows not to imply more.
+        if (request.method === 'GET' && url.pathname === '/api/friends/profile') {
+          const other = url.searchParams.get('id') ?? '';
+          if (!friends.has(other)) return json(404, {error:'Unknown person'});
+          const known = (await directory.profiles()).find(p => p.personId === other);
+          const thread = messages.thread(me, other);
+          const theirs = [...thread].reverse().find(m => m.from === other);
+          return json(200, {
+            person: friends.person(other),
+            // Absent for someone whose coordinator we cannot reach, which today is
+            // anyone not in the local directory.
+            activity: known?.activity ?? null,
+            lastActiveDays: daysSince(friends.person(other)?.lastActiveAt ?? theirs?.at),
+            goalComponents: known?.goalComponents ?? [],
+          });
         }
         if (request.method === 'GET' && url.pathname === '/api/friends/spotlight') {
           const people = friends.list();

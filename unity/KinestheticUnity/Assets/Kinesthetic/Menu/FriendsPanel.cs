@@ -32,6 +32,11 @@ namespace Kinesthetic.Menu
         [Serializable] class Roster { public Person me; public Person[] friends; }
         [Serializable] class Message { public string id, from, to, at, kind, text, photoId; }
         [Serializable] class Thread { public Person person; public Message[] messages; }
+        [Serializable] class Activity {
+            public int streakDays, bestStreakDays, weekSessionsDone, weekSessionsGoal, programDay, programTotalDays;
+            public string[] daysActive;
+        }
+        [Serializable] class ProfileView { public Person person; public Activity activity; public int lastActiveDays; public string[] goalComponents; }
         [Serializable] class Code { public string code; }
         [Serializable] class PhotoId { public string photoId; }
         [Serializable] class ActivityLine { public string id, line; }
@@ -208,7 +213,7 @@ namespace Kinesthetic.Menu
         string spotlightId;
         SpotlightInfo insight;
         IntroductionsCard introductions;
-        VisualElement pageMessages, pageMeet;
+        VisualElement pageMessages, pageMeet, profileCard, profileFace, profileStats, profileDays, threadHead;
         Button tabMessages, tabMeet;
 
         public void Attach(VisualElement tree, ActivityNavigation nav)
@@ -239,6 +244,11 @@ namespace Kinesthetic.Menu
             pageMeet = root.Q("page-meet");
             tabMessages = root.Q<Button>("tab-messages");
             tabMeet = root.Q<Button>("tab-meet");
+            profileCard = root.Q("friend-profile");
+            threadHead = root.Q(className: "thread-head");
+            profileFace = root.Q("profile-face");
+            profileStats = root.Q("profile-stats");
+            profileDays = root.Q("profile-days");
             composer = root.Q<TextField>("composer-text");
             sendButton = root.Q<Button>("composer-send");
             photoButton = root.Q<Button>("composer-photo");
@@ -264,6 +274,7 @@ namespace Kinesthetic.Menu
                 root.RegisterCallback<NavigationCancelEvent>(e =>
                 { if (!overlay.ClassListContains("hidden")) { Close(); e.StopPropagation(); } });
 
+            root.Q<Button>("profile-close")?.RegisterCallback<ClickEvent>(_ => CloseProfile());
             if (tabMessages != null) tabMessages.clicked += () => ShowPage(false);
             if (tabMeet != null) tabMeet.clicked += () => ShowPage(true);
 
@@ -295,6 +306,119 @@ namespace Kinesthetic.Menu
         void ShowMeetEmpty(bool empty)
         {
             root?.Q<Label>("meet-empty")?.EnableInClassList("hidden", !empty);
+        }
+
+        /// Clicking a face opens the person, not the conversation. Everything here
+        /// is activity — whether they turned up, and how often — because friends.ts
+        /// keeps one patient's measurements away from another and a degree on this
+        /// card would be exactly the comparison it warns about.
+        IEnumerator LoadProfile(string id)
+        {
+            if (profileCard == null) yield break;
+            using var request = UnityWebRequest.Get(
+                Bridge + "/api/friends/profile?id=" + UnityWebRequest.EscapeURL(id));
+            request.timeout = 5;
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success) yield break;
+
+            var view = JsonUtility.FromJson<ProfileView>(request.downloadHandler.text);
+            if (view?.person == null) yield break;
+            PaintProfile(view);
+        }
+
+        void PaintProfile(ProfileView view)
+        {
+            root.Q<Label>("profile-name").text = view.person.displayName
+                + (view.person.sample ? "  ·  sample friend" : "");
+            root.Q<Label>("profile-goal").text = view.goalComponents is {Length: > 0}
+                ? "Working toward " + string.Join(" and ", view.goalComponents)
+                : "";
+
+            profileFace.generateVisualContent = null;
+            int variant = view.person.mii;
+            profileFace.generateVisualContent += ctx => DrawFace(ctx, variant, 40f);
+            profileFace.MarkDirtyRepaint();
+
+            profileStats.Clear();
+            var note = root.Q<Label>("profile-note");
+            if (view.activity == null)
+            {
+                // Someone whose coordinator we cannot reach. Say so rather than
+                // drawing zeroes, which would read as "they have done nothing".
+                note.text = view.lastActiveDays == 0 ? "Here today. Nothing else to show yet."
+                    : "Nothing to show yet. Last here " + Days(view.lastActiveDays) + ".";
+                profileDays.generateVisualContent = null;
+                profileDays.MarkDirtyRepaint();
+                ShowProfile(true);
+                return;
+            }
+
+            var a = view.activity;
+            Stat(a.streakDays.ToString(), a.streakDays == 1 ? "day streak" : "day streak");
+            Stat(a.bestStreakDays.ToString(), "best so far");
+            Stat(a.weekSessionsDone + "/" + a.weekSessionsGoal, "this week");
+            Stat(a.programDay.ToString(), "of " + a.programTotalDays + " days");
+            note.text = view.lastActiveDays == 0 ? "Here today." : "Last here " + Days(view.lastActiveDays) + ".";
+
+            // Four weeks of turning up, one square a day. No numbers on it: this is
+            // a rhythm, not a score.
+            var active = new HashSet<string>(a.daysActive ?? new string[0]);
+            profileDays.generateVisualContent = null;
+            profileDays.generateVisualContent += ctx => DrawDays(ctx, active, profileDays.contentRect);
+            profileDays.MarkDirtyRepaint();
+            ShowProfile(true);
+        }
+
+        /// The profile and the conversation are two views of one person, so only
+        /// one is up at a time.
+        void ShowProfile(bool on)
+        {
+            profileCard?.EnableInClassList("hidden", !on);
+            threadHead?.EnableInClassList("hidden", on);
+            threadScroll?.EnableInClassList("hidden", on);
+            root.Q(className: "composer")?.EnableInClassList("hidden", on);
+        }
+
+        static string Days(int n) => n == 0 ? "today" : n == 1 ? "yesterday" : n + " days ago";
+
+        void Stat(string value, string caption)
+        {
+            var tile = new VisualElement();
+            tile.AddToClassList("profile-stat");
+            var v = new KText { text = value, size = KText.Size.Title, tone = KText.Tone.Ink };
+            var c = new KText { text = caption, size = KText.Size.Caption, tone = KText.Tone.Soft };
+            tile.Add(v); tile.Add(c);
+            profileStats.Add(tile);
+        }
+
+        /// Four weeks back, oldest first, a filled square for a day they moved.
+        static void DrawDays(MeshGenerationContext ctx, HashSet<string> active, Rect box)
+        {
+            if (box.width <= 1) return;
+            var p = ctx.painter2D;
+            const int Days28 = 28;
+            float gap = 3f, cell = Mathf.Max(4f, (box.width - gap * (Days28 - 1)) / Days28);
+            var today = DateTime.Now.Date;
+            for (int i = 0; i < Days28; i++)
+            {
+                var day = today.AddDays(-(Days28 - 1 - i));
+                bool moved = active.Contains(day.ToString("yyyy-MM-dd"));
+                p.fillColor = moved ? Palette.Jungle40 : Palette.Slate30;
+                float x = i * (cell + gap);
+                p.BeginPath();
+                p.MoveTo(new Vector2(x, 0));
+                p.LineTo(new Vector2(x + cell, 0));
+                p.LineTo(new Vector2(x + cell, cell));
+                p.LineTo(new Vector2(x, cell));
+                p.ClosePath();
+                p.Fill();
+            }
+        }
+
+        void CloseProfile()
+        {
+            navigation?.PlayBack();
+            ShowProfile(false);
         }
 
         public void Open()
@@ -371,6 +495,7 @@ namespace Kinesthetic.Menu
             request.timeout = 5;
             yield return request.SendWebRequest();
             if (request.result != UnityWebRequest.Result.Success) yield break;
+            ShowProfile(false);
             PaintThread(JsonUtility.FromJson<Thread>(request.downloadHandler.text));
             yield return LoadRecap(id);
         }
@@ -510,7 +635,14 @@ namespace Kinesthetic.Menu
                 row.AddToClassList("friend-row");
                 row.EnableInClassList("selected", person.id == selectedId);
 
-                row.Add(Face(person.mii, 34f, "friend-row-face"));
+                // The face opens the person; the rest of the row opens the thread.
+                var portrait = Face(person.mii, 34f, "friend-row-face");
+                portrait.pickingMode = PickingMode.Position;
+                portrait.tooltip = "See how " + person.displayName + " is doing";
+                string portraitId = person.id;
+                portrait.RegisterCallback<ClickEvent>(e =>
+                { StartCoroutine(LoadProfile(portraitId)); e.StopPropagation(); });
+                row.Add(portrait);
 
                 var copy = new VisualElement();
                 copy.AddToClassList("friend-row-copy");
