@@ -116,6 +116,7 @@ namespace Kinesthetic.Menu
         }
 
         VisualElement root, overlay, facesRow, list, threadView, threadFace;
+        ScrollView threadScroll;
         VisualElement spotlight, spotlightFace;
         Label badge, threadName, threadHint, inviteCode, notice, spotlightName, spotlightLine;
         Button spotlightReply;
@@ -141,7 +142,8 @@ namespace Kinesthetic.Menu
             badge = root.Q<Label>("friends-badge");
             closeButton = root.Q<Button>("friends-close");
             list = root.Q<ScrollView>("friends-list")?.contentContainer;
-            threadView = root.Q<ScrollView>("thread")?.contentContainer;
+            threadScroll = root.Q<ScrollView>("thread");
+            threadView = threadScroll?.contentContainer;
             threadFace = root.Q("thread-face");
             threadName = root.Q<Label>("thread-name");
             inviteButton = root.Q<Button>("friends-invite");
@@ -612,6 +614,29 @@ namespace Kinesthetic.Menu
                 threadView.Add(bubble);
             }
             threadView.schedule.Execute(() => threadView.parent?.Focus());
+            ScrollToEnd();
+        }
+
+        /// A repaint leaves the view where it was, which on a long thread is the
+        /// top — so the message you just sent lands off-screen below. End at the
+        /// newest one instead.
+        ///
+        /// Past the end clamps to the end, so the content's own height is "the
+        /// bottom" and the maximum never has to be worked out. The bubbles have no
+        /// layout on the frame they are added, though, so this also waits for the
+        /// geometry pass: that is the signal a delay would only be guessing at.
+        void ScrollToEnd()
+        {
+            if (threadScroll == null || threadView == null) return;
+            threadScroll.scrollOffset = new Vector2(0, threadView.layout.height);
+            threadView.UnregisterCallback<GeometryChangedEvent>(SettleToEnd);
+            threadView.RegisterCallback<GeometryChangedEvent>(SettleToEnd);
+        }
+
+        void SettleToEnd(GeometryChangedEvent _)
+        {
+            threadView.UnregisterCallback<GeometryChangedEvent>(SettleToEnd);
+            threadScroll.scrollOffset = new Vector2(0, threadView.layout.height);
         }
 
         IEnumerator LoadPhoto(string photoId, VisualElement target)
@@ -623,6 +648,12 @@ namespace Kinesthetic.Menu
             if (request.result != UnityWebRequest.Result.Success) yield break;
             var texture = DownloadHandlerTexture.GetContent(request);
             target.style.backgroundImage = new StyleBackground(texture);
+            // The photo lands after the scroll and grows the thread beneath it, so
+            // the newest message slips below the fold again unless we follow it.
+            // The thread may have been repainted for someone else while this was in
+            // flight, which is why the last bubble is re-read rather than captured.
+            if (threadView != null && threadView.childCount > 0
+                && target.parent == threadView[threadView.childCount - 1]) ScrollToEnd();
         }
 
         static string LabelFor(string kind)
