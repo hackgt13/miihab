@@ -3,7 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
-  "scripts": { "start": "node server.ts", "test": "node --test bridge.test.ts golf-relay.test.ts bowling-relay.test.ts measurement.test.ts exercise/trunk-rotation.test.ts exercise/arm-elevation.test.ts exercise.test.ts plans.test.ts activity.test.ts hostclock.test.ts norms.test.ts" },
-  "dependencies": { "ws": "8.18.3" }
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node server.ts",
+    "test": "node --test bridge.test.ts golf-relay.test.ts bowling-relay.test.ts measurement.test.ts exercise/trunk-rotation.test.ts exercise/arm-elevation.test.ts exercise.test.ts plans.test.ts activity.test.ts hostclock.test.ts social-ai.test.ts norms.test.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "ws": "8.18.3"
+  }
 }

@@ -32,6 +32,12 @@ namespace Kinesthetic.Menu
         [Serializable] class Thread { public Person person; public Message[] messages; }
         [Serializable] class Code { public string code; }
         [Serializable] class PhotoId { public string photoId; }
+        [Serializable] class ActivityLine { public string id, line; }
+        /// The coordinator's read on who to surface and what each person has been
+        /// up to. Null until it arrives, and it may never arrive — every use site
+        /// falls back to what the panel did before.
+        [Serializable] class SpotlightInfo { public string choose; public ActivityLine[] activity; }
+        [Serializable] class Recap { public string recap; }
 #pragma warning restore 0649
 
         // Fixed vocabulary. A tap is a whole message, which is the point: on a bad
@@ -119,6 +125,7 @@ namespace Kinesthetic.Menu
         string selectedId;
         string pendingPhotoId;
         string spotlightId;
+        SpotlightInfo insight;
 
         public void Attach(VisualElement tree, ActivityNavigation nav)
         {
@@ -214,6 +221,35 @@ namespace Kinesthetic.Menu
             PaintList();
             PaintSpotlight();
             if (selectedId != null) yield return LoadThread(selectedId);
+            // Deliberately not awaited: a model call is seconds, and the panel is
+            // already correct without it. It repaints if and when it lands.
+            StartCoroutine(LoadInsight());
+        }
+
+        /// Asks the coordinator who deserves the spotlight and what each person has
+        /// been doing. Any failure leaves `insight` null, which every reader treats
+        /// as "no opinion today".
+        IEnumerator LoadInsight()
+        {
+            using var request = UnityWebRequest.Get(Bridge + "/api/friends/spotlight");
+            request.timeout = 20;   // a model call, not a file read
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success) yield break;
+
+            var next = JsonUtility.FromJson<SpotlightInfo>(request.downloadHandler.text);
+            if (next == null || string.IsNullOrEmpty(next.choose)) yield break;
+            insight = next;
+            PaintList();
+            PaintSpotlight();
+        }
+
+        /// The narrated line for one person, or null when there is nothing to say.
+        string ActivityFor(string id)
+        {
+            if (insight == null || insight.activity == null) return null;
+            foreach (var entry in insight.activity)
+                if (entry.id == id && !string.IsNullOrEmpty(entry.line)) return entry.line;
+            return null;
         }
 
         IEnumerator LoadThread(string id)
@@ -223,6 +259,25 @@ namespace Kinesthetic.Menu
             yield return request.SendWebRequest();
             if (request.result != UnityWebRequest.Result.Success) yield break;
             PaintThread(JsonUtility.FromJson<Thread>(request.downloadHandler.text));
+            yield return LoadRecap(id);
+        }
+
+        /// One line describing what this conversation has been about, shown where
+        /// the message count normally sits. Short threads and an unreachable model
+        /// both leave the count in place.
+        IEnumerator LoadRecap(string id)
+        {
+            if (threadHint == null) yield break;
+            using var request = UnityWebRequest.Get(
+                Bridge + "/api/friends/recap?id=" + UnityWebRequest.EscapeURL(id));
+            request.timeout = 20;   // a model call, not a file read
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success) yield break;
+
+            var body = JsonUtility.FromJson<Recap>(request.downloadHandler.text);
+            // Guard the id: the user can pick someone else while this is in flight.
+            if (body != null && !string.IsNullOrEmpty(body.recap) && id == selectedId)
+                threadHint.text = body.recap;
         }
 
         IEnumerator Post(string path, string body, Action<string> done = null)
@@ -346,9 +401,11 @@ namespace Kinesthetic.Menu
                 var name = new Label(person.displayName);
                 name.AddToClassList("friend-row-name");
                 // Deliberately not a score or an angle: only whether they are around.
-                var meta = new Label(person.sample ? "Sample friend"
+                // The narrated line says more than the follow state when there is one.
+                var meta = new Label(ActivityFor(person.id)
+                    ?? (person.sample ? "Sample friend"
                     : person.followsMe && person.following ? "You follow each other"
-                    : person.following ? "You follow them" : "Follows you");
+                    : person.following ? "You follow them" : "Follows you"));
                 meta.AddToClassList("friend-row-meta");
                 copy.Add(name); copy.Add(meta);
                 row.Add(copy);
@@ -392,11 +449,20 @@ namespace Kinesthetic.Menu
                 return;
             }
 
-            // Prefer someone who is actually waiting on you.
-            var waiting = new List<Person>();
-            foreach (var person in roster.friends) if (person.unread > 0) waiting.Add(person);
-            var pool = waiting.Count > 0 ? waiting : new List<Person>(roster.friends);
-            var chosen = pool[UnityEngine.Random.Range(0, pool.Count)];
+            // The model saw the unread counts and the gaps and was asked to weigh
+            // them, so its pick wins when there is one. Without it, prefer someone
+            // actually waiting on you and take any of them at random.
+            Person chosen = null;
+            if (insight != null)
+                foreach (var person in roster.friends)
+                    if (person.id == insight.choose) chosen = person;
+            if (chosen == null)
+            {
+                var waiting = new List<Person>();
+                foreach (var person in roster.friends) if (person.unread > 0) waiting.Add(person);
+                var pool = waiting.Count > 0 ? waiting : new List<Person>(roster.friends);
+                chosen = pool[UnityEngine.Random.Range(0, pool.Count)];
+            }
             spotlightId = chosen.id;
 
             spotlightFace.generateVisualContent = null;
@@ -411,7 +477,12 @@ namespace Kinesthetic.Menu
 
         IEnumerator FillSpotlightLine(Person person)
         {
-            spotlightLine.text = "is in your corner today.";
+            // Narration, not speech: "returned after three days" is the app talking.
+            // A message they actually sent replaces it verbatim below.
+            var activity = ActivityFor(person.id);
+            // The name label sits directly above, so the line is the predicate only:
+            // "Maya" / "returned after three days."
+            spotlightLine.text = activity != null ? activity + "." : "is in your corner today.";
             spotlightReply.text = "Say hello";
 
             using var request = UnityWebRequest.Get(

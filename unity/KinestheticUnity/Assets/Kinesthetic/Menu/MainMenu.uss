@@ -348,7 +348,7 @@ Button.activity-card:active { border-color: #3D7CD4; background-color: #D8E8FE; 
 }
 .spotlight-reply:hover { background-color: rgba(237,244,255,.95); border-color: #5C9CF2; }
 
-.thread-hint { font-size: 15px; color: #6F8AB7; margin-left: 10px; }
+.thread-hint { font-size: 15px; color: #6F8AB7; margin-left: 10px; white-space: normal; flex-shrink: 1; }
 
 /* A per-row Message button, so sending is never hidden behind selection. */
 .message-pill {
