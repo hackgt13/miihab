@@ -2,14 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocket } from 'ws';
 
 test('golf relay preserves player identity and rejects stale, duplicate and malformed motion',{timeout:10000},async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'golf-test-'));
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
-    env:{...process.env,KINESTHETIC_GOLF_PORT:'18767',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-test-'))}});
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18767',KINESTHETIC_GOLF_RECORDINGS:dir}});
   const clients:WebSocket[]=[];
   try {
     await once(proc.stdout,'data');
@@ -31,12 +32,13 @@ test('golf relay preserves player identity and rejects stale, duplicate and malf
     const [code]=await closed;assert.equal(code,1008);
     const closeFriend=once(friend,'close');friend.send(JSON.stringify({...packet('friend',2,2),quaternion:[0,0,0,0]}));
     const [badQuaternion]=await closeFriend;assert.equal(badQuaternion,1008);
-  }finally{for(const ws of clients)ws.terminate();proc.kill('SIGTERM');}
+  }finally{for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true});}
 });
 
 test('game state: one host fans out to Quest clients, late joiners get the latest frame, junk is rejected',{timeout:10000},async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'golf-state-'));
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
-    env:{...process.env,KINESTHETIC_GOLF_PORT:'18768',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-state-'))}});
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18768',KINESTHETIC_GOLF_RECORDINGS:dir}});
   const clients:WebSocket[]=[];
   try{
     await once(proc.stdout,'data');
@@ -51,5 +53,5 @@ test('game state: one host fans out to Quest clients, late joiners get the lates
     const bye=once(quest,'message');const closed=once(host,'close');host.send('{"type":"nope"}');
     assert.equal((await closed)[0],1008);
     assert.equal(JSON.parse((await bye)[0].toString()).type,'golf.host-disconnected');
-  }finally{for(const ws of clients)ws.terminate();proc.kill('SIGTERM');}
+  }finally{for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true});}
 });
