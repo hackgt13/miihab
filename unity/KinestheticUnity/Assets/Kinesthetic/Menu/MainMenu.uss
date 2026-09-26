@@ -445,7 +445,8 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .tile-program { flex-grow: 1.62; }
 .program-body { flex-direction: row; flex-grow: 1; min-height: 0; }
 .program-days { flex-shrink: 0; width: 22px; margin-right: 8px; padding-top: 24px; }
-.program-days > .day-letter { flex-grow: 1; flex-basis: 0; }
+.program-days > Label { flex-grow: 1; flex-basis: 0; }
+.program-weeks > Label { flex-grow: 1; flex-basis: 0; }
 .program-plot { flex-grow: 1; min-width: 0; min-height: 0; }
 .program-weeks { flex-direction: row; flex-shrink: 0; height: 24px; }
 .program-grid { flex-grow: 1; min-height: 0; }

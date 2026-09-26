@@ -185,8 +185,8 @@ namespace Kinesthetic.Menu
         static readonly Color Progress = Palette.Progress;     // a measured value
         static readonly Color Reference = Palette.Reference;    // the plan it is drawn against
         static readonly Color Target = Palette.Target;         // what is being reached for
-        static readonly Color Good = Palette.Good;             // a rep that counted
         static readonly Color Panel = Palette.Panel;
+        static readonly Color Pen = Palette.Coral50;           // the hand crossing a day off
 
         /// Fills the three answers. Every label on this pane is a handful of words: it is read from two metres,
         /// and the figures it used to carry — a reach delta, a reps-in-band percentage, a level, a week count —
@@ -208,22 +208,13 @@ namespace Kinesthetic.Menu
             int weeks = Mathf.Max(1, Mathf.CeilToInt(totalDays / 7f));
             Text(root, "program-note", $"Week {week} of {weeks} · ends {finish:d MMM}");
 
-            // One number per week column, laid out by the same flex rule the grid divides its rect by.
-            var weekRow = root.Q("program-weeks");
-            var monday = start.AddDays(-(((int)start.DayOfWeek + 6) % 7));
-            int columns = Mathf.CeilToInt(((finish - monday).Days + 1) / 7f);
-            if (weekRow != null)
-            {
-                weekRow.Clear();
-                for (int i = 0; i < columns; i++)
-                {
-                    // Week 1 is the patient's first week, not the calendar's, so the count starts at the
-                    // program's own start day however far into that week it fell.
-                    var tick = new Label((i + 1).ToString()) { pickingMode = PickingMode.Ignore };
-                    tick.AddToClassList("day-letter");
-                    weekRow.Add(tick);
-                }
-            }
+            // A column is a week of the program, counted from its own first day rather than from a Monday.
+            // Monday-aligned columns put an 84-day program across 13 of them whenever it starts mid-week,
+            // which is a grid that disagrees with the "of 12" written above it.
+            int columns = Mathf.CeilToInt(totalDays / 7f);
+            Ticks(root, "program-weeks", columns, i => (i + 1).ToString());
+            // So row 0 is whatever weekday the program began on, and the letters down the side rotate to match.
+            Ticks(root, "program-days", 7, i => "MTWTFSS"[(((int)start.DayOfWeek + 6) % 7 + i) % 7].ToString());
 
             // ---- what am I working on right now
             if (primary is { } focus)
@@ -279,7 +270,7 @@ namespace Kinesthetic.Menu
             var levels = new Dictionary<DateTime, int>();
             foreach (var cell in dashboard.calendar) levels[cell.date.Date] = cell.level;
 
-            Paint(root, "program-grid", (ctx, r) => DrawProgram(ctx, r, monday, columns, start, finish, levels));
+            Paint(root, "program-grid", (ctx, r) => DrawProgram(ctx, r, start, columns, finish, levels));
             Paint(root, "envelope-ladder", (ctx, r) => DrawEnvelope(ctx, r, primary));
         }
 
@@ -309,6 +300,21 @@ namespace Kinesthetic.Menu
             return row;
         }
 
+        /// A row (or column) of small labels that has to keep step with a painted grid: same count, same flex
+        /// rule, so the two divide the same rect the same way.
+        static void Ticks(VisualElement root, string name, int count, Func<int, string> text)
+        {
+            var holder = root.Q(name);
+            if (holder == null) return;
+            holder.Clear();
+            for (int i = 0; i < count; i++)
+            {
+                var tick = new Label(text(i)) { pickingMode = PickingMode.Ignore };
+                tick.AddToClassList("day-letter");
+                holder.Add(tick);
+            }
+        }
+
         static Label Styled(string className, string text)
         {
             var label = new Label(text) { pickingMode = PickingMode.Ignore };
@@ -336,8 +342,8 @@ namespace Kinesthetic.Menu
         /// The rect is divided into columns x 7 with no aspect cap, so the day letters and week numbers beside
         /// it — laid out by flex on the same rect — land on the same rows and columns without either side
         /// knowing the other's cell size.
-        static void DrawProgram(MeshGenerationContext ctx, Rect r, DateTime monday, int columns,
-                                DateTime start, DateTime finish, Dictionary<DateTime, int> levels)
+        static void DrawProgram(MeshGenerationContext ctx, Rect r, DateTime start, int columns,
+                                DateTime finish, Dictionary<DateTime, int> levels)
         {
             if (r.width < 40 || r.height < 40 || columns < 1) return;
             var p = ctx.painter2D;
@@ -351,32 +357,29 @@ namespace Kinesthetic.Menu
             for (int column = 0; column < columns; column++)
             for (int row = 0; row < 7; row++)
             {
-                var date = monday.AddDays(column * 7 + row);
-                if (date < start || date > finish) continue;      // the program's own edges, not the week's
+                var date = start.AddDays(column * 7 + row);
+                if (date > finish) continue;                      // the tail of the last week, if it has one
                 var cell = new Rect(column * (cw + gap), row * (ch + gap), cw, ch);
                 levels.TryGetValue(date.Date, out int level);
                 bool done = level > 0, now = date == today;
 
-                // The paper the day is written on: a wash under a day that has work in it, a plain square for a
-                // day gone by, and the faintest one for a day still to come.
+                // The paper the day is written on. A crossed-off day keeps the plain square a past day has —
+                // the pen is the mark, and tinting the paper under it as well would say the same thing twice.
+                // The last day of the program is the one square filled for what it is rather than for what
+                // happened on it: it is a coral wash rather than a ring, because a ring would read as another
+                // kind of today next to the one four squares away.
                 p.fillColor = now ? Progress.At(.20f)
-                            : done ? Good.At(.16f)
+                            : date == finish ? Target.At(.26f)
                             : date < today ? Reference.At(.20f)
                             : Reference.At(.11f);
                 Cell(p, cell.x, cell.y, cell.width, cell.height, radius);
 
-                // Today is ringed rather than filled differently, so "where am I" and "did I train" stay two
-                // separate readings — and it is ringed twice as thick as the finish, because it is the one square
-                // a person looks for.
+                // Today is ringed as well as washed, so "where am I" and "did I train" stay two separate
+                // readings: the ring is the date, the pen is the work, and a day can carry both.
                 if (now)
                 {
                     p.strokeColor = Progress; p.lineWidth = 4;
                     Cell(p, cell.x - 3, cell.y - 3, cell.width + 6, cell.height + 6, radius + 2, stroke: true);
-                }
-                else if (date == finish)
-                {
-                    p.strokeColor = Target; p.lineWidth = 3;
-                    Cell(p, cell.x - 2.5f, cell.y - 2.5f, cell.width + 5, cell.height + 5, radius + 2, stroke: true);
                 }
 
                 if (done) CrossOff(p, cell, date.DayOfYear * 31 + date.Year, level);
@@ -402,7 +405,7 @@ namespace Kinesthetic.Menu
                 (low ? cell.yMax + overshoot : cell.y - overshoot) + Jitter(salt + 7));
 
             p.lineCap = LineCap.Round;
-            p.strokeColor = Good;
+            p.strokeColor = Pen;
 
             // Top-left to bottom-right, then top-right to bottom-left. The bow is perpendicular to the stroke
             // and its side comes off the seed, so some X's bulge out and some in.

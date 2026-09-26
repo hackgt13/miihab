@@ -53,15 +53,12 @@
                             <ui:Label name="program-note" text="" class="tile-note accent" />
                         </ui:VisualElement>
                         <ui:VisualElement class="program-body" picking-mode="Ignore">
-                            <!-- One letter per row, and one number per week column, both laid out by the same
-                                 flex rule the painted grid divides its rect by — so they line up without
-                                 either side knowing the other's cell size. -->
-                            <ui:VisualElement class="program-days" picking-mode="Ignore">
-                                <ui:Label text="M" class="day-letter" /><ui:Label text="T" class="day-letter" />
-                                <ui:Label text="W" class="day-letter" /><ui:Label text="T" class="day-letter" />
-                                <ui:Label text="F" class="day-letter" /><ui:Label text="S" class="day-letter" />
-                                <ui:Label text="S" class="day-letter" />
-                            </ui:VisualElement>
+                            <!-- One letter per row and one number per week column, both filled in code: a
+                                 column is a week OF THE PROGRAM, so row 0 is whatever weekday the program
+                                 started on and the letters rotate to match. They are laid out by the same flex
+                                 rule the painted grid divides its rect by, so the three line up without either
+                                 side knowing the other's cell size. -->
+                            <ui:VisualElement name="program-days" class="program-days" picking-mode="Ignore" />
                             <ui:VisualElement class="program-plot" picking-mode="Ignore">
                                 <ui:VisualElement name="program-weeks" class="program-weeks" picking-mode="Ignore" />
                                 <ui:VisualElement name="program-grid" class="program-grid" picking-mode="Ignore" />
