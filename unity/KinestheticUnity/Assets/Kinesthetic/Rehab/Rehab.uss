@@ -7,7 +7,8 @@
 .dock-chrome { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .view-toggle { flex-shrink: 0; }
 .coaching-dock { flex-direction: row; align-items: center; }
-.cue-step { align-self: center; margin-right: 20px; }
+.cue-step { align-self: center; margin-right: 20px; align-items: center; }
+.hold-ring { width: 72px; height: 72px; margin-top: 8px; }
 .coaching-copy { flex-grow: 1; flex-shrink: 1; }
 .status { margin-top: 4px; }
 .session-action { margin-left: 22px; flex-shrink: 0; }
@@ -16,9 +17,12 @@
 
 /* Measure, 320 x 400 px at 1.5 m. */
 .progress-card { flex-grow: 1; align-items: center; }
-.rep-ring { width: 160px; height: 160px; margin-top: 14px; }
-.progress-note { margin-top: 12px; }
-.angle-details { width: 100%; margin-top: 18px; align-items: center; }
+.rep-ring { width: 136px; height: 136px; margin-top: 10px; }
+.progress-note { margin-top: 10px; }
+.form-row { flex-direction: row; width: 100%; margin-top: 8px; justify-content: space-around; }
+.form-metric { align-items: center; }
+.form-note { margin-top: 6px; }
+.angle-details { width: 100%; margin-top: 12px; align-items: center; }
 .angle-meter { width: 100%; margin-top: 10px; }
 .angle-note { margin-top: 10px; }
 
@@ -29,7 +33,7 @@
 /* Focus, 657 x 486 px at 1.4 m. The card is the board. */
 .summary-card { flex-grow: 1; align-items: center; }
 .summary-badge { align-self: center; margin-bottom: 12px; }
-.summary-subtitle, .summary-plan, .summary-progress { margin-top: 6px; }
+.summary-subtitle, .summary-plan, .summary-progress, .summary-form { margin-top: 6px; }
 .summary-metrics { flex-direction: row; width: 100%; margin-top: 16px; margin-bottom: 12px; }
 .summary-metric { flex-grow: 1; align-items: center; }
 .summary-notes { max-height: 72px; width: 100%; flex-shrink: 1; }

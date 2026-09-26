@@ -22,6 +22,8 @@ export interface LibraryExercise {
               loadKg: number; assistance: Assistance };
   /** Dose limits the measurement kind does not own. */
   limits: { sets: [number, number]; loadKg: [number, number] };
+  /** The rep qualities this movement is coached on (exercise/quality.ts ids); absent means all of them. Their configs are plan params. */
+  qualities?: string[];
 }
 
 export const LIBRARY: Record<string, LibraryExercise> = {
@@ -33,6 +35,7 @@ export const LIBRARY: Record<string, LibraryExercise> = {
     defaults: { targetDeg: 45, ceilingMarginDeg: 15, prescribedReps: 8, holdMs: 400, sets: 1, loadKg: 0, assistance: 'active' },
     limits: { sets: [1, 5], loadKg: [0, 5] },
     // The pause at the top is the point of a raise, and dropping the arm is the usual way to cheat it.
+    qualities: ['hold', 'tempo', 'control', 'consistency'],
   },
   'elbow-flexion.v1': {
     kind: 'elbow-flexion.v1', movement: 'biceps_curl', label: 'Seated biceps curl', sensor: 'AirPod on the handle',
@@ -42,6 +45,7 @@ export const LIBRARY: Record<string, LibraryExercise> = {
     defaults: { targetDeg: 90, ceilingMarginDeg: 20, prescribedReps: 10, holdMs: 0, sets: 1, loadKg: 0.5, assistance: 'active' },
     limits: { sets: [1, 5], loadKg: [0, 10] },
     // A curl is judged on its lowering, not on a pause: no hold.
+    qualities: ['tempo', 'control', 'consistency'],
   },
   ...entries([
     // In-ear: put the AirPods in, that is the setup.
@@ -107,7 +111,9 @@ export const LIBRARY: Record<string, LibraryExercise> = {
     { kind: 'seated-march.v1', movement: 'seated_march', label: 'Seated march', sensor: 'AirPod on the thigh',
       posture: 'Sitting tall; lift the knee, not the trunk.', components: ['hip flexion', 'endurance'],
       cue: 'Sit tall and lift this knee up and down, as if marching. Steady rhythm.',
-      defaults: { targetDeg: 15, ceilingMarginDeg: 15, prescribedReps: 20, holdMs: 0 } },
+      defaults: { targetDeg: 15, ceilingMarginDeg: 15, prescribedReps: 20, holdMs: 0 },
+      // A quick rhythm by design: no hold, and "slower on the way down" would coach against it.
+      qualities: ['control', 'consistency'] },
   ]),
 };
 

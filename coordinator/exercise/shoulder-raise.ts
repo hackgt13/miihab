@@ -9,6 +9,7 @@ import {
   type ExerciseKind, type Observation, type ObservationInput, type Reference, type RepParams,
   type ResolvedParams, type Sample as RepSample, type SharedInvalidReason, type Side, type Vec,
 } from './kind.ts';
+import type { RepVerdict } from './quality.ts';
 
 export const ALGORITHM_VERSION = 'shoulder-raise.v1';
 
@@ -65,7 +66,8 @@ export type ExerciseEvent =
   | { type: 'rep.started'; tMs: number; rep: number }
   | { type: 'target.reached'; tMs: number; rep: number; angleDeg: number }
   | { type: 'rep.completed'; tMs: number; rep: number; valid: boolean; reason: InvalidReason | null;
-      peakDeg: number; durationMs: number; trunkMaxDeg: number; aboveTargetMax: boolean; startMs: number }
+      peakDeg: number; durationMs: number; trunkMaxDeg: number; aboveTargetMax: boolean; startMs: number;
+      quality: Record<string, RepVerdict>; score: number | null; streak: number }
   | { type: 'tracking.lost'; tMs: number; rep: number | null }
   | { type: 'tracking.recovered'; tMs: number };
 

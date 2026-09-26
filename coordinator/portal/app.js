@@ -29,6 +29,10 @@ function rows() {
     planVersion: s.planVersion, attempted: s.attempted, valid: s.valid, prescribed: s.prescribed, medianValidPeakDeg: s.medianValidPeakDeg,
     trunk: s.invalidReasons?.trunk_compensation ?? 0, simulated: s.simulated !== false, reasons: s.invalidReasons ?? {}, tracking: s.validFrameRatio, id: s.exerciseId, targetDeg: s.config?.targetDeg,
     sensor: s.sensor ?? 'pose',
+    // How well the counted reps were made (exercise/quality.ts): the mean form score, the best hold, controlled lowerings.
+    form: s.quality?.formScore ?? null, bestHoldMs: s.quality?.hold?.bestMs ?? null,
+    controlledLowers: s.quality?.tempo ? `${s.quality.tempo.controlledLowers}/${s.quality.tempo.reps}` : null,
+    fatigued: s.quality?.consistency?.fatigued === true,
   }));
 }
 
@@ -80,6 +84,7 @@ function render() {
   $('#sessions tbody').innerHTML = [...all].reverse().map(r => `<tr>
     <td>${esc(r.when)}${r.simulated ? ' <span class="muted">(simulated input)</span>' : ''}</td><td>v${r.planVersion}</td>
     <td class="num">${r.valid}/${r.attempted}</td><td class="num">${deg(r.medianValidPeakDeg)}</td>
+    <td class="num" title="${r.bestHoldMs != null ? `best hold ${(r.bestHoldMs / 1000).toFixed(1)} s · ` : ''}${r.controlledLowers != null ? `${r.controlledLowers} lowered with control` : ''}">${r.form != null ? Math.round(r.form * 100) + '%' : '—'}${r.fatigued ? ' <span class="muted small">fatigue</span>' : ''}</td>
     <td>${Object.entries(r.reasons).map(([k, n]) => `${n} × ${REASONS[k] ?? k}`).join(', ') || '—'}</td>
     <td>${r.tracking != null ? Math.round(r.tracking * 100) + '%' : '—'}</td>
     <td>${r.sensor === 'imu' ? '<span class="muted small">AirPod</span>' : `<button type="button" class="small-btn" data-replay="${esc(r.id)}">Replay</button>`}</td></tr>`).join('');
