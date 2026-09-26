@@ -126,6 +126,7 @@ namespace Kinesthetic.Menu
         string pendingPhotoId;
         string spotlightId;
         SpotlightInfo insight;
+        IntroductionsCard introductions;
 
         public void Attach(VisualElement tree, ActivityNavigation nav)
         {
@@ -154,9 +155,15 @@ namespace Kinesthetic.Menu
             composer = root.Q<TextField>("composer-text");
             sendButton = root.Q<Button>("composer-send");
             photoButton = root.Q<Button>("composer-photo");
-            if (overlay == null || openButton == null) return;
+            // The pane carries no modal shade, no open button and, since the Back
+            // buttons went, no close button either: the ring turns to this screen
+            // and MainMenu owns the button that turns it. All three were required
+            // here before the panes landed, so Attach returned early on Friends.uxml
+            // and nothing at all was wired — no roster, no chips, no send. The list
+            // is the one thing this screen cannot do without.
+            if (list == null) return;
 
-            openButton.clicked += Open;
+            if (openButton != null) openButton.clicked += Open;
             if (closeButton != null) closeButton.clicked += Close;
             inviteButton.clicked += () => StartCoroutine(Invite());
             acceptButton.clicked += () => StartCoroutine(Accept());
@@ -166,10 +173,16 @@ namespace Kinesthetic.Menu
                 spotlightReply.clicked += () => { Open(); if (spotlightId != null) SelectPerson(spotlightId); };
             composer.RegisterCallback<KeyDownEvent>(e =>
             { if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { StartCoroutine(Send(null)); e.StopPropagation(); } });
-            root.RegisterCallback<NavigationCancelEvent>(e =>
-            { if (!overlay.ClassListContains("hidden")) { Close(); e.StopPropagation(); } });
+            if (overlay != null)
+                root.RegisterCallback<NavigationCancelEvent>(e =>
+                { if (!overlay.ClassListContains("hidden")) { Close(); e.StopPropagation(); } });
 
             BuildQuickChips();
+            // Mounted only where the tree offers a home for it, so a screen that
+            // has not adopted the card is not broken by its absence.
+            var introMount = root.Q("introductions");
+            if (introMount != null)
+                introductions = new IntroductionsCard(this, introMount, () => StartCoroutine(LoadRoster()));
             StartCoroutine(LoadRoster());
         }
 
@@ -189,16 +202,16 @@ namespace Kinesthetic.Menu
         public void Open()
         {
             navigation?.PlaySelect();
-            overlay.RemoveFromClassList("hidden");
+            overlay?.RemoveFromClassList("hidden");
             (closeButton ?? inviteButton)?.Focus();
             StartCoroutine(LoadRoster());
         }
 
         void Close()
         {
-            overlay.AddToClassList("hidden");
+            overlay?.AddToClassList("hidden");
             navigation?.PlayBack();
-            openButton.Focus();
+            openButton?.Focus();
         }
 
         // ---- data ------------------------------------------------------------
@@ -224,6 +237,8 @@ namespace Kinesthetic.Menu
             // Deliberately not awaited: a model call is seconds, and the panel is
             // already correct without it. It repaints if and when it lands.
             StartCoroutine(LoadInsight());
+            // After the roster, so anyone already a friend is excluded from it.
+            introductions?.Refresh();
         }
 
         /// Asks the coordinator who deserves the spotlight and what each person has
@@ -373,14 +388,17 @@ namespace Kinesthetic.Menu
 
         void PaintFaces()
         {
-            facesRow.Clear();
+            // The stacked faces and the count live on the button that opens this, which
+            // the pane does not have.
+            facesRow?.Clear();
             int unread = 0, shown = 0;
             foreach (var person in roster.friends)
             {
                 unread += person.unread;
                 if (shown++ >= 3) continue;
-                facesRow.Add(Face(person.mii, 26f, "friend-face"));
+                facesRow?.Add(Face(person.mii, 26f, "friend-face"));
             }
+            if (badge == null) return;
             if (unread > 0) { badge.text = unread.ToString(); badge.RemoveFromClassList("hidden"); }
             else badge.AddToClassList("hidden");
         }

@@ -10,6 +10,8 @@ import { PlanStore } from './plans.ts';
 import { FriendStore } from './friends.ts';
 import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
 import { spotlight, recap, daysSince } from './social-ai.ts';
+import { weeksSince, type Profile } from './matching.ts';
+import { IntroductionStore, LocalDirectory } from './introductions.ts';
 import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, type RepParams, type RepSession } from './exercise/registry.ts';
@@ -45,6 +47,24 @@ const messages = new MessageStore(socialDir);
 // Notes the therapist leaves for the patient's visit (visit.ts). Kept beside the plans: they are clinical.
 const visit = new VisitStore(resolve(process.env.KINESTHETIC_VISIT_DIRECTORY ?? resolve(root, 'local-data/visit')));
 const therapist = therapistFromEnv();
+const introductions = new IntroductionStore(socialDir);
+// Local today. When a shared backend exists this is the only line that changes.
+const directory = new LocalDirectory(socialDir);
+
+/// This patient, as the matcher sees them: what they are working toward and
+/// what they practise. Never a measurement — see the note at the top of
+/// matching.ts for why a score built from degrees would be the wrong thing.
+function myProfile(): Profile {
+  const plan = plans.active();
+  return {
+    personId: friends.me().id,
+    goalComponents: plan?.goal?.components ?? [],
+    exerciseKinds: [...new Set((plan?.activities ?? [])
+      .map(a => a.exerciseKind).filter((k): k is string => !!k))],
+    ageBand: null,          // nobody is asked for this yet; null is "no signal"
+    programWeek: weeksSince(plan?.approvedAt),
+  };
+}
 
 /// Reads a bounded request body. Photos are the only binary upload here.
 function readBytes(request: import('node:http').IncomingMessage, limit: number): Promise<Buffer> {
@@ -347,6 +367,45 @@ const server = createServer(async (request, response) => {
         // Both AI routes answer 200 with empty values when the model is not
         // configured or declines, so the panel treats it as "no opinion today"
         // rather than an error it has to handle.
+        // Discovery, on a double opt-in. An open introduction carries a reason and
+        // nothing that identifies anyone; only a mutual yes exchanges names, and
+        // from there it is the ordinary invite path.
+        if (request.method === 'GET' && url.pathname === '/api/friends/introductions') {
+          const already = new Set(friends.list().map(p => p.id));
+          const kind = url.searchParams.get('kind') === 'mentor' ? 'mentor' : 'peer';
+          await introductions.suggest(myProfile(), directory, already, kind);
+          return json(200, {
+            introductions: introductions.open(me, kind).map(i => ({
+              id: i.id, kind: i.kind, reason: i.reasons[me] ?? '',
+              // Deliberately no id, name or Mii for the other side.
+              waitingOnThem: i.answers[me] === 'yes',
+            })),
+          });
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/introductions/answer') {
+          const body = await readJson(request) as {id?: string; yes?: boolean};
+          const id = String(body.id ?? '');
+          let answered = introductions.answer(id, me, body.yes ? 'yes' : 'no');
+          // The local stand-in for the other side. Every profile in the local
+          // directory is synthetic — there is no second coordinator to answer —
+          // so a yes here completes the pair instead of waiting forever. With a
+          // real backend this whole branch goes away and the wait is real; the
+          // double opt-in in introductions.ts is untouched either way.
+          if (body.yes && !IntroductionStore.joined(answered)) {
+            const other = answered.pair[0] === me ? answered.pair[1] : answered.pair[0];
+            const synthetic = (await directory.profiles()).some(p => p.personId === other);
+            if (synthetic) answered = introductions.answer(id, other, 'yes');
+          }
+          if (!IntroductionStore.joined(answered)) return json(200, {joined: false});
+          // Both said yes. Mint a code and redeem it, which is exactly what two
+          // people who exchanged one by hand would have done.
+          const other = answered.pair[0] === me ? answered.pair[1] : answered.pair[0];
+          const profiles = await directory.profiles();
+          const known = profiles.find(p => p.personId === other);
+          const person = friends.has(other) ? friends.person(other)
+            : friends.accept(friends.invite(), known?.displayName || 'A friend');
+          return json(201, {joined: true, person});
+        }
         if (request.method === 'GET' && url.pathname === '/api/friends/spotlight') {
           const people = friends.list();
           const unread = messages.unread(me, people.map(p => p.id));

@@ -488,3 +488,16 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 
 .cta-visit { flex-shrink: 0; margin-bottom: 0; }
 .cta-visit .cta-sub { white-space: normal; }
+
+/* ---- Introductions -------------------------------------------------------
+   Layout only. Colour, radius and type come from the UI library components the
+   card is built from, so this never restates a palette token. */
+
+.introductions { flex-shrink: 0; }
+.introduction-card { margin-bottom: 14px; }
+.introduction-head { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+/* The two answers sit apart: "Not now" is the quiet one and stays left of the
+   press a person is more likely to want. */
+.introduction-actions { flex-direction: row; justify-content: flex-end; margin-top: 12px; }
+.introduction-actions > .k-button { margin-left: 8px; }
+.introduction-card.hidden { display: none; }

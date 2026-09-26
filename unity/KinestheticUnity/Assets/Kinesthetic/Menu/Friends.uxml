@@ -12,6 +12,8 @@
             </ui:VisualElement>
             <ui:VisualElement class="friends-body">
                 <ui:VisualElement class="friends-list-pane">
+                    <!-- One introduction at a time, above the people you already know. -->
+                    <ui:VisualElement name="introductions" class="introductions" />
                     <ui:ScrollView name="friends-list" class="friends-list" />
                     <ui:VisualElement class="invite-block">
                         <ui:Button name="friends-invite" text="Invite a friend" class="ghost-button" />
