@@ -21,6 +21,7 @@ import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from '.
 import { LIBRARY } from './exercises.ts';
 import { buildDashboard, golfUnlock } from './dashboard.ts';
 import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
+import { buildVisit, therapistFromEnv, VisitNoteStore } from './visit.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const captureRoot = resolve(root, 'spikes/pose-capture');
@@ -41,6 +42,9 @@ const cameraMeasurement = process.env.KINESTHETIC_CAMERA_MEASUREMENT === '1';
 const socialDir = resolve(process.env.KINESTHETIC_SOCIAL_DIRECTORY ?? resolve(root, 'local-data/social'));
 const friends = new FriendStore(socialDir);
 const messages = new MessageStore(socialDir);
+// Notes the therapist leaves for the patient's visit (visit.ts). Kept beside the plans: they are clinical.
+const visitNotes = new VisitNoteStore(resolve(process.env.KINESTHETIC_VISIT_DIRECTORY ?? resolve(root, 'local-data/visit')));
+const therapist = therapistFromEnv();
 
 /// Reads a bounded request body. Photos are the only binary upload here.
 function readBytes(request: import('node:http').IncomingMessage, limit: number): Promise<Buffer> {
@@ -56,7 +60,8 @@ function readBytes(request: import('node:http').IncomingMessage, limit: number):
   });
 }
 const portalRoot = resolve(root, 'coordinator/portal');
-const allowedOrigins = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:8765', 'http://127.0.0.1:8765']);
+// 5173 is the wiirehab clinician web app's Vite dev server, which writes visit notes.
+const allowedOrigins = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:8765', 'http://127.0.0.1:8765', 'http://localhost:5173', 'http://127.0.0.1:5173']);
 const mime: Record<string,string> = { '.html':'text/html', '.js':'text/javascript', '.mjs':'text/javascript', '.css':'text/css', '.wasm':'application/wasm', '.task':'application/octet-stream' };
 let producer: WebSocket | null = null;
 let latest: any = null;
@@ -262,6 +267,14 @@ const server = createServer(async (request, response) => {
           .map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
         return json(200, buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes}));
       }
+      // The therapist visit (Unity: Kinesthetic/Visit): the whiteboard's program updates and what the therapist
+      // says about them. Notes are the therapist's own words to the patient; the clinician side writes them.
+      if (request.method === 'GET' && url.pathname === '/api/visit')
+        return json(200, buildVisit({plans: plans.list(), notes: visitNotes.list(), therapist}));
+      if (request.method === 'GET' && url.pathname === '/api/visit/notes') return json(200, visitNotes.list());
+      if (request.method === 'POST' && url.pathname === '/api/visit/notes') return json(201, visitNotes.add(await readJson(request)));
+      const note = url.pathname.match(/^\/api\/visit\/notes\/([0-9a-f-]{36})$/i);
+      if (request.method === 'DELETE' && note) return visitNotes.remove(note[1]) ? json(200, {removed: note[1]}) : json(404, {error:'No such note'});
       if (request.method === 'GET' && url.pathname === '/api/proposals') return json(200, proposals.list().slice(0, 50));
       if (request.method === 'POST' && url.pathname === '/api/progression/evaluate') {
         const body = await readJson(request);
