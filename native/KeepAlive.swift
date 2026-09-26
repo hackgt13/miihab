@@ -202,6 +202,22 @@ final class AudioRouteKeeper {
         return nil
     }
 
+    private var watching = false
+
+    /// Calls `onChange` on the main queue the moment macOS changes the default output or the device list, so a
+    /// route taken back by the speakers is reclaimed at once instead of on the next 2 s poll.
+    func watch(_ onChange: @escaping () -> Void) {
+        guard !watching else { return }
+        watching = true
+        for selector in [kAudioHardwarePropertyDefaultOutputDevice, kAudioHardwarePropertyDevices] {
+            var addr = AudioObjectPropertyAddress(
+                mSelector: selector,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain)
+            AudioObjectAddPropertyListenerBlock(AudioRouteKeeper.systemObject(), &addr, .main) { _, _ in onChange() }
+        }
+    }
+
     /// Stops the tone and gives the audio route back to the user.
     func release() {
         if toneRunning { engine.stop(); toneRunning = false }
