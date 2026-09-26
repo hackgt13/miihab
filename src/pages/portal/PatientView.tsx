@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useParams } from '@tanstack/react-router'
-import { getPatientData } from '../../data/seed'
+import { usePatientData } from '../../hooks/useLivePatient'
 import { evaluateTrigger, computeNextSession } from '../../data/rules'
 import { useSessionSocket } from '../../hooks/useSessionSocket'
 import { TriggerCard } from '../../ui/TriggerCard'
@@ -26,7 +26,9 @@ const statusLabel: Record<PatientStatus, string> = {
 
 export function PatientView() {
   const { patientId } = useParams({ from: '/portal/$patientId' })
-  const data = getPatientData(patientId)
+  // Live for the live patient, seed for the seeded ones. Every component below this line reads the same
+  // PatientData shape either way — src/data/coordinator.ts is what makes the real records look like it.
+  const { data, live, offline } = usePatientData(patientId)
 
   const { status: wsStatus } = useSessionSocket({ url: 'ws://localhost:8766', enabled: true })
 
@@ -41,7 +43,11 @@ export function PatientView() {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-full min-h-screen">
-        <p className="text-[#A3B0B6] text-sm">Patient not found.</p>
+        <p className="text-[#A3B0B6] text-sm">
+          {live
+            ? 'Reading this patient from the coordinator…'
+            : 'Patient not found.'}
+        </p>
       </div>
     )
   }
@@ -114,12 +120,20 @@ export function PatientView() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Live / Replay mode indicator */}
+          {/* Where these numbers come from. Three separate facts, and the page says which it is showing:
+              seeded patients are invented, a live patient is read from the coordinator every few seconds,
+              and the websocket is only up while an exercise is actually running on the headset. */}
           <div className="flex items-center gap-1.5 text-[10px] text-[#A3B0B6]">
             <span className={`w-1.5 h-1.5 rounded-full ${
-              wsStatus === 'open' ? 'bg-[#7CC49A] animate-pulse' : 'bg-[#3D484E]'
+              !live ? 'bg-[#3D484E]'
+                : offline ? 'bg-[#E3A86B]'
+                : wsStatus === 'open' ? 'bg-[#7CC49A] animate-pulse'
+                : 'bg-[#6FB8C4]'
             }`} />
-            {wsStatus === 'open' ? 'Live' : 'Replay mode'}
+            {!live ? 'Demo patient'
+              : offline ? 'Coordinator offline'
+              : wsStatus === 'open' ? 'Live · session in progress'
+              : 'Live · from coordinator'}
           </div>
           {/* Status badge */}
           <div
