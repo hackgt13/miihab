@@ -182,7 +182,7 @@ namespace Kinesthetic.Menu
         static void DrawIcon(MeshGenerationContext ctx, bool studio)
         {
             var p = ctx.painter2D;
-            p.strokeColor = new Color(.17f,.59f,.78f); p.lineWidth = 3; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
+            p.strokeColor = Palette.Indigo60; p.lineWidth = 3; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
             void Line(params Vector2[] points) { p.BeginPath(); p.MoveTo(points[0]); for(int i=1;i<points.Length;i++)p.LineTo(points[i]);p.Stroke(); }
             if (studio)
             {
@@ -190,14 +190,14 @@ namespace Kinesthetic.Menu
                 Line(new(30,26),new(30,39),new(42,39),new(44,49));
                 Line(new(30,28),new(42,24),new(47,12));
                 Line(new(30,28),new(19,36)); Line(new(19,40),new(19,49),new(33,49));
-                p.strokeColor = new Color(.38f,.77f,.87f);p.lineWidth=2;
+                p.strokeColor = Palette.Ice40;p.lineWidth=2;
                 p.BeginPath();p.Arc(new(31,31),21,Angle.Degrees(235),Angle.Degrees(305));p.Stroke();
             }
             else
             {
                 Line(new(30,47),new(30,13),new(48,20),new(30,26));
-                p.strokeColor = new Color(.47f,.73f,.48f); Line(new(14,48),new(48,48));
-                p.fillColor=Color.white;p.BeginPath();p.Arc(new(19,41),4,Angle.Degrees(0),Angle.Degrees(360));p.Fill();p.Stroke();
+                p.strokeColor = Palette.Glaucous50; Line(new(14,48),new(48,48));
+                p.fillColor=Palette.Sand00;p.BeginPath();p.Arc(new(19,41),4,Angle.Degrees(0),Angle.Degrees(360));p.Fill();p.Stroke();
             }
         }
     }

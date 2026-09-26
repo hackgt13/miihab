@@ -36,7 +36,7 @@ namespace Kinesthetic.Golf
             var cameraObject=new GameObject("Course map camera");cameraObject.transform.SetParent(mapWorld.transform);
             mapCamera=cameraObject.AddComponent<Camera>();
             mapCamera.orthographic=true;mapCamera.clearFlags=CameraClearFlags.SolidColor;
-            mapCamera.backgroundColor=new Color(.12f,.37f,.22f);mapCamera.cullingMask=1<<31;
+            mapCamera.backgroundColor=Palette.Indigo70;mapCamera.cullingMask=1<<31;
             mapCamera.nearClipPlane=.1f;mapCamera.farClipPlane=600;
             mapCamera.allowHDR=false;mapCamera.allowMSAA=false;mapCamera.depth=-20;
             Vector3 forward=game.cup.position-game.tee.position;forward.y=0;forward.Normalize();
@@ -53,7 +53,7 @@ namespace Kinesthetic.Golf
                 clone.AddComponent<MeshFilter>().sharedMesh=mesh.sharedMesh;
                 var renderer=clone.AddComponent<MeshRenderer>();
                 var mat=new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-                Color color=mesh.name.Contains("004")?new Color(.91f,.85f,.57f):mesh.name.Contains("Rough")?new Color(.22f,.49f,.27f):new Color(.53f,.78f,.31f);
+                Color color=mesh.name.Contains("004")?Palette.Sand30:mesh.name.Contains("Rough")?new Color(.22f,.49f,.27f):new Color(.53f,.78f,.31f);
                 mat.SetColor("_BaseColor",color);materials.Add(mat);
                 var source=mesh.GetComponent<MeshRenderer>();
                 var slots=new Material[Math.Max(1,source.sharedMaterials.Length)];Array.Fill(slots,mat);renderer.sharedMaterials=slots;
@@ -101,24 +101,24 @@ namespace Kinesthetic.Golf
             if(game.Phase=="Address")
             {
                 var target=Project(game.ball.position+game.HudAim*35);
-                for(int i=0;i<8;i++)Line(p,Vector2.Lerp(b,target,i/8f),Vector2.Lerp(b,target,(i+.5f)/8f),new Color(1,1,1,.8f),1.5f);
+                for(int i=0;i<8;i++)Line(p,Vector2.Lerp(b,target,i/8f),Vector2.Lerp(b,target,(i+.5f)/8f),Palette.Sand00.At(.8f),1.5f);
             }
             int other=1-game.activePlayer;
             var friend=Project(game.GetLie(other));
-            Dot(p,friend,5,new Color(.07f,.15f,.23f));Dot(p,friend,3,other==0?Color.white:new Color(1,.78f,.28f));
-            Line(p,flag+new Vector2(0,1),flag+new Vector2(0,-19),Color.white,2);
-            p.fillColor=new Color(1,.23f,.22f);p.BeginPath();p.MoveTo(flag+new Vector2(0,-20));p.LineTo(flag+new Vector2(14,-15));p.LineTo(flag+new Vector2(0,-10));p.ClosePath();p.Fill();
-            Dot(p,b,7,new Color(.08f,.23f,.34f));Dot(p,b,4.5f,game.activePlayer==0?Color.white:new Color(1,.78f,.28f));
+            Dot(p,friend,5,Palette.Indigo70);Dot(p,friend,3,other==0?Palette.Sand00:Palette.Coral40);
+            Line(p,flag+new Vector2(0,1),flag+new Vector2(0,-19),Palette.Sand00,2);
+            p.fillColor=Palette.Coral40;p.BeginPath();p.MoveTo(flag+new Vector2(0,-20));p.LineTo(flag+new Vector2(14,-15));p.LineTo(flag+new Vector2(0,-10));p.ClosePath();p.Fill();
+            Dot(p,b,7,Palette.Indigo70);Dot(p,b,4.5f,game.activePlayer==0?Palette.Sand00:Palette.Coral40);
         }
         void DrawPower(MeshGenerationContext ctx)
         {
             var p=ctx.painter2D;float h=meter.contentRect.height-8;
-            Rect(p,17,2,24,h+4,new Color(.23f,.25f,.13f));Rect(p,19,4,20,h,new Color(1,.87f,.36f));
-            Rect(p,22,7,14,h-6,new Color(.13f,.22f,.20f));
+            Rect(p,17,2,24,h+4,Palette.Indigo70);Rect(p,19,4,20,h,Palette.Sand30);
+            Rect(p,22,7,14,h-6,Palette.Indigo80);
             float fill=(h-6)*game.HudPower;
-            Rect(p,22,h+1-fill,14,fill,game.HudPower>.9f?new Color(1,.27f,.20f):new Color(.22f,.71f,1));
-            for(int i=0;i<=4;i++){float y=7+(h-6)*i/4;Line(p,new(13,y),new(20,y),Color.white,2);Line(p,new(39,y),new(44,y),Color.white,2);}
-            var yPower=h+1-fill;Line(p,new(6,yPower),new(16,yPower),new Color(1,.95f,.44f),4);
+            Rect(p,22,h+1-fill,14,fill,game.HudPower>.9f?Palette.Coral40:Palette.Ice40);
+            for(int i=0;i<=4;i++){float y=7+(h-6)*i/4;Line(p,new(13,y),new(20,y),Palette.Sand30,2);Line(p,new(39,y),new(44,y),Palette.Sand30,2);}
+            var yPower=h+1-fill;Line(p,new(6,yPower),new(16,yPower),Palette.Sand00,4);
         }
         public void Update()
         {

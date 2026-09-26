@@ -169,8 +169,8 @@ namespace Kinesthetic
             if (target)
             {
                 targetProperties ??= new MaterialPropertyBlock();
-                targetProperties.SetColor("_BaseColor", !ShoulderValid ? new Color(.5f, .55f, .59f) :
-                    TargetReached ? new Color(.25f, .95f, .68f) : new Color(.98f, .68f, .29f));
+                targetProperties.SetColor("_BaseColor", !ShoulderValid ? Palette.Glaucous40 :
+                    TargetReached ? Palette.Ice40 : Palette.Coral40);
                 target.SetPropertyBlock(targetProperties);
             }
         }

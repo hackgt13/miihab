@@ -214,11 +214,11 @@ namespace Kinesthetic.Rehab
             float filled = Mathf.Clamp01((float)valid / Mathf.Max(1, prescribedReps)) * segments;
             for (int i = 0; i < segments; i++)
             {
-                painter.strokeColor = new Color(.87f, .93f, .90f);
+                painter.strokeColor = Palette.Ice20;
                 float begin = -90 + i * step + gap * .5f, end = -90 + (i + 1) * step - gap * .5f;
                 painter.BeginPath(); painter.Arc(rect.center, rect.width * .43f, Angle.Degrees(begin), Angle.Degrees(end)); painter.Stroke();
                 if (filled <= i) continue;
-                painter.strokeColor = new Color(.22f, .68f, .62f);
+                painter.strokeColor = Palette.Ice50;
                 painter.BeginPath(); painter.Arc(rect.center, rect.width * .43f, Angle.Degrees(begin), Angle.Degrees(Mathf.Lerp(begin, end, Mathf.Clamp01(filled - i)))); painter.Stroke();
             }
         }
