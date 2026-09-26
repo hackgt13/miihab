@@ -22,7 +22,7 @@ const golfMotion=motions.get('/golf')!,bowlingMotion=motions.get('/bowling-motio
 const viewerOrigins=new Set(['http://127.0.0.1:8766','http://localhost:8766']);
 const loopback=(address?:string)=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(address??'');
 const channels=new Map(['/state','/bowling-state','/rehab-state'].map(path=>[path,{
-  host:null as WebSocket|null,clients:new Set<WebSocket>(),last:null as string|null,
+  host:null as WebSocket|null,clients:new Set<WebSocket>(),last:null as string|null,lastAt:0,
   type:({'/state':'golf','/bowling-state':'bowling','/rehab-state':'rehab'} as Record<string,string>)[path]
 }]));
 const golfState=channels.get('/state')!;
@@ -86,6 +86,10 @@ const sockets=new WebSocketServer({noServer:true,maxPayload:8192});
 // Sensor channels stay loopback-only; a LAN client needs KINESTHETIC_PAIR_TOKEN.
 const stateSockets=new WebSocketServer({noServer:true,maxPayload:256*1024});
 const pairToken=process.env.KINESTHETIC_PAIR_TOKEN??'';
+// A client that joins mid-activity is caught up from the host's last frame — but only a fresh one. Every host
+// publishes at 30 Hz for as long as its scene is up, so a frame older than this is a host that stopped without
+// closing (a scene torn down, a Mac asleep), and a headset booting into the plaza must not be sent into its game.
+const stateFreshMs=2000;
 stateSockets.on('connection',(ws,role,path)=>{
   const channel=channels.get(path)!;
   if(role==='host'){
@@ -94,11 +98,11 @@ stateSockets.on('connection',(ws,role,path)=>{
     ws.on('message',bytes=>{
       const text=bytes.toString();
       try{if(JSON.parse(text).type!==channel.type+'.state')throw Error();}catch{ws.close(1008,'Invalid game state');return;}
-      channel.last=text;for(const c of channel.clients)if(c.readyState===WebSocket.OPEN&&c.bufferedAmount<512*1024)c.send(text);
+      channel.last=text;channel.lastAt=Date.now();for(const c of channel.clients)if(c.readyState===WebSocket.OPEN&&c.bufferedAmount<512*1024)c.send(text);
     });
     ws.on('close',()=>{if(channel.host===ws){channel.host=null;channel.last=null;for(const c of channel.clients)if(c.readyState===WebSocket.OPEN)c.send(JSON.stringify({type:channel.type+'.host-disconnected'}));}});
   } else {
-    channel.clients.add(ws);if(channel.last)ws.send(channel.last);
+    channel.clients.add(ws);if(channel.last&&Date.now()-channel.lastAt<stateFreshMs)ws.send(channel.last);
     ws.on('close',()=>channel.clients.delete(ws));
   }
   ws.on('error',()=>ws.close());

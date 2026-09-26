@@ -22,26 +22,8 @@ public static class BowlingSceneSetup
     [MenuItem("Kinesthetic/Bowling/Create Quest scene")]
     public static string CreateQuest() => Build(true);
 
-    [MenuItem("Kinesthetic/Bowling/Build Quest APK")]
-    public static string BuildQuestPlayer()
-    {
-        CreateQuest();
-        string identifier = PlayerSettings.GetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android);
-        try
-        {
-            QuestSceneSetup.ConfigureAndroidXR();
-            PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, "com.kinesthetic.questbowling");
-            PlayerSettings.Android.forceInternetPermission = true;
-            Directory.CreateDirectory("Builds");
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions {
-                scenes = new[] { QuestScenePath }, locationPathName = "Builds/QuestBowling.apk", target = BuildTarget.Android,
-                options = BuildOptions.Development });
-            if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
-                throw new InvalidOperationException("Quest Bowling build " + report.summary.result + ": " + report.summary.totalErrors + " errors.");
-            return Path.GetFullPath("Builds/QuestBowling.apk");
-        }
-        finally { PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, identifier); }
-    }
+    // The headset is built once, with every activity, by QuestCombinedBuild; a bowling-only APK would boot into
+    // the lane instead of the plaza.
 
     static string Build(bool quest)
     {

@@ -62,7 +62,10 @@ public static class QuestSceneSetup
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
-        SetBootScene(ScenePath);
+        // Additive, like every other setup: the combined headset build orders its own list, plaza first.
+        var builds = EditorBuildSettings.scenes.ToList();
+        if (!builds.Any(s => s.path == ScenePath)) builds.Add(new EditorBuildSettingsScene(ScenePath, true));
+        EditorBuildSettings.scenes = builds.ToArray();
         WriteHostConfig();
         ConfigureAndroidXR();
         return "Created " + ScenePath + " and configured OpenXR for Android.";
@@ -94,28 +97,10 @@ public static class QuestSceneSetup
         return $"Headset will connect to {ip}:8767";
     }
 
-    // A build boots scene index 0. The app's entry is the menu on both machines: MainMenu on the Mac, and on
-    // the headset its plaza, QuestMenu, where it waits for the Mac and enters golf, bowling or the studio
-    // through a door when the Mac does. An activity is never the boot scene. (MainMenu itself stays Mac-only:
-    // screen-space UI Toolkit, keyboard and pointer.)
-    [MenuItem("Kinesthetic/Quest/Boot headset scene (before a Quest build)")]
-    public static string BootHeadsetScene()
-    {
-        if (!File.Exists(QuestMenuSetup.ScenePath))
-            throw new InvalidOperationException("No headset menu scene yet: run Kinesthetic/Quest/Create headset menu scene first.");
-        return SetBootScene(QuestMenuSetup.ScenePath);
-    }
-
-    [MenuItem("Kinesthetic/Quest/Boot menu scene (back to Mac)")]
-    public static string BootMenuScene() => MainMenuSetup.ConfigureMacBuildScenes();
-
-    static string SetBootScene(string path)
-    {
-        var scenes = EditorBuildSettings.scenes.Where(s => s.path != path).ToList();
-        scenes.Insert(0, new EditorBuildSettingsScene(path, true));
-        EditorBuildSettings.scenes = scenes.ToArray();
-        return "Build index 0 is now " + path;
-    }
+    // A build boots scene index 0, and on both machines that is a menu: MainMenu on the Mac (Kinesthetic/Menu/
+    // Configure Mac build scenes keeps it first), QuestMenu on the headset. There is no menu item to put an
+    // activity scene first: the headset is built only by QuestCombinedBuild, which orders its own scene list
+    // with the plaza at index 0 and leaves the Mac's list alone.
 
     public static void ConfigureAndroidXR()
     {
@@ -148,7 +133,7 @@ public static class QuestSceneSetup
         PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
         PlayerSettings.Android.minSdkVersion = (AndroidSdkVersions)32;
-        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.kinesthetic.questgolf");
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, QuestCombinedBuild.Identifier);
         PlayerSettings.colorSpace = ColorSpace.Linear;
         AssetDatabase.SaveAssets();
     }
