@@ -12,8 +12,8 @@ namespace Kinesthetic.Menu
 {
     public sealed class MainMenuController : MonoBehaviour
     {
-        VisualElement root;                       // the board
-        VisualElement galleryRoot, friendsRoot;   // the panes either side of it
+        VisualElement root;                                     // the board
+        VisualElement coachingRoot, galleryRoot, friendsRoot;   // the panes standing round it
         PaneCarousel carousel;
         VisualElement helpOverlay, nameOverlay;
         TextField nameField;
@@ -22,6 +22,7 @@ namespace Kinesthetic.Menu
         Label caption;
         ActivityNavigation navigation;
         MenuDashboardModel model;
+        CoachingPlanModel plan;
         int selected;
 
         // Every activation this menu offers, by element name. Both the pointer's clicked handler and the gaze
@@ -39,6 +40,7 @@ namespace Kinesthetic.Menu
         static readonly string[] BoardScope = { "start-activity", "friends", "music", "help", "edit-name" };
         static readonly string[] ActivityScope = { "golf-card", "studio-card", "bowling-card", "activity-close" };
         static readonly string[] FriendsScope = { "friends-close", "friends-invite", "friends-accept" };
+        static readonly string[] CoachingScope = { "coaching-close", "visit-therapist" };
         static readonly string[] ActivityIds = { "golf.adaptive", "rehab.studio", "bowling.adaptive" };
         static readonly string[] HelpScope = { "help-close" };
         static readonly string[] NameScope = { "name-save", "name-cancel" };
@@ -50,6 +52,7 @@ namespace Kinesthetic.Menu
         // title alone does not say why someone would go there, add one line here.
         static readonly Dictionary<string, string> PaneBlurbs = new()
         {
+            ["coaching"] = "Your plan, and how it is going",
             ["gallery"] = "Everything you can play",
             ["friends"] = "Who is cheering you on",
         };
@@ -60,6 +63,10 @@ namespace Kinesthetic.Menu
         // The board's figures come from the coordinator on this Mac (coordinator/dashboard.ts). The menu is a
         // Mac scene; on a headset 127.0.0.1 would be the headset itself, so the board would keep its demo data.
         const string DashboardUrl = "http://127.0.0.1:8766/api/dashboard";
+        // The coaching pane reads the plan itself rather than the board's summary of it, because the dose,
+        // the ceiling and the progression envelope are the whole point of that pane and /api/dashboard
+        // reduces them to one target angle.
+        const string PlanUrl = "http://127.0.0.1:8766/api/plans/active";
         JObject dashboard;   // the last reply; null until one arrives
 
         MenuDashboardModel BuildModel() => dashboard != null ? MenuDashboardModel.FromCoordinator(dashboard) : MenuDashboardModel.Placeholder();
@@ -74,6 +81,20 @@ namespace Kinesthetic.Menu
             model = BuildModel();
             bound = true;
             MenuDashboard.Populate(root, model);
+            // Coaching draws the trend and the dose from these same figures, so it is redrawn with them
+            // rather than left holding the placeholder the board has just replaced.
+            if (coachingRoot != null) CoachingPanel.Populate(coachingRoot, plan, model);
+        }
+
+        IEnumerator LoadPlan()
+        {
+            using var request = UnityWebRequest.Get(PlanUrl);
+            request.timeout = 3;
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success || coachingRoot == null) yield break;
+            try { plan = CoachingPlanModel.FromCoordinator(JObject.Parse(request.downloadHandler.text)); }
+            catch { yield break; }   // a plan that will not parse is not a reason to blank the pane
+            CoachingPanel.Populate(coachingRoot, plan, model);
         }
 
         bool bound;   // subscriptions are once, not once per frame that Bind is retried
@@ -94,6 +115,9 @@ namespace Kinesthetic.Menu
             galleryRoot = PaneRoot("gallery");
             friendsRoot = PaneRoot("friends");
             if (carousel == null || galleryRoot == null || friendsRoot == null) { root = null; return; }
+            // Optional, unlike the two above: a scene generated before the coaching pane existed still has a
+            // working board, and the ring's own slot list is what decides whether a button appears for it.
+            coachingRoot = PaneRoot("coaching");
 
             helpOverlay = root.Q("help-overlay");
             nameOverlay = root.Q("name-overlay");
@@ -117,6 +141,11 @@ namespace Kinesthetic.Menu
             BuildPaneLinks();
             Act(galleryRoot.Q<Button>("activity-close"), () => carousel.Show("home"));
             Act(friendsRoot.Q<Button>("friends-close"), () => carousel.Show("home"));
+            if (coachingRoot != null)
+            {
+                Act(coachingRoot.Q<Button>("coaching-close"), () => carousel.Show("home"));
+                Act(coachingRoot.Q<Button>("visit-therapist"), VisitTherapist);
+            }
             Act(music, navigation.ToggleMusic);
             Act(root.Q<Button>("help"), () => OpenSheet(helpOverlay, HelpScope, root.Q<Button>("help-close")));
             Act(root.Q<Button>("help-close"), () => CloseSheet(helpOverlay, "help"));
@@ -177,10 +206,17 @@ namespace Kinesthetic.Menu
             {
                 "gallery" => ActivityScope,
                 "friends" => FriendsScope,
+                "coaching" => CoachingScope,
                 _ => baseScope,
             };
 
             MenuDashboard.Populate(root, model);
+            if (coachingRoot != null)
+            {
+                plan = CoachingPlanModel.Placeholder();
+                CoachingPanel.Populate(coachingRoot, plan, model);
+                StartCoroutine(LoadPlan());
+            }
             StartCoroutine(LoadDashboard());
             Select(0, false);
             root.schedule.Execute(() => root.Q<Button>("start-activity").Focus());
@@ -285,6 +321,17 @@ namespace Kinesthetic.Menu
         }
 
         void Launch(string activityId) => navigation.LoadActivity(activityId);
+
+        /// Not wired to anything yet, and the button says so once pressed rather than staying silent — a
+        /// control that swallows a press is how a panel starts feeling broken. The line it falls back to is
+        /// true today: the clinician portal (coordinator/portal) already reads this plan and these sessions,
+        /// so nobody has to describe their week down a phone line. What is missing is the visit itself.
+        void VisitTherapist()
+        {
+            navigation.PlaySelect();
+            var sub = coachingRoot?.Q<Label>("visit-sub");
+            if (sub != null) sub.text = "Booking is coming soon — your therapist already sees this plan.";
+        }
 
         void OpenNameSheet()
         {

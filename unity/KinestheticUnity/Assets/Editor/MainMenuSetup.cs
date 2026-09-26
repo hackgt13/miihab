@@ -96,10 +96,16 @@ public static class MainMenuSetup
             return go;
         }
 
-        // Three panes standing in a ring around the viewpoint rather than three layers stacked on one board.
-        // The gallery is a quarter-turn to the LEFT and friends a quarter-turn to the RIGHT, named as angles
-        // because that is the design rather than a consequence of the order they were adopted in. Nothing
-        // behind: a seated person should never be asked to turn around, and the ring brings panes to them.
+        // Four panes standing in a ring around the viewpoint rather than four layers stacked on one board.
+        // Coaching is the first turn to the LEFT, the gallery the second, and friends a turn to the RIGHT,
+        // named as angles because that is the design rather than a consequence of the order they were
+        // adopted in. Nothing behind: a seated person should never be asked to turn around, and the ring
+        // brings panes to them.
+        //
+        // Coaching takes the slot next to the board because the two are one reading: the board says what to
+        // do today, and coaching says what plan that came from. The gallery moved one slot further out and
+        // lost nothing by it — every pane also has a button on the board (BuildPaneLinks), so the gallery is
+        // still one press from home however far round it stands, and only the arrows count slots.
         var rig = new GameObject("Menu carousel", typeof(PaneCarousel));
         var carousel = rig.GetComponent<PaneCarousel>();
         // 60 degrees, not 90, so the neighbours show an edge instead of hiding behind the board — and not
@@ -116,12 +122,14 @@ public static class MainMenuSetup
         // of clearance past the board's own edge, where 56 leaves only 0.3.
         carousel.spacingDegrees = 62;
         var menu = Pane("RehabMii activity menu", "MainMenu.uxml", true);
+        var coaching = Pane("Coaching", "Coaching.uxml", false);
         var gallery = Pane("Activity gallery", "Gallery.uxml", false);
         var friendsPane = Pane("Friends", "Friends.uxml", false);
         carousel.Frame(eye.position, board.position);
         carousel.Adopt(
             new PaneCarousel.Slot("home", "Today", menu.transform, 0),
-            new PaneCarousel.Slot("gallery", "Activities", gallery.transform, -62),
+            new PaneCarousel.Slot("coaching", "Coaching", coaching.transform, -62),
+            new PaneCarousel.Slot("gallery", "Activities", gallery.transform, -124),
             new PaneCarousel.Slot("friends", "Friends", friendsPane.transform, 62));
 
         // The arrows ride their own panel, wider than the panes and a little further out, so the facing pane

@@ -1,0 +1,112 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../Palette.uss" />
+    <ui:Style src="MainMenu.uss" />
+    <!-- Coaching, standing directly to the left of the board: the prescription itself, and the three
+         readings that say whether it is working. The board answers "what do I do today"; this answers
+         "what am I on, and is it moving" — which is the question a patient asks their therapist, and
+         the reason the visit button sits at the bottom of it rather than anywhere else. -->
+    <ui:VisualElement name="coaching-pane" class="pane-screen">
+        <ui:VisualElement name="coaching-panel" class="coaching-panel">
+
+            <ui:VisualElement class="coaching-header">
+                <ui:VisualElement class="coaching-heading">
+                    <ui:Label text="Your rehab plan" class="coaching-title" />
+                    <ui:Label name="plan-provenance" text="" class="coaching-subtitle" />
+                </ui:VisualElement>
+                <ui:Label name="plan-source" text="" class="plan-source" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="coaching-body">
+
+                <ui:VisualElement class="coaching-main">
+
+                    <ui:VisualElement class="tile tile-trend">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="REACH, SESSION BY SESSION" class="tile-label" />
+                            <ui:Label name="trend-note" text="" class="tile-note accent" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="trend-body" picking-mode="Ignore">
+                            <ui:VisualElement class="trend-readout" picking-mode="Ignore">
+                                <ui:Label name="trend-delta" text="" class="reach-delta" />
+                                <ui:Label name="trend-now" text="—" class="stat-number" />
+                                <ui:Label name="trend-target" text="" class="reach-best" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="plan-trend" class="plan-trend" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="tile tile-prescription">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="WHAT IS PRESCRIBED" class="tile-label" />
+                            <ui:Label name="prescription-note" text="" class="tile-note" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="prescription-list" class="prescription-list" picking-mode="Ignore" />
+                    </ui:VisualElement>
+
+                </ui:VisualElement>
+
+                <ui:VisualElement class="coaching-side">
+
+                    <ui:VisualElement class="tile tile-metrics">
+                        <ui:VisualElement class="coach-metrics" picking-mode="Ignore">
+                            <ui:VisualElement class="coach-metric" picking-mode="Ignore">
+                                <ui:Label name="level-number" text="—" class="coach-figure" />
+                                <ui:Label text="LEVEL" class="tile-label" />
+                                <ui:Label name="level-caption" text="" class="stat-caption" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="coach-rule" picking-mode="Ignore" />
+                            <ui:VisualElement class="coach-metric" picking-mode="Ignore">
+                                <ui:Label name="band-number" text="—" class="coach-figure" />
+                                <ui:Label text="REPS IN BAND" class="tile-label" />
+                                <ui:Label name="band-caption" text="" class="stat-caption" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="coach-rule" picking-mode="Ignore" />
+                            <ui:VisualElement class="coach-metric" picking-mode="Ignore">
+                                <ui:Label name="week-number" text="—" class="coach-figure" />
+                                <ui:Label text="WEEK" class="tile-label" />
+                                <ui:Label name="week-caption" text="" class="stat-caption" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="tile tile-envelope">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="YOUR SAFE BAND" class="tile-label" />
+                            <ui:Label name="envelope-note" text="" class="tile-note" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="envelope-ladder" class="envelope-ladder" picking-mode="Ignore" />
+                        <ui:Label name="envelope-caption" text="" class="envelope-caption" picking-mode="Ignore" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="tile tile-dose">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="REPS THAT COUNTED" class="tile-label" />
+                            <ui:Label name="dose-note" text="" class="tile-note" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="dose-bars" class="dose-bars" picking-mode="Ignore" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="tile tile-coach-note">
+                        <ui:VisualElement class="tile-head" picking-mode="Ignore">
+                            <ui:Label text="FROM YOUR THERAPIST" class="tile-label" />
+                        </ui:VisualElement>
+                        <ui:Label name="coaching-note" text="" class="coach-note-copy" picking-mode="Ignore" />
+                    </ui:VisualElement>
+
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="coaching-actions">
+                <ui:Button name="coaching-close" text="Back" class="sheet-close" />
+                <ui:Button name="visit-therapist" class="cta coaching-cta">
+                    <ui:VisualElement class="cta-copy" picking-mode="Ignore">
+                        <ui:Label text="Visit your physical therapist" class="cta-title" picking-mode="Ignore" />
+                        <ui:Label name="visit-sub" text="" class="cta-sub" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label text="›" class="cta-arrow" picking-mode="Ignore" />
+                </ui:Button>
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

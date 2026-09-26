@@ -404,4 +404,98 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
    turns, so three widths read as three different kinds of thing, and the sliver either side changes
    size depending on which pane happens to be standing there. */
 .pane-screen > .sheet,
-.pane-screen > .friends-panel { width: 100%; height: 100%; }
+.pane-screen > .friends-panel,
+.pane-screen > .coaching-panel { width: 100%; height: 100%; }
+
+/* ---- Coaching -------------------------------------------------------------
+   The plan pane, standing directly to the left of the board. Same panel as the other two — sand sheet,
+   cerulean edge, the block measured off the board's bento — because three panes standing in one ring have
+   to read as three faces of one thing, not three different screens that happen to be nearby.
+
+   The numbers here are smaller than the board's on purpose. The board is glanced at from across the room
+   and carries one figure; this is read, so it trades headline size for a page that holds a prescription,
+   three charts and a note without a scrollbar. Nothing drops below 14px on the 1600px reference, which is
+   the floor the rest of this stylesheet keeps. */
+
+.coaching-panel {
+    padding: 34px 40px 30px;
+    background-color: var(--sand-00-a97);
+    border-radius: 32px;
+    border-width: 3px;
+    border-bottom-width: 8px;
+    border-color: var(--cerulean-30);
+}
+.coaching-header { flex-direction: row; justify-content: space-between; align-items: flex-start; flex-shrink: 0; margin-bottom: 14px; }
+.coaching-heading { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.coaching-title { font-size: 34px; color: var(--prussian-50); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.coaching-subtitle { font-size: 16px; color: var(--slate-50); margin-top: 3px; }
+/* Whose figures these are, stated rather than implied. A demo plan that reads as a real one is the one
+   mistake this surface cannot make, so provenance sits at the top where it is read first. */
+.plan-source { flex-shrink: 0; margin-left: 20px; margin-top: 6px; padding: 5px 14px; border-radius: 13px; font-size: 14px; color: var(--slate-60); background-color: var(--cerulean-20-a85); }
+
+.coaching-body { flex-direction: row; flex-grow: 1; min-height: 0; }
+.coaching-main { flex-grow: 1.35; flex-basis: 0; min-width: 0; margin-right: 18px; }
+.coaching-side { flex-grow: 1; flex-basis: 0; min-width: 0; }
+
+/* ---- the reach, session by session */
+
+.tile-trend { flex-grow: 1; min-height: 0; padding-bottom: 12px; }
+.trend-body { flex-direction: row; align-items: stretch; flex-grow: 1; min-height: 0; }
+.trend-readout { flex-shrink: 0; width: 186px; margin-right: 10px; justify-content: center; }
+/* Smaller than the board's 84px hero: this one shares its tile with a chart, and a figure that overpowers
+   the line it belongs to turns the trend into decoration. */
+.trend-readout > .stat-number { font-size: 62px; }
+.trend-readout > .reach-delta { font-size: 17px; }
+.trend-readout > .reach-best { font-size: 15px; }
+.plan-trend { flex-grow: 1; flex-shrink: 1; min-width: 0; min-height: 0; }
+
+/* ---- the prescription */
+
+.tile-prescription { flex-shrink: 0; margin-bottom: 0; padding-bottom: 8px; }
+.prescription-list { flex-shrink: 0; }
+.prescription-row { flex-direction: row; align-items: center; padding: 7px 0; border-top-width: 1px; border-top-color: var(--slate-50-a28); }
+.prescription-row.first { border-top-width: 0; }
+/* A bar rather than a dot, and cerulean only when something is actually measured: play is prescribed too,
+   and marking it with the colour this product uses for "measured" would say it produces numbers. */
+.prescription-mark { width: 4px; height: 38px; border-radius: 2px; background-color: var(--slate-30); margin-right: 14px; flex-shrink: 0; }
+.prescription-mark.measured { background-color: var(--cerulean-50); }
+.prescription-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.prescription-title { font-size: 20px; color: var(--prussian-50); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.prescription-dose { font-size: 16px; color: var(--slate-60); margin-top: 1px; }
+.prescription-note-copy { font-size: 14px; color: var(--slate-50); margin-top: 1px; white-space: normal; }
+.prescription-where { font-size: 14px; color: var(--slate-60); padding: 4px 12px; border-radius: 11px; background-color: var(--cerulean-20-a85); margin-left: 10px; flex-shrink: 0; }
+#prescription-empty { font-size: 16px; color: var(--slate-50); padding: 8px 0; }
+
+/* ---- the three figures */
+
+.tile-metrics { flex-shrink: 0; padding-top: 14px; padding-bottom: 14px; }
+.coach-metrics { flex-direction: row; align-items: center; justify-content: center; }
+.coach-metric { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: center; }
+.coach-rule { width: 1px; height: 76px; background-color: var(--slate-30-a55); margin: 0 10px; }
+.coach-figure { font-size: 46px; color: var(--prussian-50); letter-spacing: -2px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+
+/* ---- the envelope, and the dose */
+
+.tile-envelope { flex-shrink: 0; }
+.envelope-ladder { height: 42px; flex-shrink: 0; }
+.envelope-caption { font-size: 14px; color: var(--slate-50); margin-top: 4px; -unity-text-align: middle-center; }
+.tile-dose { flex-shrink: 0; }
+.dose-bars { height: 66px; flex-shrink: 0; }
+
+/* ---- the therapist's own words */
+
+.tile-coach-note { flex-grow: 1; min-height: 0; margin-bottom: 0; }
+.coach-note-copy { font-size: 17px; color: var(--slate-70); white-space: normal; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
+
+/* ---- the way out, and the way to a person
+
+   Back sits left and quiet; the visit is the one thing on this pane a patient might actually want to do
+   about what they have just read, so it gets the primary treatment. Shorter than the board's CTA, which
+   has a whole board to itself. */
+
+.coaching-actions { flex-direction: row; align-items: center; justify-content: space-between; flex-shrink: 0; margin-top: 14px; }
+.coaching-actions > .sheet-close { align-self: center; margin-top: 0; margin-left: 0; }
+.coaching-cta { flex-shrink: 0; max-width: 620px; padding: 13px 24px; border-bottom-width: 6px; }
+.coaching-cta > .cta-copy > .cta-title { font-size: 25px; }
+.coaching-cta > .cta-copy > .cta-sub { font-size: 16px; }
+.coaching-cta > .cta-arrow { font-size: 36px; }
