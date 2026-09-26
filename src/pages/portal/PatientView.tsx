@@ -12,6 +12,7 @@ import { ExpertChat } from '../../ui/ExpertChat'
 import { PlanVersioning } from '../../ui/PlanVersioning'
 import { DataQuality } from '../../ui/DataQuality'
 import { Adherence } from '../../ui/Adherence'
+import { VisitNotes } from '../../ui/VisitNotes'
 import type { PatientStatus } from '../../data/types'
 
 const statusColor: Record<PatientStatus, string> = {
@@ -190,6 +191,11 @@ export function PatientView() {
       {/* ── 7. Plan versioning ───────────────────────────────── */}
       <div ref={planRef} className="mb-5">
         <PlanVersioning />
+      </div>
+
+      {/* ── 7b. Visit whiteboard: notes for the patient's therapist visit ── */}
+      <div className="mb-5">
+        <VisitNotes />
       </div>
 
       {/* ── 8. Data quality ──────────────────────────────────── */}
