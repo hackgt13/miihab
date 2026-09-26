@@ -60,18 +60,40 @@ namespace Kinesthetic.Coach
         }
 
         /// Opens a conversation with Alex. `patientId` is stable per patient so Alex remembers them.
-        public async void Begin(string patientId)
+        /// Optional `mode` overrides the agent behaviour (e.g. "tutorial").
+        public async void Begin(string patientId, string mode = null)
         {
             if (socket != null) return;
+
+            // Resolve the voice server address: on the Quest, use relay discovery to find the Mac;
+            // in the Editor or when no config exists, fall back to the Inspector url (localhost).
+            var connectUrl = url;
+            var config = Resources.Load<Golf.QuestHostConfig>(Golf.QuestHostConfig.ResourcePath);
+            if (config && !string.IsNullOrEmpty(config.token))
+            {
+                Golf.RelayDiscovery.Listen(config.token);
+                var host = Golf.RelayDiscovery.Host ?? config.host;
+                connectUrl = $"ws://{host}:8769/voice";
+            }
+
             cancel = new CancellationTokenSource();
             socket = new ClientWebSocket();
             try
             {
-                await socket.ConnectAsync(new Uri(url), cancel.Token);
-                await Send(new JObject { ["type"] = "session_start", ["patient_id"] = patientId }.ToString());
+                await socket.ConnectAsync(new Uri(connectUrl), cancel.Token);
+                var msg = new JObject { ["type"] = "session_start", ["patient_id"] = patientId };
+                if (!string.IsNullOrEmpty(mode)) msg["mode"] = mode;
+                await Send(msg.ToString());
                 _ = Task.Run(Receive);
             }
             catch (Exception e) { Debug.LogWarning("Coach voice unavailable: " + e.Message); Close(); }
+        }
+
+        /// Tells the server to speak a scripted line (tutorial mode).
+        public void Cue(string step)
+        {
+            if (socket?.State == WebSocketState.Open)
+                _ = Send(new JObject { ["type"] = "cue", ["step"] = step }.ToString());
         }
 
         public async void End()

@@ -67,7 +67,7 @@ wss.on("connection", onConnection);
 
 // ── Start ──────────────────────────────────────────────────────────────────────
 
-server.listen(config.server.port, "127.0.0.1", () => {
+server.listen(config.server.port, "0.0.0.0", () => {
   console.log(
     `Virtual PT voice server: ws://localhost:${config.server.port}/voice`,
   );

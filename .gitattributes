@@ -1,0 +1,25 @@
+# Normalize line endings to LF on commit
+* text=auto eol=lf
+
+# Unity serialized files
+*.meta text eol=lf
+*.unity text eol=lf
+*.asset text eol=lf
+*.prefab text eol=lf
+*.mat text eol=lf
+
+# Scripts
+*.cs text eol=lf
+*.ts text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.wav binary
+*.mp3 binary
+*.fbx binary
+*.obj binary

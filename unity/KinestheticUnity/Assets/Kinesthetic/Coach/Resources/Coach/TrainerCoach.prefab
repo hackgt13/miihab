@@ -433,6 +433,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4864909447850655193}
   - component: {fileID: 5283555068360143141}
+  - component: {fileID: 3055113753923899805}
   m_Layer: 0
   m_Name: TrainerCoach
   m_TagString: Untagged
@@ -449,7 +450,7 @@ Transform:
   m_GameObject: {fileID: 4543887886171597972}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 2.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -471,11 +472,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Kinesthetic.Coach.CoachDemonstrator
   model: {fileID: 5471932167725530976}
   miiRig: {fileID: 7353319096555469446}
-  motionName: shoulder_scaption
+  motionName: elbow_curl
   planUrl: http://127.0.0.1:8766/api/plans/active
   mirrorPatient: 1
   patientSide: right
-  targetDeg: 80
+  targetDeg: 20
   holdSeconds: 0.4
   tempo: 1.4
   restSeconds: 1.2
@@ -488,6 +489,19 @@ MonoBehaviour:
   eyeTextures: []
   eyeRenderer: {fileID: 0}
   leanForwardDeg: 2
+--- !u!114 &3055113753923899805
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4543887886171597972}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33a4718120b5647c99213f4b9cff81bb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Kinesthetic.Coach.CoachVoice
+  url: ws://127.0.0.1:8769/voice
 --- !u!1 &5472667673639060862
 GameObject:
   m_ObjectHideFlags: 0

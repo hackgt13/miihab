@@ -1,3 +1,4 @@
+#if UNITY_ANDROID
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -21,3 +22,4 @@ public sealed class AndroidCMakePin : IPostGenerateGradleAndroidProject
         File.WriteAllLines(properties, lines);
     }
 }
+#endif

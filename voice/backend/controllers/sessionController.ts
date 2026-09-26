@@ -16,6 +16,7 @@ import type { PatientService } from "../services/patientService.ts";
 import type { AnalyticsService } from "../services/analyticsService.ts";
 import type { CoordinatorService } from "../services/coordinatorService.ts";
 import { ToolService } from "../services/toolService.ts";
+import { TUTORIAL_LINES } from "../prompts.ts";
 
 interface SessionControllerDeps {
   config: Config;
@@ -68,6 +69,15 @@ async function handleSession(
     safeClose(unity, 1002, "session_start missing patient_id");
     return;
   }
+  const mode = String(init["mode"] ?? "").trim();
+  const isTutorial = mode === "tutorial";
+
+  if (isTutorial) {
+    await handleTutorial(unity, config);
+    return;
+  }
+
+  // ── Regular rehab session ────────────────────────────────────────────────
 
   // 2. Create session record ─────────────────────────────────────────────────
   let session: { id: string; startedAt: string };
@@ -163,6 +173,91 @@ async function handleSession(
   }
 
   console.log(`Session closed — session=${sessionId}`);
+}
+
+// ── Tutorial session (scripted TTS, no conversational agent) ─────────────────
+
+async function handleTutorial(unity: WebSocket, config: Config): Promise<void> {
+  console.log("Tutorial session started");
+  emit(unity, { type: "audio_format", output: "pcm_16000", input: "pcm_16000" });
+  emit(unity, { type: "session_started" });
+
+  // Set up cue listener BEFORE speaking intro so no cues are lost.
+  // Cues that arrive during the intro TTS are queued and spoken after it finishes.
+  const cueQueue: string[] = [];
+  let introDone = false;
+
+  await new Promise<void>((resolve) => {
+    unity.on("message", async (data: Buffer) => {
+      let msg: Record<string, unknown>;
+      try { msg = JSON.parse(data.toString()) as Record<string, unknown>; } catch { return; }
+
+      if (msg["type"] === "cue") {
+        const step = String(msg["step"] ?? "");
+        const line = TUTORIAL_LINES[step];
+        if (!line) return;
+        if (!introDone) { cueQueue.push(step); return; }
+        await speakLine(unity, line, config);
+      } else if (msg["type"] === "session_end") {
+        resolve();
+      }
+    });
+    unity.on("close", resolve);
+    unity.on("error", () => resolve());
+
+    // Speak the full intro (greeting + "watch me"), then drain any queued cues.
+    speakLine(unity, TUTORIAL_LINES.intro, config).then(async () => {
+      introDone = true;
+      for (const step of cueQueue) {
+        const line = TUTORIAL_LINES[step];
+        if (line) await speakLine(unity, line, config);
+      }
+      cueQueue.length = 0;
+    });
+  });
+
+  console.log("Tutorial session closed");
+}
+
+/** Speak a single line via ElevenLabs TTS and stream the PCM audio to Unity. */
+async function speakLine(unity: WebSocket, text: string, config: Config): Promise<void> {
+  emit(unity, { type: "transcript", role: "agent", text });
+
+  const resp = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${config.elevenlabs.voiceId}/stream?output_format=pcm_16000`,
+    {
+      method: "POST",
+      headers: {
+        "xi-api-key": config.elevenlabs.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text, model_id: "eleven_turbo_v2_5" }),
+    },
+  );
+
+  if (!resp.ok) {
+    console.error("TTS failed:", resp.status, await resp.text());
+    return;
+  }
+
+  // Buffer into regular 100ms chunks (16kHz × 2 bytes × 0.1s = 3200 bytes)
+  // so Unity's ring buffer stays fed without gaps.
+  const CHUNK = 3200;
+  let buf = Buffer.alloc(0);
+  const reader = resp.body!.getReader();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf = Buffer.concat([buf, Buffer.from(value)]);
+    while (buf.length >= CHUNK) {
+      emit(unity, { type: "audio", data: buf.subarray(0, CHUNK).toString("base64") });
+      buf = buf.subarray(CHUNK);
+    }
+  }
+  if (buf.length > 0) {
+    emit(unity, { type: "audio", data: buf.toString("base64") });
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

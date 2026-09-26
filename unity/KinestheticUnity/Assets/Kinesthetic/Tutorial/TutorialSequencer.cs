@@ -1,0 +1,417 @@
+using System.Collections;
+using Newtonsoft.Json.Linq;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+
+namespace Kinesthetic.Tutorial
+{
+    /// First-run onboarding: Alex introduces herself and demonstrates two arm lifts (right then left).
+    /// After each demo the tutorial goes silent and waits for the patient to mimic the motion
+    /// (detected via IMU rotation rate from the motion relay, with camera fallback).
+    /// If no motion is detected within the timeout the coach repeats the demo.
+    public sealed class TutorialSequencer : MonoBehaviour
+    {
+        [Header("Coach")]
+        public Coach.CoachDemonstrator coach;
+
+        [Header("Navigate step")]
+        [Tooltip("A GazeDwell target. Wire in the scene; the sequencer activates it at the right moment.")]
+        public GameObject navigateTarget;
+
+        [Header("Timing")]
+        [Tooltip("Seconds into the intro audio when the subtitle swaps to 'Watch me' and the demo starts.")]
+        public float demoStartDelay = 10f;
+        public float demoDuration = 16f;
+        public float tryTimeout = 15f;
+        public float sidestepTimeout = 10f;
+        public float completePause = 3f;
+
+        [Header("Motion detection")]
+        [Tooltip("IMU rotation rate magnitude (rad/s) that counts as intentional movement.")]
+        public float imuThreshold = 1.0f;
+        [Tooltip("How long (seconds) IMU motion must persist to count as a real attempt.")]
+        public float imuSustain = 0.4f;
+        [Tooltip("Camera position shift (m) fallback when IMU is unavailable.")]
+        public float moveThreshold = 0.08f;
+        public float sidestepThreshold = 0.3f;
+
+        [Header("IMU")]
+        public string motionUrl = Activities.SensorHub.DefaultMotionUrl;
+
+        //                                  0             1      2          3         4         5        6          7         8
+        enum Step { WaitToStart, Intro, DemoRight, TryRight, DemoLeft, TryLeft, Navigate, Sidestep, Complete }
+        Step current = Step.WaitToStart;
+        float stepStart;
+        string subtitle = "";
+        Vector3 tryOrigin;
+        Quaternion tryRotOrigin;
+        Vector3 sidestepOrigin;
+        GUIStyle captionStyle, captionBg;
+
+        // Repeat sub-state: coach re-demos inside a Try step, then resumes waiting.
+        bool repeating;
+        float repeatEnd;
+
+        // IMU motion tracking
+        Golf.GolfMotionClient motion;
+        float imuActiveStart = -1;
+        bool imuAvailable;
+
+        static readonly string[] Subtitles =
+        {
+            "Press Space to begin.",
+            "Hi, I'm Alex, a virtual clinician.\nIn a moment you're about to enter physical therapy at home.\nI'll be there the whole way, so don't worry.",
+            "Before we begin, I want you to get used to the controls.\nWatch me, and copy.",
+            "Your turn. Go ahead and try it.",
+            "Good! Now the other side.",
+            "Your turn.",
+            "Perfect! Now head over to this button over here.",
+            "Step to the side, like this.",
+            "Great job! You're all set. Let's get started.",
+        };
+
+        const string CompletePref = "RehabMii.TutorialComplete";
+        public static bool IsComplete => PlayerPrefs.GetInt(CompletePref, 0) != 0;
+
+        void Start()
+        {
+            SetupScene();
+            SetupIMU();
+            if (navigateTarget) navigateTarget.SetActive(false);
+            current = Step.WaitToStart;
+            subtitle = Subtitles[0];
+        }
+
+        void SetupIMU()
+        {
+            Activities.SensorHub.Ensure();
+            motion = Activities.SensorHub.Instance.MotionFor(motionUrl);
+        }
+
+        void SetupScene()
+        {
+            foreach (var existing in FindObjectsByType<Coach.CoachDemonstrator>(FindObjectsSortMode.None))
+                Destroy(existing.gameObject);
+            coach = null;
+
+            var prefab = Resources.Load<GameObject>("Coach/TrainerCoach");
+            if (prefab)
+            {
+                var go = Instantiate(prefab);
+                go.name = "Coach";
+                go.transform.position = new Vector3(0, 0, 2.5f);
+                go.transform.rotation = Quaternion.Euler(0, 180, 0);
+                coach = go.GetComponent<Coach.CoachDemonstrator>();
+                coach.demonstrating = false;
+
+                foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+                    r.enabled = true;
+
+                if (!go.GetComponent<Coach.CoachVoice>())
+                    go.AddComponent<Coach.CoachVoice>();
+
+                Debug.Log($"[Tutorial] Coach spawned. Renderers: {go.GetComponentsInChildren<Renderer>(true).Length}, " +
+                          $"Bones: {go.GetComponentsInChildren<Transform>(true).Length}");
+            }
+            else
+            {
+                Debug.LogError("[Tutorial] Coach prefab not found at Resources/Coach/TrainerCoach. " +
+                               "Check Assets/Kinesthetic/Coach/Resources/Coach/TrainerCoach.prefab exists.");
+            }
+
+            var cam = Camera.main;
+            if (cam)
+            {
+                cam.transform.position = new Vector3(0, 1.0f, 0);
+                cam.transform.rotation = Quaternion.Euler(5, 0, 0);
+                cam.fieldOfView = 50;
+                cam.nearClipPlane = 0.01f;
+                cam.farClipPlane = 200;
+                cam.backgroundColor = new Color(0.12f, 0.14f, 0.18f);
+                cam.clearFlags = CameraClearFlags.SolidColor;
+            }
+
+            if (!FindAnyObjectByType<Light>())
+            {
+                var lightGo = new GameObject("Tutorial Light");
+                var light = lightGo.AddComponent<Light>();
+                light.type = LightType.Directional;
+                light.color = new Color(1f, 0.96f, 0.9f);
+                light.intensity = 1.2f;
+                lightGo.transform.rotation = Quaternion.Euler(45, 30, 0);
+            }
+
+            var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            floor.name = "Floor";
+            floor.transform.position = Vector3.zero;
+            floor.transform.localScale = new Vector3(3, 1, 3);
+            var floorShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (floorShader)
+            {
+                var mat = new Material(floorShader) { color = new Color(0.18f, 0.2f, 0.24f) };
+                floor.GetComponent<Renderer>().sharedMaterial = mat;
+            }
+        }
+
+        void EnterStep(Step step)
+        {
+            current = step;
+            stepStart = Time.time;
+            subtitle = Subtitles[(int)step];
+            repeating = false;
+            imuActiveStart = -1;
+
+            switch (step)
+            {
+                case Step.Intro:
+                    // One continuous TTS call speaks the full intro. Coach stays still during the greeting;
+                    // the subtitle and demo swap happen on a timer in Update (demoStartDelay).
+                    if (coach) coach.demonstrating = false;
+                    var voice = Coach.CoachVoice.Instance;
+                    if (voice && !voice.Connected)
+                    {
+                        var id = PlayerPrefs.GetString("RehabMii.TutorialPatientId", "");
+                        if (string.IsNullOrEmpty(id)) { id = System.Guid.NewGuid().ToString(); PlayerPrefs.SetString("RehabMii.TutorialPatientId", id); PlayerPrefs.Save(); }
+                        voice.Begin(id, "tutorial");
+                    }
+                    break;
+
+                case Step.DemoRight:
+                    // Subtitle already swapped by Update. Start the right arm demo — no cue needed,
+                    // the audio is still playing from the single intro TTS call.
+                    if (coach) { coach.SetMotion("arm_lift"); coach.SetSide("right"); coach.targetDeg = 80; coach.tempo = 2.0f; coach.holdSeconds = 2.0f; coach.restSeconds = 1.5f; coach.demonstrating = true; }
+                    break;
+
+                case Step.TryRight:
+                    if (coach) coach.demonstrating = false;
+                    SnapshotOrigin();
+                    break;
+
+                case Step.DemoLeft:
+                    Coach.CoachVoice.Instance?.Cue("demo_left");
+                    if (coach) { coach.SetSide("left"); coach.targetDeg = 80; coach.demonstrating = true; }
+                    break;
+
+                case Step.TryLeft:
+                    if (coach) coach.demonstrating = false;
+                    SnapshotOrigin();
+                    break;
+
+                case Step.Navigate:
+                    Coach.CoachVoice.Instance?.Cue("navigate");
+                    if (coach) coach.demonstrating = false;
+                    if (navigateTarget) navigateTarget.SetActive(true);
+                    break;
+
+                case Step.Sidestep:
+                    Coach.CoachVoice.Instance?.Cue("sidestep");
+                    sidestepOrigin = Camera.main ? Camera.main.transform.position : Vector3.zero;
+                    break;
+
+                case Step.Complete:
+                    Coach.CoachVoice.Instance?.Cue("complete");
+                    if (coach) coach.demonstrating = false;
+                    PlayerPrefs.SetInt(CompletePref, 1);
+                    PlayerPrefs.Save();
+                    StartCoroutine(FinishTutorial());
+                    break;
+            }
+        }
+
+        void Update()
+        {
+            DrainIMU();
+            float elapsed = Time.time - stepStart;
+
+            switch (current)
+            {
+                case Step.WaitToStart:
+                    if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+                        EnterStep(Step.Intro);
+                    break;
+
+                case Step.Intro:
+                    // Swap subtitle and start demo mid-audio when "Before we begin" is spoken.
+                    if (elapsed >= demoStartDelay) EnterStep(Step.DemoRight);
+                    break;
+
+                case Step.DemoRight:
+                    if (elapsed >= demoDuration) EnterStep(Step.TryRight);
+                    break;
+
+                case Step.TryRight:
+                    UpdateTryStep(Step.DemoLeft, "repeat_right", "right", 80);
+                    break;
+
+                case Step.DemoLeft:
+                    if (elapsed >= demoDuration) EnterStep(Step.TryLeft);
+                    break;
+
+                case Step.TryLeft:
+                    UpdateTryStep(Step.Navigate, "repeat_left", "left", 80);
+                    break;
+
+                case Step.Navigate:
+                    if (!navigateTarget && elapsed >= 4f) EnterStep(Step.Sidestep);
+                    break;
+
+                case Step.Sidestep:
+                    if (DetectSidestep() || elapsed >= sidestepTimeout) EnterStep(Step.Complete);
+                    break;
+            }
+        }
+
+        /// Shared logic for TryRight / TryLeft: wait for motion, repeat on timeout.
+        void UpdateTryStep(Step nextStep, string repeatCue, string side, float targetDeg)
+        {
+            if (repeating)
+            {
+                if (Time.time >= repeatEnd)
+                {
+                    repeating = false;
+                    if (coach) coach.demonstrating = false;
+                    SnapshotOrigin();
+                    imuActiveStart = -1;
+                    stepStart = Time.time;
+                }
+                return;
+            }
+
+            if (DetectMotion())
+            {
+                EnterStep(nextStep);
+            }
+            else if (Time.time - stepStart >= tryTimeout)
+            {
+                Coach.CoachVoice.Instance?.Cue(repeatCue);
+                if (coach) { coach.SetSide(side); coach.targetDeg = targetDeg; coach.demonstrating = true; }
+                repeating = true;
+                repeatEnd = Time.time + demoDuration;
+            }
+        }
+
+        // ── IMU motion detection ──────────────────────────────────────────────
+
+        /// Drain all pending IMU packets and track whether the patient is actively moving.
+        void DrainIMU()
+        {
+            if (motion == null) return;
+            while (motion.Take(out var text, out _))
+            {
+                imuAvailable = true;
+                if (current is not (Step.TryRight or Step.TryLeft)) continue;
+                if (repeating) continue;
+
+                try
+                {
+                    var p = JObject.Parse(text);
+                    var rate = p["rotationRate"];
+                    if (rate == null) continue;
+                    float rx = (float)rate[0], ry = (float)rate[1], rz = (float)rate[2];
+                    float mag = Mathf.Sqrt(rx * rx + ry * ry + rz * rz);
+
+                    if (mag >= imuThreshold)
+                    {
+                        if (imuActiveStart < 0) imuActiveStart = Time.time;
+                    }
+                    else
+                    {
+                        imuActiveStart = -1;
+                    }
+                }
+                catch (System.Exception) { }
+            }
+        }
+
+        bool DetectIMUMotion()
+        {
+            return imuActiveStart > 0 && Time.time - imuActiveStart >= imuSustain;
+        }
+
+        // ── Camera fallback ───────────────────────────────────────────────────
+
+        void SnapshotOrigin()
+        {
+            var cam = Camera.main;
+            if (!cam) return;
+            tryOrigin = cam.transform.position;
+            tryRotOrigin = cam.transform.rotation;
+        }
+
+        bool DetectCameraMotion()
+        {
+            if (!Camera.main) return false;
+            var cam = Camera.main.transform;
+            float posDelta = (cam.position - tryOrigin).magnitude;
+            float rotDelta = Quaternion.Angle(cam.rotation, tryRotOrigin);
+            return posDelta >= moveThreshold || rotDelta >= 10f;
+        }
+
+        // ── Combined detection ────────────────────────────────────────────────
+
+        /// IMU if available, camera fallback otherwise.
+        bool DetectMotion()
+        {
+            if (imuAvailable) return DetectIMUMotion();
+            return DetectCameraMotion();
+        }
+
+        bool DetectSidestep()
+        {
+            if (!Camera.main) return false;
+            var delta = Camera.main.transform.position - sidestepOrigin;
+            delta.y = 0;
+            return delta.magnitude >= sidestepThreshold;
+        }
+
+        public void OnNavigateComplete()
+        {
+            if (current == Step.Navigate) EnterStep(Step.Sidestep);
+        }
+
+        IEnumerator FinishTutorial()
+        {
+            yield return new WaitForSeconds(completePause);
+            if (Application.CanStreamedLevelBeLoaded("MainMenu"))
+                SceneManager.LoadScene("MainMenu");
+        }
+
+        // ── Subtitles ─────────────────────────────────────────────────────────
+
+        void OnGUI()
+        {
+            if (string.IsNullOrEmpty(subtitle)) return;
+
+            if (captionStyle == null)
+            {
+                captionStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = Mathf.RoundToInt(Screen.height * 0.026f),
+                    alignment = TextAnchor.MiddleCenter,
+                    wordWrap = true,
+                    padding = new RectOffset(24, 24, 14, 14),
+                    normal = { textColor = Color.white },
+                };
+                captionBg = new GUIStyle(GUI.skin.box)
+                {
+                    normal = { background = MakeTex(new Color(0, 0, 0, 0.65f)) },
+                };
+            }
+
+            float w = Screen.width * 0.75f;
+            float h = captionStyle.CalcHeight(new GUIContent(subtitle), w) + 28;
+            var rect = new Rect((Screen.width - w) * 0.5f, Screen.height - h - Screen.height * 0.05f, w, h);
+            GUI.Box(rect, GUIContent.none, captionBg);
+            GUI.Label(rect, subtitle, captionStyle);
+        }
+
+        static Texture2D MakeTex(Color color)
+        {
+            var tex = new Texture2D(1, 1);
+            tex.SetPixel(0, 0, color);
+            tex.Apply();
+            return tex;
+        }
+    }
+}

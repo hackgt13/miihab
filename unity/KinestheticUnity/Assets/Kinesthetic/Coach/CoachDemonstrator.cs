@@ -63,12 +63,7 @@ namespace Kinesthetic.Coach
         void Start()
         {
             Application.runInBackground = true;   // keep leading while the camera page has focus
-            var text = Resources.Load<TextAsset>("CoachMotions/" + motionName);
-            motion = JObject.Parse(text.text);
-            elev01 = motion["elevation01"].Select(v => (float)v).ToArray();
-            plane = motion["planeDeg"].Select(v => (float)v).ToArray();
-            elbow = motion["elbowFlexDeg"].Select(v => (float)v).ToArray();
-            shrug = motion["shrugMm"].Select(v => (float)v).ToArray();
+            SetMotion(motionName);
             if (miiRig) { miiRig.Initialize(); miiRig.Apply(null); }
             BindBones();
             StartCoroutine(LoadPlan());
@@ -80,6 +75,30 @@ namespace Kinesthetic.Coach
             var patient = FindObjectsByType<PoseRig>().FirstOrDefault(r => r.seated && r != miiRig);
             if (patient) patientHead = patient.avatar.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "head");
             nextBlink = Time.time + 2;
+        }
+
+        /// Switch which arm demonstrates (e.g. tutorial right→left).
+        public void SetSide(string side)
+        {
+            if (side == patientSide) return;
+            foreach (var t in new[] { clavicle, upper, fore, wrist }) if (t && rest.ContainsKey(t)) t.localRotation = rest[t];
+            patientSide = side;
+            BindBones();
+            cycleStart = Time.time;
+        }
+
+        /// Swap the active motion at runtime (e.g. the tutorial cycling through exercises).
+        public void SetMotion(string name)
+        {
+            var text = Resources.Load<TextAsset>("CoachMotions/" + name);
+            if (!text) { Debug.LogWarning("Coach motion not found: " + name); return; }
+            motion = JObject.Parse(text.text);
+            motionName = name;
+            elev01 = motion["elevation01"].Select(v => (float)v).ToArray();
+            plane = motion["planeDeg"].Select(v => (float)v).ToArray();
+            elbow = motion["elbowFlexDeg"].Select(v => (float)v).ToArray();
+            shrug = motion["shrugMm"].Select(v => (float)v).ToArray();
+            cycleStart = Time.time;
         }
 
         Transform Bone(string n)
@@ -274,7 +293,7 @@ namespace Kinesthetic.Coach
                 var outwardOther = Vector3.ProjectOnPlane(otherUpper.position - upper.position, up).normalized;
                 PoseArm(otherUpper, otherFore, otherWrist, outwardOther, CurrentElevationDeg, planeDeg, elbowDeg);
             }
-            if (clavicle) clavicle.rotation = Quaternion.AngleAxis(-Mathf.Sign(Vector3.Dot(Vector3.Cross(forward, right), up)) * Mathf.Min(shrugMm * .12f, 6f), forward) * clavicle.rotation;
+            if (clavicle) clavicle.rotation = Quaternion.AngleAxis(-Mathf.Sign(Vector3.Dot(Vector3.Cross(forward, right), up)) * Mathf.Min(shrugMm * .35f, 18f), forward) * clavicle.rotation;
             PoseArm(upper, fore, wrist, right, CurrentElevationDeg, planeDeg, elbowDeg);
             if (mode == CoachMode.HandOff) PointAtMirror();
             ApplyHeadAndEyes();
