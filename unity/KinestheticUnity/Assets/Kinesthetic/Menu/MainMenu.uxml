@@ -1,0 +1,73 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="MainMenu.uss" />
+    <ui:VisualElement name="menu-screen" class="menu-screen">
+        <ui:VisualElement name="backdrop" class="backdrop" picking-mode="Ignore" />
+        <ui:VisualElement class="menu-content">
+            <ui:VisualElement class="utility-row">
+                <ui:Label text="A LITTLE MOVEMENT. A LOT OF POSSIBILITY." class="welcome" />
+                <ui:Button name="music" text="Music: On" class="music-button" />
+            </ui:VisualElement>
+            <ui:VisualElement class="title-block">
+                <ui:VisualElement class="wordmark">
+                    <ui:Label text="rehabmii" class="brand-title" />
+                    <ui:Label text="sports" class="sports-title" />
+                </ui:VisualElement>
+                <ui:VisualElement class="title-rule" />
+                <ui:Label text="Choose your activity. Play at your pace." class="tagline" />
+            </ui:VisualElement>
+            <ui:VisualElement class="activities">
+                <ui:Button name="golf-card" class="activity-card golf-card selected" tooltip="Play adaptive golf">
+                    <ui:VisualElement class="activity-preview golf-preview" picking-mode="Ignore">
+                        <ui:Label text="PLAY TOGETHER" class="preview-tag" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="card-info" picking-mode="Ignore">
+                        <ui:VisualElement name="golf-icon" class="mode-icon" picking-mode="Ignore" />
+                        <ui:VisualElement class="card-copy" picking-mode="Ignore">
+                            <ui:Label text="Golf" class="card-title" picking-mode="Ignore" />
+                            <ui:Label text="Fresh air. Friendly competition." class="card-description" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+                <ui:Button name="studio-card" class="activity-card" tooltip="Open the Movement Studio">
+                    <ui:VisualElement class="activity-preview studio-preview" picking-mode="Ignore">
+                        <ui:Label text="YOUR DAILY PRACTICE" class="preview-tag" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="card-info" picking-mode="Ignore">
+                        <ui:VisualElement name="studio-icon" class="mode-icon" picking-mode="Ignore" />
+                        <ui:VisualElement class="card-copy" picking-mode="Ignore">
+                            <ui:Label text="Movement Studio" class="card-title" picking-mode="Ignore" />
+                            <ui:Label text="Gentle raises. Personal progress." class="card-description" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="›" class="card-arrow" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="selection-row">
+                <ui:VisualElement class="selection-dot" />
+                <ui:Label name="selection-caption" text="Take a swing with a friend." class="selection-caption" />
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-row">
+                <ui:VisualElement class="controls">
+                    <ui:Label text="←" class="keycap" /><ui:Label text="→" class="keycap" />
+                    <ui:Label text="Choose" class="control-label" />
+                    <ui:Label text="Enter" class="keycap" />
+                    <ui:Label text="Play" class="control-label" />
+                </ui:VisualElement>
+                <ui:Button name="help" text="How to play" class="help-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="help-overlay" class="modal-shade hidden">
+            <ui:VisualElement class="help-card">
+                <ui:Label text="Ready when you are." class="help-title" />
+                <ui:Label text="Golf" class="help-heading" />
+                <ui:Label text="Choose Golf, then use the camera button to start tracking. Calibrate your mounted club before your first swing." class="help-copy" />
+                <ui:Label text="Movement Studio" class="help-heading" />
+                <ui:Label text="Sit comfortably with your shoulders, arms, and hips in view. Start your session and follow the target in your prescribed plan." class="help-copy" />
+                <ui:Label text="Getting around" class="help-heading" />
+                <ui:Label text="Click an activity, or use the arrow keys and Enter. Press Esc or choose Menu during an activity to return here." class="help-copy" />
+                <ui:Button name="help-close" text="Let's play  ›" class="help-close" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

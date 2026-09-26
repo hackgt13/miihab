@@ -1,0 +1,20 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="Navigation.uss" />
+    <ui:VisualElement class="navigation-root" picking-mode="Ignore">
+        <ui:Button name="return-menu" text="‹  Menu" class="return-menu hidden" />
+        <ui:VisualElement name="return-dialog" class="return-shade hidden">
+            <ui:VisualElement class="return-card">
+                <ui:Label name="return-title" text="Back to the menu?" class="return-title" />
+                <ui:Label name="return-detail" text="Your current activity will close." class="return-detail" />
+                <ui:VisualElement class="return-actions">
+                    <ui:Button name="return-cancel" text="Keep playing" class="secondary" />
+                    <ui:Button name="return-confirm" text="Return to menu" class="primary" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="transition" class="transition hidden">
+            <ui:Label text="rehabmii" class="transition-brand" />
+            <ui:Label name="loading-label" text="Let's play…" class="loading-label" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

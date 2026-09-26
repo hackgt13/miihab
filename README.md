@@ -30,7 +30,7 @@ zsh scripts/start_demo_services.sh
 
 This starts the pose/clinical coordinator on **8766**, the golf relay on **8767**, and the compiled AirPod app if available. Logs go to `local-data/logs/`.
 
-1. Open `Assets/Kinesthetic/Golf/AdaptiveGolf.unity` and enter Play mode.
+1. Open `Assets/Kinesthetic/Menu/MainMenu.unity` and enter Play mode. Choose **Golf** or **Movement Studio**; use the arrow keys and Enter or click a card. **Menu** or Esc returns to activity selection. An active exercise session finishes before leaving the studio.
 2. Open <http://localhost:8766/> for camera capture, or use the scene's **Open camera** button. Approve camera access and keep the active player's shoulders, elbows, wrists, and hips visible.
 3. Pair the AirPods to this Mac, approve Motion access, and check that fresh motion reaches Unity.
 4. Hold the mounted club still at address and use **Calibrate club** before a controlled swing. Turn/source changes require fresh calibration.
@@ -43,6 +43,7 @@ Other scenes:
 | Scene | Purpose |
 | --- | --- |
 | `Assets/Kinesthetic/MotionProof.unity` | Articulated pose and recorded replay |
+| `Assets/Kinesthetic/Golf/AdaptiveGolf.unity` | Direct entry to adaptive golf |
 | `Assets/Kinesthetic/Golf/KeyboardGolf.unity` | Golf runtime with developer keyboard input |
 | `Assets/Kinesthetic/Rehab/Rehab.unity` | Movement Studio: seated shoulder raises, prescribed targets, and live rep feedback |
 | `Assets/Kinesthetic/Golf/QuestGolf.unity` | Headset game-state client; the Mac remains the simulation authority |
@@ -62,6 +63,7 @@ Other scenes:
 - Runtime patient/friend Miis, wheelchair, props, and Resort driver assets are included under the Unity `Art` directory. Resort club assets are Nintendo game assets extracted/uploaded by DogToon64; the original archive README is retained under `art/wii-sports-resort/Golf Clubs/README.txt`.
 - `art/props/` contains the editable props. Export helpers are in `scripts/art/`. Use Blender's `--disable-autoexec` when running those scripts with source files.
 - The Movement Studio room, meshes, materials, and wood texture are included in `Assets/Kinesthetic/Rehab/Studio/`. Its reusable prefab is `RehabStudio.prefab`; **Kinesthetic → Rehab → Create shoulder raise scene** rebuilds the scene and studio assets. The UI uses [Nunito](https://github.com/googlefonts/nunito), bundled with its SIL Open Font License in `Assets/Kinesthetic/Rehab/Fonts/OFL.txt`.
+- The activity menu includes an original 34-second instrumental loop and selection sounds in `Assets/Kinesthetic/Menu/Audio/`. **Music: On/Off** saves the preference locally. `scripts/art/compose_menu_audio.py` regenerates the audio with NumPy; **Kinesthetic → Menu → Create main menu** rebuilds the menu scene and navigation prefab.
 
 Keep each asset's existing `.meta` alongside it to preserve Unity scene references. Preserve the source notes and attribution when editing or redistributing assets.
 

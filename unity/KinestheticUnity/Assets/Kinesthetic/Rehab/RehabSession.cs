@@ -28,6 +28,7 @@ namespace Kinesthetic.Rehab
         long poseTicks, poseSequence = -1; string poseSession;
         float retryPoseAt;
         bool running, calibrated;
+        public bool IsRunning => running;
         int attempted, valid;
         float? liveAngle; string phase = "idle";
         string status = "Sit tall, rest your arms, and start when you're ready.";
@@ -135,12 +136,21 @@ namespace Kinesthetic.Rehab
             targetLabel.text = $"Target {targetDeg:0}°";
         }
 
-        IEnumerator Stop()
+        IEnumerator Stop() { yield return FinishSession(); }
+
+        public IEnumerator FinishSession(Action<bool> completed = null)
         {
             using var request = new UnityWebRequest(bridge + "/exercise/stop", "POST") { downloadHandler = new DownloadHandlerBuffer(), timeout = 5 };
             yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                status = "Couldn't finish the session · check the measurement service and retry";
+                completed?.Invoke(false);
+                yield break;
+            }
             // The summary arrives on the exercise stream; this only ends the session.
             running = false; start.text = "Start session  ›";
+            completed?.Invoke(true);
         }
 
         void Update()
