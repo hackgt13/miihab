@@ -278,17 +278,13 @@ public static class MenuPlazaBuilder
         Box("Vestibule floor", doorway, new(0, -.02f, depth / 2), new(w + .2f, .04f, depth), shadeDark);
         Box("Vestibule ceiling", doorway, new(0, h + .05f, depth / 2), new(w + .2f, .1f, depth), shadeDark);
         Box("Vestibule back", doorway, new(0, h / 2, depth + .05f), new(w + .2f, h + .2f, .1f), shadeDark);
-        // The venue itself, as a still on the back wall (VenueVistas), so the walk in is toward a room and
-        // the door frame slides across it on the way. A quad faces -Z: toward the door. Unlit, because it is
-        // already lit by whatever lit the scene it was taken from.
-        var vista = Primitive("Vista", PrimitiveType.Quad, doorway, new(0, h / 2, depth - .01f), new(w, h, 1), Vista(venue));
         Box("Vestibule west", doorway, new(-w / 2 - .05f, h / 2, depth / 2), new(.1f, h + .2f, depth), shadeDark);
         Box("Vestibule east", doorway, new(w / 2 + .05f, h / 2, depth / 2), new(.1f, h + .2f, depth), shadeDark);
         var hinge = Group("Hinge", doorway); hinge.localPosition = new(-width / 2, height / 2 + .02f, .06f);
         Box("Door leaf", hinge, new(width / 2, 0, 0), new(width, height, .08f), teak);
         Box("Door glazing", hinge, new(width / 2, .48f, -.06f), new(width - .34f, 1.02f, .04f), accent);
         Box("Door frame head", doorway, new(0, height + .12f, -.02f), new(width + .36f, .16f, .14f), trim);
-        // Half way in: dark on every side, the picture ahead still a picture rather than pixels.
+        // Half way in: dark on every side.
         var stop = Group("Stop", doorway); stop.localPosition = new(0, 0, depth * .5f);
         var portal = doorway.gameObject.AddComponent<Portal>();
         portal.venue = venue; portal.hinge = hinge; portal.stop = stop;
@@ -522,17 +518,6 @@ public static class MenuPlazaBuilder
     }
 
     // ---------------------------------------------------------------- helpers
-
-    // The still of a venue for its vestibule wall, or the plain shade when none has been captured yet.
-    static Material Vista(string venue)
-    {
-        var picture = AssetDatabase.LoadAssetAtPath<Texture2D>(VenueVistas.Path(venue));
-        if (!picture) return shadeDark;
-        var m = Material("Vista " + venue, "FFFFFF", unlit: true);
-        m.SetTexture("_BaseMap", picture);
-        EditorUtility.SetDirty(m);
-        return m;
-    }
 
     static Material Material(string name, string hex, float smoothness = .15f, bool unlit = false)
     {
