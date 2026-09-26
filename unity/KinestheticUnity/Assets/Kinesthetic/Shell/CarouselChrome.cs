@@ -20,6 +20,7 @@ namespace Kinesthetic.Shell
 
         VisualElement dots;
         Button previous, next;
+        readonly PressGate press = new();
 
         void Start() => Bind();
 
@@ -67,8 +68,8 @@ namespace Kinesthetic.Shell
                 previous = root.Q<Button>("carousel-prev");
                 next = root.Q<Button>("carousel-next");
                 if (previous == null || next == null) { previous = null; return; }
-                previous.clicked += carousel.Previous;
-                next.clicked += carousel.Next;
+                previous.clicked += () => Press("carousel-prev");
+                next.clicked += () => Press("carousel-next");
                 carousel.Changed += _ => Mark();
                 carousel.Settled += _ => Mark();
             }
@@ -158,7 +159,7 @@ namespace Kinesthetic.Shell
         /// exactly when an impatient second click lands.
         public void Press(string element)
         {
-            if (carousel == null || carousel.IsTurning) return;
+            if (carousel == null || carousel.IsTurning || !press.Accept(element)) return;
             if (element == "carousel-prev") carousel.Previous();
             else if (element == "carousel-next") carousel.Next();
         }

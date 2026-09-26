@@ -27,6 +27,9 @@ namespace Kinesthetic.Menu
         // dwell run out of this one table, so the two input paths can never drift apart.
         readonly Dictionary<string, Action> actions = new();
 
+        // One press is one action, whichever of the input paths delivered it.
+        readonly PressGate press = new();
+
         // What is reachable right now. A pointer cannot reach behind an open sheet because the shade covers
         // it, but the gaze ray is resolved from element rects alone and would happily commit a tile the
         // person cannot even see. So the menu decides what counts as reachable, per open layer.
@@ -53,11 +56,14 @@ namespace Kinesthetic.Menu
             if (request.result != UnityWebRequest.Result.Success || root == null) yield break;   // keep the demo board offline
             try { dashboard = JObject.Parse(request.downloadHandler.text); } catch { yield break; }
             model = BuildModel();
+            bound = true;
             MenuDashboard.Populate(root, model);
         }
 
+        bool bound;   // subscriptions are once, not once per frame that Bind is retried
+
         void Start() { navigation = ActivityNavigation.Ensure(); Bind(); }
-        void Update() { if (root == null) Bind(); }
+        void Update() { if (!bound) Bind(); }
 
         void Bind()
         {
@@ -164,11 +170,23 @@ namespace Kinesthetic.Menu
         }
 
         // The dwell reports an element name; the pointer reports a click. Both land here.
+        // UI Toolkit's own click is kept — it is what a keyboard submit on a focused button rides — but it
+        // reports the element rather than running the action, so it goes through the same gate as the
+        // pointer and the dwell instead of straight past them.
         void Act(Button button, Action action)
         {
             if (button == null) return;
-            actions[button.name] = action;
-            button.clicked += action;
+            string element = button.name;
+            actions[element] = action;
+            button.clicked += () => Fire(element);
+        }
+
+        /// The one place a press becomes an action. Every input path ends here: the dwell, the pointer, the
+        /// button's own click, and anything added later.
+        void Fire(string element)
+        {
+            if (!InScope(element) || !press.Accept(element)) return;
+            if (actions.TryGetValue(element, out var action)) action();
         }
 
         bool InScope(string name) => Array.IndexOf(scope, name) >= 0;
@@ -191,10 +209,7 @@ namespace Kinesthetic.Menu
             navigation.PlayHover();
         }
 
-        void Commit(string name)
-        {
-            if (InScope(name) && actions.TryGetValue(name, out var action)) action();
-        }
+        void Commit(string name) => Fire(name);
 
         /// The CTA launches whatever the plan says is still outstanding, so the board's headline action
         /// and its Today list can never disagree about what comes next.
