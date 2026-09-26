@@ -640,7 +640,10 @@ namespace Kinesthetic.Menu
                 portrait.pickingMode = PickingMode.Position;
                 portrait.tooltip = "See how " + person.displayName + " is doing";
                 string portraitId = person.id;
-                portrait.RegisterCallback<ClickEvent>(e =>
+                // Down, not click: the row selects on PointerDown and repaints the
+                // whole list, so this element is gone before a click could finish on
+                // it. Stopping here also keeps the press from selecting the person.
+                portrait.RegisterCallback<PointerDownEvent>(e =>
                 { StartCoroutine(LoadProfile(portraitId)); e.StopPropagation(); });
                 row.Add(portrait);
 
