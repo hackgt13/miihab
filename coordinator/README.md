@@ -55,3 +55,17 @@ baseline, trunk compensation in the latest session, reported stiffness), and pla
 
 API: `GET /api/plans`, `GET /api/plans/active`, `POST /api/plans {exercise, rationale, coachingNote, expectedActiveVersion}`,
 `GET /api/sessions`, `GET /api/history`. Unity's `Rehab.unity` fetches the active plan when a session starts.
+
+## Movement replay (portal)
+
+`GET /api/sessions/<exerciseId>/replay` returns the session's recorded landmarks (~15 fps), per-frame arm elevation and
+trunk lean computed by `measurement.ts` with the session's own saved calibration, and its rep boundaries. The portal's
+**Replay** button draws the recorded skeleton (measured arm highlighted), the elevation trace against the plan target,
+and each rep (not-counted reps shaded and labeled). Deep link: `/portal/?replay=<exerciseId>&rep=<n>`.
+
+## Demo launcher
+
+`zsh scripts/demo.sh` starts the services and checks pose bridge, golf relay (+ AirPod stream, Unity host, headsets),
+portal and active plan, Unity, the Quest host address vs. this Mac's current Wi-Fi address, relay LAN exposure, the
+APK and a USB-connected Quest. `--open` opens the portal; `--reset` archives plans after v1 and recorded exercise
+sessions (moved to `local-data/archive/`, never deleted) for a clean v1 → v2 walkthrough.

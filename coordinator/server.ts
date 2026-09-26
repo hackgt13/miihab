@@ -7,6 +7,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { writeFile, readdir, readFile } from 'node:fs/promises';
 import { PlanStore } from './plans.ts';
+import { loadReplay } from './replay.ts';
 import { ShoulderRaiseSession, type ExerciseConfig } from './measurement.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -97,6 +98,8 @@ const server = createServer(async (request, response) => {
       if (request.method === 'GET' && url.pathname === '/api/plans/active') return json(200, plans.active());
       if (request.method === 'POST' && url.pathname === '/api/plans') return json(201, plans.approve(await readJson(request)));
       if (request.method === 'GET' && url.pathname === '/api/history') return json(200, JSON.parse(await readFile(historyFixture, 'utf8')));
+      const replay = url.pathname.match(/^\/api\/sessions\/([0-9a-f-]{36})\/replay$/i);
+      if (request.method === 'GET' && replay) return json(200, await loadReplay(recordings, replay[1]));
       if (request.method === 'GET' && url.pathname === '/api/sessions') {
         const files = (await readdir(recordings)).filter(f => /^exercise-.*\.summary\.json$/.test(f));
         const sessions = await Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
