@@ -1,0 +1,76 @@
+/* The arrows either side of the ring, and the dots that say where in it you are.
+
+   Chrome has to be legible against a plaza, a studio and a golf course without ever competing with the
+   window it frames, so it is sand at low opacity with prussian lettering rather than a solid button: present
+   enough to be found, quiet enough that the eye goes to the board first. It firms up on hover and focus,
+   which is also the dwell's "you are on it" state.
+
+   Sizes are large because this is read at roughly two metres off a 1.85 m panel — the same reasoning as the
+   menu board, where the smallest type is 16px on a 1600px reference. */
+
+.chrome {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-grow: 1;
+    padding: 0 26px;
+}
+
+.chrome-gap { flex-grow: 1; }
+
+.arrow {
+    width: 132px;
+    height: 132px;
+    border-radius: 66px;
+    border-width: 2px;
+    border-color: var(--sand-00-a40);
+    background-color: var(--sand-00-a24);
+    color: var(--prussian-70);
+    font-size: 78px;
+    padding: 0;
+    margin: 0;
+    -unity-text-align: middle-center;
+    -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf");
+    -unity-font-style: normal;
+    transition-duration: .16s;
+}
+
+/* Hover and focus are the same state on purpose: the pointer and the gaze dwell arrive at one look, so a
+   person driving this with their head sees exactly what a person with a mouse sees. */
+.arrow:hover, .arrow:focus {
+    background-color: var(--sand-00-a88);
+    border-color: var(--cerulean-40);
+    scale: 1.04;
+}
+
+.arrow:active { background-color: var(--cerulean-20); scale: 1.01; }
+.arrow:disabled { opacity: .3; }
+
+/* Where you are in the ring. Four dots is a glance; a label would be a read. */
+.dots {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 26px;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    margin: 0 9px;
+    background-color: var(--sand-00-a40);
+    border-width: 2px;
+    border-color: var(--prussian-70-a24);
+    transition-duration: .16s;
+}
+
+.dot.here {
+    background-color: var(--cerulean-50);
+    border-color: var(--sand-00-a88);
+    width: 34px;
+}
+
+.hidden { display: none; }

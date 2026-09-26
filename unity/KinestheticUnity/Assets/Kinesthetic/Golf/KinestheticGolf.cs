@@ -6,9 +6,11 @@ using UnityEngine.Networking;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+using Kinesthetic.Activities;
+
 namespace Kinesthetic.Golf
 {
-    public sealed class KinestheticGolf : MonoBehaviour
+    public sealed class KinestheticGolf : MonoBehaviour, IActivity
     {
         public Rigidbody ball;
         public Camera spectator;
@@ -16,8 +18,6 @@ namespace Kinesthetic.Golf
         public Transform[] players, clubs;
         public PoseRig[] rigs;
         public LineRenderer aimLine;
-        public string poseUrl = "ws://127.0.0.1:8766/pose?role=viewer";
-        public string motionUrl = "ws://127.0.0.1:8767/golf?role=viewer";
         public string bridge = "http://127.0.0.1:8766";
         public bool allowDeveloperShots;
         public int activePlayer;
@@ -32,11 +32,18 @@ namespace Kinesthetic.Golf
         // Swings that qualified but whose clubhead path missed the virtual ball. Part of the dose:
         // "attempted 11, 8 counted" is the one figure comparable across every activity.
         public int[] Misses { get; private set; } = new int[2];
-        /// <summary>Raised once when both players have holed out, carrying the session id that was recorded.</summary>
-        public event Action<string> RoundCompleted;
+        // IActivity. Golf has no start button and no server-side session to close: a round begins
+        // with the scene and ends when both players hole out.
+        public string ActivityId => "golf.adaptive";
+        /// <summary>Raised once when both players have holed out, carrying the recorded session id.</summary>
+        public event Action<string> Completed;
+        public bool IsRunning => !roundReported;
+        public bool IsBusy => postingRound;
+        bool postingRound;
         DateTime roundStartedUtc = DateTime.UtcNow;
         bool roundReported;
-        int poseLossEvents;
+        int poseReconnectsAtRoundStart;
+        int PoseLossEvents => (SensorHub.Instance?.PoseReconnects ?? 0) - poseReconnectsAtRoundStart;
         public bool PoseReady => LivePoseClient.Fresh(poseTicks) &&
             (rigs[activePlayer].RightArmTracked || rigs[activePlayer].LeftArmTracked);
         public Vector3 HudAim => AimDirection();
@@ -92,13 +99,13 @@ namespace Kinesthetic.Golf
         readonly string[] playerIds = {"patient", "friend"};
         readonly string[] names = {"You", "Your friend"};
         readonly string[] clubNames = {"Driver", "Iron", "Putter"};
-        LivePoseClient pose;
-        GolfMotionClient motion;
+        LivePoseClient pose => SensorHub.Instance?.Pose;
+        GolfMotionClient motion => SensorHub.Instance?.Motion;
         PoseFrame poseFrame;
         ClubMotionPacket latest;
         long poseTicks, imuTicks, poseSequence=-1, imuSequence=-1;
         string poseSession, imuSession;
-        float stillSince=-1, stationarySince=-1, shotAt, retryPoseAt;
+        float stillSince=-1, stationarySince=-1, shotAt;
         Quaternion lastAttitude;
         Vector3 cameraVelocity, lastSafeLie;
         Label heading, score, distance, guidance;
@@ -117,8 +124,7 @@ namespace Kinesthetic.Golf
             for(int i=0;i<2;i++) { rigs[i].golfGrip=true; rigs[i].Initialize(); rigRest[i]=rigs[i].transform.localPosition; rigs[i].Apply(null); lies[i]=tee.position; }
             for(int i=0;i<clubs.Length;i++)clubPresentation[i]=new GolfClubPresentation(rigs[i],clubs[i]);
             logPath=Path.Combine(Application.persistentDataPath,"golf-shots.jsonl");
-            pose = new LivePoseClient(poseUrl);
-            motion = new GolfMotionClient(motionUrl);
+            SensorHub.Ensure();
             groundAim=new GameObject("Ground aim guidance").AddComponent<GroundAimGuide>();
             foreach(var rig in rigs)if(!rig.GetComponent<MiiIdleLife>())rig.gameObject.AddComponent<MiiIdleLife>();
             hitClip=Resources.Load<AudioClip>("GolfAudio/GolfHit");
@@ -227,7 +233,8 @@ namespace Kinesthetic.Golf
         public void RestartRound()
         {
             Strokes=new int[2]; Finished=new bool[2]; Misses=new int[2]; lies[0]=lies[1]=tee.position;
-            roundStartedUtc=DateTime.UtcNow; roundReported=false; poseLossEvents=0;
+            roundStartedUtc=DateTime.UtcNow; roundReported=false;
+            poseReconnectsAtRoundStart=SensorHub.Instance?.PoseReconnects ?? 0;
             clubIndex=0; BeginTurn(0);
         }
         // One session record per round, in the same envelope an exercise session produces, POSTed to the
@@ -254,22 +261,30 @@ namespace Kinesthetic.Golf
                 startedAt=roundStartedUtc.ToString("o"), endedAt=endedUtc.ToString("o"),
                 durationMs=(int)Mathf.Clamp((float)(endedUtc-roundStartedUtc).TotalMilliseconds,0,86_400_000),
                 completed=true, subjects,
-                trackingQuality=new {validFrameRatio=(double?)null, lossEvents=poseLossEvents},
-                flags=poseLossEvents>0?new[]{"tracking_lost"}:new string[0],
+                trackingQuality=new {validFrameRatio=(double?)null, lossEvents=PoseLossEvents},
+                flags=PoseLossEvents>0?new[]{"tracking_lost"}:new string[0],
                 payload=new {kind="golf.round", schemaVersion="1", data=new {
                     strokes=Strokes, misses=Misses, acceptedShots=AcceptedShots, club=clubNames[clubIndex]}},
             };
-            RoundCompleted?.Invoke(id);
+            Completed?.Invoke(id);
             StartCoroutine(PostRound(id,Newtonsoft.Json.JsonConvert.SerializeObject(envelope)));
+        }
+        /// <summary>Nothing server-side to close, but do not leave mid-POST or the round is lost.</summary>
+        public IEnumerator RequestExit(Action<bool> succeeded)
+        {
+            while (postingRound) yield return null;
+            succeeded?.Invoke(true);
         }
         IEnumerator PostRound(string id,string body)
         {
+            postingRound=true;
             using var request=new UnityWebRequest(bridge+"/activity/session","POST") {
                 uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
                 downloadHandler=new DownloadHandlerBuffer(), timeout=5 };
             request.SetRequestHeader("Content-Type","application/json");
             yield return request.SendWebRequest();
             // A failed POST must never interrupt play; the round is over and the players are done.
+            postingRound=false;
             if(request.result!=UnityWebRequest.Result.Success)
                 Debug.LogWarning($"Golf round {id} was not recorded: {request.error} {request.downloadHandler?.text}");
         }
@@ -334,8 +349,7 @@ namespace Kinesthetic.Golf
                     if(LivePoseClient.Fresh(ticks))rigs[activePlayer].Apply(poseFrame);
                 }catch(Exception){poseTicks=0;}
             }
-            if(pose?.Connected!=true && Time.unscaledTime>retryPoseAt)
-            {pose?.Dispose();pose=new LivePoseClient(poseUrl);retryPoseAt=Time.unscaledTime+3;poseTicks=0;poseLossEvents++;}
+            if(pose?.Connected!=true)poseTicks=0;
         }
         void ReadMotion()
         {
@@ -473,7 +487,7 @@ namespace Kinesthetic.Golf
                 timingBasis="host arrival time; hardware latency not calibrated",
                 x=ball.position.x,y=ball.position.y,z=ball.position.z})+"\n");}catch(Exception e){Debug.LogWarning(e.Message);}
         }
-        void OnDestroy(){if(groundAim)Destroy(groundAim.gameObject);hud?.Dispose();pose?.Dispose();motion?.Dispose();}
+        void OnDestroy(){if(groundAim)Destroy(groundAim.gameObject);hud?.Dispose();}   // the hub owns both channels
 
         public void StartCapture()
         {

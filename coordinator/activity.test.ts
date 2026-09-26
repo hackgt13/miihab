@@ -148,3 +148,32 @@ test("Unity's golf round envelope satisfies the coordinator contract", () => {
   assert.deepEqual(e.flags, ['tracking_lost']);
   assert.deepEqual((e.payload.data as any).strokes, [7, 6]);
 });
+
+test("live: Unity's golf envelope is accepted, stored and served back", {timeout: 15000}, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-unity-'));
+  const port = 18776;
+  const child = spawn(process.execPath, ['server.ts'], {cwd: import.meta.dirname,
+    env: {...process.env, KINESTHETIC_PORT: String(port), KINESTHETIC_RECORDINGS_DIRECTORY: directory,
+          KINESTHETIC_PLANS_DIRECTORY: join(directory, 'plans')}, stdio: ['ignore', 'pipe', 'pipe']});
+  try {
+    await once(child.stdout, 'data');
+    const posted = await fetch(`http://127.0.0.1:${port}/activity/session`,
+      {method: 'POST', headers: {'Content-Type': 'application/json'}, body: UNITY_GOLF_ROUND});
+    assert.equal(posted.status, 201, await posted.text());
+
+    const served = await (await fetch(`http://127.0.0.1:${port}/api/activity-sessions`)).json();
+    assert.equal(served.length, 1);
+    assert.equal(served[0].activityId, 'golf.adaptive');
+    assert.equal(served[0].subjects[1].subjectId, 'friend');
+
+    // An id the catalog does not know must be refused, or a session joins to no prescription.
+    const unknown = await fetch(`http://127.0.0.1:${port}/activity/session`, {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({...JSON.parse(UNITY_GOLF_ROUND), activityId: 'golf.typo'})});
+    assert.equal(unknown.status, 400);
+    assert.match((await unknown.json()).error, /Unknown activity/);
+  } finally {
+    child.kill(); await once(child, 'exit');
+    await rm(directory, {recursive: true, force: true});
+  }
+});

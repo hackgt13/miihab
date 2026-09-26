@@ -10,6 +10,8 @@
 // discriminant, and nothing upstream parses them. What IS here is what generalises: dose,
 // adherence, tracking quality, and a normalised failure vocabulary.
 
+import { activityById, requireActivity } from './activities.ts';
+
 export const ACTIVITY_SUMMARY_SCHEMA = 'kinesthetic.activity.v1';
 
 /** Failure modes that mean the same thing for every activity. Exercise-specific reasons stay in payload. */
@@ -83,8 +85,12 @@ export function parseActivitySummary(input: unknown): ActivitySummary {
   const v = input as any;
   if (!v || typeof v !== 'object') throw Error('Body must be an object');
   if (v.schema !== ACTIVITY_SUMMARY_SCHEMA) throw Error(`schema must be "${ACTIVITY_SUMMARY_SCHEMA}"`);
+  // The catalog decides what an activity is. An unknown id here would join to nothing.
+  const activity = requireActivity(String(v.activityId ?? ''));
   const subjects = Array.isArray(v.subjects) ? v.subjects : [];
   if (!subjects.length || subjects.length > 8) throw Error('subjects must hold between 1 and 8 entries');
+  if (subjects.length > activity.subjects)
+    throw Error(`${activity.id} records at most ${activity.subjects} subject(s), got ${subjects.length}`);
   const payload = v.payload ?? {};
   const data = JSON.stringify(payload.data ?? null);
   if (data.length > 64 * 1024) throw Error('payload.data must serialise to at most 64 KiB');
@@ -99,7 +105,12 @@ export function parseActivitySummary(input: unknown): ActivitySummary {
     schema: ACTIVITY_SUMMARY_SCHEMA,
     activitySessionId: str(v.activitySessionId, 'activitySessionId', 64),
     activityId: str(v.activityId, 'activityId', 64),
-    exerciseKinds: (Array.isArray(v.exerciseKinds) ? v.exerciseKinds : []).slice(0, 8).map((e: unknown, i: number) => str(e, `exerciseKinds[${i}]`, 64)),
+    exerciseKinds: (Array.isArray(v.exerciseKinds) ? v.exerciseKinds : []).slice(0, 8).map((e: unknown, i: number) => {
+      const kind = str(e, `exerciseKinds[${i}]`, 64);
+      if (!activity.exerciseKinds.includes(kind))
+        throw Error(`${activity.id} does not measure "${kind}"; it measures ${activity.exerciseKinds.join(', ') || 'nothing clinical'}`);
+      return kind;
+    }),
     venueId: v.venueId == null ? null : str(v.venueId, 'venueId', 64),
     patientId: v.patientId == null ? null : str(v.patientId, 'patientId', 64),
     planVersion: v.planVersion == null ? null : int(v.planVersion, 'planVersion', 1, 1e6),

@@ -55,12 +55,12 @@ public static class RehabSceneSetup
         var band = new GameObject("Target band").AddComponent<LineRenderer>();
         band.widthMultiplier = .035f; band.numCapVertices = 6; band.sharedMaterial = Glow("RehabBand", Color.white);
         var guide = new GameObject("Measured arm angle").AddComponent<LineRenderer>();
-        guide.widthMultiplier = .025f; guide.sharedMaterial = Glow("RehabGuide", new Color(.7f, .9f, 1f));
+        guide.widthMultiplier = .025f; guide.sharedMaterial = Glow("RehabGuide", Palette.Cerulean40);
         var orb = GameObject.CreatePrimitive(PrimitiveType.Sphere); orb.name = "Target orb";
-        UnityEngine.Object.DestroyImmediate(orb.GetComponent<Collider>()); orb.GetComponent<Renderer>().sharedMaterial = Glow("RehabOrb", new Color(1, .86f, .3f));
+        UnityEngine.Object.DestroyImmediate(orb.GetComponent<Collider>()); orb.GetComponent<Renderer>().sharedMaterial = Glow("RehabOrb", Palette.Coral40);
         var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere); marker.name = "Measured hand marker";
         UnityEngine.Object.DestroyImmediate(marker.GetComponent<Collider>()); marker.transform.localScale = Vector3.one * .08f;
-        marker.GetComponent<Renderer>().sharedMaterial = Glow("RehabMarker", new Color(.55f, .88f, 1f));
+        marker.GetComponent<Renderer>().sharedMaterial = Glow("RehabMarker", Palette.Cerulean50);
 
         // Seeing your own arm reach the target is the point of the exercise, so the studio gets the
         // patient's-eye view too, not just the clinician's framing.

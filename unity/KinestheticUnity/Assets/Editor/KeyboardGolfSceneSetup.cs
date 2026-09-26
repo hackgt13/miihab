@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Kinesthetic;
 using Kinesthetic.Golf;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -24,7 +25,7 @@ public static class KeyboardGolfSceneSetup
         var leaves = Material("Tree leaves", new Color(.19f, .38f, .19f));
         var white = Material("Ball and flagpole", new Color(.91f, .94f, .91f));
         var flagMat = Material("Flag", new Color(.88f, .31f, .21f));
-        var aimMat = Material("Aim arrow", new Color(.97f, .85f, .39f));
+        var aimMat = Material("Aim arrow", Palette.Sand30);
         var cupMat = Material("Cup", new Color(.08f, .13f, .11f));
 
         Primitive("Rough course", PrimitiveType.Plane, new Vector3(0, -.025f, 0), new Vector3(12, 1, 18), grass);

@@ -91,7 +91,7 @@ public static class AdaptiveGolfSceneSetup
             game.players[i]=slot;game.rigs[i]=rig;game.clubs[i]=club.transform;
         }
         var arrow=new GameObject("Aim direction").AddComponent<LineRenderer>();arrow.positionCount=2;
-        arrow.startWidth=.04f;arrow.endWidth=.015f;arrow.sharedMaterial=MakeMaterial("Aim",new Color(.98f,.94f,.58f));game.aimLine=arrow;arrow.enabled=false;
+        arrow.startWidth=.04f;arrow.endWidth=.015f;arrow.sharedMaterial=MakeMaterial("Aim",Palette.Sand30);game.aimLine=arrow;arrow.enabled=false;
         var panel=AssetDatabase.LoadAssetAtPath<PanelSettings>(Root+"/GolfPanel.asset");
         if(!panel){panel=ScriptableObject.CreateInstance<PanelSettings>();AssetDatabase.CreateAsset(panel,Root+"/GolfPanel.asset");}
         panel.scaleMode=PanelScaleMode.ScaleWithScreenSize;panel.referenceResolution=new Vector2Int(1400,900);

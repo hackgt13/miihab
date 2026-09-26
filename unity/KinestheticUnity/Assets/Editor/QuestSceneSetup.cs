@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using Kinesthetic;
 using Kinesthetic.Golf;
 using Unity.XR.CoreUtils;
 using UnityEditor;
@@ -66,7 +67,7 @@ public static class QuestSceneSetup
         hud.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         hudGo.GetComponent<MeshRenderer>().sharedMaterial = hud.font.material;
         hud.fontSize = 96; hud.characterSize = .025f; hud.anchor = TextAnchor.MiddleCenter; hud.alignment = TextAlignment.Center;
-        hud.color = Color.white; hud.text = "Connecting to the Kinesthetic Mac…";
+        hud.color = Palette.Sand10; hud.text = "Connecting to the Kinesthetic Mac…";
 
         var client = new GameObject("Headset game-state client").AddComponent<GolfStateClient>();
         client.game = game; client.patientAnchor = anchor; client.hud = hud;

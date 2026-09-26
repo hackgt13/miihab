@@ -23,6 +23,9 @@ namespace Kinesthetic.Coach
         public bool demonstrating = true;
         public string exerciseUrl = "ws://127.0.0.1:8766/exercise?role=viewer";
         public float maxWaitAtTopSeconds = 2.5f, maxWaitForPatientSeconds = 5f;
+        [Tooltip("Reps the coach shows at the start of a session before handing over to the patient.")]
+        public int demoReps = 2;
+        public float handOffSeconds = 1.8f;
         [Header("Life")]
         public Texture2D[] eyeTextures;            // open, half, closed
         public Renderer eyeRenderer;
@@ -40,15 +43,19 @@ namespace Kinesthetic.Coach
         public string Phase { get; private set; } = "rest";
         public string Mode => mode.ToString();
 
-        // Loop: showing the movement before a session. Calibrating: sitting still with the patient.
+        // Loop: showing the movement before a session. Demo: at the start of a session, the prescribed rep shown
+        // demoReps times while the patient sits still (their calibration happens meanwhile). HandOff: the coach
+        // turns and points at the mirror — "your turn, watch yourself". Calibrating: sitting still with the patient.
         // Lead: one rep at a time — raise, hold until the patient reaches the target, lower, wait for their rep.
         // Celebrate: both arms up when the prescribed set is done.
-        enum CoachMode { Loop, Calibrating, Lead, Celebrate }
+        enum CoachMode { Loop, Demo, HandOff, Calibrating, Lead, Celebrate }
         enum Stage { Raise, Hold, Lower, Wait }
         CoachMode mode = CoachMode.Loop; Stage stage = Stage.Wait;
         float stageStart, patientReachedAt = -1, patientRepDoneAt = -1, modeStart; bool trackingPaused;
         Kinesthetic.Rehab.ExerciseClient exercise;
         Transform otherClavicle, otherUpper, otherFore, otherWrist;
+        bool calibratedDuringDemo;
+        Kinesthetic.Rehab.MirrorPanel mirror;
         readonly System.Collections.Generic.Dictionary<Transform, Quaternion> relaxedOther = new();
 
         void Start()
@@ -146,7 +153,7 @@ namespace Kinesthetic.Coach
             {
                 JObject m; try { m = JObject.Parse(text); } catch (Exception) { continue; }
                 var type = (string)m["type"]; var e = m["payload"] as JObject;
-                if (type == "exercise.started") { SetMode(CoachMode.Calibrating); StartCoroutine(LoadPlan()); }
+                if (type == "exercise.started") { SetMode(demoReps > 0 ? CoachMode.Demo : CoachMode.Calibrating); calibratedDuringDemo = false; StartCoroutine(LoadPlan()); }
                 else if (type == "exercise.summary")
                 {   // Celebrate real work only; an empty or abandoned session just returns to demonstrating.
                     if (((int?)m["payload"]?["valid"] ?? 0) > 0) SetMode(CoachMode.Celebrate); else { SetMode(CoachMode.Loop); cycleStart = Time.time + 1f; }
@@ -154,7 +161,11 @@ namespace Kinesthetic.Coach
                 else if (type == "exercise.event" && e != null)
                     switch ((string)e["type"])
                     {
-                        case "calibration.complete": SetMode(CoachMode.Lead); BeginStage(Stage.Raise); break;
+                        case "calibration.complete":
+                            // During the demonstration the patient is only getting ready; the lead starts after the handoff.
+                            if (mode is CoachMode.Demo or CoachMode.HandOff) calibratedDuringDemo = true;
+                            else { SetMode(CoachMode.Lead); BeginStage(Stage.Raise); }
+                            break;
                         case "target.reached": patientReachedAt = Time.time; break;
                         case "rep.completed": patientRepDoneAt = Time.time; if (e["valid"]?.Value<bool>() == true) nodStart = Time.time; break;
                         case "tracking.lost": trackingPaused = true; break;
@@ -189,6 +200,24 @@ namespace Kinesthetic.Coach
                     else Phase = "rest";
                     break;
                 }
+                case CoachMode.Demo:
+                {
+                    float cycle = rise + holdSeconds + lower + restSeconds, t0 = now - modeStart;
+                    if (t0 >= cycle * demoReps) { SetMode(CoachMode.HandOff); break; }
+                    t0 %= cycle;
+                    if (t0 < rise) { u = t0 / rep; Phase = "demo-raise"; }
+                    else if (t0 < rise + holdSeconds) { u = uPeak; Phase = "demo-hold"; }
+                    else if (t0 < rise + holdSeconds + lower) { u = (t0 - holdSeconds) / rep; Phase = "demo-lower"; }
+                    else Phase = "demo-rest";
+                    break;
+                }
+                case CoachMode.HandOff:
+                    Phase = "handoff";
+                    if (now - modeStart >= handOffSeconds)
+                    {
+                        if (calibratedDuringDemo) { SetMode(CoachMode.Lead); BeginStage(Stage.Raise); } else SetMode(CoachMode.Calibrating);
+                    }
+                    break;
                 case CoachMode.Calibrating: Phase = "still"; break;
                 case CoachMode.Celebrate:
                     Phase = "celebrate";
@@ -229,7 +258,24 @@ namespace Kinesthetic.Coach
             }
             if (clavicle) clavicle.rotation = Quaternion.AngleAxis(-Mathf.Sign(Vector3.Dot(Vector3.Cross(forward, right), up)) * Mathf.Min(shrugMm * .12f, 6f), forward) * clavicle.rotation;
             PoseArm(upper, fore, wrist, right, CurrentElevationDeg, planeDeg, elbowDeg);
+            if (mode == CoachMode.HandOff) PointAtMirror();
             ApplyHeadAndEyes();
+        }
+
+        /// Where the patient should look now: the mirror window, if the scene has one.
+        public Vector3? MirrorPosition => (mirror ??= FindAnyObjectByType<Kinesthetic.Rehab.MirrorPanel>()) ? mirror.WindowPosition : null;
+        public bool HandingOff => mode == CoachMode.HandOff;
+        public bool Demonstrating => mode == CoachMode.Demo;
+
+        // The resting arm rises to point across at the mirror, easing in over the first half second.
+        void PointAtMirror()
+        {
+            if (MirrorPosition is not Vector3 target || !otherUpper || !otherFore || !otherWrist) return;
+            float k = Mathf.SmoothStep(0, 1, Mathf.Min(1, (Time.time - modeStart) / .5f));
+            var toward = (target - otherUpper.position).normalized;
+            var relaxed = (otherFore.position - otherUpper.position).normalized;
+            var arm = Vector3.Slerp(relaxed, toward, k);
+            Aim(otherUpper, otherFore, arm); Aim(otherFore, otherWrist, arm);
         }
 
         // Breathing and an engaged forward lean: small, slow spine motion so the coach never looks frozen.
@@ -247,7 +293,9 @@ namespace Kinesthetic.Coach
         {
             if (head && neck && patientHead)
             {
-                var to = patientHead.position - head.position; var flat = Vector3.ProjectOnPlane(to, up);
+                // Handing off, the coach looks at the mirror with the patient; otherwise at the patient.
+                var lookAt = mode == CoachMode.HandOff && MirrorPosition is Vector3 m ? m : patientHead.position;
+                var to = lookAt - head.position; var flat = Vector3.ProjectOnPlane(to, up);
                 float yaw = Mathf.Clamp(Vector3.SignedAngle(forward, flat, up), -55, 55);
                 float pitch = Mathf.Clamp(-Vector3.SignedAngle(flat, to, Vector3.Cross(up, flat)), -20, 20);
                 float nod = Time.time - nodStart < .6f ? Mathf.Sin((Time.time - nodStart) / .6f * Mathf.PI) * 12 : 0;
