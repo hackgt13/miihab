@@ -31,12 +31,17 @@ namespace Kinesthetic.Rehab
         public string motionUrl = SensorHub.DefaultMotionUrl;
         public string wristMotionUrl = "ws://127.0.0.1:8767/bowling-motion?role=viewer";
         bool wristMotion;
-        string SensorPlacement => movementPlacement ?? (wristMotion ? "wrist" : "handle");
+        // The movement tile for the kind being measured: its body model draws the joint, its tag says where the
+        // tracker goes ("AIRPODS IN YOUR EARS" → "ears"). Every library kind has one, so a studio opened on its own
+        // draws a curl as a curl.
+        ActivityEntry Modelled => ActivityCatalog.MovementFor(exerciseKind);
+        BodyModel Body => Modelled?.Body;
+        string SensorPlacement => Modelled?.CardTag?.Split(' ').LastOrDefault()?.ToLowerInvariant() ?? (wristMotion ? "wrist" : "handle");
         // A movement tile from the gallery (activities.json group "movement"): this studio measures that one kind, as
         // the plan prescribes it or, when the plan does not, as a practice set at the library's defaults. The
         // coordinator decides which (GET /api/prescription); null when the studio was opened as itself.
         ActivityEntry movement;
-        string movementLabel, movementSensor, movementPlacement, movementPosture;
+        string movementLabel, movementPosture;
         bool practice;
         bool autoArmed, servicesStarting;
         long motionTicks; float stillSince = -1, enteredAt;
@@ -69,6 +74,7 @@ namespace Kinesthetic.Rehab
         float IRehabView.TargetDeg => targetDeg;
         float IRehabView.BandDeg => bandDeg;
         bool IRehabView.CoachHandingOff => coach && coach.HandingOff;
+        RepFeel IRehabView.Feel => feel;
         bool startingSession, stoppingSession, sessionError, summaryReceived;
         public bool IsBusy => startingSession || stoppingSession;
         // IActivity. The shell drives this without knowing it is a therapy session.
@@ -100,7 +106,7 @@ namespace Kinesthetic.Rehab
         bool Fresh => useCameraPose ? LivePoseClient.Fresh(poseTicks) : MotionFresh && Time.unscaledTime - lastSampleAt < .5f;
         string status = "Secure your AirPod. Rest your arm.";
         float flashUntil; Color flash;
-        Label statusLabel, summaryLabel; Button start; KSheet summaryCard;
+        Label statusLabel; Button start; KSheet summaryCard;
         Label progressNote, angleNote, cueTitle;
         // The prescription, handed over on arrival. What it says lives in the plan; when it is put down is
         // what starts the set.
@@ -120,6 +126,10 @@ namespace Kinesthetic.Rehab
         KArc holdRing; KReadout holdReadout, streakReadout, bestHoldReadout; Label formNoteLabel; VisualElement formRow;
         bool HoldPrescribed => planHoldMs > 0;
         float HoldTargetMs => Mathf.Max(holdTargetMs, planHoldMs);
+        // The rep as the in-world mechanics feel it (Mechanics/): the coordinator's live judgements plus the speed
+        // of the angle being shown. Published to a headset with the rest of the state.
+        RepFeel feel; float speedDegS;
+        System.Collections.Generic.HashSet<string> qualityIds;   // which qualities this session is judged on; null until it starts
         // The band around the measured arm: cerulean at rest, sand while the rep is being made,
         // green once the target is reached, and coral only when something is wrong and has to be seen.
         static readonly Color Idle = Palette.Cerulean20.At(.55f), Active = Palette.Sand30.At(.9f),
@@ -138,6 +148,8 @@ namespace Kinesthetic.Rehab
             if (!GetComponent<StudioCamera>()) gameObject.AddComponent<StudioCamera>().session = this;
             // A headset renders this studio from what it publishes (RehabStateClient in QuestRehab).
             if (!GetComponent<RehabStatePublisher>()) gameObject.AddComponent<RehabStatePublisher>().session = this;
+            // The in-world mechanics: the ball balanced on the hand, the pace to follow. They read this view's Feel.
+            Mechanics.RepMechanics.AttachAll(gameObject, this);
             // Not armed yet. The set begins when the patient puts the briefing down, not when the sensor
             // happens to hold still for a second and a half.
             autoArmed = false; enteredAt = Time.unscaledTime;
@@ -201,7 +213,7 @@ namespace Kinesthetic.Rehab
             if (button == start && boundGeneration == boards.Generation) return true;
             boundGeneration = boards.Generation;
             repCount = root.Q<KReadout>("rep-count"); angleReadout = root.Q<KReadout>("angle-readout");
-            statusLabel = root.Q<Label>("status"); summaryLabel = root.Q<Label>("summary");
+            statusLabel = root.Q<Label>("status");
             summaryCard = root.Q<KSheet>("summary-card");
             progressNote = root.Q<Label>("progress-note");
             angleNote = root.Q<Label>("angle-note"); sensorStatus = root.Q<KChip>("sensor-status");
@@ -212,8 +224,10 @@ namespace Kinesthetic.Rehab
             holdRing = root.Q<KArc>("hold-ring"); holdReadout = root.Q<KReadout>("hold-readout");
             formRow = root.Q("form-row"); streakReadout = root.Q<KReadout>("streak"); bestHoldReadout = root.Q<KReadout>("best-hold");
             formNoteLabel = root.Q<Label>("form-note");
-            onSummaryClose ??= () => summaryCard.Dismiss();
-            onSummaryMenu ??= () => Kinesthetic.Menu.ActivityNavigation.Ensure().OpenReturn();
+            // The summary's two ways on: another set straight away (what the dock's Practice again does), or done
+            // for today, straight back to the menu — the set is already saved, so there is nothing to confirm.
+            onSummaryClose ??= () => { summaryCard.Dismiss(); onStart(); };
+            onSummaryMenu ??= () => Kinesthetic.Menu.ActivityNavigation.Ensure().ReturnToMenuNow();
             onViewToggle ??= () => GetComponent<StudioCamera>()?.ToggleView();   // the Mac's camera only
             onStart ??= () => {
                 if (IsBusy) return;
@@ -277,10 +291,7 @@ namespace Kinesthetic.Rehab
             practice = reply["practice"]?.Value<bool>() == true;
             exerciseKind = (string)x["exerciseKind"] ?? exerciseKind;
             movementLabel = (string)reply["label"] ?? movementLabel;
-            movementSensor = (string)reply["sensor"];
             movementPosture = (string)reply["posture"];
-            // "AirPods in your ears" → "ears": the word the status line puts after "your".
-            movementPlacement = movementSensor?.Split(' ').LastOrDefault();
             var p = x["params"] as JObject;
             bool nextWrist = (string)p?["imuSource"] == "wrist";
             if (nextWrist != wristMotion) { wristMotion = nextWrist; motionTicks = 0; motionSequence = -1; motionSession = null; stillSince = -1; }
@@ -363,6 +374,22 @@ namespace Kinesthetic.Rehab
             UpdatePlanLabels();
         }
 
+        /// "RIGHT ARM  ·  " for a limb, "RIGHT SIDE  ·  " for a side bend, nothing for a nod or a forward bend.
+        string SideLabel
+        {
+            get
+            {
+                var b = Body; string s = side.ToUpperInvariant();
+                if (b == null) return $"{s} ARM  ·  ";
+                return b.Segment switch
+                {
+                    "arm" or "forearm" => $"{s} ARM  ·  ",
+                    "thigh" or "shank" or "leg" => $"{s} LEG  ·  ",
+                    _ => Mathf.Abs(b.Toward.x) > .5f ? $"{s} SIDE  ·  " : "",
+                };
+            }
+        }
+
         static float? Num(JToken t) => t?.Type is JTokenType.Float or JTokenType.Integer ? t.Value<float>() : null;
         static string Seconds(float ms) => $"{ms / 1000:0.#} s";
 
@@ -382,17 +409,18 @@ namespace Kinesthetic.Rehab
         Briefing Prescription() => new()
         {
             eyebrow = practice ? "PRACTICE · NOT IN YOUR PLAN" : $"PRESCRIBED PLAN · V{planVersion}",
-            title = movementLabel ?? (exerciseKind == "elbow-flexion.v1" ? "Elbow bends" : "Shoulder raises"),
+            title = movementLabel ?? Modelled?.DisplayName ?? "Shoulder raises",
             subtitle = movementPosture ?? (string.IsNullOrEmpty(side) ? "Seated" : $"{char.ToUpperInvariant(side[0])}{side.Substring(1)} arm, seated"),
             // The hold and the tempo are what the set is judged on beyond the count, so they are read before it.
             lines = new[]
             {
+                // Where the tracker goes comes first: the reading is only as good as the strap.
+                new BriefingLine("Wear it", useCameraPose ? "Camera" : Modelled?.Wear ?? $"AirPod on your {SensorPlacement}"),
                 new BriefingLine("Repetitions", prescribedReps.ToString()),
-                new BriefingLine("Raise to", $"{targetDeg:0}°"),
+                new BriefingLine("Move to", $"{targetDeg:0}°"),
                 new BriefingLine("Stay under", $"{targetDeg + bandDeg:0}°"),
-                new BriefingLine("Hold at the top", HoldPrescribed ? Seconds(HoldTargetMs) : "No hold"),
-                new BriefingLine("Tempo", $"{Seconds(raiseMs)} up · {Seconds(lowerMs)} down"),
-                new BriefingLine("Measured by", useCameraPose ? "Camera" : movementSensor ?? $"AirPod on your {SensorPlacement}"),
+                new BriefingLine("Hold at the end", HoldPrescribed ? Seconds(HoldTargetMs) : "No hold"),
+                new BriefingLine("Tempo", $"{Seconds(raiseMs)} out · {Seconds(lowerMs)} back"),
             },
             note = coachingNote,
             noteFrom = "FROM YOUR CARE TEAM",
@@ -440,12 +468,35 @@ namespace Kinesthetic.Rehab
             ReadExercise();
             ReadReadiness();
             DrawGuides();
+            UpdateFeel();
             // While the coach demonstrates and hands over, the cue is theirs; the measurement status follows after.
             coach ??= FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>();
             statusLabel.text = Cue = running && coach && coach.Demonstrating ? "Watch Alex. Raise, hold, lower."
                 : running && coach && coach.HandingOff ? "Your turn. Follow your mirror." : status;
             UpdateStudioUI();
             UpdatePlayHud();
+        }
+
+        /// The rep in progress as the mechanics feel it: the coordinator's live quality readouts, the speed of the
+        /// shown angle, and the speed the plan asks for in this phase (target over the raise time on the way up,
+        /// the top of the band over the lowering time on the way down).
+        void UpdateFeel()
+        {
+            var tempo = liveQuality?["tempo"] as JObject; var hold = liveQuality?["hold"] as JObject; var control = liveQuality?["control"] as JObject;
+            bool inRep = running && calibrated && liveQuality != null && !(coach && coach.Demonstrating);
+            string phase = inRep ? (string)tempo?["phase"] ?? (hold?["holding"]?.Value<bool>() == true ? "hold" : "raise") : "";
+            bool hasTempo = qualityIds?.Contains("tempo") ?? true, hasHold = qualityIds?.Contains("hold") ?? HoldPrescribed;
+            feel = new RepFeel
+            {
+                InRep = inRep, Phase = phase, Speed = speedDegS,
+                TempoSpeed = !hasTempo ? 0 : phase == "lower" ? (targetDeg + bandDeg * .5f) / Mathf.Max(.1f, lowerMs / 1000f) : targetDeg / Mathf.Max(.1f, raiseMs / 1000f),
+                HasTempo = hasTempo, HasHold = hasHold,
+                HoldFraction = hold?["fraction"]?.Value<float>() ?? 0,
+                Holding = hold?["holding"]?.Value<bool>() == true, HoldMet = hold?["met"]?.Value<bool>() == true,
+                Hitches = control?["hitches"]?.Value<int>() ?? 0, Streak = streak,
+                Fast = (string)tempo?["guidance"] == "slower",
+                Valid = valid, Prescribed = prescribedReps,
+            };
         }
 
         void UpdatePlayHud()
@@ -460,6 +511,11 @@ namespace Kinesthetic.Rehab
 
         void UpdateStudioUI()
         {
+            // While the summary is up it is the only board: the dock's chip, cue and button and the rep ring
+            // all say again what the card says, and at these stations they overlap it.
+            bool summaryOpen = summaryCard != null && summaryCard.Presented;
+            boards.Q("dock-board")?.EnableInClassList("hidden", summaryOpen);
+            boards.Q("measure-board")?.EnableInClassList("hidden", summaryOpen);
             var cameraRig = GetComponent<StudioCamera>();
             viewToggle.text = cameraRig && cameraRig.InSeatedView ? "Wide view" : "Seated view";
             bool fresh = useCameraPose ? Fresh : MotionFresh;
@@ -545,10 +601,14 @@ namespace Kinesthetic.Rehab
         void DriveFromImu()
         {
             rig.Apply(null);
-            if (!running || !Fresh || !liveAngle.HasValue) return;
-            shownAngle = Mathf.Lerp(shownAngle, liveAngle.Value, 1 - Mathf.Exp(-12 * Time.unscaledDeltaTime));
-            bool curl = exerciseKind == "elbow-flexion.v1";
-            rig.ApplyImuArm(side == "left", curl ? null : shownAngle, curl ? shownAngle : null);
+            // At rest the Mii still takes the movement's posture (arm out for 90/90, standing for a leg raise), so
+            // the patient can see how to set up before the first rep.
+            bool live = running && Fresh && liveAngle.HasValue;
+            float before = shownAngle, dt = Time.unscaledDeltaTime;
+            if (live) shownAngle = Mathf.Lerp(shownAngle, liveAngle.Value, 1 - Mathf.Exp(-12 * dt));
+            // The speed of the angle being shown, for the mechanics' feel. Presentation only; the tempo verdict is the coordinator's.
+            speedDegS = live && dt > 0 ? Mathf.Lerp(speedDegS, (shownAngle - before) / dt, 1 - Mathf.Exp(-10 * dt)) : 0;
+            rig.ApplyMovement(Body, side == "left", live ? shownAngle : 0);
         }
 
         void ReadExercise()
@@ -560,7 +620,12 @@ namespace Kinesthetic.Rehab
                 if (currentExerciseId != null && (string)m["exerciseId"] != currentExerciseId) continue;   // an earlier session closing
                 switch ((string)m["type"])
                 {
-                    case "exercise.started": exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0; UpdatePlanLabels(); break;
+                    case "exercise.started":
+                        exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0;
+                        // Which qualities this set is judged on, so a mechanic with nothing to answer to can hide.
+                        if (p["qualities"] is JArray qualities)
+                            qualityIds = new System.Collections.Generic.HashSet<string>(qualities.OfType<JObject>().Select(q => (string)q["id"]).Where(id => id != null));
+                        UpdatePlanLabels(); break;
                     case "exercise.sample":
                         phase = (string)p["phase"] ?? phase;
                         liveAngle = p["valid"]?.Value<bool>() == true && p["angleDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? p["angleDeg"].Value<float>() : null;
@@ -638,20 +703,6 @@ namespace Kinesthetic.Rehab
             return parts.Count == 0 ? "" : $"Rep {rep} · {string.Join(" · ", parts)}";
         }
 
-        /// The set's form, one line under the count: what the care team would say first.
-        static string FormSummary(JObject q)
-        {
-            if (q == null) return "";
-            var parts = new System.Collections.Generic.List<string>();
-            if (Num(q["formScore"]) is float score) parts.Add($"Form {score * 100:0}%");
-            if (q["hold"] is JObject h && Num(h["bestMs"]) is float best) parts.Add($"best hold {Seconds(best)} · {h["metReps"]} of {h["reps"]} at target");
-            if (q["tempo"] is JObject t) parts.Add($"{t["controlledLowers"]} of {t["reps"]} lowered with control");
-            if (q["control"] is JObject c) parts.Add($"{c["steadyReps"]} of {c["reps"]} smooth");
-            if (q["streak"]?["best"]?.Value<int>() is int streak && streak >= 2) parts.Add($"{streak} in a row");
-            if (q["consistency"]?["fatigued"]?.Value<bool>() == true) parts.Add("your last reps were shallower · rest before another set");
-            return string.Join(" · ", parts);
-        }
-
         void ShowSummary(JObject s)
         {
             if (summaryReceived) return;
@@ -661,27 +712,16 @@ namespace Kinesthetic.Rehab
             running = false; autoArmed = false; start.text = "Practice again";
             valid = s["valid"]?.Value<int>() ?? 0; attempted = s["attempted"]?.Value<int>() ?? 0;
             var median = s["medianValidPeakDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? $"{s["medianValidPeakDeg"].Value<float>():0}°" : "—";
-            var reasons = s["invalidReasons"] as JObject; var notes = new StringBuilder();
-            if (reasons != null) foreach (var r in reasons)
-            {
-                string reason = r.Key switch {
-                    "did_not_reach_target" => "Below the target range", "trunk_compensation" => "Chest moved from resting position",
-                    "tracking_lost" => useCameraPose ? "Camera view interrupted" : "AirPod signal interrupted", "too_fast" => "Movement was too quick",
-                    _ => r.Key.Replace('_', ' ') };
-                notes.Append($"{r.Value} · {reason}\n");
-            }
             var root = boards;
-            root.Q<Label>("summary-title").text = attempted == 0 ? "Ready for another day" : valid >= prescribedReps ? "Your set is complete" : "Practice, at your pace";
-            root.Q<Label>("summary-subtitle").text = attempted == 0 ? "No repetitions were recorded this time." : "Your session summary.";
+            // A word for how it went, three numbers, and nothing the portal says better: per-rep reasons and the
+            // form breakdown are the care team's, not a wall of captions at the end of a set.
+            root.Q<Label>("summary-title").text = attempted == 0 ? "Ready for another day" : valid >= prescribedReps ? "Set complete!" : "Good practice";
             root.Q<KReadout>("summary-valid").value = valid.ToString();
             root.Q<KReadout>("summary-attempted").value = attempted.ToString();
             root.Q<KReadout>("summary-peak").value = median;
-            root.Q<Label>("summary-plan").text = $"{side.ToUpperInvariant()} ARM  ·  TARGET {targetDeg:0}°  ·  {prescribedReps} REPS";
             root.Q<Label>("summary-progress")?.AddToClassList("hidden");   // filled by the progression verdict that follows
-            var form = FormSummary(s["quality"] as JObject);
-            if (root.Q<Label>("summary-form") is Label formLine) { formLine.text = form; formLine.EnableInClassList("hidden", form.Length == 0); }
-            summaryLabel.text = notes.Length > 0 ? notes.ToString().TrimEnd() : attempted == 0 ? "Return to the studio when you're ready to begin." : "Nice work.";
-            root.Q<Label>("summary-saved").text = s["simulated"]?.Value<bool>() == true ? "Demo session · simulated movement" : "Session saved · available to your care team";
+            bool simulated = s["simulated"]?.Value<bool>() == true;
+            if (root.Q<KTag>("summary-badge") is KTag badge) { badge.text = simulated ? "DEMO SESSION" : "SESSION SAVED"; badge.tone = simulated ? KTag.Tone.Neutral : KTag.Tone.Good; }
             summaryCard.Present();
             root.Q<Button>("summary-close").Focus();
             Kinesthetic.Menu.ActivityNavigation.Ensure().PlaySelect();
@@ -732,9 +772,15 @@ namespace Kinesthetic.Rehab
             across = Vector3.ProjectOnPlane(across, down).normalized;
             float reach = Vector3.Distance(rig.RightUpperArm.position, rig.RightForearm.position) +
                           Vector3.Distance(rig.RightForearm.position, rig.RightHand.position);
-            // With the IMU, guides follow the same plane the arm is drawn in (PoseRig.ImuArmDirection).
-            Vector3 At(float deg, float r) { float a = deg * Mathf.Deg2Rad;
-                return shoulder + (useCameraPose ? down * Mathf.Cos(a) + across * Mathf.Sin(a) : rig.ImuArmDirection(left, deg)) * r; }
+            // With the IMU, guides are laid along the measured segment itself (PoseRig.MovementSegment): the arm, the
+            // shin, the head, whatever the movement moves, from the joint it moves about.
+            var body = useCameraPose ? null : Body;
+            if (rig.MovementSegment(body, left, 0, out var origin, out _, out var length)) { shoulder = origin; reach = length; }
+            Vector3 At(float deg, float r)
+            {
+                if (rig.MovementSegment(body, left, deg, out _, out var direction, out _)) return shoulder + direction * r;
+                float a = deg * Mathf.Deg2Rad; return shoulder + (down * Mathf.Cos(a) + across * Mathf.Sin(a)) * r;
+            }
 
             const int n = 24; targetBand.positionCount = n;
             for (int i = 0; i < n; i++) targetBand.SetPosition(i, At(targetDeg + bandDeg * i / (n - 1), reach));

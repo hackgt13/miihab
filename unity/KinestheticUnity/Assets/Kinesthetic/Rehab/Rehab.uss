@@ -30,13 +30,11 @@
    The host centres it; the sheet is as tall as what is on it. */
 .briefing-host { flex-grow: 1; justify-content: center; }
 
-/* Focus, 657 x 486 px at 1.4 m. The card is the board. */
-.summary-card { flex-grow: 1; align-items: center; }
-.summary-badge { align-self: center; margin-bottom: 12px; }
-.summary-subtitle, .summary-plan, .summary-progress, .summary-form { margin-top: 6px; }
-.summary-metrics { flex-direction: row; width: 100%; margin-top: 16px; margin-bottom: 12px; }
-.summary-metric { flex-grow: 1; align-items: center; }
-.summary-notes { max-height: 72px; width: 100%; flex-shrink: 1; }
-.summary-saved { margin-top: 10px; }
-.summary-actions { flex-direction: row; margin-top: 16px; }
-.summary-close { margin-left: 14px; }
+/* Focus, 857 x 571 px at 1.4 m. The card is the board. */
+.summary-card { flex-grow: 1; align-items: center; justify-content: center; }
+.summary-badge { align-self: center; margin-bottom: 14px; }
+.summary-progress { margin-top: 8px; }
+.summary-metrics { flex-direction: row; width: 100%; margin-top: 28px; margin-bottom: 28px; }
+.summary-metric { flex-grow: 1; flex-basis: 0; align-items: center; }
+.summary-actions { flex-direction: row; }
+.summary-close { margin-left: 16px; }

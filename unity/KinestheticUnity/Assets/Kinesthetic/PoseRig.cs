@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Kinesthetic.Activities;
 
 namespace Kinesthetic
 {
@@ -315,46 +316,91 @@ namespace Kinesthetic
             Aim(upper,lower,elbow-upper.position);
             Aim(lower,hand,upper.position+direction*d-lower.position);
         }
-        /// Presents an IMU-measured arm (no camera): call after Apply(null), which leaves the authored seated
-        /// rest pose, and only the measured segment moves. `elevationDeg` is straight-arm elevation, drawn in the
-        /// scapular plane (30° forward of the side); `elbowFlexionDeg` is a curl with the upper arm at the side.
-        /// The angles are the coordinator's measurement, so what the patient sees is what is scored.
-        public void ApplyImuArm(bool left, float? elevationDeg, float? elbowFlexionDeg)
+        /// Presents an IMU-measured movement (no camera): call after Apply(null), which leaves the authored seated
+        /// rest pose. The posture's held segments go where the movement needs them (the upper arm out for 90/90, both
+        /// legs straight to stand), then the measured segment is drawn at `deg` — the coordinator's angle, so what the
+        /// patient sees is what is scored. One routine for every movement: the model says which joint, not this code.
+        public void ApplyMovement(BodyModel model, bool left, float deg)
         {
             Initialize();
-            if (!mii) return;
-            string side = left ? ".L" : ".R";
-            Transform upper = Bone("bicep" + side), lower = Bone("forearm" + side), hand = Bone("hand" + side);
-            if (elevationDeg is float elevation)
+            if (!mii || model == null) return;
+            string s = left ? ".L" : ".R";
+            // Proximal holds first, so the moving segment starts from them; distal ones after, so they stay put.
+            Hold(model, "legs", left); Hold(model, "upperArm", left); Hold(model, "thigh", left);
+            var direction = BodyToWorld(model.At(deg), left);
+            switch (model.Segment)
             {
-                var arm = ImuArmDirection(left, elevation);
-                Aim(upper, lower, arm); Aim(lower, hand, arm);
+                case "arm": Aim(Bone("bicep" + s), Bone("forearm" + s), direction); Aim(Bone("forearm" + s), Bone("hand" + s), direction); break;
+                case "forearm" when model.Roll:
+                    var along = BodyToWorld(model.Rest, left);
+                    Aim(Bone("forearm" + s), Bone("hand" + s), along);
+                    Turn(Bone("forearm" + s), along, deg); break;
+                case "forearm": Aim(Bone("forearm" + s), Bone("hand" + s), direction); break;
+                case "thigh": Aim(Bone("thigh" + s), Bone("calf" + s), direction); break;
+                case "shank": Aim(Bone("calf" + s), Bone("foot" + s), direction); break;
+                case "leg": Aim(Bone("thigh" + s), Bone("calf" + s), direction); Aim(Bone("calf" + s), Bone("foot" + s), direction); break;
+                // Aimed like a limb rather than turned from the authored pose, whose neck and spine lean about 12
+                // degrees: the drawn angle has to be the measured one, measured from upright.
+                case "head": Aim(Bone("neck"), Bone("head"), direction); break;
+                case "trunk": Aim(Bone("spine.001"), Bone("neck"), direction); break;
             }
-            else if (elbowFlexionDeg is float flexion)
+            Hold(model, "forearm", left); Hold(model, "shank", left);
+        }
+
+        /// Where the measured segment is drawn from, which way it points at `deg`, and how long it is: what the
+        /// target band and the mirror's ghosts are laid along. Read after ApplyMovement, so the origin already sits
+        /// where the held segments put it (the elbow of a 90/90 arm, the knee of a standing leg). For a roll the
+        /// segment is a thumb standing off the hand.
+        public bool MovementSegment(BodyModel model, bool left, float deg, out Vector3 origin, out Vector3 direction, out float length)
+        {
+            Initialize();
+            origin = direction = default; length = 0;
+            if (!mii || model == null) return false;
+            string s = left ? ".L" : ".R";
+            float Span(params string[] names) { float d = 0; for (int i = 1; i < names.Length; i++) d += Vector3.Distance(Bone(names[i - 1]).position, Bone(names[i]).position); return d; }
+            (origin, length) = model.Segment switch
             {
-                Aim(upper, lower, ImuUpperArmAtSide(left));
-                Aim(lower, hand, ImuForearmDirection(flexion));
+                "arm" => (Bone("bicep" + s).position, Span("bicep" + s, "forearm" + s, "hand" + s)),
+                "forearm" when model.Roll => (Bone("hand" + s).position, Span("forearm" + s, "hand" + s) * .6f),
+                "forearm" => (Bone("forearm" + s).position, Span("forearm" + s, "hand" + s)),
+                "thigh" => (Bone("thigh" + s).position, Span("thigh" + s, "calf" + s)),
+                "shank" => (Bone("calf" + s).position, Span("calf" + s, "foot" + s)),
+                "leg" => (Bone("thigh" + s).position, Span("thigh" + s, "calf" + s, "foot" + s)),
+                // The head bone sits at the base of the skull; the crown is about as far again.
+                "head" => (Bone("neck").position, Span("neck", "head") * 2.2f),
+                "trunk" => (Bone("spine.001").position, Span("spine.001", "neck")),
+                _ => (Vector3.zero, 0f),
+            };
+            direction = BodyToWorld(model.At(deg), left);
+            return length > 0;
+        }
+
+        void Hold(BodyModel model, string key, bool left)
+        {
+            if (!model.Hold.TryGetValue(key, out var v)) return;
+            var direction = BodyToWorld(v, left);
+            foreach (bool side in key == "legs" ? new[] { false, true } : new[] { left })
+            {
+                string s = side ? ".L" : ".R";
+                var d = key == "legs" ? BodyToWorld(v, side) : direction;
+                switch (key)
+                {
+                    case "upperArm": Aim(Bone("bicep" + s), Bone("forearm" + s), d); break;
+                    case "forearm": Aim(Bone("forearm" + s), Bone("hand" + s), d); break;
+                    case "thigh": Aim(Bone("thigh" + s), Bone("calf" + s), d); break;
+                    case "shank": Aim(Bone("calf" + s), Bone("foot" + s), d); break;
+                    case "legs": Aim(Bone("thigh" + s), Bone("calf" + s), d); Aim(Bone("calf" + s), Bone("foot" + s), d); break;
+                }
             }
         }
-        // One geometry for everything drawn from an IMU angle — the arm, the scene's target band, the mirror's
-        // ghost arms — so they always agree. The authored Mii faces local -Z; its anatomical left is local +X.
-        /// Straight-arm direction at this elevation, in the scapular plane (30 degrees forward of the side).
-        public Vector3 ImuArmDirection(bool left, float elevationDeg)
+        /// The patient's frame in the world: x out to the working side, y up, z forward. The authored Mii faces
+        /// local -Z; its anatomical left is local +X.
+        Vector3 BodyToWorld(Vector3 v, bool left) =>
+            (transform.TransformDirection(new Vector3(left ? 1 : -1, 0, 0)) * v.x + transform.TransformDirection(Vector3.up) * v.y
+             + transform.TransformDirection(new Vector3(0, 0, -1)) * v.z).normalized;
+        static void Turn(Transform joint, Vector3 axis, float deg)
         {
-            var outward = transform.TransformDirection(new Vector3(left ? 1 : -1, 0, 0));
-            var forward = transform.TransformDirection(new Vector3(0, 0, -1));
-            var plane = (outward * Mathf.Cos(30 * Mathf.Deg2Rad) + forward * Mathf.Sin(30 * Mathf.Deg2Rad)).normalized;
-            float r = Mathf.Clamp(elevationDeg, 0, 180) * Mathf.Deg2Rad;
-            return transform.TransformDirection(Vector3.down) * Mathf.Cos(r) + plane * Mathf.Sin(r);
-        }
-        /// For a curl: the upper arm hangs at the side, just clear of the body.
-        public Vector3 ImuUpperArmAtSide(bool left) =>
-            (transform.TransformDirection(Vector3.down) + transform.TransformDirection(new Vector3(left ? 1 : -1, 0, 0)) * .12f).normalized;
-        /// Forearm direction at this elbow flexion, rising in front of the body.
-        public Vector3 ImuForearmDirection(float flexionDeg)
-        {
-            float r = Mathf.Clamp(flexionDeg, 0, 150) * Mathf.Deg2Rad;
-            return transform.TransformDirection(Vector3.down) * Mathf.Cos(r) + transform.TransformDirection(new Vector3(0, 0, -1)) * Mathf.Sin(r);
+            if (joint && axis.sqrMagnitude > 1e-8f) joint.rotation = Quaternion.AngleAxis(deg, axis) * joint.rotation;
         }
         void DriveLeg(PoseFrame frame, bool left)
         {

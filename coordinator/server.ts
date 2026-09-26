@@ -12,6 +12,7 @@ import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
 import { spotlight, recap, daysSince } from './social-ai.ts';
 import { weeksSince, type Profile, type FriendActivity } from './matching.ts';
 import { IntroductionStore, LocalDirectory } from './introductions.ts';
+import { GroupStore } from './groups.ts';
 import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, type RepParams, type RepSession } from './exercise/registry.ts';
@@ -50,6 +51,7 @@ const therapist = therapistFromEnv();
 const introductions = new IntroductionStore(socialDir);
 // Local today. When a shared backend exists this is the only line that changes.
 const directory = new LocalDirectory(socialDir);
+const groups = new GroupStore(socialDir);
 
 /// This patient, as the matcher sees them: what they are working toward and
 /// what they practise. Never a measurement — see the note at the top of
@@ -498,6 +500,53 @@ const server = createServer(async (request, response) => {
         }
         return json(404, {error:'Not found'});
       }
+      // Group sessions (groups.ts). Everything here is about "me": the lobby for one
+      // activity, the room I am in, and following someone I met there.
+      if (url.pathname.startsWith('/api/groups')) {
+        const me = friends.me();
+        const friendIds = () => new Set(friends.list().map(p => p.id));
+        const mine = () => {
+          const group = groups.current(me.id);
+          return group ? GroupStore.view(group, me.id, friendIds()) : null;
+        };
+        if (request.method === 'GET' && url.pathname === '/api/groups') {
+          const activityId = url.searchParams.get('activity') ?? '';
+          requireActivity(activityId);
+          const recent = friends.list().filter(p => p.sample)
+            .sort((a, b) => String(b.lastActiveAt).localeCompare(String(a.lastActiveAt)));
+          groups.seed(activityId, recent);
+          return json(200, {...groups.lobby(activityId, friendIds()), current: mine()});
+        }
+        if (request.method === 'GET' && url.pathname === '/api/groups/current') return json(200, {group: mine()});
+        if (request.method === 'POST' && url.pathname === '/api/groups') {
+          const body = await readJson(request) as {activityId?: string; open?: boolean};
+          requireActivity(body.activityId ?? '');
+          groups.create(me, body.activityId!, body.open !== false);
+          return json(201, {group: mine()});
+        }
+        if (request.method === 'POST' && url.pathname === '/api/groups/join') {
+          const body = await readJson(request) as {id?: string};
+          groups.join(me, String(body.id ?? ''), friendIds());
+          return json(200, {group: mine()});
+        }
+        if (request.method === 'POST' && url.pathname === '/api/groups/leave') {
+          groups.leave(me.id);
+          return json(200, {group: null});
+        }
+        if (request.method === 'POST' && url.pathname === '/api/groups/message') {
+          groups.send(me.id, await readJson(request) as {kind?: string; text?: string});
+          return json(201, {group: mine()});
+        }
+        // Following someone from the room's list: only someone actually in the room with you.
+        if (request.method === 'POST' && url.pathname === '/api/groups/befriend') {
+          const body = await readJson(request) as {id?: string};
+          const member = groups.member(me.id, String(body.id ?? ''));
+          if (!member) return json(404, {error: 'They are not in your group'});
+          const person = friends.meet(member);
+          return json(201, {person, group: mine()});
+        }
+        return json(404, {error:'Not found'});
+      }
       const replay = url.pathname.match(/^\/api\/sessions\/([0-9a-f-]{36})\/replay$/i);
       if (request.method === 'GET' && replay) return json(200, await loadReplay(recordings, replay[1]));
       // Two endpoints on purpose. /api/sessions stays the exercise-engine view the clinician portal
@@ -549,7 +598,7 @@ const server = createServer(async (request, response) => {
         return json(200, sessions.slice(0, 100));
       }
       return json(404, {error:'Not found'});
-    } catch (error) { return json(400, {error:(error as Error).message}); }
+    } catch (error) { return json((error as {status?: number}).status ?? 400, {error:(error as Error).message}); }
   }
   if (request.method !== 'GET') { response.writeHead(405).end(); return; }
   if (url.pathname === '/portal' || url.pathname.startsWith('/portal/')) {
