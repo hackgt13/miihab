@@ -8,9 +8,9 @@ using UnityEngine;
 namespace Kinesthetic.Rehab
 {
     /// Headset: renders the rehab studio the Mac is running (RehabStatePublisher). Poses the patient, the coach
-    /// and a group partner from the published bones, and feeds the mirror window when there is no partner. Reps,
+    /// and each group member from the published bones, and feeds the mirror window when there is no group. Reps,
     /// the cue and every button are the Mac's boards, mirrored by UI/Remote onto the same world-space boards this
-    /// scene carries; the one text it draws is the partner's name tag, which is theirs. It measures nothing and
+    /// scene carries; the one text it draws is each member's name tag, which is theirs. It measures nothing and
     /// decides nothing.
     public sealed class RehabStateClient : MonoBehaviour, IRehabView
     {
@@ -18,8 +18,9 @@ namespace Kinesthetic.Rehab
         [Tooltip("Where the coach sits: seated from this scene's patient (CoachDemonstrator.SeatPose), so the Mac's world position is not trusted across two scenes.")]
         public Transform coachSeat;
         public string url = "ws://127.0.0.1:8767/rehab-state?role=client";
-        LatestSocket socket; List<Transform> patientBones, coachBones, partnerBones; Kinesthetic.Coach.CoachDemonstrator coach;
-        PeerAvatar partner; PoseRig partnerRig;
+        LatestSocket socket; List<Transform> patientBones, coachBones; Kinesthetic.Coach.CoachDemonstrator coach;
+        PeerAvatar group;
+        readonly Dictionary<PoseRig, List<Transform>> memberBones = new();
         float lastStateAt = -99;
         string side = "right", kind = "arm-elevation.v1"; float target = 80, band = 15; float? angle; bool handoff;
         RepFeel feel;
@@ -77,7 +78,7 @@ namespace Kinesthetic.Rehab
                     Valid = (int?)f["valid"] ?? 0, Prescribed = (int?)f["prescribed"] ?? 0,
                 };
             Pose(s["patient"], patientBones);
-            Partner(s["partner"] as JObject);
+            Group(s["partners"] as JArray);
             if (s["coach"] is JObject c)
             {
                 if (!coach && (coach = FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>()))
@@ -94,26 +95,32 @@ namespace Kinesthetic.Rehab
             }
         }
 
-        /// The group partner where the mirror stands, exactly as the Mac draws them; the mirror when the Mac has
-        /// none. Seated from this scene's patient (PeerAvatar), so the Mac's world position is not trusted here.
-        void Partner(JObject p)
+        /// The rest of the group in the seats the Mac gave them, exactly as the Mac draws them; the mirror when the
+        /// Mac has no group. Seated from this scene's patient (PeerAvatar), so the Mac's world positions are not
+        /// trusted here.
+        void Group(JArray people)
         {
-            if (p == null)
+            if (people == null)
             {
-                if (partner) { Destroy(partner); partner = null; partnerBones = null; partnerRig = null; }
+                if (group) { Destroy(group); group = null; memberBones.Clear(); }
                 if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
                 return;
             }
-            if (!partner)
+            if (!group)
             {
                 if (GetComponent<MirrorPanel>() is MirrorPanel mirror) Destroy(mirror);
-                partner = gameObject.AddComponent<PeerAvatar>(); partner.view = this;
+                group = gameObject.AddComponent<PeerAvatar>(); group.view = this;
             }
-            bool showing = (bool?)p["showing"] ?? false;
-            partner.Present(showing, (string)p["name"], (string)p["state"], (int?)p["mii"] ?? 0);
-            if (!showing || !partner.Rig) return;   // its copy is built on its first frame
-            if (partnerRig != partner.Rig) { partnerRig = partner.Rig; partnerBones = GolfStateFormat.Bones(partnerRig); }
-            Pose(p["pose"], partnerBones);
+            var shown = new List<(string, string, int)>();
+            foreach (var p in people.OfType<JObject>()) shown.Add(((string)p["name"], (string)p["state"], (int?)p["mii"] ?? 0));
+            group.Present(shown);
+            for (int i = 0; i < group.Seats.Count && i < people.Count; i++)
+            {
+                var rig = group.Seats[i].Rig;
+                if (!rig) continue;   // a seat is built before it is posed; its first frame may still be coming
+                if (!memberBones.TryGetValue(rig, out var bones)) memberBones[rig] = bones = GolfStateFormat.Bones(rig);
+                Pose(people[i]["pose"], bones);
+            }
         }
 
         static void Pose(JToken pose, List<Transform> bones)
