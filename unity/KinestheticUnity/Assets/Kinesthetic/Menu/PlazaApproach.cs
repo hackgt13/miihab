@@ -18,7 +18,7 @@ namespace Kinesthetic.Menu
     /// that covered frame and fades back up with Arrive.
     public static class PlazaApproach
     {
-        public const float BeatSeconds = .6f, DashSeconds = 1.1f, HoldSeconds = .15f, ClearSeconds = .7f;
+        public const float BeatSeconds = .6f, DashSeconds = 1.1f, HoldSeconds = .2f, ClearSeconds = 1.2f;
         public const float TunnelDepth = .45f;
         /// The point along the walk where the fade begins to rise: by then the doorway fills the view.
         public const float CoverFrom = .62f;
@@ -55,7 +55,14 @@ namespace Kinesthetic.Menu
             fade.Cover = 1;
             fade.Tunnel = 0;
 
-            t = 0;
+            yield return Hold();
+        }
+
+        /// A beat at full cover before the swap on the way into a venue, so the dark reads as a place rather
+        /// than a blink. The way back has no doorway and no beat: it fades and goes.
+        public static IEnumerator Hold()
+        {
+            float t = 0;
             while (t < HoldSeconds) { t += Time.unscaledDeltaTime; yield return null; }
         }
 
