@@ -243,6 +243,12 @@ const server = createServer(async (request, response) => {
         return json(201, plans.approve(body));
       }
       if (request.method === 'GET' && url.pathname === '/api/exercises') return json(200, LIBRARY);
+      // The motion relay's status (who is connected, how old each stream's last sample is) for the capture page,
+      // which cannot read the relay directly across origins.
+      if (request.method === 'GET' && url.pathname === '/api/motion-health') {
+        try { return json(200, await (await fetch('http://127.0.0.1:8767/', {signal: AbortSignal.timeout(1000)})).json()); }
+        catch { return json(503, {ready: false}); }
+      }
       if (request.method === 'GET' && url.pathname === '/api/golf-unlock') return json(200, golfUnlock(plans.active()));
       if (request.method === 'GET' && url.pathname === '/api/dashboard') {
         const envelopes = await Promise.all((await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f))

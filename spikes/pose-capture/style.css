@@ -75,6 +75,9 @@ body[data-capture="live"] .live-badge { display: inline-flex; }
 .imu-streams { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
 .imu-card { --series-color: var(--series); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; border-left: 4px solid var(--series-color); }
 .imu-card[data-live="false"] { opacity: .55; }
+.imu-card[data-live="false"]:has(.imu-note:not([hidden])) { opacity: 1; }
+.imu-note { margin: 6px 0 0; }
+.imu-note[hidden] { display: none; }
 .imu-name { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--text-2); }
 .imu-name i { width: 8px; height: 8px; border-radius: 50%; background: var(--idle); flex: none; }
 .imu-card[data-live="true"] .imu-name i { background: var(--ok); }
