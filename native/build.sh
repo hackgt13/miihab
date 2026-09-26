@@ -31,7 +31,9 @@ PY
   compiler_flags=(-vfsoverlay "$build_tmp/overlay.json" -Xcc -ivfsoverlay -Xcc "$build_tmp/overlay.json")
 fi
 
-for motion_mode in club bowling; do
+# `zsh native/build.sh bowling` builds one variant, leaving the other app (and a running copy of it) untouched.
+modes=("$@"); (( $#modes )) || modes=(club bowling)
+for motion_mode in "${modes[@]}"; do
   activity_flags=()
   if [[ "$motion_mode" == bowling ]]; then
     activity_flags=(-D BOWLING)
