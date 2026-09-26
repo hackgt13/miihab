@@ -42,6 +42,32 @@ Exercise messages never go to `/pose` viewers or into the pose recording (Unity'
 Offline: `node measure-capture.ts <capture.json|session.jsonl> --side right --target 80 [--events]`.
 Tests: `measurement.test.ts` (synthetic bodies with known angles), `exercise.test.ts` (server end to end).
 
+## Measuring with no AirPod attached (`sim-motion.ts`)
+
+The only live measurement path is the IMU (camera measurement is off behind `KINESTHETIC_CAMERA_MEASUREMENT`),
+and `sim-rehab.ts` feeds the camera path, so nothing could exercise a real session without hardware. This stands
+in for the AirPod at the relay's producer socket, which means golf, bowling and the studio all work from it.
+
+```sh
+node sim-motion.ts hand                                    # arrow keys raise and lower, space swings, q quits
+node sim-motion.ts reps 8 [--peak 52] [--short] [--fast]   # a deterministic set; --short and --fast force invalid reps
+node sim-motion.ts replay ../local-data/golf/patient-*.jsonl [--speed 4] [--loop]
+```
+
+`replay` plays back real recorded AirPod samples, so it reproduces genuine dropouts and reconnects rather than a
+clean signal. `--channel wrist` targets bowling's channel; the default `club` is what golf and the studio read.
+
+A rotation about the device x-axis by θ places the world vertical at `[0, sin θ, cos θ]` in the device frame, so
+the commanded angle *is* the measured angle (see `verticalInDevice()`); `reps --peak 52` lands 52° in the summary.
+
+**Every mode marks its session id `simulated-…`**, because `server.ts` derives the `simulated` flag from it,
+`progression.ts` refuses to count simulated sessions, and both the portal and the patient's summary label them.
+A simulator that produced records indistinguishable from a patient's would corrupt the clinical history.
+
+**All three modes hold still at 0° before anything else.** Calibration takes the first `calibrationMs` of still
+frames as the resting reference, so moving too early anchors rest to a raised limb and every later angle is
+measured from the wrong place -- while the summary still reports `calibrated: true`.
+
 ## Care plans and clinician portal
 
 `plans.ts` stores immutable plan versions in `local-data/plans/plan-v<n>.json` (v1 is seeded). Approving a change
