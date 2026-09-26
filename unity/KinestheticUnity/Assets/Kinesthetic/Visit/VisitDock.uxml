@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
+    <Style src="../Palette.uss" />
+    <Style src="../UI/Base.uss" />
+    <Style src="Visit.uss" />
+    <!-- Dock station: where the visit is, and the two things a patient can do about it. -->
+    <ui:VisualElement name="dock-board" class="board" picking-mode="Ignore">
+        <k:KSurface class="visit-dock" density="Compact">
+            <ui:VisualElement class="visit-dock-copy" picking-mode="Ignore">
+                <k:KEyebrow text="VISIT" />
+                <k:KText name="visit-status" text="Your therapist is getting ready…" tone="Soft" />
+            </ui:VisualElement>
+            <k:KButton name="visit-skip" text="Next" tone="Secondary" size="Medium" class="visit-action" />
+            <k:KButton name="visit-replay" text="Hear it again" tone="Primary" size="Medium" class="visit-action" />
+        </k:KSurface>
+    </ui:VisualElement>
+</ui:UXML>

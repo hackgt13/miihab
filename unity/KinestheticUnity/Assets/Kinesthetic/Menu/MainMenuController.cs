@@ -317,16 +317,10 @@ namespace Kinesthetic.Menu
 
         void Launch(string activityId) => navigation.LoadActivity(activityId);
 
-        /// Not wired to anything yet, and the button says so once pressed rather than staying silent — a
-        /// control that swallows a press is how a panel starts feeling broken. The line it falls back to is
-        /// true today: the clinician portal (coordinator/portal) already reads this plan and these sessions,
-        /// so nobody has to describe their week down a phone line. What is missing is the visit itself.
-        void VisitTherapist()
-        {
-            navigation.PlaySelect();
-            var sub = coachingRoot?.Q<Label>("visit-sub");
-            if (sub != null) sub.text = "Booking is coming soon — your therapist already sees this.";
-        }
+        /// The visit is a catalog activity like any other (therapist.visit), so it goes through the clinic's
+        /// door the way the studio goes through the pavilion's. If the build has no visit scene, navigation
+        /// says so in its own dialog rather than the press going nowhere.
+        void VisitTherapist() => Launch("therapist.visit");
 
         void OpenNameSheet()
         {
