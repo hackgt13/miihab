@@ -93,11 +93,17 @@ namespace Kinesthetic.Shell
             ring.SetParent(transform, false);
         }
 
-        /// Stand these panes in the ring, in order, starting with the one the person faces. Calling it again
-        /// rebuilds the ring, which is what a data-driven gallery wants when the catalog changes underneath.
+        /// Stand these panes in the ring, in order. Rebuilding is what a data-driven gallery wants when the
+        /// catalog changes underneath it — but rebuilding is not the same as going home: if whoever was being
+        /// faced is still in the new list, they stay faced, and the ring snaps to hold them there rather than
+        /// turning. Opening a pane is not a reason to be spun back to the board you were reading.
+        ///
+        /// `Add` and `Remove` are the cheaper paths and should be preferred when only one pane changed;
+        /// `Adopt` is for when the whole list is new.
         public void Adopt(params Slot[] adopted)
         {
             EnsureRing();
+            string wasFacing = slots.Count > 0 ? Current.id : null;
             slots.Clear();
             foreach (var slot in adopted)
             {
@@ -105,12 +111,60 @@ namespace Kinesthetic.Shell
                 slots.Add(slot);
                 Place(slots.Count - 1);
             }
-            index = 0;
-            ring.localRotation = Quaternion.identity;
-            turning = false;
-            Cull();
-            if (slots.Count > 0) { Changed?.Invoke(Current); Settled?.Invoke(Current); }
+
+            int kept = wasFacing == null ? -1 : slots.FindIndex(s => s.id == wasFacing);
+            Settle(kept < 0 ? 0 : kept, announce: kept < 0);
         }
+
+        /// Append one pane without disturbing the ring. Nobody already standing moves, the person keeps
+        /// facing whatever they were facing, and no turn is animated — opening a pane in the background is
+        /// not an event that should move the furniture. Returns the slot it went to.
+        public int Add(Slot slot)
+        {
+            EnsureRing();
+            if (slot.pane == null) return -1;
+            int at = slots.FindIndex(s => s.id == slot.id);
+            if (at >= 0) { slots[at] = slot; Place(at); return at; }
+
+            slots.Add(slot);
+            Place(slots.Count - 1);
+            Cull();
+            return slots.Count - 1;
+        }
+
+        /// Close a pane and close the gap behind it. The panes after it shuffle down a slot, which would
+        /// normally drag whoever you are facing sideways — so the ring is counter-rotated by the same step
+        /// and the person sees nothing move except the pane that left. The exception is closing the pane you
+        /// are looking at: then there is nowhere to stand still, and the ring turns to its neighbour, which
+        /// is a turn the person asked for by closing it.
+        public bool Remove(string id)
+        {
+            int at = slots.FindIndex(s => s.id == id);
+            if (at < 0) return false;
+
+            bool wasFacing = at == index;
+            slots.RemoveAt(at);
+            for (int i = at; i < slots.Count; i++) Place(i);
+
+            if (slots.Count == 0) { index = 0; turning = false; ring.localRotation = Quaternion.identity; return true; }
+            if (wasFacing) { int neighbour = Mathf.Min(at, slots.Count - 1); index = neighbour; Snap(); Cull(); Changed?.Invoke(Current); Settled?.Invoke(Current); return true; }
+
+            // Whoever was faced kept their pane; only their slot number may have dropped by one.
+            Settle(at < index ? index - 1 : index, announce: false);
+            return true;
+        }
+
+        /// Face this slot with no animation and no announcement unless the person is actually somewhere new.
+        void Settle(int wanted, bool announce)
+        {
+            index = slots.Count == 0 ? 0 : Mathf.Clamp(wanted, 0, slots.Count - 1);
+            turning = false;
+            Snap();
+            Cull();
+            if (announce && slots.Count > 0) { Changed?.Invoke(Current); Settled?.Invoke(Current); }
+        }
+
+        void Snap() => ring.localRotation = Quaternion.Euler(0, -index * spacingDegrees, 0);
 
         /// Out along the slot's heading, turned to face back down it.
         void Place(int slot)
