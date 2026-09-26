@@ -33,7 +33,9 @@ namespace Kinesthetic.UI.Remote
         /// Counts up on each successful connect, so an owner can notice a reconnect and reset.
         public volatile int generation;
 
-        public UiSocket(string url) { _ = Task.Run(() => Run(url)); }
+        public UiSocket(string url) : this(() => url) { }
+        /// `url` is asked before every attempt (QuestHostConfig.Url: over the USB cable or the network).
+        public UiSocket(Func<string> url) { _ = Task.Run(() => Run(url)); }
 
         public void Send(string text)
         {
@@ -44,7 +46,7 @@ namespace Kinesthetic.UI.Remote
 
         public bool TryReceive(out string text) => incoming.TryDequeue(out text);
 
-        async Task Run(string url)
+        async Task Run(Func<string> url)
         {
             // One waiter on the semaphore, kept across connections: a wait that a closing socket left
             // pending must not swallow the signal meant for the next one.
@@ -54,7 +56,14 @@ namespace Kinesthetic.UI.Remote
                 try
                 {
                     using var ws = new ClientWebSocket();
-                    await ws.ConnectAsync(new Uri(url), cancel.Token).ConfigureAwait(false);
+                    // A dropped-packet address holds a connect for minutes on device; give up after 3 s.
+                    var connecting = ws.ConnectAsync(new Uri(url()), cancel.Token);
+                    if (await Task.WhenAny(connecting, Task.Delay(3000, cancel.Token)).ConfigureAwait(false) != connecting)
+                    {
+                        ws.Abort(); _ = connecting.ContinueWith(t => _ = t.Exception, TaskScheduler.Default);
+                        throw new TimeoutException("no answer in 3 s");
+                    }
+                    await connecting.ConfigureAwait(false);
                     while (outgoing.TryDequeue(out _)) { }
                     generation++;
                     connected = true;

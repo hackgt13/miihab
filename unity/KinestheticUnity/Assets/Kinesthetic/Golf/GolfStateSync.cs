@@ -31,6 +31,9 @@ namespace Kinesthetic.Golf
         string outgoing, incoming;
         public volatile bool connected;
         readonly bool followDiscovery;
+        string lastTarget, lastFailure;
+        int attempts;
+        static string Redact(string url) { if (url == null) return ""; var i = url.IndexOf("token="); return i < 0 ? url : url.Substring(0, i) + "token=…"; }
         public LatestSocket(string url) { _ = Task.Run(() => Run(() => url)); }
         /// `url` (QuestHostConfig.Url) is asked again before every connection attempt, and a connected socket moves
         /// when the relay announces itself at a different address (the Mac changed networks).
@@ -43,15 +46,25 @@ namespace Kinesthetic.Golf
             {
                 try
                 {
-                    var target = url();
+                    var target = url(); lastTarget = target;
+                    if (++attempts <= 12) Debug.LogWarning($"Relay attempt {attempts}: {Redact(target)}");
                     using var ws = new ClientWebSocket();
-                    // A Mac that left the network would otherwise hold ConnectAsync for a TCP timeout (over a minute).
+                    // An address that drops packets holds a connect for the TCP timeout (minutes), and on device the
+                    // cancellation token does not interrupt it. Race it against 3 s and abort the socket on a loss.
                     using (var attempt = CancellationTokenSource.CreateLinkedTokenSource(cancel.Token))
                     {
-                        attempt.CancelAfter(3000);
-                        await ws.ConnectAsync(new Uri(target), attempt.Token).ConfigureAwait(false);
+                        var connecting = ws.ConnectAsync(new Uri(target), attempt.Token);
+                        if (await Task.WhenAny(connecting, Task.Delay(3000, cancel.Token)).ConfigureAwait(false) != connecting)
+                        {
+                            attempt.Cancel(); ws.Abort();
+                            _ = connecting.ContinueWith(t => _ = t.Exception, TaskScheduler.Default);   // observe the late failure
+                            throw new TimeoutException("no answer in 3 s");
+                        }
+                        await connecting.ConfigureAwait(false);
                     }
                     connected = true;
+                    Debug.LogWarning("Relay connected: " + Redact(target));
+                    lastFailure = null;
                     var checkedAt = DateTime.UtcNow;
                     var receive = Task.Run(async () => {
                         var buffer = new byte[64 * 1024];
@@ -72,12 +85,19 @@ namespace Kinesthetic.Golf
                         if (followDiscovery && (DateTime.UtcNow - checkedAt).TotalSeconds > 1)
                         {
                             checkedAt = DateTime.UtcNow;
+                            // A connection over the USB cable is kept; only a network connection follows the Mac.
                             var announced = RelayDiscovery.Host;
-                            if (announced != null && !target.Contains("//" + announced + ":")) break;
+                            if (announced != null && !target.Contains("//" + QuestHostConfig.Loopback + ":") &&
+                                !target.Contains("//" + announced + ":")) break;
                         }
                     }
                 }
-                catch (Exception) { }
+                catch (Exception e)
+                {
+                    // Once per distinct failure, so a headset that cannot reach the Mac says why.
+                    var failure = Redact(lastTarget) + ": " + e.GetBaseException().GetType().Name + " " + e.GetBaseException().Message;
+                    if (failure != lastFailure) { lastFailure = failure; Debug.LogWarning("Relay connection failed, " + failure); }
+                }
                 connected = false;
                 try { await Task.Delay(1000, cancel.Token).ConfigureAwait(false); } catch (OperationCanceledException) { break; }
             }

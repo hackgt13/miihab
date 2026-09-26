@@ -75,8 +75,8 @@ namespace Kinesthetic.Golf
         {
             var config = Resources.Load<QuestHostConfig>(QuestHostConfig.ResourcePath);
             if (!config || string.IsNullOrEmpty(config.token)) return;   // cues still arrive; only the fallback needs the hosts
-            string Url(string path) => $"ws://{config.host}:{config.port}{path}?role=client&token={Uri.EscapeDataString(config.token)}";
-            sockets = Array.ConvertAll(Activities, a => new LatestSocket(Url(a.path)));
+            // Over the USB cable or the network, whichever reaches the Mac (QuestHostConfig.Url).
+            sockets = Array.ConvertAll(Activities, a => new LatestSocket(config.Url(a.path + "?role=client")));
             liveAt = new float[Activities.Length];
             for (int i = 0; i < liveAt.Length; i++) liveAt[i] = -99;
         }
