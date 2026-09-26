@@ -99,6 +99,7 @@ namespace Kinesthetic.Rehab
         // The prescription, handed over on arrival. What it says lives in the plan; when it is put down is
         // what starts the set.
         readonly ActivityBriefing briefing = new();
+        bool briefedWarning;
         KReadout repCount, angleReadout;
         KChip sensorStatus; KTag cueStep;
         KArc repRing; KMeter angleMeter;
@@ -208,8 +209,17 @@ namespace Kinesthetic.Rehab
             start = Rebind(start, button, onStart);
             // Mounted after every rebuild, in whatever state it was already in — a board that remade its
             // tree must not hand a dismissed sheet back to someone mid-set. A venue with no briefing host
-            // has nothing waiting to be read, so it arms straight away instead of never starting.
-            if (!briefing.Bind(root.Q(ActivityBriefing.HostName), BeginFromBriefing)) BeginFromBriefing();
+            // has nothing waiting to be read, so it arms straight away instead of never starting. Say so
+            // out loud: a studio silently missing its prescription looks exactly like one that never had
+            // the feature, and the cause is almost always a scene that predates the brief board.
+            if (!briefing.Bind(root.Q(ActivityBriefing.HostName), BeginFromBriefing))
+            {
+                if (!briefedWarning) Debug.LogWarning($"No '{ActivityBriefing.HostName}' host on any board, so there is no " +
+                    "prescription to read and the set arms on arrival. Run Kinesthetic \u2192 Rehab \u2192 Create shoulder " +
+                    "raise scene; it refuses while any open scene has unsaved changes, so save those first.");
+                briefedWarning = true;
+                BeginFromBriefing();
+            }
             UpdatePlanLabels();
             summaryCard.Hide();
             StartCoroutine(RefreshPlan());
