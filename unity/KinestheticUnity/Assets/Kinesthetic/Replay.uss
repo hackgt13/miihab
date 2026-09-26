@@ -1,15 +1,15 @@
 .shell { flex-grow: 1; padding: 28px; color: #EAE0CC; }
-.panel { width: 370px; background-color: rgba(31, 39, 71, 0.95); padding: 22px; border-radius: 12px; }
-.eyebrow { color: #89BBFE; font-size: 12px; -unity-font-style: bold; margin-bottom: 10px; }
+.panel { width: 370px; background-color: rgba(14, 28, 54, 0.95); padding: 22px; border-radius: 12px; }
+.eyebrow { color: #5C9EC6; font-size: 12px; -unity-font-style: bold; margin-bottom: 10px; }
 .title { font-size: 25px; -unity-font-style: bold; margin-bottom: 10px; }
-.description { white-space: normal; font-size: 13px; margin-bottom: 16px; color: #AABDD9; }
-.status { white-space: normal; color: #89BBFE; margin-top: 14px; margin-bottom: 12px; }
+.description { white-space: normal; font-size: 13px; margin-bottom: 16px; color: #B4BFD3; }
+.status { white-space: normal; color: #5C9EC6; margin-top: 14px; margin-bottom: 12px; }
 .metric { white-space: normal; font-size: 14px; margin-bottom: 12px; }
 .row { flex-direction: row; margin-top: 12px; margin-bottom: 12px; }
 .row > Button { flex-grow: 1; margin-right: 6px; }
-Button { background-color: #29335C; color: #F8F3E8; border-width: 0; border-radius: 6px; padding: 9px; min-height: 34px; }
+Button { background-color: #2274A5; color: #F8F3E8; border-width: 0; border-radius: 6px; padding: 9px; min-height: 34px; }
 Button { margin-bottom: 5px; }
-Button:hover { background-color: #3B4673; }
+Button:hover { background-color: #185A83; }
 TextField { margin-bottom: 10px; }
-TextField .unity-base-text-field__input { background-color: #151A31; color: #F8F3E8; padding: 8px; }
-.note { white-space: normal; font-size: 12px; color: #8CA3C7; margin-top: 12px; }
+TextField .unity-base-text-field__input { background-color: #08111F; color: #F8F3E8; padding: 8px; }
+.note { white-space: normal; font-size: 12px; color: #97A4BE; margin-top: 12px; }

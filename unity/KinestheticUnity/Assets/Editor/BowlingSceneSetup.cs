@@ -89,7 +89,7 @@ public static class BowlingSceneSetup
             index++;
         }
         var aim = new GameObject("Aim guide").AddComponent<LineRenderer>();
-        aim.sharedMaterial = Material("Aim", Palette.Ice50, true);
+        aim.sharedMaterial = Material("Aim", Palette.Cerulean50, true);
         aim.positionCount = 2; aim.startWidth = .025f; aim.endWidth = .007f; aim.numCapVertices = 5; aim.enabled = false; game.aimLine = aim;
 
         var actor = new GameObject("Mii bowler").AddComponent<BowlingAvatar>();
@@ -196,14 +196,14 @@ public static class BowlingSceneSetup
         var text = new GameObject(name).AddComponent<TextMesh>(); text.transform.position = position;
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); text.GetComponent<MeshRenderer>().sharedMaterial = text.font.material;
         text.fontSize = 72; text.characterSize = size; text.anchor = TextAnchor.MiddleCenter; text.alignment = TextAlignment.Center;
-        text.color = Palette.Indigo60; return text;
+        text.color = Palette.Ink; return text;
     }
     static void TextPanel(string name, Vector3 position, Vector2 size)
     {
         var rim = GameObject.CreatePrimitive(PrimitiveType.Quad); rim.name = name + " rim";
         UnityEngine.Object.DestroyImmediate(rim.GetComponent<Collider>());
         rim.transform.position = position + Vector3.forward * .025f; rim.transform.localScale = new Vector3(size.x + .045f, size.y + .045f, 1);
-        rim.GetComponent<Renderer>().sharedMaterial = Material("HUD edge", Palette.Ice40, true);
+        rim.GetComponent<Renderer>().sharedMaterial = Material("HUD edge", Palette.Cerulean50, true);
         var panel = GameObject.CreatePrimitive(PrimitiveType.Quad); panel.name = name + " background";
         UnityEngine.Object.DestroyImmediate(panel.GetComponent<Collider>());
         panel.transform.position = position + Vector3.forward * .018f; panel.transform.localScale = new Vector3(size.x, size.y, 1);

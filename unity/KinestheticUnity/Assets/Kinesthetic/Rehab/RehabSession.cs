@@ -41,10 +41,10 @@ namespace Kinesthetic.Rehab
         ProgressBar angleMeter;
         int paintedReps = -1, paintedGoal = -1;
         string coachingNote = "";
-        // The band around the measured arm: ice when it is resting or has reached the target, sand
-        // while the rep is being made, coral only when something is wrong and has to be seen.
-        static readonly Color Idle = Palette.Ice20.At(.55f), Active = Palette.Sand30.At(.9f),
-            Good = Palette.Ice40.At(.95f), Bad = Palette.Coral40.At(.95f);
+        // The band around the measured arm: cerulean at rest, sand while the rep is being made,
+        // green once the target is reached, and coral only when something is wrong and has to be seen.
+        static readonly Color Idle = Palette.Cerulean20.At(.55f), Active = Palette.Sand30.At(.9f),
+            Good = Palette.Good.At(.95f), Bad = Palette.Attention.At(.95f);
 
         void Start()
         {
@@ -216,11 +216,11 @@ namespace Kinesthetic.Rehab
             float filled = Mathf.Clamp01((float)valid / Mathf.Max(1, prescribedReps)) * segments;
             for (int i = 0; i < segments; i++)
             {
-                painter.strokeColor = Palette.Ice20;
+                painter.strokeColor = Palette.Slate30;
                 float begin = -90 + i * step + gap * .5f, end = -90 + (i + 1) * step - gap * .5f;
                 painter.BeginPath(); painter.Arc(rect.center, rect.width * .43f, Angle.Degrees(begin), Angle.Degrees(end)); painter.Stroke();
                 if (filled <= i) continue;
-                painter.strokeColor = Palette.Ice50;
+                painter.strokeColor = Palette.Good;
                 painter.BeginPath(); painter.Arc(rect.center, rect.width * .43f, Angle.Degrees(begin), Angle.Degrees(Mathf.Lerp(begin, end, Mathf.Clamp01(filled - i)))); painter.Stroke();
             }
         }
