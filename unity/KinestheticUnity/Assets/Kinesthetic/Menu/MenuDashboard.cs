@@ -241,19 +241,20 @@ namespace Kinesthetic.Menu
             float reach = model.history.Length > 0 ? model.history[^1].medianPeakDeg : 0;
             float first = model.history.Length > 0 ? model.history[0].medianPeakDeg : 0;
             float delta = reach - first;
+            // Three lines. The green one says how far it has moved, the grey one where it stands against the
+            // target; "median peak" is the clinician's word for it and belongs in the note, not the readout.
+            int target = Mathf.RoundToInt(model.targetDeg), gap = Mathf.RoundToInt(Mathf.Abs(reach - model.targetDeg));
             Text(root, "reach-now", $"{Mathf.RoundToInt(reach)}°");
             Text(root, "reach-delta", model.history.Length > 1
-                ? $"{(delta >= 0 ? "+" : "")}{Mathf.RoundToInt(delta)}° further than week one"
+                ? $"{(delta >= 0 ? "+" : "")}{Mathf.RoundToInt(delta)}° since week one"
                 : "First session — no trend yet");
-            Text(root, "reach-best", $"median peak · target {Mathf.RoundToInt(model.targetDeg)}°");
-            Text(root, "reach-cheer", reach >= model.targetDeg
-                ? $"Past your target by {Mathf.RoundToInt(reach - model.targetDeg)}° \u2014 nice."
-                : $"{Mathf.RoundToInt(model.targetDeg - reach)}° to reach your target");
-            Text(root, "data-note", model.measured ? "From your measured sessions" : "Demo data · not measured");
+            Text(root, "reach-best", reach >= model.targetDeg
+                ? $"target {target}° · {gap}° past it"
+                : $"target {target}° · {gap}° to go");
+            Text(root, "data-note", model.measured ? "Median peak · measured" : "Demo data · not measured");
 
             Paint(root, "range-fan", (ctx, r) => DrawRangeFan(ctx, r, model));
             Paint(root, "calendar-grid", (ctx, r) => DrawCalendar(ctx, r, model.RecentDays(28)));
-            Paint(root, "browse-glyph", DrawBrowseGlyph);
             Paint(root, "program-ring", (ctx, r) => DrawRing(ctx, r, model.ProgramFraction));
         }
 
@@ -410,20 +411,6 @@ namespace Kinesthetic.Menu
                 p.lineWidth = 3;
                 RoundedRect(p, x - 2.5f, y - 2.5f, cell + 5, radius + 2, cell + 5, stroke: true);
             }
-        }
-
-        /// Four squares for "browse everything", so the two tiles on this board do not both end in the
-        /// same chevron and read as the same control twice.
-        static void DrawBrowseGlyph(MeshGenerationContext ctx, Rect r)
-        {
-            if (r.width < 8 || r.height < 8) return;
-            var p = ctx.painter2D;
-            float size = Mathf.Min(r.width, r.height), gap = size * .16f;
-            float cell = (size - gap) * .5f;
-            float ox = (r.width - size) * .5f, oy = (r.height - size) * .5f;
-            p.fillColor = Palette.Live;
-            for (int i = 0; i < 4; i++)
-                RoundedSquare(p, ox + (i % 2) * (cell + gap), oy + (i / 2) * (cell + gap), cell, cell * .3f);
         }
 
         static void RoundedSquare(Painter2D p, float x, float y, float size, float radius, float height = -1)

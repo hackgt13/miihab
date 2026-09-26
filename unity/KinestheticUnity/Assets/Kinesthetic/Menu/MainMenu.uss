@@ -44,12 +44,14 @@ Button:disabled { opacity: .55; }
 
 .tile-hero { flex-grow: 1; min-height: 0; }
 .hero-body { flex-direction: row; align-items: stretch; flex-grow: 1; min-height: 0; }
+/* Three lines and no more: the number, one line of green above it saying how it has moved, one quiet line
+   under it saying where it stands against the target. The cheer that used to follow said the same thing as
+   the caption in more words. */
 .hero-readout { flex-shrink: 0; width: 214px; margin-right: 12px; justify-content: center; }
-.reach-delta { font-size: 23px; color: var(--jungle-60); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.stat-number { font-size: 78px; color: var(--prussian-50); letter-spacing: -3px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.reach-delta { font-size: 21px; color: var(--jungle-60); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.stat-number { font-size: 84px; color: var(--prussian-50); letter-spacing: -3px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 .stat-caption { font-size: 16px; color: var(--slate-50); margin-top: 2px; -unity-text-align: middle-center; }
-.reach-best { font-size: 16px; color: var(--slate-50); margin-top: 2px; }
-.reach-cheer { font-size: 17px; color: var(--jungle-60); margin-top: 10px; white-space: normal; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.reach-best { font-size: 17px; color: var(--slate-50); margin-top: 4px; white-space: normal; }
 .range-fan { flex-grow: 1; flex-shrink: 1; min-width: 0; }
 
 /* ---------------------------------------------------------------- consistency */
@@ -78,9 +80,11 @@ Button:disabled { opacity: .55; }
 .progress-rule { width: 1px; height: 100px; background-color: var(--slate-30-a55); margin: 0 14px; }
 .ring-wrap { width: 126px; height: 126px; flex-shrink: 0; align-items: center; justify-content: center; }
 .program-ring { position: absolute; width: 126px; height: 126px; }
-.ring-centre { align-items: center; max-width: 92px; }
-.ring-number { font-size: 44px; color: var(--prussian-50); letter-spacing: -1px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.ring-caption { font-size: 15px; color: var(--slate-50); -unity-text-align: middle-center; }
+/* Lifted a few pixels: a label's box carries descender room under the digits, so a number and a caption
+   centred geometrically sit visibly low in the ring. The nudge puts the pair's optical centre on the ring's. */
+.ring-centre { align-items: center; max-width: 92px; translate: 0 -5px; }
+.ring-number { font-size: 42px; color: var(--prussian-50); letter-spacing: -1px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.ring-caption { font-size: 14px; color: var(--slate-50); margin-top: -3px; -unity-text-align: middle-center; }
 .streak-number { font-size: 58px; color: var(--jungle-40); letter-spacing: -3px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 .goal-copy { font-size: 17px; color: var(--slate-70); white-space: normal; margin-top: 8px; -unity-text-align: middle-center; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
 
@@ -96,12 +100,22 @@ Button:disabled { opacity: .55; }
 .task-status.done { color: var(--jungle-60); background-color: var(--jungle-20-a75); }
 #today-empty { font-size: 17px; color: var(--slate-50); padding: 8px 0; }
 
-.tile-action { flex-direction: row; align-items: center; justify-content: space-between; flex-shrink: 0; background-color: var(--sand-00-a82); margin-bottom: 0; transition-duration: .16s; }
-.tile-action:hover, .tile-action:focus { background-color: var(--sand-00-a95); border-color: var(--cerulean-40-a95); scale: 1.02; }
-.action-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.action-title { font-size: 29px; color: var(--prussian-50); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.action-sub { font-size: 18px; color: var(--slate-50); margin-top: 3px; white-space: normal; }
-.browse-glyph { width: 40px; height: 40px; flex-shrink: 0; margin-left: 14px; }
+/* ---------------------------------------------------------------- pane links
+
+   The stack that took the place of the single "Choose activity" tile: one small button for every pane in
+   the ring, built by MainMenuController.BuildPaneLinks. They share the tile's footprint, so a taller stack
+   makes each one shorter rather than pushing the Today tile up. Each names where it goes and points the way
+   the ring will turn to get there. */
+
+.pane-links { flex-shrink: 0; }
+.pane-link { flex-direction: row; align-items: center; justify-content: space-between; padding: 11px 22px 11px 24px; margin: 0 0 8px; border-radius: 20px; border-width: 2px; border-bottom-width: 4px; border-color: var(--sand-00-a80); border-bottom-color: var(--slate-50-a42); background-color: var(--sand-00-a82); transition-duration: .16s; }
+.pane-link.last { margin-bottom: 0; }
+.pane-link:hover, .pane-link:focus { background-color: var(--sand-00-a95); border-color: var(--cerulean-40-a95); border-bottom-color: var(--cerulean-50); scale: 1.02; }
+.pane-link:active { background-color: var(--cerulean-10-a95); scale: 1.005; }
+.pane-link-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.pane-link-title { font-size: 24px; color: var(--prussian-50); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.pane-link-sub { font-size: 15px; color: var(--slate-50); margin-top: 1px; white-space: normal; }
+.pane-link-arrow { font-size: 34px; color: var(--cerulean-50); margin-left: 14px; flex-shrink: 0; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 
 /* ---------------------------------------------------------------- overlays */
 
