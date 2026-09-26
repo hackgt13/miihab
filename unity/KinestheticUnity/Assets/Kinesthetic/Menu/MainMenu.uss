@@ -408,9 +408,9 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 
 /* ---- Coaching -------------------------------------------------------------
    The plan pane is tiles, like the board, but not the board's grid: the board is two columns with a hero and
-   a CTA, and this is three bands — the reading beside the figures that qualify it, a short band of three, and
-   the prescription full width. So this block is the bands, and everything else comes from the tile chrome and
-   the type classes above.
+   a CTA, and this is three bands — the reading beside the figures that qualify it, the prescription beside
+   how much of it landed, and the visit across the full width. So this block is the bands, and everything else
+   comes from the tile chrome and the type classes above.
 
    It was a sand sheet divided by hairlines, on the reasoning that a pane has no plaza behind it for a floating
    tile to sit against. A pane is a transparent world-space panel of exactly the board's 1600x900, so the plaza
@@ -426,7 +426,7 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .plan-bento { flex-grow: 1; min-height: 0; }
 .plan-row { flex-direction: row; align-items: stretch; min-height: 0; }
 .plan-row-tall { flex-grow: 1; }
-.plan-row-short { flex-shrink: 0; }
+.plan-row-wide { flex-shrink: 0; }
 /* Tiles in a band share its width and never push each other out of it. `last` closes the gap at the end,
    because USS has no :last-child worth relying on here. */
 .plan-row > .tile, .plan-row > .cta { flex-basis: 0; min-width: 0; margin-right: 13px; }
@@ -442,32 +442,25 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .trend-axis { flex-direction: row; flex-shrink: 0; height: 22px; }
 
 /* Three figures stacked, each a number with its name beside it: this column is a third of the panel, and
-   three numbers across it would each be too small to read from two metres. The fixed number column is what
-   puts the three names on one left edge. */
+   three numbers across it would each be too small to read from two metres. */
 .tile-figures { flex-grow: 1; }
-.figure-row { flex-direction: row; align-items: center; padding: 4px 0; border-top-width: 1px; border-top-color: var(--slate-50-a28); }
+.figure-row { flex-direction: row; align-items: center; padding: 2px 0; border-top-width: 1px; border-top-color: var(--slate-50-a28); }
 .figure-row.first { border-top-width: 0; }
-.figure-number { width: 104px; flex-shrink: 0; }
+/* A step down from the board's ring figure, because three of these plus the ladder have to fit a band the
+   full-width CTA has taken its own room out of. Fixed width, so the three names stand on one left edge. */
+.figure-number { width: 104px; flex-shrink: 0; font-size: 38px; }
 .figure-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.envelope-ladder { height: 26px; flex-shrink: 0; margin-top: 10px; }
+.envelope-ladder { height: 22px; flex-shrink: 0; margin-top: 8px; }
 
-/* ---- band 2: why, how much, and the way to a person */
-
-.tile-goal { flex-grow: 1; }
-.plan-goal { font-size: 19px; color: var(--slate-70); white-space: normal; }
-.tile-dose { flex-grow: 1; }
-.dose-bars { height: 74px; flex-shrink: 0; margin-top: 2px; }
-.cta-visit { flex-grow: 1.15; margin-bottom: 13px; }
-/* A third of a band is narrower than the board's full-width CTA, and the line under the title turns
-   into a sentence once the button has been pressed, so it wraps instead of clipping. */
-.cta-visit .cta-sub { white-space: normal; }
-
-/* ---- band 3: everything prescribed, across the full width
+/* ---- band 2: everything prescribed, and how much of it landed
 
    Rows are the board's .task-row, so a prescribed thing looks like a thing to do. Capped rather than fixed:
-   three rows is a long plan and a fourth scrolls instead of growing into the chart above. */
+   three rows is a long plan and a fourth scrolls instead of growing into the chart above. The bars beside it
+   fill whatever the band's height turns out to be, so the two tiles always end on the same line. */
 
-.tile-prescription { flex-shrink: 0; margin-bottom: 0; }
+.tile-prescription { flex-grow: 2.1; }
+.tile-dose { flex-grow: 1; }
+.dose-bars { flex-grow: 1; min-height: 72px; margin-top: 2px; }
 .prescription-list { flex-grow: 0; max-height: 196px; }
 .tile-prescription .task-row { padding: 7px 0; }
 /* A bar rather than a dot, and cerulean only where something is actually measured: play is prescribed too,
@@ -476,3 +469,10 @@ Button.activity-card:active { border-color: var(--cerulean-60); background-color
 .prescription-mark.measured { background-color: var(--cerulean-50); }
 /* The clinician's own words, once, under what they asked for. The only sentence on the pane. */
 .coaching-note { white-space: normal; margin-top: 9px; }
+
+/* ---- the way to a person: the full width of the panel, under everything it is about, and the only thing
+   on this pane that is a control rather than a reading. The line under the title becomes a sentence once
+   the button has been pressed, so it wraps rather than clipping. */
+
+.cta-visit { flex-shrink: 0; margin-bottom: 0; }
+.cta-visit .cta-sub { white-space: normal; }

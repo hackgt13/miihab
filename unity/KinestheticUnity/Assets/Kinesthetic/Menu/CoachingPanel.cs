@@ -203,7 +203,6 @@ namespace Kinesthetic.Menu
 
             Text(root, "plan-provenance", $"Version {plan.version} · {plan.approvedBy} · {plan.approvedAt:d MMM}");
             Text(root, "plan-source", plan.live ? "From your clinic" : "Demo plan · not from your clinic");
-            Text(root, "goal-copy", plan.goal);
 
             // ---- the reach, session by session: three lines, exactly as the board's hero tile carries them
             float now = history.Length > 0 ? last.medianPeakDeg : 0;
