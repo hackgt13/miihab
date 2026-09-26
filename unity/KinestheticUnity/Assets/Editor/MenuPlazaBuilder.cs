@@ -277,7 +277,10 @@ public static class MenuPlazaBuilder
             Ball("Range ball " + i, kit, new(-.82f + Mathf.Cos(i * 1.9f) * .12f, .36f + (i % 2) * .04f, -.34f + Mathf.Sin(i * 1.9f) * .12f), Vector3.one * .043f, trim);
         Ball("Stray ball", kit, new(-1.6f, .022f, -.95f), Vector3.one * .043f, trim);
 
-        Signpost("Wayfinding post", props, new(2.9f, 0, -3.6f));
+        // Out past the panes. A pane sweeps a cylinder of 3.96 m around the viewpoint as the ring turns, and
+        // this post's boards used to reach back to 2.96 m at exactly their height, so the sign cut through
+        // them mid-turn. Same bearing, far enough out to clear the sweep with a margin.
+        Signpost("Wayfinding post", props, new(3.87f, 0, -2.66f));
     }
 
     static void Bench(string name, Transform parent, Vector3 position, float yaw)

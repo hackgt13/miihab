@@ -107,16 +107,18 @@ public static class MainMenuSetup
         // neighbour at 45 puts its near edge at 17 deg, inside the board's silhouette and further away, and
         // the board simply covers it. An edge only clears the board past twice the pane's own half-angle
         // (55.7 deg) and leaves the screen past 66.1, so the window is narrow and 60 sits in the middle of
-        // it with about 6 degrees of pane showing either side.
-        carousel.spacingDegrees = 60;
+        // it. 57 rather than 60: the sliver is the gap between the pane's edge and the frame's, so it
+        // widens as the panes come closer — 9 degrees at 57 against 6 at 60 — and 57 still keeps 1.3 degrees
+        // of clearance past the board's own edge, where 56 leaves only 0.3.
+        carousel.spacingDegrees = 57;
         var menu = Pane("RehabMii activity menu", "MainMenu.uxml", true);
         var gallery = Pane("Activity gallery", "Gallery.uxml", false);
         var friendsPane = Pane("Friends", "Friends.uxml", false);
         carousel.Frame(eye.position, board.position);
         carousel.Adopt(
             new PaneCarousel.Slot("home", "Today", menu.transform, 0),
-            new PaneCarousel.Slot("gallery", "Activities", gallery.transform, -60),
-            new PaneCarousel.Slot("friends", "Friends", friendsPane.transform, 60));
+            new PaneCarousel.Slot("gallery", "Activities", gallery.transform, -57),
+            new PaneCarousel.Slot("friends", "Friends", friendsPane.transform, 57));
 
         // The arrows ride their own panel, wider than the panes and a little further out, so the facing pane
         // answers the gaze everywhere in front of it and the arrows answer only past its edge.
