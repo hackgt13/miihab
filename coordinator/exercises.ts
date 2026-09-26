@@ -10,23 +10,8 @@ export type Assistance = 'assisted' | 'active' | 'resisted';
 export type Sensor = 'AirPod on the handle' | 'AirPod on the wrist' | 'AirPods in your ears' | 'AirPod on the chest'
   | 'AirPod on the thigh' | 'AirPod on the ankle' | 'AirPod on the upper arm' | 'AirPod on the shin';
 
-/**
- * Which AirPod pair measures each mount. Two pairs, two jobs: the club AirPod (Club Motion app, the relay's /golf
- * stream) lives in a handle — it clips from the golf club into a dumbbell for curls; the strap AirPod (Bowling
- * Motion app, /bowling-motion) is worn on the body — the wrist for arm raises and bowling, or the chest, thigh,
- * ankle or ears. A prescription carries its source as params.imuSource, filled from here when not set.
- */
-export type ImuSource = 'club' | 'wrist';
-export const SOURCE_OF: Readonly<Record<Sensor, ImuSource>> = {
-  'AirPod on the handle': 'club',
-  'AirPod on the wrist': 'wrist',
-  'AirPods in your ears': 'wrist',
-  'AirPod on the chest': 'wrist',
-  'AirPod on the thigh': 'wrist',
-  'AirPod on the ankle': 'wrist',
-  'AirPod on the upper arm': 'wrist',
-  'AirPod on the shin': 'wrist',
-};
+// Where an AirPod is worn is an instruction to the patient, never a pick of relay channel: which live pair measures
+// what is decided at the start of every set (exercise/imu-assign.ts; AGENTS.md, "Sensors").
 
 /** Where each mount goes, said to the patient before anything else: the reading is only as good as the strap. */
 export const WEAR: Readonly<Record<Sensor, string>> = {

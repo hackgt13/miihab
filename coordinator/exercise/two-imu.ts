@@ -3,9 +3,8 @@
 // weakest kind of single-IMU reading made strong: the posture it rests on is now checked, or the angle it needs is
 // now actually there. The kernel and the two roles are in imu-tilt.ts.
 //
-// Which physical AirPod is which: the limb (`imu`) is the wrist pair (Bowling Motion app, /bowling-motion) and the
-// neighbouring segment (`ref`) is the other pair (Club Motion app, /golf). server.ts reads both; a prescription's
-// imuSource can swap them.
+// Which physical AirPod is which is not known here and not assumed: at the start of a set the patient moves the one
+// on the limb, and the pair that moves while the other rests becomes `imu` (exercise/imu-assign.ts).
 
 import { imuTilt } from './imu-tilt.ts';
 

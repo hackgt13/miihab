@@ -1,7 +1,8 @@
 #!/bin/zsh
 # Two AirPod pairs need two Apple hosts: one Mac reads one CMHeadphoneMotionManager stream.
-# This Mac (the receiver) runs Unity, the coordinator and the golf relay, and streams its own pair as the
-# club (reference) channel. The other Mac streams its pair as the wrist (limb) channel to this relay.
+# This Mac (the receiver) runs Unity, the coordinator and the golf relay, and streams its own pair on the relay's
+# club channel. The other Mac streams its pair to this relay on the wrist channel. The channel names are transport
+# only: which pair measures the limb is settled at the start of each set (AGENTS.md, Sensors).
 #
 #   zsh scripts/start_two_airpods.sh receive            this Mac: relay on the network, Club Motion, print what to type
 #   zsh scripts/start_two_airpods.sh receive --wait     ...and wait until both pairs are streaming
@@ -72,7 +73,7 @@ receive() {
 
   print "\nPairs"
   if [[ " $* " == *" --wait "* ]]; then
-    print "  waiting for a live club pair (this Mac) and a live wrist pair (the other Mac); Ctrl-C to stop"
+    print "  waiting for a live pair on each channel: club (this Mac) and wrist (the other Mac); Ctrl-C to stop"
     while true; do
       live=$(get http://127.0.0.1:8767/ | pairs)
       if [[ $live == *"club "*live* && $live == *"wrist "*live* ]]; then break; fi

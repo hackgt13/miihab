@@ -37,7 +37,7 @@ import { WebSocket } from 'ws';
 
 type Channel = 'club' | 'wrist';
 const CHANNELS: Record<Channel, { path: string; type: string }> = {
-  // The studio reads 'club' unless the prescription sets imuSource: 'wrist'; golf reads 'club'; bowling 'wrist'.
+  // Two transport channels; the coordinator takes whichever is live (exercise/imu-assign.ts). Golf reads 'club'; bowling 'wrist'.
   club: { path: '/golf', type: 'club.motion' },
   wrist: { path: '/bowling-motion', type: 'bowling.motion' },
 };

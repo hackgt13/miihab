@@ -94,7 +94,7 @@ test('server: a shoulder raise reads the patient\'s wrist AirPod from the motion
   const child = spawn(process.execPath, ['server.ts'], {cwd:join(import.meta.dirname, '..'), stdio:['ignore','pipe','pipe'],
     env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:join(dir, 'rec'), KINESTHETIC_PLANS_DIRECTORY:join(dir, 'plans'),
       KINESTHETIC_PROPOSALS_DIRECTORY:join(dir, 'prop'), KINESTHETIC_SOCIAL_DIRECTORY:join(dir, 'social'),
-      // The raise is worn on the wrist strap, so it reads /bowling-motion; the club stream must not be used.
+      // Only the /bowling-motion stream is live here: a one-AirPod movement takes whatever is live (exercise/imu-assign.ts).
       KINESTHETIC_WRIST_MOTION_URL:'ws://127.0.0.1:18781/bowling-motion?role=viewer', KINESTHETIC_MOTION_URL:'ws://127.0.0.1:1/golf'}});
   const post = (path: string, body?: unknown) => fetch(base + path, {method:'POST', body: body ? JSON.stringify(body) : undefined});
   let session = 0;
@@ -116,6 +116,7 @@ test('server: a shoulder raise reads the patient\'s wrist AirPod from the motion
     await ready(child);
     const first = await run([52, 70]);
     assert.equal(first.started.sensor, 'imu'); assert.equal(first.started.prescriptionId, 'arm-elevation-right');
+    assert.equal(first.started.sensors.mode, 'one'); assert.deepEqual(first.stopped.sensors, { imu: 'wrist', ref: null });
     assert.equal(first.stopped.sensor, 'imu'); assert.equal(first.stopped.attempted, 2, 'one AirPod counted, not two');
     assert.equal(first.stopped.valid, 2); assert.equal(first.stopped.overshoots, 1); assert.equal(first.stopped.simulated, false);
     assert.equal(first.stopped.progression.decision, 'hold');
