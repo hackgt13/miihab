@@ -51,20 +51,7 @@
                         </ui:VisualElement>
                     </ui:VisualElement>
 
-                    <ui:Button name="start-activity" class="cta">
-                        <ui:VisualElement class="cta-copy" picking-mode="Ignore">
-                            <ui:Label name="cta-title" text="Start first activity" class="cta-title" picking-mode="Ignore" />
-                            <ui:Label name="cta-sub" text="" class="cta-sub" picking-mode="Ignore" />
-                        </ui:VisualElement>
-                        <ui:Label text="›" class="cta-arrow" picking-mode="Ignore" />
-                    </ui:Button>
-
-                </ui:VisualElement>
-
-                <ui:VisualElement class="bento-side">
-
                     <ui:VisualElement class="tile tile-progress">
-                        <ui:Label text="YOUR PROGRAM" class="tile-label" />
                         <ui:VisualElement class="progress-split" picking-mode="Ignore">
                             <ui:VisualElement class="progress-cell" picking-mode="Ignore">
                                 <ui:VisualElement class="ring-wrap" picking-mode="Ignore">
@@ -81,9 +68,25 @@
                                 <ui:Label text="DAY STREAK" class="tile-label" />
                                 <ui:Label name="streak-caption" text="" class="stat-caption" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="progress-rule" picking-mode="Ignore" />
+                            <ui:VisualElement class="progress-cell goal-cell" picking-mode="Ignore">
+                                <ui:Label text="WORKING TOWARD" class="tile-label" />
+                                <ui:Label name="goal-copy" text="" class="goal-copy" picking-mode="Ignore" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:Label name="goal-copy" text="" class="goal-copy" picking-mode="Ignore" />
                     </ui:VisualElement>
+
+                    <ui:Button name="start-activity" class="cta">
+                        <ui:VisualElement class="cta-copy" picking-mode="Ignore">
+                            <ui:Label name="cta-title" text="Start first activity" class="cta-title" picking-mode="Ignore" />
+                            <ui:Label name="cta-sub" text="" class="cta-sub" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Label text="›" class="cta-arrow" picking-mode="Ignore" />
+                    </ui:Button>
+
+                </ui:VisualElement>
+
+                <ui:VisualElement class="bento-side">
 
                     <ui:VisualElement class="tile tile-calendar">
                         <ui:VisualElement class="tile-head" picking-mode="Ignore">

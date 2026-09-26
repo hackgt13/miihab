@@ -184,7 +184,7 @@ namespace Kinesthetic.Menu
             Text(root, "streak-caption", model.streakDays >= model.bestStreakDays
                 ? "your best run yet" : $"{model.bestStreakDays - model.streakDays} to beat your best");
             Text(root, "week-count", $"{model.weekSessionsDone} of {model.weekSessionsGoal} done this week");
-            Text(root, "goal-copy", $"Working toward “{model.goal}”");
+            Text(root, "goal-copy", $"“{model.goal}”");
 
             Text(root, "ring-number", model.DaysRemaining.ToString());
             Text(root, "ring-caption", "days to go");

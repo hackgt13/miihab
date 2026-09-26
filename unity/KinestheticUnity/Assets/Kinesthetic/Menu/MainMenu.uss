@@ -71,19 +71,20 @@ Button:disabled { opacity: .55; }
 
 /* ---------------------------------------------------------------- side tiles */
 
-.tile-progress { flex-shrink: 0; padding-top: 18px; padding-bottom: 20px; }
-.progress-split { flex-direction: row; align-items: center; justify-content: center; margin: 14px 0 8px; }
+.tile-progress { flex-shrink: 0; padding-top: 14px; padding-bottom: 16px; }
+.progress-split { flex-direction: row; align-items: center; justify-content: center; margin: 4px 0 2px; }
 .progress-cell { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: center; }
-.progress-rule { width: 1px; height: 118px; background-color: var(--slate-30-a55); margin: 0 14px; }
-.ring-wrap { width: 148px; height: 148px; flex-shrink: 0; align-items: center; justify-content: center; }
-.program-ring { position: absolute; width: 148px; height: 148px; }
+.goal-cell { flex-grow: 1.5; padding: 0 8px; }
+.progress-rule { width: 1px; height: 100px; background-color: var(--slate-30-a55); margin: 0 14px; }
+.ring-wrap { width: 126px; height: 126px; flex-shrink: 0; align-items: center; justify-content: center; }
+.program-ring { position: absolute; width: 126px; height: 126px; }
 .ring-centre { align-items: center; max-width: 92px; }
-.ring-number { font-size: 52px; color: var(--prussian-50); letter-spacing: -1px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.ring-number { font-size: 44px; color: var(--prussian-50); letter-spacing: -1px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 .ring-caption { font-size: 15px; color: var(--slate-50); -unity-text-align: middle-center; }
-.streak-number { font-size: 66px; color: var(--jungle-40); letter-spacing: -3px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.goal-copy { font-size: 16px; color: var(--slate-70); white-space: normal; margin-top: 10px; -unity-text-align: middle-center; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
+.streak-number { font-size: 58px; color: var(--jungle-40); letter-spacing: -3px; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.goal-copy { font-size: 17px; color: var(--slate-70); white-space: normal; margin-top: 8px; -unity-text-align: middle-center; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); }
 
-.tile-today { flex-shrink: 0; }
+.tile-today { flex-grow: 1; min-height: 0; }
 .task-row { flex-direction: row; align-items: center; padding: 10px 0; border-top-width: 1px; border-top-color: var(--slate-50-a28); }
 .task-row.first { border-top-width: 0; }
 .task-dot { width: 15px; height: 15px; border-radius: 8px; border-width: 3px; border-color: var(--slate-50); background-color: var(--sand-00-a70); margin-right: 13px; flex-shrink: 0; }
