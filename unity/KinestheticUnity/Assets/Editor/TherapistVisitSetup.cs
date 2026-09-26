@@ -24,8 +24,10 @@ public static class TherapistVisitSetup
     /// balloon has no fixed station: it is worked out from where the therapist's head is (SpeechStation).
     public static readonly Station Whiteboard = new("Whiteboard", -14, 7, 2.8f);
     public static readonly Vector2 WhiteboardSize = new(1.8f, 1.3f), SpeechSize = new(1f, .5f), DockSize = new(.8f, .22f);
-    /// Clear air between the top of the therapist's head and the tip of the balloon's tail, metres.
-    const float HeadClearance = .06f;
+    /// Where the balloon's tail tip sits against the top of the therapist's renderer bounds, metres. Negative
+    /// because the bounds run a few centimetres above the hair that is actually drawn; at this value the tip
+    /// just meets the hair in the patient's view.
+    const float HeadClearance = -.04f;
     public const float TherapistYaw = 16, TherapistDistance = 2.3f;
 
     [MenuItem("Kinesthetic/Visit/Create therapist visit scene")]
