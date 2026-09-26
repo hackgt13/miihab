@@ -1,5 +1,4 @@
-// IMU tilt kinds (arm-elevation, elbow-flexion) without a camera, and the server path that feeds them
-// from the motion relay. The camera-assisted cases live in arm-elevation.test.ts.
+// IMU tilt kinds (arm-elevation, elbow-flexion) and the server path that feeds them from the motion relay.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
@@ -126,6 +125,9 @@ test('server: an IMU prescription reads the patient\'s handle AirPod from the mo
     const plan = await (await fetch(base + '/api/plans/active')).json();
     assert.equal(plan.activities[0].params.targetDeg, 50); assert.equal(plan.activities[0].params.targetMaxDeg, 65);
     assert.equal(plan.origin, 'auto-progression');
+    const camera = await post('/exercise/start', {exercise:'shoulder-raise.v1'});
+    assert.equal(camera.status, 400, 'camera (MediaPipe) measurement is off by default');
+    assert.match((await camera.json()).error, /AirPod/);
     const curl = await (await post('/exercise/start', {prescriptionId:'elbow-flexion-right'})).json();
     assert.equal(curl.sensor, 'imu'); assert.equal(curl.exerciseKind, 'elbow-flexion.v1'); assert.equal(curl.config.restMaxDeg, 20);
     await post('/exercise/stop');

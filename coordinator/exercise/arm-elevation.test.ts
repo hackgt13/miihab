@@ -39,17 +39,14 @@ test('an arm that does not reach the prescribed elevation does not count', () =>
   assert.deepEqual(s.invalidReasons, {did_not_reach_target: 1});
 });
 
-test('the camera catches the lean the IMU cannot see', () => {
-  // Same IMU trace both reps: inclination alone cannot tell these apart, which is why the camera
-  // polices compensation whenever it can see the patient.
+test('trunk lean is not measured: the AirPod alone cannot see the trunk, and the camera is off', () => {
+  // Same IMU trace both reps. Without camera pose the lean goes unseen, and the summary says unknown, not zero.
   const s = run(new ArmElevationSession({side: 'right', targetDeg: 90}), [{peak: 110}, {peak: 110, lean: 20}]);
-  assert.equal(s.valid, 1);
-  assert.deepEqual(s.invalidReasons, {trunk_compensation: 1});
-  assert.ok(s.trunkDeviation.maxDuringRepsDeg > 15);
+  assert.equal(s.valid, 2);
+  assert.equal(s.trunkDeviation.meanDeg, null);
 });
 
-test('losing the camera mid-rep keeps the IMU scoring; only the lean check pauses', () => {
-  // The demo is IMU-first: the AirPod owns the rep, the camera is an optional cheat check.
+test('camera frames coming and going change nothing', () => {
   const s = run(new ArmElevationSession({side: 'right', targetDeg: 90}), [{peak: 110, hold: .8, blind: true}, {peak: 110}]);
   assert.equal(s.trackingLossEvents, 0);
   assert.deepEqual(s.reps.map((r: any) => r.valid), [true, true]);
@@ -60,7 +57,7 @@ test('a collapsed or unnormalised attitude is rejected, not trusted', () => {
   const bad = {quaternion: [0, 0, 0, 0] as [number, number, number, number], rotationRate: [0, 0, 0] as [number, number, number], hostMonotonicMs: 0};
   assert.equal(s.observeFused({tMs: 0, imu: bad, pose: frame(0, 5)}), null);
   assert.equal(s.observeFused({tMs: 0, imu: null, pose: frame(0, 5)}), null, 'imu is required');
-  assert.notEqual(s.observeFused({tMs: 0, imu: attitude(0), pose: null}), null, 'the camera is optional');
+  assert.notEqual(s.observeFused({tMs: 0, imu: attitude(0), pose: null}), null, 'no camera needed');
 });
 
 test('this exercise requires only the IMU', () => {

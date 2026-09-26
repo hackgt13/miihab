@@ -13,7 +13,7 @@ test('live exercise: pose stream → rep events on /exercise, pose viewers untou
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-exercise-'));
   const port = 18769;
   const child = spawn(process.execPath, ['server.ts'], {cwd:import.meta.dirname,
-    env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:directory, KINESTHETIC_PLANS_DIRECTORY:join(directory,"plans"), KINESTHETIC_PROPOSALS_DIRECTORY:join(directory,"proposals")}, stdio:['ignore','pipe','pipe']});
+    env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_CAMERA_MEASUREMENT:'1', KINESTHETIC_RECORDINGS_DIRECTORY:directory, KINESTHETIC_PLANS_DIRECTORY:join(directory,"plans"), KINESTHETIC_PROPOSALS_DIRECTORY:join(directory,"proposals")}, stdio:['ignore','pipe','pipe']});
   const sockets: WebSocket[] = [];
   const open = async (path: string) => { const ws = new WebSocket(`ws://127.0.0.1:${port}${path}`); sockets.push(ws); await once(ws, 'open'); return ws; };
   try {

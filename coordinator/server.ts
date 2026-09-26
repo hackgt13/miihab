@@ -27,6 +27,8 @@ const plans = new PlanStore(resolve(process.env.KINESTHETIC_PLANS_DIRECTORY ?? r
 const proposals = new ProposalStore(resolve(process.env.KINESTHETIC_PROPOSALS_DIRECTORY ?? resolve(root, 'local-data/proposals')));
 // Simulated input never moves a real patient's plan, except in a demo run that opts in.
 const progressFromSimulated = process.env.KINESTHETIC_PROGRESS_SIMULATED === '1';
+// Measurement is IMU-only for now. The camera (MediaPipe) kinds stay in the code, off unless opted in.
+const cameraMeasurement = process.env.KINESTHETIC_CAMERA_MEASUREMENT === '1';
 const socialDir = resolve(process.env.KINESTHETIC_SOCIAL_DIRECTORY ?? resolve(root, 'local-data/social'));
 const friends = new FriendStore(socialDir);
 const messages = new MessageStore(socialDir);
@@ -179,6 +181,8 @@ const server = createServer(async (request, response) => {
       if (!x?.exerciseKind) throw Error(body.prescriptionId ? `No measured prescription "${body.prescriptionId}" in plan v${plan.version}` : `Plan v${plan.version} prescribes nothing measured`);
       // `exercise` measures this prescription with another kind (e.g. by camera): a development override.
       const kind = exerciseKind(body.exercise ?? x.exerciseKind);
+      if (kind.requires.includes('pose') && !cameraMeasurement)
+        throw Error(`Camera (MediaPipe) measurement is off; measure "${x.id}" with the AirPod (change "Measured with" in the portal).`);
       await finishExercise();
       const p = x.params, target = Number(body.targetDeg ?? p.targetDeg);
       const compensation = body.maxCompensationDeg ?? body.maxTrunkDeviationDeg ?? p.maxCompensationDeg;

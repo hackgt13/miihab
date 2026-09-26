@@ -92,10 +92,11 @@ function render() {
   for (const k of ['targetDeg', 'targetMaxDeg', 'holdMs', 'maxCompensationDeg']) form.elements[k].value = e.params[k] ?? '';
   form.elements.prescribedReps.value = e.targetCount;
   // The same movement measured another way: the kinds that share this one's movement in the catalog.
-  const movement = state.library[e.exerciseKind]?.movement;
+  // A camera prescription from before MediaPipe was switched off offers its AirPod equivalent.
+  const movement = state.library[e.exerciseKind]?.movement ?? { 'shoulder-raise.v1': 'shoulder_raise' }[e.exerciseKind];
   form.elements.exerciseKind.innerHTML = Object.values(state.library).filter(k => k.movement === movement)
     .map(k => `<option value="${esc(k.kind)}">${esc(k.sensor)}</option>`).join('');
-  form.elements.exerciseKind.value = e.exerciseKind;
+  form.elements.exerciseKind.value = state.library[e.exerciseKind] ? e.exerciseKind : form.elements.exerciseKind.options[0]?.value ?? '';
   $('#trunk-field').hidden = sensorOf(e) !== 'Camera';
   form.elements.maxTargetDeg.value = e.progression?.maxTargetDeg ?? ''; form.elements.autoApply.checked = !!e.progression?.autoApply;
   form.elements.coachingNote.value = active.coachingNote;

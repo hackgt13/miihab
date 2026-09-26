@@ -81,7 +81,7 @@ test('simulated sessions and sessions from before the level started do not count
 test('server: auto-progression inside the envelope, overshoot step-back, and clinician approval when auto-apply is off', {timeout:30000}, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'progapi-')), port = 18775, base = `http://127.0.0.1:${port}`;
   const child = spawn(process.execPath, ['server.ts'], {cwd:import.meta.dirname, stdio:['ignore','pipe','pipe'],
-    env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:join(dir, 'rec'),
+    env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_CAMERA_MEASUREMENT:'1', KINESTHETIC_RECORDINGS_DIRECTORY:join(dir, 'rec'),
       KINESTHETIC_PLANS_DIRECTORY:join(dir, 'plans'), KINESTHETIC_PROPOSALS_DIRECTORY:join(dir, 'proposals'), KINESTHETIC_SOCIAL_DIRECTORY:join(dir, 'social')}});
   const post = (path: string, body?: unknown) => fetch(base + path, {method:'POST', body: body ? JSON.stringify(body) : undefined});
   try {

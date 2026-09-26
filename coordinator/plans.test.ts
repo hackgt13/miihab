@@ -65,7 +65,7 @@ test('approving v2 through the API changes the next session but not the running 
   const recordings = mkdtempSync(join(tmpdir(), 'rec-')), plansDir = mkdtempSync(join(tmpdir(), 'plansapi-'));
   const port = 18771, base = `http://127.0.0.1:${port}`;
   const child = spawn(process.execPath, ['server.ts'], {cwd:import.meta.dirname,
-    env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:recordings, KINESTHETIC_PLANS_DIRECTORY:plansDir,
+    env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_CAMERA_MEASUREMENT:'1', KINESTHETIC_RECORDINGS_DIRECTORY:recordings, KINESTHETIC_PLANS_DIRECTORY:plansDir,
       KINESTHETIC_PROPOSALS_DIRECTORY:mkdtempSync(join(tmpdir(), 'prop-')), KINESTHETIC_SOCIAL_DIRECTORY:mkdtempSync(join(tmpdir(), 'social-'))},
     stdio:['ignore','pipe','pipe']});
   const post = (path: string, body?: unknown) => fetch(base + path, {method:'POST', body: body ? JSON.stringify(body) : undefined});

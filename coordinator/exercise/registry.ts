@@ -8,7 +8,9 @@ import { seatedTrunkRotation } from './seated-trunk-rotation.ts';
 import { armElevation, elbowFlexion } from './arm-elevation.ts';
 
 export const EXERCISES: readonly ExerciseKind<any>[] = [shoulderRaise, seatedTrunkRotation, armElevation, elbowFlexion];
-export const DEFAULT_EXERCISE = shoulderRaise.id;
+// New rehab prescriptions are measured by the AirPod. The camera kinds stay registered so plans and
+// sessions recorded with them still read, but camera measurement is off (see server.ts).
+export const DEFAULT_EXERCISE = armElevation.id;
 
 /** Plan schema v1 names the exercise with a free string; v2 will key on the id directly. */
 const LEGACY_PLAN_TYPE: Readonly<Record<string, string>> = { seated_shoulder_raise: shoulderRaise.id };
