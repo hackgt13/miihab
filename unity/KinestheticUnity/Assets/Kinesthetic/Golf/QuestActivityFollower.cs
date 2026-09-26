@@ -30,8 +30,7 @@ namespace Kinesthetic.Golf
         {
             var config = Resources.Load<QuestHostConfig>(QuestHostConfig.ResourcePath);
             if (!config || string.IsNullOrEmpty(config.token)) { enabled = false; return; }
-            string Url(string path) => $"ws://{config.host}:{config.port}{path}?role=client&token={Uri.EscapeDataString(config.token)}";
-            sockets = Array.ConvertAll(Activities, a => new LatestSocket(Url(a.path)));
+            sockets = Array.ConvertAll(Activities, a => new LatestSocket(config.Url(a.path + "?role=client")));
             liveAt = new float[Activities.Length];
             for (int i = 0; i < liveAt.Length; i++) liveAt[i] = -99;
         }

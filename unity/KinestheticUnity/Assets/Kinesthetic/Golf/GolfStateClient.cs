@@ -25,13 +25,11 @@ namespace Kinesthetic.Golf
             Application.runInBackground = true;
             // In the editor the relay is on this machine; the baked LAN address is for the headset build.
             var config = Resources.Load<QuestHostConfig>(QuestHostConfig.ResourcePath);
-            if (!Application.isEditor && config)
-                url = $"ws://{config.host}:{config.port}/state?role=client&token={Uri.EscapeDataString(config.token ?? "")}";
             foreach (var r in game.rigs) r.Initialize();
             bones = new[] { GolfStateFormat.Bones(game.rigs[0]), GolfStateFormat.Bones(game.rigs[1]) };
             game.ball.isKinematic = true;
             ballTarget = game.ball.position;
-            socket = new LatestSocket(url);
+            socket = !Application.isEditor && config ? new LatestSocket(config.Url("/state?role=client")) : new LatestSocket(url);
         }
 
         void Update()

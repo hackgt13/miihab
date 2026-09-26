@@ -30,17 +30,27 @@ namespace Kinesthetic.Golf
         readonly object gate = new();
         string outgoing, incoming;
         public volatile bool connected;
-        public LatestSocket(string url) { _ = Task.Run(() => Run(url)); }
+        public LatestSocket(string url) : this(() => url) { }
+        /// `url` is asked again before every connection attempt, so a relay found at a new address is picked up.
+        public LatestSocket(Func<string> url) { _ = Task.Run(() => Run(url)); }
         public void Send(string text) { lock (gate) outgoing = text; }
         public bool Take(out string text) { lock (gate) { text = incoming; incoming = null; return text != null; } }
-        async Task Run(string url)
+        async Task Run(Func<string> url)
         {
             while (!cancel.IsCancellationRequested)
             {
                 try
                 {
+                    var target = url();
                     using var ws = new ClientWebSocket();
-                    await ws.ConnectAsync(new Uri(url), cancel.Token).ConfigureAwait(false); connected = true;
+                    // A Mac that left the network would otherwise hold ConnectAsync for a TCP timeout (over a minute).
+                    using (var attempt = CancellationTokenSource.CreateLinkedTokenSource(cancel.Token))
+                    {
+                        attempt.CancelAfter(3000);
+                        await ws.ConnectAsync(new Uri(target), attempt.Token).ConfigureAwait(false);
+                    }
+                    connected = true;
+                    var checkedAt = DateTime.UtcNow;
                     var receive = Task.Run(async () => {
                         var buffer = new byte[64 * 1024];
                         while (ws.State == WebSocketState.Open) {
@@ -56,6 +66,8 @@ namespace Kinesthetic.Golf
                         if (text != null) await ws.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(text)), WebSocketMessageType.Text, true, cancel.Token).ConfigureAwait(false);
                         else await Task.Delay(5, cancel.Token).ConfigureAwait(false);
                         if (receive.IsCompleted) break;
+                        // The relay announced itself somewhere else (the Mac changed networks): move there.
+                        if ((DateTime.UtcNow - checkedAt).TotalSeconds > 1) { checkedAt = DateTime.UtcNow; if (url() != target) break; }
                     }
                 }
                 catch (Exception) { }
