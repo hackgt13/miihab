@@ -122,8 +122,9 @@ function feed(events: RepEvent[], sourceSessionId: string | null) {
   if (sample) exerciseBroadcast({type:'exercise.sample', payload:{...sample, phase:exercise.phase, rep:exercise.currentRep, quality:exercise.live}});
   for (const event of events) { exerciseBroadcast({type:'exercise.event', payload:event}); exerciseLog?.write(JSON.stringify({type:'exercise.event', exerciseId, sourceSessionId, payload:event})+'\n'); }
 }
-// IMU exercises read an AirPod from the motion relay while they run: the club's (Club Motion app, /golf) by default,
-// or a wrist strap's (Bowling Motion app, /bowling-motion) when the prescription says imuSource: 'wrist'. The wrist
+// IMU exercises read an AirPod from the motion relay while they run: the club AirPod (Club Motion app, /golf) for a
+// handle mount such as the dumbbell, or the strap AirPod (Bowling Motion app, /bowling-motion) for a body mount such
+// as the wrist — the prescription's imuSource, which the plan fills from the mount. The wrist
 // pair is usually a second pair on another Mac, sending to this relay with the pairing token.
 const MOTION_SOURCES = {
   club: {url: process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767/golf?role=viewer', type: 'club.motion'},
@@ -246,6 +247,7 @@ const server = createServer(async (request, response) => {
         // The prescription's params tune the qualities the exercise is coached on (holdTargetMs, lowerMs, …).
         {...p, ...body});
       exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; exercisePractice = !!launched?.practice; lastImuMs = -Infinity;
+      // The plan fills imuSource from the mount (exercises.ts SOURCE_OF): club AirPod in a handle, strap AirPod on the body.
       if (kind.requires.includes('imu')) watchMotion(p.imuSource === 'wrist' ? 'wrist' : 'club');
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
       exerciseStartedAt = new Date().toISOString();

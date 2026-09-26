@@ -10,6 +10,22 @@ export type Assistance = 'assisted' | 'active' | 'resisted';
 export type Sensor = 'AirPod on the handle' | 'AirPod on the wrist' | 'AirPods in your ears' | 'AirPod on the chest'
   | 'AirPod on the thigh' | 'AirPod on the ankle';
 
+/**
+ * Which AirPod pair measures each mount. Two pairs, two jobs: the club AirPod (Club Motion app, the relay's /golf
+ * stream) lives in a handle — it clips from the golf club into a dumbbell for curls; the strap AirPod (Bowling
+ * Motion app, /bowling-motion) is worn on the body — the wrist for arm raises and bowling, or the chest, thigh,
+ * ankle or ears. A prescription carries its source as params.imuSource, filled from here when not set.
+ */
+export type ImuSource = 'club' | 'wrist';
+export const SOURCE_OF: Readonly<Record<Sensor, ImuSource>> = {
+  'AirPod on the handle': 'club',
+  'AirPod on the wrist': 'wrist',
+  'AirPods in your ears': 'wrist',
+  'AirPod on the chest': 'wrist',
+  'AirPod on the thigh': 'wrist',
+  'AirPod on the ankle': 'wrist',
+};
+
 /** Where each mount goes, said to the patient before anything else: the reading is only as good as the strap. */
 export const WEAR: Readonly<Record<Sensor, string>> = {
   'AirPod on the handle': 'Hold the handle with the AirPod secured to it.',
@@ -63,10 +79,11 @@ export interface LibraryExercise {
 
 export const LIBRARY: Record<string, LibraryExercise> = {
   'arm-elevation.v1': {
-    kind: 'arm-elevation.v1', movement: 'shoulder_raise', label: 'Seated shoulder raise', sensor: 'AirPod on the handle',
+    // Worn on the wrist strap (the same AirPod as bowling), so the club AirPod stays in the dumbbell for curls.
+    kind: 'arm-elevation.v1', movement: 'shoulder_raise', label: 'Seated shoulder raise', sensor: 'AirPod on the wrist',
     posture: 'Elbow straight.', body: { segment: 'arm', rest: DOWN, toward: SCAPULAR },
     components: ['shoulder elevation', 'scapular control'],
-    cue: 'Sit tall, straight arm, lift the handle and pause at the top. Stop at the line.',
+    cue: 'Sit tall, straight arm, lift your arm and pause at the top. Stop at the line.',
     defaults: { targetDeg: 45, ceilingMarginDeg: 15, prescribedReps: 8, holdMs: 400, sets: 1, loadKg: 0, assistance: 'active' },
     limits: { sets: [1, 5], loadKg: [0, 5] },
     // The pause at the top is the point of a raise, and dropping the arm is the usual way to cheat it.

@@ -19,7 +19,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { exerciseKind, exerciseKindForPlanType, bindQualities, qualityLimits, DEFAULT_EXERCISE } from './exercise/registry.ts';
 import { requireActivity, type Activity } from './activities.ts';
-import { LIBRARY } from './exercises.ts';
+import { LIBRARY, SOURCE_OF } from './exercises.ts';
 
 export const PLAN_SCHEMA = 'kinesthetic.plan.v2';
 export const LEGACY_PLAN_SCHEMA = 'kinesthetic.plan.v1';
@@ -186,6 +186,8 @@ function normaliseActivity(input: any, order: number): ActivityPrescription {
   if (kindId) {
     // A measured prescription always has a band: target, and a safe ceiling above it.
     params.side ??= 'right';
+    // Which AirPod pair measures it follows from where it is worn: the club AirPod in a handle, the strap one on the body.
+    params.imuSource ??= catalog ? SOURCE_OF[catalog.sensor] : 'club';
     params.targetDeg ??= catalog?.defaults.targetDeg ?? 80;
     const target = Number(params.targetDeg);
     params.targetMaxDeg ??= Math.min(limits.targetMaxDeg?.[1] ?? 180, target + (catalog?.defaults.ceilingMarginDeg ?? 15));

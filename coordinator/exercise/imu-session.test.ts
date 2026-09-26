@@ -87,14 +87,15 @@ test('curls use the same tilt with their own rest band and target', () => {
   assert.equal(summary.exerciseKind, 'elbow-flexion.v1'); assert.equal(summary.valid, 2); assert.equal(summary.overshoots, 0);
 });
 
-test('server: an IMU prescription reads the patient\'s handle AirPod from the motion relay and progresses on it', {timeout:30000}, async () => {
+test('server: a shoulder raise reads the patient\'s wrist AirPod from the motion relay and progresses on it', {timeout:30000}, async () => {
   const relay = new WebSocketServer({ port: 18781, host: '127.0.0.1' });
   const viewers = new Set<WebSocket>(); relay.on('connection', ws => viewers.add(ws));
   const dir = mkdtempSync(join(tmpdir(), 'imuapi-')), port = 18782, base = `http://127.0.0.1:${port}`;
   const child = spawn(process.execPath, ['server.ts'], {cwd:join(import.meta.dirname, '..'), stdio:['ignore','pipe','pipe'],
     env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:join(dir, 'rec'), KINESTHETIC_PLANS_DIRECTORY:join(dir, 'plans'),
       KINESTHETIC_PROPOSALS_DIRECTORY:join(dir, 'prop'), KINESTHETIC_SOCIAL_DIRECTORY:join(dir, 'social'),
-      KINESTHETIC_MOTION_URL:'ws://127.0.0.1:18781/golf?role=viewer'}});
+      // The raise is worn on the wrist strap, so it reads /bowling-motion; the club stream must not be used.
+      KINESTHETIC_WRIST_MOTION_URL:'ws://127.0.0.1:18781/bowling-motion?role=viewer', KINESTHETIC_MOTION_URL:'ws://127.0.0.1:1/golf'}});
   const post = (path: string, body?: unknown) => fetch(base + path, {method:'POST', body: body ? JSON.stringify(body) : undefined});
   let session = 0;
   const run = async (peaks: number[], opts: { gapAt?: number } = {}, body: Record<string, unknown> = {}) => {
@@ -104,7 +105,7 @@ test('server: an IMU prescription reads the patient\'s handle AirPod from the mo
     // The relay stamps the shared host clock; streams sent here are timed on it, not on arrival.
     stream(peaks, { ...opts, t0: session * 1e6 }).forEach((imu, i) => {
       if (!imu) return;
-      const packet = (playerId: string) => JSON.stringify({type:'club.motion', playerId, sourceId:'Left', sessionId, sequence:i,
+      const packet = (playerId: string) => JSON.stringify({type:'bowling.motion', playerId, sourceId:'Left', sessionId, sequence:i,
         sensorTime: imu.hostMonotonicMs / 1000, quaternion: imu.quaternion, rotationRate: imu.rotationRate, hostMonotonicMs: imu.hostMonotonicMs});
       for (const ws of viewers) { ws.send(packet('patient')); ws.send(packet('friend')); }   // the friend's AirPod is ignored
     });

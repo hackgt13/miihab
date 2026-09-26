@@ -170,12 +170,12 @@
     {
       "id": "movement.arm-elevation",
       "displayName": "Seated shoulder raise",
-      "tagline": "AirPod on the handle. Elbow straight.",
+      "tagline": "AirPod on the wrist. Elbow straight.",
       "card": {
-        "tag": "AIRPOD ON THE HANDLE",
-        "caption": "Hold the handle with the AirPod secured to it."
+        "tag": "AIRPOD ON THE WRIST",
+        "caption": "Strap the AirPod to the back of this wrist."
       },
-      "wear": "Hold the handle with the AirPod secured to it.",
+      "wear": "Strap the AirPod to the back of this wrist.",
       "body": {
         "segment": "arm",
         "rest": [
@@ -208,11 +208,11 @@
         "steps": [
           {
             "step": "Get set",
-            "copy": "Hold the handle with the AirPod secured to it. Elbow straight. Hold still until Ready."
+            "copy": "Strap the AirPod to the back of this wrist. Elbow straight. Hold still until Ready."
           },
           {
             "step": "Move",
-            "copy": "Sit tall, straight arm, lift the handle and pause at the top. Stop at the line."
+            "copy": "Sit tall, straight arm, lift your arm and pause at the top. Stop at the line."
           },
           {
             "step": "Rest",
