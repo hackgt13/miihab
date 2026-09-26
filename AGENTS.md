@@ -33,6 +33,7 @@ Dormant only because `QuestSceneSetup` sets `game.enabled = false`; all return t
 
 - **Scene wiring lives in `Assets/Editor/*SceneSetup.cs`, never the Inspector** — scenes are code-generated; hand-wiring is destroyed by the next `Create()`.
 - **Never delete a `.meta`** — references are by GUID, not path.
+- **Colour comes from the palette, never a literal** — `var(--token)` in USS, `Palette.*` in C#. `Assets/Kinesthetic/Palette.uss` and `Palette.cs` are two halves of one theme and move together. The five hues carry meaning and never swap jobs: cerulean is primary and measured, jungle is good, coral is target or trouble. No sixth hue — if nothing fits, take another step of the family whose meaning matches. `grep -rnE '#[0-9A-Fa-f]{6}' Assets/Kinesthetic --include='*.uss'` should only ever hit `Palette.uss`.
 - Prefer a real check: `Assets/Editor/` verification scripts and `scripts/unity_mcp.py` drive the running editor.
 - `cd coordinator && npm test` — pose transport, golf relay, measurement, care plans.
 

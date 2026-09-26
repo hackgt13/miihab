@@ -23,7 +23,7 @@ namespace Kinesthetic.Rehab
         LineRenderer targetGhost, targetGhostForearm, ceilingGhost, ceilingGhostForearm, band;
         Transform targetHand, ceilingHand;   // a ghost hand at the end of each ghost arm
         float nextMaterialSync;
-        static readonly Color InBand = new(.35f, .95f, .5f);
+        static readonly Color InBand = Palette.Good;   // reached the prescribed band
 
         void Start()
         {
@@ -48,7 +48,7 @@ namespace Kinesthetic.Rehab
             window.SetPositionAndRotation(centre, Quaternion.LookRotation(facing.sqrMagnitude > 1e-4f ? facing.normalized : -left));
 
             // Frame: a shallow box, so the reflection sits inside it rather than on a flat sheet.
-            var frameMaterial = Lit(Palette.Glaucous30); var backMaterial = Lit(Palette.Ice10);
+            var frameMaterial = Lit(Palette.Slate30); var backMaterial = Lit(Palette.Cerulean10);
             const float t = .05f;
             Box(window, "Frame top", new Vector3(0, height * .5f + t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, depth), frameMaterial);
             Box(window, "Frame bottom", new Vector3(0, -height * .5f - t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, depth), frameMaterial);
@@ -146,8 +146,8 @@ namespace Kinesthetic.Rehab
 
             // Below the target it is still climbing; inside the band it is right; over the ceiling it is too high.
             var angle = session.ShownAngle;
-            Color bandColor = angle is not float a ? Fade(Palette.Ice30, .7f)
-                : a > ceiling ? Palette.Coral40 : a >= target ? InBand : Palette.Ice40;
+            Color bandColor = angle is not float a ? Fade(Palette.Cerulean30, .7f)
+                : a > ceiling ? Palette.Coral40 : a >= target ? InBand : Palette.Cerulean40;
             band.startColor = band.endColor = bandColor;
             var ghost = Fade(Color.white, .42f);
             var ceilingGhostColor = Fade(Palette.Coral40, angle is float over && over > ceiling ? .85f : .38f);

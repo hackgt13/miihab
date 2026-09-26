@@ -85,9 +85,9 @@ Button.start:disabled { background-color: var(--sand-40); border-color: var(--sl
 .metric-label { font-size: 10px; color: var(--slate-50); letter-spacing: 0.8px; }
 .summary-notes { max-height: 100px; align-self: stretch; margin-top: 18px; margin-bottom: 14px; }
 .summary-saved { font-size: 12px; color: var(--jungle-60); }
-.summary-progress { font-size: 15px; -unity-font-style: bold; color: #4F6385; margin-top: 12px; padding: 8px 14px; border-radius: 12px; background-color: #EEF3FA; -unity-text-align: middle-center; white-space: normal; }
-.summary-progress.up { color: #1F7A4A; background-color: #E3F4EA; }
-.summary-progress.easy { color: #8A5A12; background-color: #FBF0DC; }
+.summary-progress { font-size: 15px; -unity-font-style: bold; color: var(--slate-60); margin-top: 12px; padding: 8px 14px; border-radius: 12px; background-color: var(--cerulean-10); -unity-text-align: middle-center; white-space: normal; }
+.summary-progress.up { color: var(--jungle-60); background-color: var(--jungle-10); }
+.summary-progress.easy { color: var(--coral-60); background-color: var(--coral-10); }
 .summary-actions { flex-direction: row; margin-top: 23px; align-items: center; }
 Button.summary-secondary { height: 54px; padding: 0 22px; border-radius: 27px; border-width: 2px; border-bottom-width: 4px; border-color: var(--cerulean-30); background-color: var(--sand-00); color: var(--prussian-50); font-size: 16px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
 Button.summary-secondary:hover, Button.summary-secondary:focus { background-color: var(--cerulean-10); border-color: var(--cerulean-40); }

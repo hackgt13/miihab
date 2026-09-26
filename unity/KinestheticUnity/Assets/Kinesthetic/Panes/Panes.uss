@@ -1,0 +1,77 @@
+/* Chrome only, and no colour of its own: every value comes from Palette.uss, which the UXML
+   pulls in first. The app-wide layout tokens (.hidden, .card, .eyebrow) are still duplicated
+   across five USS files and want one home, but MainMenu.uss is owned by the in-flight menu
+   work, so unifying those is a separate change. Everything here is prefixed pane-. */
+
+.pane-frame {
+    flex-grow: 1;
+    background-color: var(--sand-10);
+    border-top-left-radius: 22px;
+    border-top-right-radius: 22px;
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
+    border-left-width: 2px; border-right-width: 2px;
+    border-top-width: 2px; border-bottom-width: 2px;
+    border-left-color: var(--slate-30);
+    border-right-color: var(--slate-30);
+    border-top-color: var(--slate-30);
+    border-bottom-color: var(--slate-30);
+    overflow: hidden;
+}
+
+/* Focus is a border, not a shadow: USS has no box-shadow. */
+.pane-focused {
+    border-left-color: var(--cerulean-50);
+    border-right-color: var(--cerulean-50);
+    border-top-color: var(--cerulean-50);
+    border-bottom-color: var(--cerulean-50);
+}
+
+.pane-grip {
+    flex-direction: row;
+    align-items: center;
+    height: 46px;
+    padding-left: 18px; padding-right: 10px;
+    background-color: var(--sand-30);
+}
+
+.pane-grip-space { flex-grow: 1; }
+
+.pane-title {
+    font-size: 17px;
+    color: var(--slate-70);
+    -unity-font-style: bold;
+}
+
+.pane-close {
+    width: 30px; height: 30px;
+    font-size: 15px;
+    color: var(--slate-70);
+    background-color: rgba(0, 0, 0, 0);
+    border-top-left-radius: 15px; border-top-right-radius: 15px;
+    border-bottom-left-radius: 15px; border-bottom-right-radius: 15px;
+    border-left-width: 0; border-right-width: 0; border-top-width: 0; border-bottom-width: 0;
+}
+
+/* The pointer is a raycast, so hover cannot come from UI Toolkit's :hover — Pane.Highlight
+   sets this instead. */
+.pane-hot { background-color: var(--cerulean-20); }
+
+.pane-content {
+    flex-grow: 1;
+    background-color: var(--sand-00);
+}
+
+.pane-reading {
+    font-size: 19px;
+    color: var(--slate-70);
+    white-space: normal;
+    padding-left: 22px; padding-right: 22px; padding-top: 18px; padding-bottom: 22px;
+}
+
+.pane-problem {
+    font-size: 15px;
+    color: var(--coral-60);
+    white-space: normal;
+    padding-left: 18px; padding-right: 18px; padding-top: 16px;
+}
