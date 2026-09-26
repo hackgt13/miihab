@@ -1,75 +1,75 @@
-.studio-screen { flex-grow: 1; color: #31545c; -unity-font: url("Fonts/Nunito-SemiBold.ttf"); }
+.studio-screen { flex-grow: 1; color: #29335C; -unity-font: url("Fonts/Nunito-SemiBold.ttf"); }
 Label { margin: 0; padding: 0; }
-.studio-header { flex-direction: row; align-items: center; height: 88px; padding: 0 36px; background-color: rgba(255, 255, 255, .96); border-bottom-width: 3px; border-bottom-color: rgba(107, 186, 183, .32); }
-.brand-mark { width: 48px; height: 48px; border-radius: 16px; background-color: #38adba; margin-right: 14px; align-items: center; justify-content: center; }
-.brand-mark Label { font-size: 36px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: white; margin-top: -8px; }
+.studio-header { flex-direction: row; align-items: center; height: 88px; padding: 0 36px; background-color: rgba(253, 251, 246, .96); border-bottom-width: 3px; border-bottom-color: rgba(111, 138, 183, .32); }
+.brand-mark { width: 48px; height: 48px; border-radius: 16px; background-color: #29335C; margin-right: 14px; align-items: center; justify-content: center; }
+.brand-mark Label { font-size: 36px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #F8F3E8; margin-top: -8px; }
 .brand-name { font-size: 29px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: -1px; margin-top: -3px; }
-.eyebrow { font-size: 11px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: 1.6px; color: #607b80; }
+.eyebrow { font-size: 11px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: 1.6px; color: #6F8AB7; }
 .brand-copy .eyebrow { font-size: 9px; letter-spacing: 2px; }
 .header-space { flex-grow: 1; }
-.connection-chip { flex-direction: row; align-items: center; padding: 10px 15px; border-radius: 18px; background-color: #f0f5f4; }
-.connection-chip Label { font-size: 12px; color: #607b80; }
-.connection-dot { width: 8px; height: 8px; border-radius: 4px; background-color: #9bb0ac; margin-right: 8px; }
-.connection-chip.connected { background-color: #e9f6ee; }
-.connection-chip.connected .connection-dot { background-color: #4bae78; }
-.connection-chip.connected Label { color: #367a54; }
-.header-note { font-size: 10px; letter-spacing: 1.5px; margin-left: 24px; color: #607b80; }
-.card { background-color: rgba(255, 255, 255, .99); border-width: 1px; border-color: white; border-bottom-width: 4px; border-bottom-color: #d4e5e1; border-radius: 24px; }
+.connection-chip { flex-direction: row; align-items: center; padding: 10px 15px; border-radius: 18px; background-color: #F2EBDA; }
+.connection-chip Label { font-size: 12px; color: #6F8AB7; }
+.connection-dot { width: 8px; height: 8px; border-radius: 4px; background-color: #AABDD9; margin-right: 8px; }
+.connection-chip.connected { background-color: #D8E8FE; }
+.connection-chip.connected .connection-dot { background-color: #3D7CD4; }
+.connection-chip.connected Label { color: #29335C; }
+.header-note { font-size: 10px; letter-spacing: 1.5px; margin-left: 24px; color: #6F8AB7; }
+.card { background-color: rgba(253, 251, 246, .99); border-width: 1px; border-color: #FDFBF6; border-bottom-width: 4px; border-bottom-color: #AABDD9; border-radius: 24px; }
 .exercise-card { position: absolute; left: 32px; top: 123px; bottom: 180px; width: 276px; padding: 24px 22px 20px; }
 .section-heading { flex-direction: row; align-items: center; margin-bottom: 16px; }
-.exercise-number { font-size: 14px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #219eac; padding: 6px 9px; background-color: #e9f6f5; border-radius: 9px; margin-right: 11px; }
+.exercise-number { font-size: 14px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #29335C; padding: 6px 9px; background-color: #D8E8FE; border-radius: 9px; margin-right: 11px; }
 .exercise-title { font-size: 34px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; white-space: normal; letter-spacing: -.9px; }
-.side-label { align-self: flex-start; margin-top: 10px; padding: 5px 10px; border-radius: 8px; background-color: #e5f2f6; color: #327f95; font-size: 10px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: 1.4px; }
-.exercise-intro { font-size: 14px; color: #607b80; white-space: normal; margin-top: 12px; }
-.card-divider { height: 1px; background-color: #dfebe8; margin: 16px 0; }
+.side-label { align-self: flex-start; margin-top: 10px; padding: 5px 10px; border-radius: 8px; background-color: #D8E8FE; color: #485F88; font-size: 10px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; letter-spacing: 1.4px; }
+.exercise-intro { font-size: 14px; color: #6F8AB7; white-space: normal; margin-top: 12px; }
+.card-divider { height: 1px; background-color: #DCCFB4; margin: 16px 0; }
 .instruction-row { flex-direction: row; align-items: flex-start; margin-top: 14px; }
-.step-number { width: 25px; height: 25px; flex-shrink: 0; border-radius: 13px; border-width: 1px; border-color: #cde0d8; color: #589a7c; font-size: 12px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; -unity-text-align: middle-center; margin-right: 10px; }
+.step-number { width: 25px; height: 25px; flex-shrink: 0; border-radius: 13px; border-width: 1px; border-color: #AABDD9; color: #6F8AB7; font-size: 12px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; -unity-text-align: middle-center; margin-right: 10px; }
 .instruction-copy { flex-grow: 1; flex-shrink: 1; }
 .step-title { font-size: 13px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
-.step-detail { font-size: 11px; white-space: normal; margin-top: 4px; color: #607b80; }
-.plan-inset { margin-top: 20px; padding: 13px 12px; border-radius: 12px; background-color: #eef5ee; }
-.plan-inset .eyebrow { font-size: 9px; color: #5b816d; letter-spacing: 1px; }
-.plan { font-size: 13px; margin-top: 5px; color: #456d58; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; white-space: normal; }
+.step-detail { font-size: 11px; white-space: normal; margin-top: 4px; color: #6F8AB7; }
+.plan-inset { margin-top: 20px; padding: 13px 12px; border-radius: 12px; background-color: #F2EBDA; }
+.plan-inset .eyebrow { font-size: 9px; color: #6F8AB7; letter-spacing: 1px; }
+.plan { font-size: 13px; margin-top: 5px; color: #29335C; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; white-space: normal; }
 .progress-card { position: absolute; top: 123px; right: 32px; width: 242px; padding: 24px 20px 22px; }
 .progress-card > .eyebrow { -unity-text-align: middle-center; }
 .rep-ring { width: 180px; height: 180px; margin-top: 13px; align-self: center; align-items: center; justify-content: center; }
-.rep-value { font-size: 62px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #219eac; margin-top: -7px; }
-.rep-goal { font-size: 12px; color: #607b80; margin-top: -3px; }
-.progress-note { font-size: 10px; color: #607b80; -unity-text-align: middle-center; margin-top: 12px; white-space: normal; }
+.rep-value { font-size: 62px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #29335C; margin-top: -7px; }
+.rep-goal { font-size: 12px; color: #6F8AB7; margin-top: -3px; }
+.progress-note { font-size: 10px; color: #6F8AB7; -unity-text-align: middle-center; margin-top: 12px; white-space: normal; }
 .angle-heading { flex-direction: row; justify-content: space-between; align-items: center; }
 .angle-heading .eyebrow { font-size: 10px; letter-spacing: 1px; }
-.target-label { font-size: 11px; color: #438c97; }
+.target-label { font-size: 11px; color: #6F8AB7; }
 .angle-value { font-size: 42px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; margin-top: 8px; }
 .angle-meter { height: 8px; margin-top: 6px; margin-bottom: 6px; }
 .angle-meter .unity-progress-bar__container { flex-grow: 1; height: 8px; min-height: 8px; padding: 0; margin: 0; }
-.angle-meter .unity-progress-bar__background { height: 8px; min-height: 8px; border-width: 0; border-radius: 4px; background-color: #e3eeed; }
-.angle-meter .unity-progress-bar__progress { height: 8px; min-height: 8px; margin: 0; border-width: 0; border-radius: 4px; background-color: #72c2c8; }
+.angle-meter .unity-progress-bar__background { height: 8px; min-height: 8px; border-width: 0; border-radius: 4px; background-color: #D8E8FE; }
+.angle-meter .unity-progress-bar__progress { height: 8px; min-height: 8px; margin: 0; border-width: 0; border-radius: 4px; background-color: #5C9CF2; }
 .angle-meter .unity-progress-bar__title-container { display: none; }
-.angle-note { font-size: 10px; color: #607b80; margin-top: 10px; white-space: normal; }
+.angle-note { font-size: 10px; color: #6F8AB7; margin-top: 10px; white-space: normal; }
 .studio-caption { position: absolute; left: 340px; right: 305px; bottom: 164px; align-items: center; }
-.studio-caption-title { font-size: 10px; letter-spacing: 3px; color: #3c756f; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
+.studio-caption-title { font-size: 10px; letter-spacing: 3px; color: #485F88; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
 .studio-caption-detail { display: none; }
-.coaching-dock { position: absolute; bottom: 54px; left: 32px; right: 32px; min-height: 98px; flex-direction: row; align-items: center; padding: 18px 22px; background-color: rgba(255, 255, 255, .98); border-radius: 24px; border-width: 1px; border-color: white; border-bottom-width: 4px; border-bottom-color: #d6e6e1; }
-.cue-icon { width: 52px; height: 52px; flex-shrink: 0; border-radius: 18px; background-color: #e6f2ec; align-items: center; justify-content: center; margin-right: 16px; }
-.cue-icon Label { font-size: 25px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #559575; }
-.cue-icon.good { background-color: #d5f0d9; }
-.cue-icon.attention { background-color: #fff0d2; }
-.cue-icon.attention Label { color: #9b752f; }
+.coaching-dock { position: absolute; bottom: 54px; left: 32px; right: 32px; min-height: 98px; flex-direction: row; align-items: center; padding: 18px 22px; background-color: rgba(253, 251, 246, .98); border-radius: 24px; border-width: 1px; border-color: #FDFBF6; border-bottom-width: 4px; border-bottom-color: #AABDD9; }
+.cue-icon { width: 52px; height: 52px; flex-shrink: 0; border-radius: 18px; background-color: #D8E8FE; align-items: center; justify-content: center; margin-right: 16px; }
+.cue-icon Label { font-size: 25px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: #29335C; }
+.cue-icon.good { background-color: #B7D4FE; }
+.cue-icon.attention { background-color: #FFD3C9; }
+.cue-icon.attention Label { color: #B33F2C; }
 .coaching-copy { flex-grow: 1; flex-shrink: 1; margin-right: 22px; }
 .cue-title { font-size: 20px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
-.status { font-size: 14px; color: #607b80; white-space: normal; margin-top: 5px; }
-Button.start { height: 54px; min-width: 196px; padding: 0 24px; border-radius: 27px; border-width: 2px; border-color: #209aa7; border-bottom-width: 4px; border-bottom-color: #14838e; background-color: #38adba; color: white; font-size: 17px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; flex-shrink: 0; }
-Button.start:hover { background-color: #279caa; border-color: #197d88; }
-Button.start:active { background-color: #218c98; border-bottom-width: 2px; }
-Button.start:focus { border-color: #285e6b; }
-Button.start:disabled { background-color: #a6ccce; border-color: #96bcbe; color: white; }
-.footer-note { position: absolute; bottom: 23px; align-self: center; font-size: 10px; color: #4d6d67; letter-spacing: .3px; }
-.summary-overlay { position: absolute; top: 88px; bottom: 0; left: 0; right: 0; background-color: rgba(43, 77, 77, .3); align-items: center; justify-content: center; }
+.status { font-size: 14px; color: #6F8AB7; white-space: normal; margin-top: 5px; }
+Button.start { height: 54px; min-width: 196px; padding: 0 24px; border-radius: 27px; border-width: 2px; border-color: #FFA695; border-bottom-width: 4px; border-bottom-color: #C14730; background-color: #FF715B; color: #1F2747; font-size: 17px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; flex-shrink: 0; }
+Button.start:hover { background-color: #FF8A78; border-color: #FFC0B2; }
+Button.start:active { background-color: #E4523C; border-bottom-width: 2px; }
+Button.start:focus { border-color: #C14730; }
+Button.start:disabled { background-color: #DCCFB4; border-color: #AABDD9; color: #485F88; }
+.footer-note { position: absolute; bottom: 23px; align-self: center; font-size: 10px; color: #6F8AB7; letter-spacing: .3px; }
+.summary-overlay { position: absolute; top: 88px; bottom: 0; left: 0; right: 0; background-color: rgba(31, 39, 71, .45); align-items: center; justify-content: center; }
 .summary-card { width: 640px; max-width: 92%; padding: 28px 32px; align-items: center; }
-.summary-check { width: 68px; height: 68px; border-radius: 34px; background-color: #e0f3e5; color: #62ab7d; font-size: 39px; -unity-text-align: middle-center; }
+.summary-check { width: 68px; height: 68px; border-radius: 34px; background-color: #B7D4FE; color: #29335C; font-size: 39px; -unity-text-align: middle-center; }
 .summary-title { font-size: 29px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; margin-top: 20px; }
-.summary-subtitle { font-size: 14px; color: #607b80; margin-top: 8px; }
-.summary-text { font-size: 14px; white-space: normal; -unity-text-align: middle-center; color: #607b80; }
+.summary-subtitle { font-size: 14px; color: #6F8AB7; margin-top: 8px; }
+.summary-text { font-size: 14px; white-space: normal; -unity-text-align: middle-center; color: #6F8AB7; }
 .summary-button { margin-left: 14px; }
 .hidden { display: none; }
 
@@ -77,20 +77,20 @@ Button.start:disabled { background-color: #a6ccce; border-color: #96bcbe; color:
 .exercise-scroll .unity-scroll-view__content-container { padding-right: 2px; }
 .angle-meter .unity-progress-bar { height: 8px; min-height: 8px; padding: 0; margin: 0; }
 
-.summary-plan { font-size: 11px; letter-spacing: 1px; color: #638f83; margin-top: 17px; }
+.summary-plan { font-size: 11px; letter-spacing: 1px; color: #6F8AB7; margin-top: 17px; }
 .summary-metrics { flex-direction: row; align-self: stretch; margin-top: 22px; }
-.summary-metric { flex-grow: 1; flex-basis: 0; align-items: center; padding: 16px 8px; border-radius: 16px; background-color: #edf7f2; }
+.summary-metric { flex-grow: 1; flex-basis: 0; align-items: center; padding: 16px 8px; border-radius: 16px; background-color: #F2EBDA; }
 .metric-middle { margin-left: 10px; margin-right: 10px; }
-.metric-value { font-size: 46px; color: #299d9f; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); }
-.metric-label { font-size: 10px; color: #63887d; letter-spacing: 0.8px; }
+.metric-value { font-size: 46px; color: #29335C; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); }
+.metric-label { font-size: 10px; color: #6F8AB7; letter-spacing: 0.8px; }
 .summary-notes { max-height: 100px; align-self: stretch; margin-top: 18px; margin-bottom: 14px; }
-.summary-saved { font-size: 12px; color: #52876b; }
+.summary-saved { font-size: 12px; color: #3D7CD4; }
 .summary-actions { flex-direction: row; margin-top: 23px; align-items: center; }
-Button.summary-secondary { height: 54px; padding: 0 22px; border-radius: 27px; border-width: 2px; border-bottom-width: 4px; border-color: #bfdedb; background-color: white; color: #388a94; font-size: 16px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
-Button.summary-secondary:hover, Button.summary-secondary:focus { background-color: #edf9f7; border-color: #279caa; }
+Button.summary-secondary { height: 54px; padding: 0 22px; border-radius: 27px; border-width: 2px; border-bottom-width: 4px; border-color: #B7D4FE; background-color: #FDFBF6; color: #29335C; font-size: 16px; -unity-font: url("Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; }
+Button.summary-secondary:hover, Button.summary-secondary:focus { background-color: #EDF4FF; border-color: #89BBFE; }
 
 .studio-screen .unity-scroller--vertical { width: 7px; margin-left: 5px; }
 .studio-screen .unity-scroller__low-button, .studio-screen .unity-scroller__high-button { display: none; }
-.studio-screen .unity-scroller--vertical .unity-base-slider__tracker { width: 3px; background-color: #e4efeb; border-width: 0; }
-.studio-screen .unity-scroller--vertical .unity-base-slider__dragger { width: 6px; min-height: 28px; background-color: #a8cfc3; border-width: 0; border-radius: 3px; }
-.studio-screen .unity-scroller--vertical .unity-base-slider__dragger:hover { background-color: #79b7a4; }
+.studio-screen .unity-scroller--vertical .unity-base-slider__tracker { width: 3px; background-color: #F2EBDA; border-width: 0; }
+.studio-screen .unity-scroller--vertical .unity-base-slider__dragger { width: 6px; min-height: 28px; background-color: #AABDD9; border-width: 0; border-radius: 3px; }
+.studio-screen .unity-scroller--vertical .unity-base-slider__dragger:hover { background-color: #8CA3C7; }

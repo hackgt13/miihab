@@ -1,41 +1,41 @@
-.bowling { flex-grow: 1; color: #214967; padding: 28px 36px; }
+.bowling { flex-grow: 1; color: #29335C; padding: 28px 36px; }
 .top { flex-direction: row; align-items: center; justify-content: space-between; }
-.brand { background-color: rgba(250, 254, 255, 0.96); border-radius: 20px; padding: 15px 26px; border-bottom-width: 4px; border-bottom-color: #64c9ed; }
-.eyebrow { color: #3984a4; font-size: 13px; -unity-font-style: bold; letter-spacing: 3px; }
+.brand { background-color: rgba(253, 251, 246, 0.96); border-radius: 20px; padding: 15px 26px; border-bottom-width: 4px; border-bottom-color: #89BBFE; }
+.eyebrow { color: #6F8AB7; font-size: 13px; -unity-font-style: bold; letter-spacing: 3px; }
 .title { font-size: 34px; -unity-font-style: bold; }
 .top-actions { flex-direction: row; align-items: center; }
-.device { color: #ffffff; background-color: #345267; border-radius: 18px; padding: 12px 20px; font-size: 17px; margin-right: 10px; }
-.device.ready { background-color: #236c6a; }
-Button { color: #285670; background-color: #f6fcff; border-width: 2px; border-color: #b6ddeb; border-radius: 18px; padding: 12px 22px; font-size: 18px; -unity-font-style: bold; margin: 4px; }
-Button:hover { background-color: #d9f4ff; border-color: #45bcea; }
-Button:active { background-color: #b9eaff; }
-Button:focus { border-color: #148cbe; }
+.device { color: #F8F3E8; background-color: #29335C; border-radius: 18px; padding: 12px 20px; font-size: 17px; margin-right: 10px; }
+.device.ready { background-color: #3D7CD4; }
+Button { color: #29335C; background-color: #FDFBF6; border-width: 2px; border-color: #B7D4FE; border-radius: 18px; padding: 12px 22px; font-size: 18px; -unity-font-style: bold; margin: 4px; }
+Button:hover { background-color: #EDF4FF; border-color: #89BBFE; }
+Button:active { background-color: #D8E8FE; }
+Button:focus { border-color: #5C9CF2; }
 Button:disabled { opacity: 0.45; }
-.scoreboard { flex-direction: row; align-self: center; margin-top: 15px; border-radius: 16px; background-color: rgba(247, 253, 255, 0.96); padding: 9px 12px; }
-.frame { width: 75px; align-items: center; border-right-width: 1px; border-right-color: #c7e4ed; padding: 4px; }
-.frame.active { background-color: #c9efff; border-radius: 10px; }
-.frame-number { font-size: 12px; color: #537a92; }
+.scoreboard { flex-direction: row; align-self: center; margin-top: 15px; border-radius: 16px; background-color: rgba(253, 251, 246, 0.96); padding: 9px 12px; }
+.frame { width: 75px; align-items: center; border-right-width: 1px; border-right-color: #AABDD9; padding: 4px; }
+.frame.active { background-color: #D8E8FE; border-radius: 10px; }
+.frame-number { font-size: 12px; color: #6F8AB7; }
 .frame-marks { font-size: 17px; height: 25px; -unity-font-style: bold; }
 .frame-score { font-size: 19px; -unity-font-style: bold; }
 .total { width: 90px; align-items: center; padding: 4px; }
-.total-score { font-size: 28px; -unity-font-style: bold; color: #167cb3; }
+.total-score { font-size: 28px; -unity-font-style: bold; color: #29335C; }
 .spacer { flex-grow: 1; }
 .bottom { flex-direction: row; align-items: flex-end; justify-content: space-between; }
-.metric { border-radius: 18px; background-color: rgba(247, 253, 255, 0.96); padding: 17px 24px; min-width: 230px; }
+.metric { border-radius: 18px; background-color: rgba(253, 251, 246, 0.96); padding: 17px 24px; min-width: 230px; }
 .metric-value { font-size: 34px; -unity-font-style: bold; }
-.small { color: #537a92; font-size: 15px; margin-top: 3px; }
-.cue { background-color: rgba(247, 253, 255, 0.97); border-radius: 22px; padding: 18px 32px; margin: 0 20px; align-items: center; flex-shrink: 1; }
+.small { color: #6F8AB7; font-size: 15px; margin-top: 3px; }
+.cue { background-color: rgba(253, 251, 246, 0.97); border-radius: 22px; padding: 18px 32px; margin: 0 20px; align-items: center; flex-shrink: 1; }
 .cue-title { font-size: 28px; -unity-font-style: bold; white-space: normal; -unity-text-align: middle-center; }
-.overlay { position: absolute; top: 0; right: 0; bottom: 0; left: 0; align-items: center; justify-content: center; background-color: rgba(17, 44, 60, 0.25); }
-.card { width: 570px; padding: 34px 40px; background-color: #f8fdff; border-radius: 28px; border-width: 3px; border-color: #bceaff; }
+.overlay { position: absolute; top: 0; right: 0; bottom: 0; left: 0; align-items: center; justify-content: center; background-color: rgba(31, 39, 71, 0.45); }
+.card { width: 570px; padding: 34px 40px; background-color: #FDFBF6; border-radius: 28px; border-width: 3px; border-color: #B7D4FE; }
 .card-title { font-size: 39px; -unity-font-style: bold; margin: 7px 0 14px; white-space: normal; }
 .step { flex-direction: row; align-items: center; margin: 11px 0; }
-.number { width: 42px; height: 42px; border-radius: 21px; background-color: #d4f1ff; color: #1687be; -unity-text-align: middle-center; -unity-font-style: bold; font-size: 22px; margin-right: 14px; }
+.number { width: 42px; height: 42px; border-radius: 21px; background-color: #D8E8FE; color: #29335C; -unity-text-align: middle-center; -unity-font-style: bold; font-size: 22px; margin-right: 14px; }
 .step-text { font-size: 21px; white-space: normal; flex-shrink: 1; }
-.setup-status { margin-top: 20px; padding: 17px; border-radius: 14px; background-color: #e6f6fc; color: #197da9; -unity-text-align: middle-center; font-size: 20px; -unity-font-style: bold; white-space: normal; }
-.fine { color: #688394; font-size: 14px; margin-top: 12px; -unity-text-align: middle-center; white-space: normal; }
+.setup-status { margin-top: 20px; padding: 17px; border-radius: 14px; background-color: #EDF4FF; color: #29335C; -unity-text-align: middle-center; font-size: 20px; -unity-font-style: bold; white-space: normal; }
+.fine { color: #6F8AB7; font-size: 14px; margin-top: 12px; -unity-text-align: middle-center; white-space: normal; }
 .actions { flex-direction: row; justify-content: center; margin-top: 18px; }
-.primary { background-color: #168fc6; color: white; border-color: #168fc6; }
-.primary:hover { background-color: #147aa8; color: white; }
-.result-score { font-size: 82px; -unity-font-style: bold; color: #1589c2; -unity-text-align: middle-center; }
+.primary { background-color: #FF715B; color: #1F2747; border-color: #FFA695; }
+.primary:hover { background-color: #FF8A78; color: #1F2747; }
+.result-score { font-size: 82px; -unity-font-style: bold; color: #29335C; -unity-text-align: middle-center; }
 .hidden { display: none; }
