@@ -401,7 +401,7 @@ namespace Kinesthetic.Menu
 
             spotlightFace.generateVisualContent = null;
             int variant = chosen.mii;
-            spotlightFace.generateVisualContent += ctx => DrawFace(ctx, variant, 52f);
+            spotlightFace.generateVisualContent += ctx => DrawFace(ctx, variant, 40f);
             spotlightFace.MarkDirtyRepaint();
 
             spotlightName.text = chosen.displayName + (chosen.sample ? " · sample friend" : "");

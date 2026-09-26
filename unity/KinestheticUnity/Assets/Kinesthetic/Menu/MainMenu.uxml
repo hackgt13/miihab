@@ -8,15 +8,25 @@
                     <ui:Label name="splash-greeting" text="Welcome back!" class="splash-greeting" />
                     <ui:Label name="splash-sub" text="Today" class="splash-sub" />
                 </ui:VisualElement>
-                <ui:VisualElement class="utility-cluster">
-                    <ui:Button name="friends" class="friends-button" tooltip="Your friends">
-                        <ui:VisualElement name="friends-faces" class="friends-faces" picking-mode="Ignore" />
-                        <ui:Label name="friends-label" text="Friends" class="friends-label" picking-mode="Ignore" />
-                        <ui:Label name="friends-badge" text="" class="friends-badge hidden" picking-mode="Ignore" />
-                    </ui:Button>
-                    <ui:Button name="edit-name" text="Not you?" class="utility-button" />
-                    <ui:Button name="music" text="Music: On" class="utility-button" />
-                    <ui:Button name="help" text="How to play" class="utility-button" />
+                <ui:VisualElement class="splash-side">
+                    <ui:VisualElement class="utility-cluster">
+                        <ui:Button name="friends" class="friends-button" tooltip="Your friends">
+                            <ui:VisualElement name="friends-faces" class="friends-faces" picking-mode="Ignore" />
+                            <ui:Label name="friends-label" text="Friends" class="friends-label" picking-mode="Ignore" />
+                            <ui:Label name="friends-badge" text="" class="friends-badge hidden" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="edit-name" text="Not you?" class="utility-button" />
+                        <ui:Button name="music" text="Music: On" class="utility-button" />
+                        <ui:Button name="help" text="How to play" class="utility-button" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="friend-spotlight" class="friend-spotlight hidden">
+                        <ui:VisualElement name="spotlight-face" class="spotlight-face" picking-mode="Ignore" />
+                        <ui:VisualElement class="spotlight-copy" picking-mode="Ignore">
+                            <ui:Label name="spotlight-name" text="" class="spotlight-name" picking-mode="Ignore" />
+                            <ui:Label name="spotlight-line" text="" class="spotlight-line" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Button name="spotlight-reply" text="Say something back" class="spotlight-reply" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
 
@@ -168,14 +178,6 @@
                 <ui:Button name="help-close" text="Let's play  ›" class="sheet-close primary" />
             </ui:VisualElement>
         </ui:VisualElement>
-    </ui:VisualElement>
-    <ui:VisualElement name="friend-spotlight" class="friend-spotlight hidden">
-        <ui:VisualElement name="spotlight-face" class="spotlight-face" picking-mode="Ignore" />
-        <ui:VisualElement class="spotlight-copy" picking-mode="Ignore">
-            <ui:Label name="spotlight-name" text="" class="spotlight-name" picking-mode="Ignore" />
-            <ui:Label name="spotlight-line" text="" class="spotlight-line" picking-mode="Ignore" />
-        </ui:VisualElement>
-        <ui:Button name="spotlight-reply" text="Say something back" class="spotlight-reply" />
     </ui:VisualElement>
     <ui:VisualElement name="friends-overlay" class="friends-overlay hidden">
         <ui:VisualElement name="friends-panel" class="friends-panel">
