@@ -76,9 +76,12 @@ namespace Kinesthetic.Shell
             if (dots == null || carousel.Slots.Count == 0) return;
             if (dots.childCount != carousel.Slots.Count)
             {
+                // In the order they physically stand, not the order they were adopted — a dot row that does
+                // not match the room is worse than no dot row, because it teaches the wrong map.
                 dots.Clear();
-                foreach (var slot in carousel.Slots)
+                foreach (int i in carousel.LeftToRight)
                 {
+                    var slot = carousel.Slots[i];
                     var dot = new VisualElement { name = $"dot-{slot.id}" };
                     dot.AddToClassList("dot");
                     dot.tooltip = slot.title;
@@ -92,8 +95,9 @@ namespace Kinesthetic.Shell
         void Mark()
         {
             if (dots == null) return;
-            for (int i = 0; i < dots.childCount; i++)
-                dots[i].EnableInClassList("here", i == carousel.CurrentIndex);
+            var order = carousel.LeftToRight;
+            for (int i = 0; i < dots.childCount && i < order.Count; i++)
+                dots[i].EnableInClassList("here", order[i] == carousel.CurrentIndex);
         }
 
         /// Stand the chrome in a scene that already has a ring. One call, because wiring arrows should not

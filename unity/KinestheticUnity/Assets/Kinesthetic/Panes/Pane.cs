@@ -45,6 +45,11 @@ namespace Kinesthetic.Panes
 
         /// Called by the host once the UIDocument has a panel and a tree. Separate from Awake
         /// because rootVisualElement is not reliably available until the document is enabled.
+        /// Upstream's world-panel work calls this SetContent; this half has always called it Bind. Same
+        /// operation, two names that met in a merge — aliased rather than renamed, because renaming would
+        /// break whichever side was not looking.
+        public void SetContent(IPaneContent content) => Bind(content);
+
         public void Bind(IPaneContent content)
         {
             Content = content;
@@ -104,6 +109,16 @@ namespace Kinesthetic.Panes
         }
 
         void OnDestroy() { Content?.Dispose(); Content = null; }
+
+        /// Hand a world point to content that wants raw pointer input, as a 0..1 fraction of the pane.
+        /// Content that does not implement IPanePointerTarget simply does not hear about it.
+        public bool SendPointer(Vector3 worldPoint, bool pressed)
+        {
+            if (ContentRoot == null || Content is not IPanePointerTarget target ||
+                !TryProject(worldPoint, out _, out var point)) return false;
+            target.OnPointer(point, pressed);
+            return true;
+        }
 
         /// Where a world point lands on this pane, in panel coordinates and as a 0..1 fraction.
         ///

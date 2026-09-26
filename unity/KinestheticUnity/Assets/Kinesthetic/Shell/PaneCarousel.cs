@@ -200,13 +200,20 @@ namespace Kinesthetic.Shell
             return float.IsNaN(named) ? slot * spacingDegrees : named;
         }
 
-        /// Stepping order is the ring's own order — by angle, not by the order Adopt happened to be called
-        /// in. So the right arrow always fetches whatever is standing to the right, whoever adopted it first.
+        /// Left to right as the person sees it, which is what both the arrows and the dots have to agree on.
+        ///
+        /// Ordering by a 0..360 angle looks equivalent and is not: it puts a pane at -90 (to your left) after
+        /// one at +90 (to your right), because -90 wraps to 270. The right arrow then walked home, friends,
+        /// gallery while the dots read gallery, home, friends — one press moving the lit dot from the first
+        /// to the third. Signed angles keep left negative, so the order on screen and the order underneath
+        /// are the same order.
+        public List<int> LeftToRight => Enumerable.Range(0, slots.Count)
+            .OrderBy(i => Mathf.DeltaAngle(0, Yaw(i))).ToList();
+
         int Step(int by)
         {
             if (slots.Count == 0) return 0;
-            var order = Enumerable.Range(0, slots.Count)
-                .OrderBy(i => Mathf.Repeat(Yaw(i), 360f)).ToList();
+            var order = LeftToRight;
             int at = order.IndexOf(index);
             return order[((at + by) % order.Count + order.Count) % order.Count];
         }
