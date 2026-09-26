@@ -9,6 +9,7 @@ import { writeFile, readdir, readFile } from 'node:fs/promises';
 import { PlanStore } from './plans.ts';
 import { FriendStore } from './friends.ts';
 import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
+import { spotlight, recap, daysSince } from './social-ai.ts';
 import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, type RepParams, type RepSession } from './exercise/registry.ts';
@@ -296,6 +297,58 @@ const server = createServer(async (request, response) => {
         if (request.method === 'POST' && url.pathname === '/api/friends/photo') {
           const bytes = await readBytes(request, 4 * 1024 * 1024);
           return json(201, {photoId: messages.savePhoto(bytes, String(request.headers['content-type'] ?? ''))});
+        }
+        // Both AI routes answer 200 with empty values when the model is not
+        // configured or declines, so the panel treats it as "no opinion today"
+        // rather than an error it has to handle.
+        if (request.method === 'GET' && url.pathname === '/api/friends/spotlight') {
+          const people = friends.list();
+          const unread = messages.unread(me, people.map(p => p.id));
+          const candidates = people.map(p => {
+            const thread = messages.thread(me, p.id);
+            const fromThem = thread.filter(m => m.from === p.id);
+            const theirs = fromThem[fromThem.length - 1];
+            const mine = [...thread].reverse().find(m => m.from === me);
+            // "Returned after three days" needs the quiet spell BEFORE they came
+            // back, which a single lastActiveAt cannot express. The gap between
+            // their last two messages is the one place that survives.
+            const previous = fromThem[fromThem.length - 2];
+            const gapDays = theirs && previous
+              ? Math.max(0, Math.floor((Date.parse(theirs.at) - Date.parse(previous.at)) / 86400000))
+              : null;
+            // lastActiveAt only moves when someone joins, so a message of theirs
+            // is often the fresher evidence. Take whichever is more recent.
+            const stamped = daysSince(p.lastActiveAt);
+            const wrote = daysSince(theirs?.at);
+            const active = stamped === null ? wrote
+              : wrote === null ? stamped
+              : Math.min(stamped, wrote);
+            return {
+              id: p.id, displayName: p.displayName, sample: p.sample === true,
+              unread: unread[p.id] ?? 0,
+              daysSinceActive: active,
+              daysSinceTheyWrote: wrote,
+              daysSinceIWrote: daysSince(mine?.at),
+              quietDaysBeforeTheyReturned: Number.isFinite(gapDays as number) ? gapDays : null,
+            };
+          });
+          return json(200, await spotlight(candidates) ?? {choose: null, activity: []});
+        }
+        // Deliberately does not mark the thread seen: this is the line above a
+        // conversation, not the act of reading it.
+        if (request.method === 'GET' && url.pathname === '/api/friends/recap') {
+          const other = url.searchParams.get('id') ?? '';
+          if (!friends.has(other)) return json(404, {error:'Unknown person'});
+          const line = await recap(
+            friends.person(other)?.displayName ?? 'them',
+            messages.thread(me, other).map(m => ({
+              fromMe: m.from === me,
+              kind: m.kind ? ENCOURAGEMENTS[m.kind] : null,
+              text: m.text,
+              photo: m.photoId != null,
+              at: m.at,
+            })));
+          return json(200, {recap: line ?? ''});
         }
         return json(404, {error:'Not found'});
       }

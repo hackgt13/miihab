@@ -16,7 +16,9 @@ pose_ready() { /usr/bin/curl -fsS --max-time 1 http://127.0.0.1:8766/health >/de
 golf_ready() { /usr/bin/curl -fsS --max-time 1 http://127.0.0.1:8767/ >/dev/null 2>&1; }
 
 if ! pose_ready; then
-  nohup "$node_exe" coordinator/server.ts >local-data/logs/pose-bridge.log 2>&1 </dev/null &
+  # --env-file-if-exists so a repo-root .env (ANTHROPIC_API_KEY for the friends
+  # AI) is read whatever shell started this, and a missing file is not an error.
+  nohup "$node_exe" --env-file-if-exists=.env coordinator/server.ts >local-data/logs/pose-bridge.log 2>&1 </dev/null &
   disown
 fi
 if ! golf_ready; then
