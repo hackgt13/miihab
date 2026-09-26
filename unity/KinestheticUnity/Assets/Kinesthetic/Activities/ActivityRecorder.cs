@@ -44,13 +44,13 @@ namespace Kinesthetic.Activities
         const int MaxDurationMs = 86_400_000;
 
         /// <summary>
-        /// Post one finished session. The caller owns the session id so it can raise Completed with it
+        /// Post one session: finished, or (completed false) left partway, which still carries what was done. The caller owns the session id so it can raise Completed with it
         /// immediately, without waiting on the network.
         /// </summary>
         public static IEnumerator Send(
             string bridge, string activityId, string sessionId, DateTime startedUtc,
             IReadOnlyList<ActivitySubject> subjects, int lossEvents,
-            string payloadKind, object payloadData, Action<bool> finished = null)
+            string payloadKind, object payloadData, Action<bool> finished = null, bool completed = true)
         {
             var entry = ActivityCatalog.ById(activityId);
             if (entry == null)
@@ -87,10 +87,10 @@ namespace Kinesthetic.Activities
                 startedAt = startedUtc.ToString("o"),
                 endedAt = endedUtc.ToString("o"),
                 durationMs = (int)Mathf.Clamp((float)(endedUtc - startedUtc).TotalMilliseconds, 0, MaxDurationMs),
-                completed = true,
+                completed,
                 subjects = rows,
                 trackingQuality = new { validFrameRatio = (double?)null, lossEvents },
-                flags = lossEvents > 0 ? new[] { "tracking_lost" } : new string[0],
+                flags = Flags(lossEvents, completed),
                 payload = new { kind = payloadKind, schemaVersion = "1", data = payloadData },
             };
 
@@ -106,6 +106,14 @@ namespace Kinesthetic.Activities
             if (!ok) Debug.LogWarning($"{entry.DisplayName} session was not recorded: " +
                                       $"{request.error} {request.downloadHandler?.text}");
             finished?.Invoke(ok);
+        }
+
+        static string[] Flags(int lossEvents, bool completed)
+        {
+            var flags = new List<string>();
+            if (lossEvents > 0) flags.Add("tracking_lost");
+            if (!completed) flags.Add("not_completed");   // left before the round or game ended
+            return flags.ToArray();
         }
     }
 }

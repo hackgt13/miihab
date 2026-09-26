@@ -40,6 +40,8 @@ namespace Kinesthetic.Bowling
         /// <summary>Nothing server-side to close, but do not leave mid-POST or the game is lost.</summary>
         public IEnumerator RequestExit(Action<bool> succeeded)
         {
+            // A game left partway is still the patient's practice: record it, marked not completed.
+            if (!gameReported && rolls > 0) ReportGame(false);
             while (postingGame) yield return null;
             succeeded?.Invoke(true);
         }
@@ -195,7 +197,8 @@ namespace Kinesthetic.Bowling
             Phase = Score.Complete ? "Complete" : "Result"; resultUntil = Time.time + 2.7f;
             if (Score.Complete) CompleteGame();
         }
-        void CompleteGame()
+        void CompleteGame() => ReportGame(true);
+        void ReportGame(bool completed)
         {
             if (gameReported) return;
             gameReported = true;
@@ -213,7 +216,7 @@ namespace Kinesthetic.Bowling
             postingGame = true;
             StartCoroutine(ActivityRecorder.Send(bridge, ActivityId, id, gameStartedUtc, subjects,
                 lost, "bowling.game", new { total = Score.Total, rolls, frames = marks },
-                _ => postingGame = false));
+                _ => postingGame = false, completed));
         }
         public void RestartRound()
         {

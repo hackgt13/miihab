@@ -240,7 +240,8 @@ namespace Kinesthetic.Golf
         // coordinator rather than written locally. golf-shots.jsonl stays as a per-shot debugging log, but
         // it lives in Application.persistentDataPath — a directory that differs between the Editor and a
         // built Player and that the coordinator cannot read, so it can never be the clinical record.
-        void CompleteRound()
+        void CompleteRound() => ReportRound(true);
+        void ReportRound(bool completed)
         {
             if(roundReported)return;
             roundReported=true;
@@ -258,11 +259,13 @@ namespace Kinesthetic.Golf
             StartCoroutine(ActivityRecorder.Send(bridge, ActivityId, id, roundStartedUtc, subjects,
                 PoseLossEvents, "golf.round",
                 new {strokes=Strokes, misses=Misses, acceptedShots=AcceptedShots, club=clubNames[clubIndex]},
-                _=>postingRound=false));
+                _=>postingRound=false, completed));
         }
-        /// <summary>Nothing server-side to close, but do not leave mid-POST or the round is lost.</summary>
+        /// <summary>Record a round left partway, then do not leave mid-POST or the round is lost.</summary>
         public IEnumerator RequestExit(Action<bool> succeeded)
         {
+            // The swings the patient made still belong in their record, marked not completed.
+            if (!roundReported && Strokes[0] + Misses[0] > 0) ReportRound(false);
             while (postingRound) yield return null;
             succeeded?.Invoke(true);
         }
