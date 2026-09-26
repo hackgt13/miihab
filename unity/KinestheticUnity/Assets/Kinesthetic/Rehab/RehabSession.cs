@@ -30,7 +30,6 @@ namespace Kinesthetic.Rehab
         public bool autoStartSession = true, startServices = true;
         public string motionUrl = SensorHub.DefaultMotionUrl;
         public string wristMotionUrl = "ws://127.0.0.1:8767/bowling-motion?role=viewer";
-        bool wristMotion;
         // The movement tile for the kind being measured: its body model draws the joint, its tag says where the
         // tracker goes ("AIRPODS IN YOUR EARS" → "ears"). Every library kind has one, so a studio opened on its own
         // draws a curl as a curl.
@@ -42,15 +41,13 @@ namespace Kinesthetic.Rehab
             get
             {
                 var tag = Modelled?.CardTag?.ToLowerInvariant();
-                if (tag == null) return new[] { wristMotion ? "wrist" : "handle" };
+                if (tag == null) return new[] { "wrist" };
                 int at = Mathf.Max(tag.LastIndexOf(" on ", StringComparison.Ordinal), tag.LastIndexOf(" in ", StringComparison.Ordinal));
                 var places = at < 0 ? tag : tag.Substring(at + 4);
                 return places.Replace("the ", "").Replace("your ", "").Split(new[] { " and " }, StringSplitOptions.None);
             }
         }
         string SensorPlacement => Placements[0];
-        /// The tracker still missing, so the status line names the one to fix.
-        string MissingPlacement => TwoImu && limb.Fresh && !second.Fresh && Placements.Length > 1 ? Placements[1] : SensorPlacement;
         string AllPlacements => string.Join(" and ", Placements);
         // A movement tile from the gallery (activities.json group "movement"): this studio measures that one kind, as
         // the plan prescribes it or, when the plan does not, as a practice set at the library's defaults. The
@@ -60,15 +57,17 @@ namespace Kinesthetic.Rehab
         bool practice;
         bool autoArmed, servicesStarting;
         float enteredAt;
-        // One watch per AirPod pair. A two-AirPod movement (the catalog's requires "ref", coordinator/exercise/two-imu.ts)
-        // needs both live and still before a set may start: the limb is the wrist pair unless the plan pins it to the
-        // club pair, and the neighbouring segment is the other one — the coordinator reads them the same way.
-        readonly MotionWatch limb = new(), second = new();
-        string imuSource;
+        // One watch per relay channel: the Club Motion app's and the Bowling Motion app's. Neither says which pair is
+        // the limb — the coordinator decides that at the start of the set (exercise/imu-assign.ts; AGENTS.md "Sensors"):
+        // a one-AirPod movement takes whichever is live, a two-AirPod movement asks the patient to move the limb's.
+        // Here only readiness: a set may start once the pairs it needs are live and still.
+        readonly MotionWatch club = new(), wrist = new();
+        // The coordinator's word on the sensors for the running set (exercise.started / exercise.sensors): the phase
+        // and what to tell the patient, shown verbatim while it is sorting the pairs out.
+        string sensorPhase, sensorInstruction;
         bool TwoImu => Modelled?.Requires.Contains("ref") == true;
-        bool LimbOnWrist => TwoImu ? imuSource != "club" : wristMotion;
-        bool MotionFresh => limb.Fresh && (!TwoImu || second.Fresh);
-        public bool ReadyToBegin => useCameraPose ? Fresh : limb.Still && (!TwoImu || second.Still);
+        bool MotionFresh => TwoImu ? club.Fresh && wrist.Fresh : club.Fresh || wrist.Fresh;
+        public bool ReadyToBegin => useCameraPose ? Fresh : TwoImu ? club.Still && wrist.Still : club.Still || wrist.Still;
         public bool Calibrated => calibrated;
         public Transform targetOrb, liveMarker;
         public LineRenderer targetBand, armGuide;
@@ -209,10 +208,8 @@ namespace Kinesthetic.Rehab
         {
             if (!useCameraPose)
             {
-                bool wrist = LimbOnWrist;
-                limb.Read(wrist ? wristMotionUrl : motionUrl, wrist ? "bowling.motion" : "club.motion");
-                if (TwoImu) second.Read(wrist ? motionUrl : wristMotionUrl, wrist ? "club.motion" : "bowling.motion");
-                else second.Reset();
+                club.Read(motionUrl, "club.motion");
+                wrist.Read(wristMotionUrl, "bowling.motion");
             }
             if (autoArmed && !running && !IsBusy && !sessionError && Time.timeScale > 0 && exercise?.connected == true && ReadyToBegin)
                 StartCoroutine(Begin());
@@ -306,9 +303,6 @@ namespace Kinesthetic.Rehab
             movementLabel = (string)reply["label"] ?? movementLabel;
             movementPosture = (string)reply["posture"];
             var p = x["params"] as JObject;
-            imuSource = (string)p?["imuSource"];
-            bool nextWrist = imuSource == "wrist";
-            if (nextWrist != wristMotion) { wristMotion = nextWrist; limb.Reset(); second.Reset(); }
             side = (string)p?["side"] ?? side;
             targetDeg = Num(p?["targetDeg"]) ?? targetDeg;
             if (Num(p?["targetMaxDeg"]) is float ceiling && ceiling > targetDeg) bandDeg = ceiling - targetDeg;
@@ -371,9 +365,6 @@ namespace Kinesthetic.Rehab
             var e = plan["exercise"] as JObject; if (e == null) return;
             var prescription = (plan["activities"] as JArray)?.OfType<JObject>().FirstOrDefault(a => !string.IsNullOrEmpty((string)a["exerciseKind"]));
             exerciseKind = (string)prescription?["exerciseKind"] ?? exerciseKind;
-            imuSource = (string)prescription?["params"]?["imuSource"];
-            bool nextWrist = imuSource == "wrist";
-            if (nextWrist != wristMotion) { wristMotion = nextWrist; limb.Reset(); second.Reset(); }
             planVersion = plan["version"]?.Value<int>() ?? planVersion;
             side = (string)e["side"] ?? side;
             targetDeg = e["targetDeg"]?.Value<float>() ?? targetDeg;
@@ -572,11 +563,12 @@ namespace Kinesthetic.Rehab
             string phase = (string)tempo?["phase"];
             bool inRep = live && liveQuality != null && calibrated && !(coach && coach.Demonstrating);
             cueStep.tone = holdMet || reached && !tooFast ? KTag.Tone.Good : sessionError || over ? KTag.Tone.Trouble : KTag.Tone.Info;
-            cueStep.text = stoppingSession ? "SAVING" : !running ? "GET READY" : !calibrated ? "HOLD STILL" : coach && coach.Demonstrating ? "WATCH"
+            bool sorting = running && !calibrated && (sensorPhase == "identify" || sensorPhase == "waiting") && !string.IsNullOrEmpty(sensorInstruction);
+            cueStep.text = stoppingSession ? "SAVING" : !running ? "GET READY" : sorting ? (sensorPhase == "identify" ? "MOVE ONE" : "CONNECT") : !calibrated ? "HOLD STILL" : coach && coach.Demonstrating ? "WATCH"
                 : !inRep ? "YOUR TURN" : tooFast ? "SLOWER" : holding ? "HOLD" : phase == "lower" ? "LOWER" : "RAISE";
             cueTitle.text = stoppingSession ? "Saving your set…" : sessionError ? "Let’s reconnect." : startingSession ? "Hold still." : !running
                 ? summaryReceived ? "Well done today." : !fresh ? "Secure your AirPod." : ReadyToBegin ? "Ready. Let’s begin." : "Rest your arm."
-                : !fresh ? "Let’s find your AirPod." : !calibrated ? "Hold still to calibrate." : coach && coach.Demonstrating ? "Watch Alex."
+                : sorting ? sensorInstruction : !fresh ? "Let’s find your AirPod." : !calibrated ? "Hold still to calibrate." : coach && coach.Demonstrating ? "Watch Alex."
                 : tooFast ? "Slower on the way down." : over ? "Lower gently." : holdMet ? "Held. Now lower slowly." : holding ? "Hold it there."
                 : reached ? "Hold. Then lower slowly." : phase == "lower" ? "Lower slowly, all the way." : "Raise, hold, lower.";
             if (holdRing != null)
@@ -587,7 +579,7 @@ namespace Kinesthetic.Rehab
                 holdReadout.value = $"{(hold?["heldMs"]?.Value<float>() ?? 0) / 1000:0.0}";
             }
             if (!running && !startingSession && !sessionError)
-                statusLabel.text = Cue = summaryReceived ? "Your session is saved." : !fresh ? $"Connect the AirPod on your {MissingPlacement}." : ReadyToBegin ? "Starting automatically…" : $"Keep your {AllPlacements} still. We’ll begin automatically.";
+                statusLabel.text = Cue = summaryReceived ? "Your session is saved." : !fresh ? (TwoImu && club.Fresh != wrist.Fresh ? "Connect your other AirPod." : $"Connect the AirPod on your {SensorPlacement}.") : ReadyToBegin ? "Starting automatically…" : $"Keep your {AllPlacements} still. We’ll begin automatically.";
             start.text = stoppingSession ? "Saving…" : running ? "Finish set" : startingSession ? "Starting…" : summaryReceived ? "Practice again" : sessionError ? "Retry connection" : "Connecting…";
             bool retry = sessionError || (!fresh || exercise?.connected != true) && Time.unscaledTime - enteredAt > 8;
             if (retry && !running && !IsBusy) start.text = "Retry connection";
@@ -644,6 +636,7 @@ namespace Kinesthetic.Rehab
                 {
                     case "exercise.started":
                         exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0;
+                        if (p["sensors"] is JObject sensors) { sensorPhase = (string)sensors["phase"]; sensorInstruction = (string)sensors["instruction"]; }
                         UprightCount++;   // the patient is sitting still and upright: the headset zeroes its head here
                         // Which qualities this set is judged on, so a mechanic with nothing to answer to can hide.
                         if (p["qualities"] is JArray qualities)
@@ -658,6 +651,7 @@ namespace Kinesthetic.Rehab
                         if (liveQuality?["hold"]?["met"]?.Value<bool>() == true && p["rep"]?.Value<int>() is int rep && rep != holdMetRep) { holdMetRep = rep; Flash(Good); }
                         break;
                     case "exercise.event": OnEvent(p); break;
+                    case "exercise.sensors": sensorPhase = (string)p["phase"]; sensorInstruction = (string)p["instruction"]; break;
                     case "exercise.summary": ShowSummary(p); break;
                     case "exercise.progression": ShowProgression(p); break;
                 }
