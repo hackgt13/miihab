@@ -1,0 +1,62 @@
+# OS / editor
+.DS_Store
+*.user
+*.userprefs
+.vs/
+
+# env
+.env
+.env.*
+!.env.example
+
+# Unity
+unity/*/[Ll]ibrary/
+unity/*/[Tt]emp/
+unity/*/[Oo]bj/
+unity/*/[Ll]ogs/
+unity/*/[Uu]ser[Ss]ettings/
+unity/*/[Bb]uild/
+unity/*/[Bb]uilds/
+unity/*/Assets/Screenshots/
+unity/*/Assets/Screenshots.meta
+unity/*/*.csproj
+unity/*/*.sln
+unity/*/*.slnx
+unity/*/*.pidb
+unity/*/.utmp/
+
+# JS / Python
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+
+# local data / logs / build output
+local-data/
+test-results/
+*.log
+*.blend1
+native/build/
+
+# research captures
+research/wii-sports-video/frames/
+research/wii-sports-video/*.mp4
+research/golf-archive/
+
+# test artifacts
+artifacts/pose-tests/
+artifacts/*.png
+artifacts/docs-trusted-read-20260925/
+
+# large binary assets (kept local, fetched/extracted from sources noted in PROVENANCE files)
+coach/models/
+art/mii/
+art/course-reference/
+unity/KinestheticUnity/Assets/Kinesthetic/Art/PurchasedGolf/
+third_party/cbush201-golf-original/FirstTest/Assets/ImportedAssets/
+third_party/cbush201-golf-original/FirstTest/Assets/TextMesh Pro/
+third_party/cbush201-golf-original/FirstTest/Assets/Screenshots/
+third_party/cbush201-golf-original/FirstTest/Packages/
+third_party/cbush201-golf-original/FirstTest/Logs/
+third_party/cbush201-golf-original/FirstTest/UserSettings/
+third_party/cbush201-golf-original/
