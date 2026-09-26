@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -24,9 +23,10 @@ namespace Kinesthetic.Golf
         void Start()
         {
             Application.runInBackground = true;
-            var config = Path.Combine(Application.streamingAssetsPath, "quest-host.json");
             // In the editor the relay is on this machine; the baked LAN address is for the headset build.
-            if (!Application.isEditor && File.Exists(config)) { var c = JObject.Parse(File.ReadAllText(config)); url = $"ws://{c["host"]}:{c["port"] ?? 8767}/state?role=client&token={Uri.EscapeDataString((string)c["token"] ?? "")}"; }
+            var config = Resources.Load<QuestHostConfig>(QuestHostConfig.ResourcePath);
+            if (!Application.isEditor && config)
+                url = $"ws://{config.host}:{config.port}/state?role=client&token={Uri.EscapeDataString(config.token ?? "")}";
             foreach (var r in game.rigs) r.Initialize();
             bones = new[] { GolfStateFormat.Bones(game.rigs[0]), GolfStateFormat.Bones(game.rigs[1]) };
             game.ball.isKinematic = true;

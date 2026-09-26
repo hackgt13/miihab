@@ -26,6 +26,8 @@ unity/*/*.pidb
 unity/*/.utmp/
 unity/*/Assets/StreamingAssets/quest-host.json
 unity/*/Assets/StreamingAssets/quest-host.json.meta
+unity/*/Assets/Kinesthetic/Golf/Resources/Golf/QuestHostConfig.asset
+unity/*/Assets/Kinesthetic/Golf/Resources/Golf/QuestHostConfig.asset.meta
 
 # JS / Python
 node_modules/
@@ -61,3 +63,6 @@ third_party/cbush201-golf-original/FirstTest/Packages/
 third_party/cbush201-golf-original/FirstTest/Logs/
 third_party/cbush201-golf-original/FirstTest/UserSettings/
 third_party/cbush201-golf-original/
+
+# agent working notes (local only)
+agents/
