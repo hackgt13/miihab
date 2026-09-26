@@ -18,6 +18,7 @@ Label { margin: 0; padding: 0; }
 .splash-copy { flex-grow: 1; flex-shrink: 1; }
 .splash-greeting { font-size: 58px; color: var(--prussian-70); letter-spacing: -1px; text-shadow: 0 2px 12px var(--sand-00-a95); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 .splash-sub { font-size: 25px; color: var(--slate-70); margin-top: 6px; text-shadow: 0 1px 8px var(--sand-00-a95); }
+.splash-side { flex-direction: column; align-items: flex-end; flex-shrink: 0; margin-left: 24px; }
 .utility-cluster { flex-direction: row; flex-shrink: 0; margin-top: 8px; }
 
 Button { -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); -unity-font-style: normal; color: var(--prussian-70); border-color: var(--sand-00-a80); border-width: 2px; border-radius: 22px; background-color: var(--sand-00-a88); padding: 10px 22px; margin: 0; }
@@ -119,14 +120,14 @@ Button:disabled { opacity: .55; }
 
 .activities { flex-direction: row; }
 Button.activity-card { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: stretch; justify-content: flex-start; padding: 18px 22px 10px; border-radius: 26px; border-width: 2px; border-bottom-width: 6px; border-color: var(--cerulean-20); border-bottom-color: var(--slate-50-a55); background-color: var(--sand-00); overflow: hidden; transition-duration: .16s; }
-Button.golf-card { margin-right: 26px; }
+Button.golf-card, Button.studio-card { margin-right: 18px; }
 Button.activity-card.selected, Button.activity-card:hover, Button.activity-card:focus { border-color: var(--cerulean-50); border-bottom-color: var(--cerulean-60); background-color: var(--cerulean-10); scale: 1.02; }
 Button.activity-card:active { border-color: var(--cerulean-60); background-color: var(--cerulean-20); scale: 1.005; }
 .preview-tag { align-self: flex-start; padding: 6px 14px; border-radius: 12px; color: var(--slate-70); font-size: 13px; letter-spacing: 1.2px; background-color: var(--cerulean-20); }
 .card-info { flex-direction: row; align-items: center; padding: 14px 2px 10px; }
 .mode-icon { width: 62px; height: 62px; flex-shrink: 0; border-radius: 31px; border-width: 2px; border-color: var(--cerulean-30); background-color: var(--cerulean-10); margin-right: 16px; }
 .card-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.card-title { font-size: 30px; color: var(--prussian-70); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.card-title { font-size: 30px; white-space: normal; color: var(--prussian-70); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 .card-description { font-size: 16px; color: var(--slate-50); margin-top: 3px; white-space: normal; }
 .card-arrow { font-size: 38px; color: var(--slate-30); margin-left: 10px; flex-shrink: 0; }
 .selected .card-arrow { color: var(--cerulean-50); }

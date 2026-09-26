@@ -1,0 +1,535 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Text;
+using UnityEngine;
+using UnityEngine.Networking;
+using UnityEngine.UIElements;
+
+namespace Kinesthetic.Menu
+{
+    /// <summary>
+    /// The friends surface on the landing page: who you follow, a thread with each
+    /// of them, quick encouragements, notes and photos.
+    ///
+    /// Everything comes from the local bridge on 8766. Nothing here shows another
+    /// person's measurements — two patients at different stages are not comparable,
+    /// and a shoulder angle next to someone's name invites exactly the comparison
+    /// that makes people stop coming back. Activity is shared; numbers are not.
+    ///
+    /// Added at runtime by MainMenuController, so the generated menu scene does not
+    /// need to change.
+    /// </summary>
+    public sealed class FriendsPanel : MonoBehaviour
+    {
+        const string Bridge = "http://127.0.0.1:8766";
+
+        // JsonUtility assigns these by reflection, which the compiler cannot see.
+#pragma warning disable 0649
+        [Serializable] class Person { public string id, displayName; public int mii; public bool sample, following, followsMe; public int unread; }
+        [Serializable] class Roster { public Person me; public Person[] friends; }
+        [Serializable] class Message { public string id, from, to, at, kind, text, photoId; }
+        [Serializable] class Thread { public Person person; public Message[] messages; }
+        [Serializable] class Code { public string code; }
+        [Serializable] class PhotoId { public string photoId; }
+#pragma warning restore 0649
+
+        // Fixed vocabulary. A tap is a whole message, which is the point: on a bad
+        // day, typing is a barrier and a chip is not.
+        static readonly (string kind, string label)[] Quick =
+        {
+            ("nice_one", "Nice one"),
+            ("welcome_back", "Welcome back"),
+            ("that_looked_hard", "That looked hard"),
+            ("with_you", "With you"),
+            ("strong_finish", "Strong finish"),
+        };
+
+        // Warm skin tones and hair colours, paired by index so a person's face is
+        // stable across the roster, the thread and the landing page.
+        static readonly Color[] Skin =
+        {
+            new(.98f,.84f,.72f), new(.95f,.78f,.62f), new(.85f,.65f,.49f), new(.68f,.48f,.35f),
+            new(.99f,.87f,.78f), new(.78f,.57f,.42f), new(.92f,.74f,.58f), new(.56f,.38f,.27f),
+        };
+        static readonly Color[] Hair =
+        {
+            new(.28f,.20f,.16f), new(.52f,.33f,.18f), new(.15f,.13f,.12f), new(.72f,.58f,.34f),
+            new(.35f,.24f,.20f), new(.20f,.16f,.15f), new(.62f,.42f,.24f), new(.30f,.28f,.30f),
+        };
+        static readonly Color[] Shirt =
+        {
+            new(.28f,.62f,.80f), new(.93f,.66f,.36f), new(.45f,.72f,.52f), new(.85f,.51f,.55f),
+            new(.55f,.55f,.82f), new(.35f,.74f,.74f), new(.88f,.74f,.41f), new(.62f,.52f,.75f),
+        };
+
+        /// A small Mii-ish face. Pseudonymous by design: no photographs of patients.
+        static void DrawFace(MeshGenerationContext ctx, int variant, float size)
+        {
+            var p = ctx.painter2D;
+            int v = Mathf.Abs(variant) % Skin.Length;
+            float c = size * .5f, r = size * .42f;
+
+            // shoulders, so the avatar reads as a person rather than a dot
+            p.fillColor = Shirt[v];
+            p.BeginPath();
+            p.Arc(new Vector2(c, size * 1.02f), size * .42f, Angle.Degrees(180), Angle.Degrees(360));
+            p.Fill();
+
+            p.fillColor = Skin[v];
+            p.BeginPath(); p.Arc(new Vector2(c, c * .96f), r, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
+
+            // hair: a cap, with a side part on odd variants
+            p.fillColor = Hair[v];
+            p.BeginPath();
+            p.Arc(new Vector2(c, c * .96f), r, Angle.Degrees(v % 2 == 0 ? 190 : 205), Angle.Degrees(v % 2 == 0 ? 350 : 335));
+            p.Fill();
+
+            p.fillColor = new Color(.16f, .18f, .22f);
+            float eyeY = c * .98f, eyeDx = r * .38f, eyeR = Mathf.Max(1.2f, size * .045f);
+            p.BeginPath(); p.Arc(new Vector2(c - eyeDx, eyeY), eyeR, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
+            p.BeginPath(); p.Arc(new Vector2(c + eyeDx, eyeY), eyeR, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
+
+            // a smile, because this surface should feel welcoming
+            p.strokeColor = new Color(.42f, .27f, .24f);
+            p.lineWidth = Mathf.Max(1.1f, size * .045f);
+            p.lineCap = LineCap.Round;
+            p.BeginPath();
+            p.Arc(new Vector2(c, c * 1.02f), r * .46f, Angle.Degrees(25), Angle.Degrees(155));
+            p.Stroke();
+        }
+
+        static VisualElement Face(int variant, float size, string cssClass)
+        {
+            var element = new VisualElement();
+            element.AddToClassList(cssClass);
+            element.generateVisualContent += ctx => DrawFace(ctx, variant, size);
+            return element;
+        }
+
+        VisualElement root, overlay, facesRow, list, threadView, quickRow, threadFace;
+        VisualElement spotlight, spotlightFace;
+        Label badge, threadName, threadHint, inviteCode, notice, spotlightName, spotlightLine;
+        Button spotlightReply;
+        Button openButton, closeButton, inviteButton, acceptButton, sendButton, photoButton;
+        TextField codeField, composer;
+        ActivityNavigation navigation;
+
+        Roster roster;
+        string selectedId;
+        string pendingPhotoId;
+        string spotlightId;
+
+        public void Attach(VisualElement tree, ActivityNavigation nav)
+        {
+            root = tree; navigation = nav;
+            overlay = root.Q("friends-overlay");
+            openButton = root.Q<Button>("friends");
+            facesRow = root.Q("friends-faces");
+            badge = root.Q<Label>("friends-badge");
+            closeButton = root.Q<Button>("friends-close");
+            list = root.Q<ScrollView>("friends-list")?.contentContainer;
+            threadView = root.Q<ScrollView>("thread")?.contentContainer;
+            quickRow = root.Q("quick-row");
+            threadFace = root.Q("thread-face");
+            threadName = root.Q<Label>("thread-name");
+            inviteButton = root.Q<Button>("friends-invite");
+            inviteCode = root.Q<Label>("invite-code");
+            codeField = root.Q<TextField>("friends-code");
+            acceptButton = root.Q<Button>("friends-accept");
+            notice = root.Q<Label>("friends-notice");
+            threadHint = root.Q<Label>("thread-hint");
+            spotlight = root.Q("friend-spotlight");
+            spotlightFace = root.Q("spotlight-face");
+            spotlightName = root.Q<Label>("spotlight-name");
+            spotlightLine = root.Q<Label>("spotlight-line");
+            spotlightReply = root.Q<Button>("spotlight-reply");
+            composer = root.Q<TextField>("composer-text");
+            sendButton = root.Q<Button>("composer-send");
+            photoButton = root.Q<Button>("composer-photo");
+            if (overlay == null || openButton == null) return;
+
+            openButton.clicked += Open;
+            closeButton.clicked += Close;
+            inviteButton.clicked += () => StartCoroutine(Invite());
+            acceptButton.clicked += () => StartCoroutine(Accept());
+            sendButton.clicked += () => StartCoroutine(Send(null));
+            photoButton.clicked += () => StartCoroutine(AttachPhoto());
+            if (spotlightReply != null)
+                spotlightReply.clicked += () => { Open(); if (spotlightId != null) SelectPerson(spotlightId); };
+            composer.RegisterCallback<KeyDownEvent>(e =>
+            { if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { StartCoroutine(Send(null)); e.StopPropagation(); } });
+            root.RegisterCallback<NavigationCancelEvent>(e =>
+            { if (!overlay.ClassListContains("hidden")) { Close(); e.StopPropagation(); } });
+
+            BuildQuickChips();
+            StartCoroutine(LoadRoster());
+        }
+
+        void BuildQuickChips()
+        {
+            quickRow.Clear();
+            foreach (var (kind, label) in Quick)
+            {
+                var chip = new Button { text = label };
+                chip.AddToClassList("quick-chip");
+                string captured = kind;
+                chip.clicked += () => StartCoroutine(Send(captured));
+                quickRow.Add(chip);
+            }
+        }
+
+        public void Open()
+        {
+            navigation?.PlaySelect();
+            overlay.RemoveFromClassList("hidden");
+            closeButton.Focus();
+            StartCoroutine(LoadRoster());
+        }
+
+        void Close()
+        {
+            overlay.AddToClassList("hidden");
+            navigation?.PlayBack();
+            openButton.Focus();
+        }
+
+        // ---- data ------------------------------------------------------------
+
+        IEnumerator LoadRoster()
+        {
+            using var request = UnityWebRequest.Get(Bridge + "/api/friends");
+            request.timeout = 5;
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                SetNotice("The local bridge is not running. Start it with scripts/start_demo_services.sh.");
+                yield break;
+            }
+            roster = JsonUtility.FromJson<Roster>(request.downloadHandler.text);
+            // Opening onto an empty panel reads as "nothing here". Start on someone.
+            if (selectedId == null && roster.friends != null && roster.friends.Length > 0)
+                selectedId = roster.friends[0].id;
+            PaintFaces();
+            PaintList();
+            PaintSpotlight();
+            if (selectedId != null) yield return LoadThread(selectedId);
+        }
+
+        IEnumerator LoadThread(string id)
+        {
+            using var request = UnityWebRequest.Get(Bridge + "/api/friends/thread?id=" + UnityWebRequest.EscapeURL(id));
+            request.timeout = 5;
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success) yield break;
+            PaintThread(JsonUtility.FromJson<Thread>(request.downloadHandler.text));
+        }
+
+        IEnumerator Post(string path, string body, Action<string> done = null)
+        {
+            using var request = new UnityWebRequest(Bridge + path, "POST");
+            request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body ?? "{}"));
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+            request.timeout = 5;
+            yield return request.SendWebRequest();
+            if (request.result == UnityWebRequest.Result.Success) done?.Invoke(request.downloadHandler.text);
+            else SetNotice("That did not go through. Is the bridge running?");
+        }
+
+        IEnumerator Invite()
+        {
+            yield return Post("/api/friends/invite", "{}", text =>
+            {
+                var code = JsonUtility.FromJson<Code>(text);
+                inviteCode.text = code.code;
+                inviteCode.RemoveFromClassList("hidden");
+                SetNotice("Share this code. They enter it below to connect.");
+            });
+        }
+
+        IEnumerator Accept()
+        {
+            string code = (codeField.value ?? "").Trim().ToUpperInvariant();
+            if (code.Length == 0) { SetNotice("Enter the code your friend gave you."); yield break; }
+            yield return Post("/api/friends/accept", "{\"code\":\"" + Escape(code) + "\"}", _ =>
+            {
+                codeField.value = "";
+                SetNotice("Connected.");
+            });
+            yield return LoadRoster();
+        }
+
+        IEnumerator Send(string kind)
+        {
+            if (selectedId == null) { SetNotice("Pick someone first."); yield break; }
+            string text = (composer.value ?? "").Trim();
+            if (kind == null && text.Length == 0 && pendingPhotoId == null)
+            { SetNotice("Add a note, a photo, or tap an encouragement."); yield break; }
+
+            var body = new StringBuilder("{\"to\":\"").Append(Escape(selectedId)).Append('"');
+            if (kind != null) body.Append(",\"kind\":\"").Append(kind).Append('"');
+            if (text.Length > 0) body.Append(",\"text\":\"").Append(Escape(text)).Append('"');
+            if (pendingPhotoId != null) body.Append(",\"photoId\":\"").Append(Escape(pendingPhotoId)).Append('"');
+            body.Append('}');
+
+            yield return Post("/api/friends/message", body.ToString(), _ =>
+            {
+                composer.value = ""; pendingPhotoId = null;
+                photoButton.text = "Photo"; SetNotice("");
+            });
+            yield return LoadThread(selectedId);
+        }
+
+        /// Reads an image the person already has. No camera capture here: a photo
+        /// should be something they chose to share, not something taken of them.
+        IEnumerator AttachPhoto()
+        {
+            string path = UnityEditorPathHack();
+            if (string.IsNullOrEmpty(path)) { SetNotice("Put a .jpg or .png in the project folder to attach it."); yield break; }
+            byte[] bytes;
+            try { bytes = System.IO.File.ReadAllBytes(path); }
+            catch { SetNotice("Could not read that image."); yield break; }
+
+            string type = path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? "image/png"
+                        : path.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ? "image/webp" : "image/jpeg";
+            using var request = new UnityWebRequest(Bridge + "/api/friends/photo", "POST");
+            request.uploadHandler = new UploadHandlerRaw(bytes);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", type);
+            request.timeout = 10;
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success) { SetNotice("The photo did not upload."); yield break; }
+            pendingPhotoId = JsonUtility.FromJson<PhotoId>(request.downloadHandler.text).photoId;
+            photoButton.text = "Photo ✓";
+            SetNotice("Photo attached. Add a note if you like, then Send.");
+        }
+
+        static string UnityEditorPathHack()
+        {
+#if UNITY_EDITOR
+            return UnityEditor.EditorUtility.OpenFilePanel("Choose a photo", "", "jpg,jpeg,png,webp");
+#else
+            return null;
+#endif
+        }
+
+        // ---- painting ---------------------------------------------------------
+
+        void PaintFaces()
+        {
+            facesRow.Clear();
+            int unread = 0, shown = 0;
+            foreach (var person in roster.friends)
+            {
+                unread += person.unread;
+                if (shown++ >= 3) continue;
+                facesRow.Add(Face(person.mii, 26f, "friend-face"));
+            }
+            if (unread > 0) { badge.text = unread.ToString(); badge.RemoveFromClassList("hidden"); }
+            else badge.AddToClassList("hidden");
+        }
+
+        void PaintList()
+        {
+            list.Clear();
+            foreach (var person in roster.friends)
+            {
+                var row = new VisualElement();
+                row.AddToClassList("friend-row");
+                row.EnableInClassList("selected", person.id == selectedId);
+
+                row.Add(Face(person.mii, 34f, "friend-row-face"));
+
+                var copy = new VisualElement();
+                copy.AddToClassList("friend-row-copy");
+                var name = new Label(person.displayName);
+                name.AddToClassList("friend-row-name");
+                // Deliberately not a score or an angle: only whether they are around.
+                var meta = new Label(person.sample ? "Sample friend"
+                    : person.followsMe && person.following ? "You follow each other"
+                    : person.following ? "You follow them" : "Follows you");
+                meta.AddToClassList("friend-row-meta");
+                copy.Add(name); copy.Add(meta);
+                row.Add(copy);
+
+                var dot = new VisualElement();
+                dot.AddToClassList("friend-row-dot");
+                dot.EnableInClassList("hidden", person.unread == 0);
+                row.Add(dot);
+
+                var follow = new Button { text = person.following ? "Following" : "Follow" };
+                follow.AddToClassList("follow-pill");
+                follow.EnableInClassList("following", person.following);
+                string id = person.id; bool now = person.following;
+                follow.clicked += () => StartCoroutine(Follow(id, !now));
+                row.Add(follow);
+
+                var message = new Button { text = person.unread > 0 ? "Read" : "Message" };
+                message.AddToClassList("message-pill");
+                message.clicked += () => { SelectPerson(id); composer.Focus(); };
+                row.Add(message);
+
+                row.RegisterCallback<PointerDownEvent>(_ => SelectPerson(id));
+                list.Add(row);
+            }
+        }
+
+        /// <summary>
+        /// One friend on the landing page, cheering you on.
+        ///
+        /// If they actually sent something, it is shown verbatim. If they have not,
+        /// this states the friendship instead of inventing a quote — a fabricated
+        /// "Maya is proud of you" would be a real betrayal of someone at a low
+        /// point, and there is a local language model in this repo that could
+        /// produce one convincingly.
+        /// </summary>
+        void PaintSpotlight()
+        {
+            if (spotlight == null || roster?.friends == null || roster.friends.Length == 0)
+            {
+                spotlight?.AddToClassList("hidden");
+                return;
+            }
+
+            // Prefer someone who is actually waiting on you.
+            var waiting = new List<Person>();
+            foreach (var person in roster.friends) if (person.unread > 0) waiting.Add(person);
+            var pool = waiting.Count > 0 ? waiting : new List<Person>(roster.friends);
+            var chosen = pool[UnityEngine.Random.Range(0, pool.Count)];
+            spotlightId = chosen.id;
+
+            spotlightFace.generateVisualContent = null;
+            int variant = chosen.mii;
+            spotlightFace.generateVisualContent += ctx => DrawFace(ctx, variant, 40f);
+            spotlightFace.MarkDirtyRepaint();
+
+            spotlightName.text = chosen.displayName + (chosen.sample ? " · sample friend" : "");
+            spotlight.RemoveFromClassList("hidden");
+            StartCoroutine(FillSpotlightLine(chosen));
+        }
+
+        IEnumerator FillSpotlightLine(Person person)
+        {
+            spotlightLine.text = "is in your corner today.";
+            spotlightReply.text = "Say hello";
+
+            using var request = UnityWebRequest.Get(
+                Bridge + "/api/friends/thread?id=" + UnityWebRequest.EscapeURL(person.id));
+            request.timeout = 5;
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success) yield break;
+
+            var thread = JsonUtility.FromJson<Thread>(request.downloadHandler.text);
+            if (thread?.messages == null) yield break;
+
+            // Their most recent message to me, quoted exactly as they wrote it.
+            Message latest = null;
+            foreach (var message in thread.messages)
+                if (message.from == person.id) latest = message;
+            if (latest == null) yield break;
+
+            string said = !string.IsNullOrEmpty(latest.kind) ? LabelFor(latest.kind) : latest.text;
+            if (string.IsNullOrEmpty(said) && !string.IsNullOrEmpty(latest.photoId)) said = "sent you a photo";
+            if (string.IsNullOrEmpty(said)) yield break;
+
+            spotlightLine.text = "\u201c" + said + "\u201d";
+            spotlightReply.text = "Say something back";
+        }
+
+        IEnumerator Follow(string id, bool following)
+        {
+            yield return Post("/api/friends/follow",
+                "{\"id\":\"" + Escape(id) + "\",\"following\":" + (following ? "true" : "false") + "}");
+            yield return LoadRoster();
+        }
+
+        void SelectPerson(string id)
+        {
+            selectedId = id;
+            navigation?.PlayHover();
+            PaintList();
+            StartCoroutine(LoadThread(id));
+        }
+
+        void PaintThread(Thread thread)
+        {
+            threadName.text = thread.person.displayName;
+            threadFace.generateVisualContent = null;
+            int faceVariant = thread.person.mii;
+            threadFace.generateVisualContent += ctx => DrawFace(ctx, faceVariant, 30f);
+            threadFace.MarkDirtyRepaint();
+            threadView.Clear();
+
+            if (threadHint != null)
+                threadHint.text = thread.messages == null || thread.messages.Length == 0
+                    ? "" : thread.messages.Length + (thread.messages.Length == 1 ? " message" : " messages");
+
+            if (thread.messages == null || thread.messages.Length == 0)
+            {
+                var empty = new Label($"Nothing here yet.\nTap an encouragement below — one word is plenty.");
+                empty.AddToClassList("thread-empty");
+                threadView.Add(empty);
+                return;
+            }
+
+            foreach (var message in thread.messages)
+            {
+                bool mine = message.from == roster.me.id;
+                var bubble = new VisualElement();
+                bubble.AddToClassList("bubble");
+                bubble.AddToClassList(mine ? "bubble-mine" : "bubble-theirs");
+
+                if (!string.IsNullOrEmpty(message.kind))
+                {
+                    var kind = new Label(LabelFor(message.kind));
+                    kind.AddToClassList("bubble-kind");
+                    bubble.Add(kind);
+                }
+                if (!string.IsNullOrEmpty(message.text))
+                {
+                    var text = new Label(message.text);
+                    text.AddToClassList("bubble-text");
+                    bubble.Add(text);
+                }
+                if (!string.IsNullOrEmpty(message.photoId))
+                {
+                    var photo = new VisualElement();
+                    photo.AddToClassList("bubble-photo");
+                    bubble.Add(photo);
+                    StartCoroutine(LoadPhoto(message.photoId, photo));
+                }
+                var time = new Label(ShortTime(message.at));
+                time.AddToClassList("bubble-time");
+                bubble.Add(time);
+                threadView.Add(bubble);
+            }
+            threadView.schedule.Execute(() => threadView.parent?.Focus());
+        }
+
+        IEnumerator LoadPhoto(string photoId, VisualElement target)
+        {
+            using var request = UnityWebRequestTexture.GetTexture(
+                Bridge + "/api/friends/photo/" + UnityWebRequest.EscapeURL(photoId));
+            request.timeout = 10;
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success) yield break;
+            var texture = DownloadHandlerTexture.GetContent(request);
+            target.style.backgroundImage = new StyleBackground(texture);
+        }
+
+        static string LabelFor(string kind)
+        {
+            foreach (var (k, label) in Quick) if (k == kind) return label;
+            return kind;
+        }
+
+        static string ShortTime(string iso)
+            => DateTime.TryParse(iso, out var when) ? when.ToLocalTime().ToString("HH:mm") : "";
+
+        void SetNotice(string text) { if (notice != null) notice.text = text; }
+
+        static string Escape(string value)
+            => (value ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", " ").Replace("\r", " ");
+    }
+}

@@ -24,8 +24,9 @@ namespace Kinesthetic.Menu
         // What is reachable right now. A pointer cannot reach behind an open sheet because the shade covers
         // it, but the gaze ray is resolved from element rects alone and would happily commit a tile the
         // person cannot even see. So the menu decides what counts as reachable, per open layer.
-        static readonly string[] BaseScope = { "start-activity", "choose-activity", "music", "help", "edit-name" };
-        static readonly string[] ActivityScope = { "golf-card", "studio-card", "activity-close" };
+        static readonly string[] BaseScope = { "start-activity", "choose-activity", "friends", "music", "help", "edit-name" };
+        static readonly string[] ActivityScope = { "golf-card", "studio-card", "bowling-card", "activity-close" };
+        static readonly string[] ActivityIds = { "golf.adaptive", "rehab.studio", "bowling.adaptive" };
         static readonly string[] HelpScope = { "help-close" };
         static readonly string[] NameScope = { "name-save", "name-cancel" };
         string[] scope = BaseScope;
@@ -44,7 +45,7 @@ namespace Kinesthetic.Menu
             helpOverlay = root.Q("help-overlay");
             nameOverlay = root.Q("name-overlay");
             nameField = root.Q<TextField>("name-field");
-            cards = new[] { root.Q<Button>("golf-card"), root.Q<Button>("studio-card") };
+            cards = new[] { root.Q<Button>("golf-card"), root.Q<Button>("studio-card"), root.Q<Button>("bowling-card") };
             caption = root.Q<Label>("selection-caption");
             music = root.Q<Button>("music");
 
@@ -53,7 +54,7 @@ namespace Kinesthetic.Menu
                 int index = i;
                 cards[i].RegisterCallback<PointerEnterEvent>(_ => Select(index, true));
                 cards[i].RegisterCallback<FocusInEvent>(_ => Select(index, true));
-                Act(cards[i], () => Launch(index == 0 ? "golf.adaptive" : "rehab.studio"));
+                Act(cards[i], () => Launch(ActivityIds[index]));
             }
 
             Act(root.Q<Button>("start-activity"), StartFirst);
@@ -85,7 +86,8 @@ namespace Kinesthetic.Menu
             {
                 if (!Showing(activityOverlay)) return;
                 if (e.direction != NavigationMoveEvent.Direction.Left && e.direction != NavigationMoveEvent.Direction.Right) return;
-                Select(e.direction == NavigationMoveEvent.Direction.Left ? 0 : 1, false);
+                int step = e.direction == NavigationMoveEvent.Direction.Left ? -1 : 1;
+                Select((selected + step + cards.Length) % cards.Length, false);
                 cards[selected].Focus(); e.StopPropagation();
             });
 
@@ -94,6 +96,13 @@ namespace Kinesthetic.Menu
 
             root.Q("golf-icon").generateVisualContent += c => DrawIcon(c, false);
             root.Q("studio-icon").generateVisualContent += c => DrawIcon(c, true);
+            root.Q("bowling-icon").generateVisualContent += DrawBowlingIcon;
+
+            // Added at runtime so the generated menu scene needs no change.
+            var friends = GetComponent<FriendsPanel>() ?? gameObject.AddComponent<FriendsPanel>();
+            friends.Attach(root, navigation);
+            // FriendsPanel owns the button's click; the dwell path needs the same entry in the map.
+            actions["friends"] = friends.Open;
 
             MenuDashboard.Populate(root, model);
             Select(0, false);
@@ -172,17 +181,42 @@ namespace Kinesthetic.Menu
             bool changed = index != selected; selected = index;
             for (int i = 0; i < cards.Length; i++) cards[i]?.EnableInClassList("selected", i == selected);
             if (caption != null)
-                caption.text = selected == 0 ? "Take a swing with a friend." : "Make a little time for yourself.";
+                caption.text = selected switch
+                {
+                    0 => "Take a swing with a friend.",
+                    1 => "Make a little time for yourself.",
+                    _ => "Aim down the lane. Swing gently to roll."
+                };
             if (sound && changed) navigation.PlayHover();
         }
 
         void MusicChanged(bool enabled) { if (music != null) music.text = enabled ? "Music: On" : "Music: Off"; }
         void OnDestroy() { if (navigation) navigation.MusicChanged -= MusicChanged; }
 
+        static void DrawBowlingIcon(MeshGenerationContext ctx)
+        {
+            var p = ctx.painter2D;
+            p.strokeColor = Palette.Indigo60; p.lineWidth = 2.5f; p.lineJoin = LineJoin.Round;
+            p.fillColor = Palette.Sand00;
+            p.BeginPath(); p.MoveTo(new(35, 12));
+            p.BezierCurveTo(new(32, 4), new(47, 4), new(44, 12));
+            p.BezierCurveTo(new(39, 21), new(52, 28), new(49, 44));
+            p.LineTo(new(31, 44));
+            p.BezierCurveTo(new(27, 28), new(39, 21), new(35, 12));
+            p.ClosePath(); p.Fill(); p.Stroke();
+            p.strokeColor = Palette.Glaucous50;
+            p.BeginPath(); p.MoveTo(new(35, 19)); p.LineTo(new(44, 19)); p.Stroke();
+            p.fillColor = Palette.Indigo60;
+            p.BeginPath(); p.Arc(new(23, 39), 13, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
+            p.fillColor = Palette.Sand00;
+            foreach (var point in new[] { new Vector2(21, 33), new Vector2(27, 34), new Vector2(23, 39) })
+            { p.BeginPath(); p.Arc(point, 1.7f, Angle.Degrees(0), Angle.Degrees(360)); p.Fill(); }
+        }
+
         static void DrawIcon(MeshGenerationContext ctx, bool studio)
         {
             var p = ctx.painter2D;
-            p.strokeColor = Palette.Ink; p.lineWidth = 3; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
+            p.strokeColor = Palette.Indigo60; p.lineWidth = 3; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
             void Line(params Vector2[] points) { p.BeginPath(); p.MoveTo(points[0]); for(int i=1;i<points.Length;i++)p.LineTo(points[i]);p.Stroke(); }
             if (studio)
             {
@@ -190,13 +224,13 @@ namespace Kinesthetic.Menu
                 Line(new(30,26),new(30,39),new(42,39),new(44,49));
                 Line(new(30,28),new(42,24),new(47,12));
                 Line(new(30,28),new(19,36)); Line(new(19,40),new(19,49),new(33,49));
-                p.strokeColor = Palette.Cerulean40;p.lineWidth=2;
+                p.strokeColor = Palette.Ice40;p.lineWidth=2;
                 p.BeginPath();p.Arc(new(31,31),21,Angle.Degrees(235),Angle.Degrees(305));p.Stroke();
             }
             else
             {
                 Line(new(30,47),new(30,13),new(48,20),new(30,26));
-                p.strokeColor = Palette.Slate50; Line(new(14,48),new(48,48));
+                p.strokeColor = Palette.Glaucous50; Line(new(14,48),new(48,48));
                 p.fillColor=Palette.Sand00;p.BeginPath();p.Arc(new(19,41),4,Angle.Degrees(0),Angle.Degrees(360));p.Fill();p.Stroke();
             }
         }

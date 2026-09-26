@@ -23,7 +23,11 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Kinesthetic/Golf/KeyboardGolf.unity
     guid: 372db5aef03de45fcaef34cf2b983e30
+  - enabled: 1
+    path: Assets/Kinesthetic/Bowling/Bowling.unity
+    guid: 08a2a4d0b0fec46d48d34956ed088126
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+    com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: 223d7e26084774c21949ad74f66c502f, type: 2}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 62fe605601bd143dcb911e316c7c4032, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 032e7d2589b3e48a99864c46e0e86aee, type: 2}
