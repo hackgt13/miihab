@@ -51,3 +51,7 @@ has to run on, or drive, a Quest headset. Treat "works on the Mac" as unfinished
 - Verification scripts in `Assets/Editor/` and `scripts/unity_mcp.py` can drive the running editor —
   prefer an actual check over asserting that a change works.
 - `cd coordinator && npm test` covers pose transport, golf relay, measurement, and care plans.
+
+## Git
+
+- Commit and merge to main. ALWAYS flag conflicts first.
