@@ -120,14 +120,14 @@ Button:disabled { opacity: .55; }
 
 .activities { flex-direction: row; }
 Button.activity-card { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: stretch; justify-content: flex-start; padding: 18px 22px 10px; border-radius: 26px; border-width: 2px; border-bottom-width: 6px; border-color: #D8E8FE; border-bottom-color: rgba(111,138,183,.55); background-color: #FDFBF6; overflow: hidden; transition-duration: .16s; }
-Button.golf-card { margin-right: 26px; }
+Button.golf-card, Button.studio-card { margin-right: 18px; }
 Button.activity-card.selected, Button.activity-card:hover, Button.activity-card:focus { border-color: #5C9CF2; border-bottom-color: #3D7CD4; background-color: #EDF4FF; scale: 1.02; }
 Button.activity-card:active { border-color: #3D7CD4; background-color: #D8E8FE; scale: 1.005; }
 .preview-tag { align-self: flex-start; padding: 6px 14px; border-radius: 12px; color: #485F88; font-size: 13px; letter-spacing: 1.2px; background-color: #D8E8FE; }
 .card-info { flex-direction: row; align-items: center; padding: 14px 2px 10px; }
 .mode-icon { width: 62px; height: 62px; flex-shrink: 0; border-radius: 31px; border-width: 2px; border-color: #B7D4FE; background-color: #EDF4FF; margin-right: 16px; }
 .card-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.card-title { font-size: 30px; color: #29335C; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.card-title { font-size: 30px; white-space: normal; color: #29335C; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
 .card-description { font-size: 16px; color: #6F8AB7; margin-top: 3px; white-space: normal; }
 .card-arrow { font-size: 38px; color: #AABDD9; margin-left: 10px; flex-shrink: 0; }
 .selected .card-arrow { color: #5C9CF2; }
