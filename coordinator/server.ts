@@ -7,6 +7,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { writeFile, readdir, readFile } from 'node:fs/promises';
 import { PlanStore } from './plans.ts';
+import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, exerciseKindForPlanType, type RepParams, type RepSession } from './exercise/registry.ts';
 import { activitySummaryFromExercise, parseActivitySummary } from './activity.ts';
@@ -213,7 +214,7 @@ sockets.on('connection', (ws, _request, role) => {
       }
       if (data.sequence <= sequence) return;
       sequence = data.sequence; lastReceived = performance.now(); captureStatus = 'Camera streaming';
-      latest = {...data, receivedSessionMs:lastReceived-sessionStarted};
+      latest = {...data, receivedSessionMs:lastReceived-sessionStarted, hostMonotonicMs:hostMonotonicMs()};
       recording?.write(JSON.stringify(latest)+'\n'); broadcast(latest);
       if (exercise) {
         exercisePoseSession ??= sessionId; exerciseSource ??= String(data.sourceId ?? 'unknown');
