@@ -13,6 +13,7 @@ namespace Kinesthetic.Bowling
         public Rigidbody[] pins;
         public Camera spectator;
         public LineRenderer aimLine;
+        public BowlingAvatar avatar;
         public string motionUrl = "ws://127.0.0.1:8767/bowling-motion?role=viewer";
         public bool startServices = true;
         public bool renderOnly;
@@ -152,7 +153,8 @@ namespace Kinesthetic.Bowling
             if (renderOnly || Phase != "Ready" || Paused || !float.IsFinite(aim) || !float.IsFinite(power)) return false;
             LastAim = Mathf.Clamp(aim, -8, 8); LastPower = Mathf.Clamp01(power);
             Phase = "Rolling"; rollStarted = Time.time; stillStarted = -1;
-            Vector3 velocity = Quaternion.Euler(0, LastAim, 0) * Vector3.forward * Mathf.Lerp(4.2f, 9, LastPower);
+            if (avatar) avatar.Release(LastAim);
+            Vector3 velocity = Quaternion.Euler(0, LastAim, 0) * Vector3.forward * BowlingSwing.BallSpeed(LastPower);
             ball.isKinematic = false; ball.linearVelocity = velocity;
             ball.angularVelocity = Vector3.Cross(Vector3.up, velocity) / BallRadius;
             for (int i = 0; i < pins.Length; i++) if (standing[i]) { pins[i].isKinematic = false; pins[i].WakeUp(); }
@@ -195,12 +197,14 @@ namespace Kinesthetic.Bowling
                 pins[i].gameObject.SetActive(standing[i]);
             }
             Swing.Rearm(); Phase = Swing.Calibrated && MotionReady ? "Ready" : "Setup";
+            if (avatar) avatar.Prepare();
         }
         static void Freeze(Rigidbody body) { if (!body.isKinematic) { body.linearVelocity = Vector3.zero; body.angularVelocity = Vector3.zero; } body.isKinematic = true; }
         void LateUpdate()
         {
             if (renderOnly || !spectator) return;
-            float follow = Phase == "Rolling" || Phase == "Result" ? Mathf.Clamp(ball.position.z - 3, 0, HeadPinZ - 4) : 0;
+            // Let the follow-through read before following the ball down the lane.
+            float follow = (Phase == "Rolling" || Phase == "Result") && Time.time - rollStarted > 1.1f ? Mathf.Clamp(ball.position.z - 6, 0, HeadPinZ - 4) : 0;
             Vector3 target = cameraHome + Vector3.forward * follow;
             spectator.transform.position = Vector3.Lerp(spectator.transform.position, target, 1 - Mathf.Exp(-3 * Time.unscaledDeltaTime));
             spectator.transform.rotation = cameraRotation;

@@ -48,7 +48,99 @@ public static class BowlingVerification
         Check(!swing.Calibrated, "packet gap must invalidate calibration");
         for (int i = 0; i < 40; i++) Sample(i * 5, 0, .1f, false);
         Check(!swing.Calibrated, "drifting attitude must not calibrate");
-        return "PASS: 10 scoring cases; mounted IMU calibration, heading, release, latch, freshness and motion rejection.";
+        float gentle = DeliveryPower(1.1f), medium = DeliveryPower(2.5f), strong = DeliveryPower(4f);
+        Check(gentle < medium && medium < strong && strong == 1, "gentle/medium/strong power ordering");
+        Check(Mathf.Abs(DeliveryPower(2.5f, true) - medium) < .001f, "a single gyro spike inflated power");
+        Check(BowlingSwing.BallSpeed(gentle) >= 4.2f && BowlingSwing.BallSpeed(strong) == 9, "playable bounded ball speed");
+        Check(BowlingSwing.MapPower(20) == 1, "power cap");
+        return "PASS: scoring; mounted IMU calibration, heading, release, latch, freshness; gentle/medium/strong power, spike rejection and speed cap.";
+    }
+
+    static float DeliveryPower(float speed, bool spike = false)
+    {
+        var swing = new BowlingSwing(); double time = 0;
+        for (int i = 0; i < 30; i++) swing.Sample(Quaternion.identity, Vector3.zero, time += .04, true, out _, out _);
+        var angles = new[] { 8f, 18, 26, 34, 30, 24, 17, 9 };
+        for (int i = 0; i < angles.Length; i++)
+            if (swing.Sample(Quaternion.AngleAxis(angles[i], Vector3.right), Vector3.right * (spike && i == 4 ? 45 : speed), time += .04, true, out _, out float power))
+                return power;
+        throw new Exception("Bowling verification: expected delivery at " + speed + " rad/s");
+    }
+
+    public static string Avatar()
+    {
+        var game = UnityEngine.Object.FindAnyObjectByType<BowlingGame>();
+        Check(game && game.avatar, "Mii missing");
+        var avatar = game.avatar; avatar.Prepare();
+        Vector3 release = avatar.BallGrip;
+        Check(Mathf.Abs(release.x) < .01f && Mathf.Abs(release.z - .1f) < .01f, "release not centered on lane");
+        Check(release.y > BowlingGame.BallRadius && release.y < .8f, "release height");
+        avatar.DrawPose(-55, 0, 0, true);
+        Check(avatar.BallGrip.z < release.z - .25f, "backswing does not move ball behind player");
+        Check(Vector3.Distance(game.ball.transform.position, avatar.BallGrip) < .001f, "ball separated from hand");
+        avatar.Release(0);
+        Check(Vector3.Distance(game.ball.transform.position, release) < .001f, "release ball continuity");
+        avatar.DrawPose(60, 1, 0, false);
+        Check(avatar.BallGrip.z > release.z + .2f, "follow-through does not point down lane");
+        avatar.Prepare();
+        return $"PASS: Mii grip, backswing, release continuity, follow-through; release {release:F3}.";
+    }
+
+    public static string AvatarStream()
+    {
+        var game = UnityEngine.Object.FindAnyObjectByType<BowlingGame>();
+        game.avatar.DrawPose(-45, 0, 3, true);
+        var expected = game.avatar.joints[4].localRotation;
+        var snapshot = game.GetComponent<BowlingStatePublisher>().Snapshot();
+        var fixture = new GameObject("Synthetic Quest client fixture");
+        try
+        {
+            var client = fixture.AddComponent<BowlingStateClient>(); client.game = game;
+            client.hud = new GameObject("HUD").AddComponent<TextMesh>(); client.hud.transform.SetParent(fixture.transform);
+            client.scoreboard = new GameObject("Score").AddComponent<TextMesh>(); client.scoreboard.transform.SetParent(fixture.transform);
+            game.avatar.Prepare();
+            Check(client.Apply(snapshot), "Quest rejected avatar snapshot");
+            Check(Quaternion.Angle(expected, game.avatar.joints[4].localRotation) < .01f, "Quest pose differs from Mac pose");
+            Check(!client.Apply(snapshot), "duplicate state accepted");
+            var broken = Newtonsoft.Json.Linq.JObject.Parse(game.GetComponent<BowlingStatePublisher>().Snapshot());
+            broken["avatar"][0]["r"] = new Newtonsoft.Json.Linq.JArray(0, 0, 0, 0);
+            Check(!client.Apply(broken.ToString()), "invalid avatar quaternion accepted");
+        }
+        finally { UnityEngine.Object.DestroyImmediate(fixture); game.avatar.Prepare(); }
+        return "PASS: Quest renders the Mac's Mii pose; duplicate and malformed snapshots rejected.";
+    }
+
+    public static string PowerPhysicsStatus { get; private set; } = "Not run";
+    static int powerCase;
+    static readonly float[] PowerCases = { 0, .5f, 1 };
+    static readonly List<int> PowerHits = new();
+    public static string StartPowerPhysics()
+    {
+        Check(EditorApplication.isPlaying, "Play mode required");
+        powerCase = 0; PowerHits.Clear(); deadline = EditorApplication.timeSinceStartup + 45;
+        PowerPhysicsStatus = "Checking gentle, medium and full-power center deliveries.";
+        StartPowerRoll(); EditorApplication.update += PowerTick;
+        return PowerPhysicsStatus;
+    }
+    static void StartPowerRoll()
+    {
+        var game = UnityEngine.Object.FindAnyObjectByType<BowlingGame>(); game.RestartRound(); Time.timeScale = 4;
+        Roll(0, PowerCases[powerCase]);
+        Check(Mathf.Abs(game.ball.linearVelocity.magnitude - BowlingSwing.BallSpeed(PowerCases[powerCase])) < .01f, "launch speed mismatch");
+    }
+    static void PowerTick()
+    {
+        try
+        {
+            Check(EditorApplication.isPlaying && EditorApplication.timeSinceStartup < deadline, "power physics timeout");
+            var game = UnityEngine.Object.FindAnyObjectByType<BowlingGame>(); if (game.Phase != "Result") return;
+            Check(game.LastPins > 0, "center delivery failed to reach pins at power " + PowerCases[powerCase]);
+            PowerHits.Add(game.LastPins);
+            if (++powerCase < PowerCases.Length) { StartPowerRoll(); return; }
+            PowerPhysicsStatus = "PASS: 0/50/100% deliveries reached pins at 4.2/6.6/9 m/s; hits " + string.Join("/", PowerHits) + ".";
+            game.RestartRound(); EditorApplication.update -= PowerTick;
+        }
+        catch (Exception e) { PowerPhysicsStatus = "FAIL: " + e.Message; Time.timeScale = 1; EditorApplication.update -= PowerTick; }
     }
 
     // Explicit synthetic fixture; never feeds the native bridge or coordinator recordings.

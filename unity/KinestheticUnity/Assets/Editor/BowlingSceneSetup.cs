@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Kinesthetic.Bowling;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -90,12 +91,29 @@ public static class BowlingSceneSetup
         aim.sharedMaterial = Material("Aim", new Color(.12f, .65f, .95f), true);
         aim.positionCount = 2; aim.startWidth = .025f; aim.endWidth = .007f; aim.numCapVertices = 5; aim.enabled = false; game.aimLine = aim;
 
+        var actor = new GameObject("Mii bowler").AddComponent<BowlingAvatar>();
+        var mii = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Kinesthetic/Art/Mii/KinestheticMii.glb"), actor.transform);
+        mii.transform.localRotation = Quaternion.identity;
+        foreach (var animation in mii.GetComponentsInChildren<Animation>()) { animation.playAutomatically = false; animation.enabled = false; }
+        foreach (var animator in mii.GetComponentsInChildren<Animator>()) animator.enabled = false;
+        var renderers = mii.GetComponentsInChildren<Renderer>(); var bounds = renderers[0].bounds;
+        foreach (var renderer in renderers) bounds.Encapsulate(renderer.bounds);
+        mii.transform.localScale *= 1.75f / bounds.size.y;
+        mii.GetComponentsInChildren<Transform>().First(t => t.name == "head").localScale = Vector3.one * .64f;
+        foreach (var skin in mii.GetComponentsInChildren<SkinnedMeshRenderer>()) skin.updateWhenOffscreen = true;
+        actor.game = game; actor.model = mii.transform; game.avatar = actor;
+        actor.Initialize(); actor.Prepare();
+        // Center the actual hand release over the lane, and plant the feet on the approach.
+        float floor = mii.GetComponentsInChildren<Transform>().First(t => t.name == "foot.R").position.y;
+        actor.transform.position += new Vector3(-actor.BallGrip.x, .08f - floor, .1f - actor.BallGrip.z);
+        actor.Prepare();
+
         if (quest) Headset(game);
         else
         {
             var cam = new GameObject("Bowling camera").AddComponent<Camera>(); cam.tag = "MainCamera";
-            cam.transform.position = new Vector3(0, 1.45f, -3.5f); cam.transform.LookAt(new Vector3(0, .18f, 9));
-            cam.fieldOfView = 48; cam.nearClipPlane = .05f; cam.farClipPlane = 100; cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(.65f, .8f, .9f);
+            cam.transform.position = new Vector3(1.15f, 1.85f, -3.6f); cam.transform.LookAt(new Vector3(0, .4f, 5));
+            cam.fieldOfView = 52; cam.nearClipPlane = .05f; cam.farClipPlane = 100; cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(.65f, .8f, .9f);
             cam.gameObject.AddComponent<AudioListener>(); game.spectator = cam;
             game.gameObject.AddComponent<BowlingStatePublisher>();
             var doc = new GameObject("Bowling HUD").AddComponent<UIDocument>();
@@ -192,7 +210,7 @@ public static class BowlingSceneSetup
     }
     static void Headset(BowlingGame game)
     {
-        var originGo = new GameObject("XR Origin"); originGo.transform.position = new Vector3(0, 0, -2);
+        var originGo = new GameObject("XR Origin"); originGo.transform.position = new Vector3(1.15f, 0, -3.5f);
         var offset = new GameObject("Camera Offset"); offset.transform.SetParent(originGo.transform, false);
         var cam = new GameObject("Headset camera").AddComponent<Camera>(); cam.transform.SetParent(offset.transform, false); cam.tag = "MainCamera";
         cam.nearClipPlane = .05f; cam.farClipPlane = 100; cam.gameObject.AddComponent<AudioListener>();
