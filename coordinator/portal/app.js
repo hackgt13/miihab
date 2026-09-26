@@ -6,20 +6,27 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const deg = v => v == null ? '—' : `${Math.round(v)}°`;
 const REASONS = { did_not_reach_target: 'short of target', trunk_compensation: 'trunk compensation', tracking_lost: 'tracking lost', too_fast: 'too fast' };
 
-let state = { plans: [], active: null, history: null, sessions: [] };
+let state = { plans: [], active: null, history: null, sessions: [], proposals: [], library: {} };
+// This portal view follows the shoulder raise; other plan exercises are listed in the plan card.
+const primary = plan => plan.exercises.find(e => e.type === 'seated_shoulder_raise') ?? plan.exercises[0];
+const label = e => state.library[e.type]?.label ?? e.type;
 
 async function load() {
-  const [plans, active, history, sessions] = await Promise.all([get('/api/plans'), get('/api/plans/active'), get('/api/history'), get('/api/sessions')]);
-  state = { plans, active, history, sessions: sessions.filter(s => s.calibrated && s.attempted > 0) };
+  const [plans, active, history, sessions, proposals, library] = await Promise.all([get('/api/plans'), get('/api/plans/active'),
+    get('/api/history'), get('/api/sessions'), get('/api/proposals'), get('/api/exercises')]);
+  state = { plans, active, history, sessions: sessions.filter(s => s.calibrated && s.attempted > 0), proposals, library };
   render();
 }
 
 function rows() {
   const synthetic = state.history.sessions.map(s => ({ ...s, synthetic: true, when: s.label, trunk: s.trunkCompensationReps }));
-  const real = [...state.sessions].reverse().map(s => ({
+  // The chart and table follow the plan's shoulder raise; older summaries have no plan exercise id.
+  const x = primary(state.active);
+  const real = [...state.sessions].reverse().filter(s => s.planExerciseId ? s.planExerciseId === x.id : s.exercise === x.type).map(s => ({
     synthetic: false, when: new Date(s.endedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
     planVersion: s.planVersion, attempted: s.attempted, valid: s.valid, prescribed: s.prescribed, medianValidPeakDeg: s.medianValidPeakDeg,
     trunk: s.invalidReasons?.trunk_compensation ?? 0, simulated: s.simulated !== false, reasons: s.invalidReasons ?? {}, tracking: s.validFrameRatio, id: s.exerciseId, targetDeg: s.config?.targetDeg,
+    sensor: s.sensor ?? 'pose',
   }));
   return [...synthetic, ...real];
 }
@@ -63,20 +70,30 @@ function render() {
     <td class="num">${r.valid}/${r.attempted}</td><td class="num">${deg(r.medianValidPeakDeg)}</td>
     <td>${r.synthetic ? (r.trunk ? `${r.trunk} × trunk compensation` : '—') : Object.entries(r.reasons).map(([k, n]) => `${n} × ${REASONS[k] ?? k}`).join(', ') || '—'}</td>
     <td>${r.tracking != null ? Math.round(r.tracking * 100) + '%' : '—'}</td>
-    <td>${r.synthetic ? '' : `<button type="button" class="small-btn" data-replay="${esc(r.id)}">Replay</button>`}</td></tr>`).join('');
+    <td>${r.synthetic ? '' : r.sensor === 'imu' ? '<span class="muted small">AirPod</span>' : `<button type="button" class="small-btn" data-replay="${esc(r.id)}">Replay</button>`}</td></tr>`).join('');
   document.querySelectorAll('[data-replay]').forEach(b => b.addEventListener('click', () => openReplay(b.dataset.replay)));
 
   $('#plan-version').textContent = `v${active.version}`;
-  const e = active.exercise;
-  $('#plan').innerHTML = [['Exercise', `Seated shoulder raise · ${e.side}`], ['Target', `${e.targetDeg}°`], ['Reps', e.prescribedReps],
-    ['Hold', `${e.holdMs} ms`], ['Trunk lean limit', `${e.maxTrunkDeviationDeg}°`], ['Coaching note', esc(active.coachingNote)]]
+  const e = primary(active);
+  $('#plan').innerHTML = [['Goal', esc(active.goal.text)],
+    ...active.exercises.map(x => [esc(label(x)), `${esc(x.side)} · ${x.sensor === 'imu' ? 'AirPod' : 'camera'} · ${x.targetDeg}–${x.maxSafeDeg}° · ${x.prescribedReps} reps` +
+      (x.loadKg ? ` · ${x.loadKg} kg` : '') + `<div class="muted small">${x.progression.autoApply ? 'Auto' : 'Clinician-approved'} levels ${x.progression.minTargetDeg}–${x.progression.maxTargetDeg}°, ` +
+      `+${x.progression.stepDeg}° after ${x.progression.sessionsToProgress} good sessions</div>`]),
+    ['Coaching note', esc(active.coachingNote)]]
     .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  renderProposals();
   $('#plan-approved').textContent = `Approved ${new Date(active.approvedAt).toLocaleString()} by ${active.approvedBy}. Next session uses this version.`;
   const form = $('#plan-form');
-  for (const k of ['targetDeg', 'prescribedReps', 'holdMs', 'maxTrunkDeviationDeg']) form.elements[k].value = e[k];
+  $('#form-exercise').textContent = `Editing ${label(e)} · ${e.side}`;
+  for (const k of ['targetDeg', 'maxSafeDeg', 'prescribedReps', 'holdMs', 'maxTrunkDeviationDeg']) form.elements[k].value = e[k] ?? '';
+  form.elements.sensor.innerHTML = (state.library[e.type]?.sensors ?? [e.sensor]).map(s => `<option value="${s}">${s === 'imu' ? 'AirPod on the handle' : 'Camera'}</option>`).join('');
+  form.elements.sensor.value = e.sensor;
+  $('#trunk-field').hidden = e.sensor !== 'pose';
+  form.elements.maxTargetDeg.value = e.progression.maxTargetDeg; form.elements.autoApply.checked = e.progression.autoApply;
   form.elements.coachingNote.value = active.coachingNote;
-  $('#plan-history').innerHTML = [...state.plans].reverse().map(p => `<li><strong>v${p.version}</strong> · target ${p.exercise.targetDeg}°, ${p.exercise.prescribedReps} reps, lean ≤ ${p.exercise.maxTrunkDeviationDeg}°
-    <div class="why">${esc(p.rationale)}</div><div class="muted small">${new Date(p.approvedAt).toLocaleString()} · ${esc(p.approvedBy)}</div></li>`).join('');
+  $('#plan-history').innerHTML = [...state.plans].reverse().map(p => { const x = primary(p); return `<li><strong>v${p.version}</strong>` +
+    `${p.origin === 'auto-progression' ? ' <span class="tag">auto</span>' : ''} · ${esc(label(x))} ${x.targetDeg}–${x.maxSafeDeg}°, ${x.prescribedReps} reps
+    <div class="why">${esc(p.rationale)}</div><div class="muted small">${new Date(p.approvedAt).toLocaleString()} · ${esc(p.approvedBy)}</div></li>`; }).join('');
 
   drawChart(all);
 }
@@ -86,7 +103,7 @@ function drawChart(all) {
   const W = svg.clientWidth || 700, H = 260, m = { l: 44, r: 16, t: 14, b: 34 };
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const pts = all.filter(r => r.medianValidPeakDeg != null);
-  const target = state.active.exercise.targetDeg;
+  const target = primary(state.active).targetDeg;
   const ys = [...pts.map(p => p.medianValidPeakDeg), target];
   const lo = Math.floor((Math.min(...ys) - 10) / 10) * 10, hi = Math.ceil((Math.max(...ys) + 10) / 10) * 10;
   const x = i => m.l + (pts.length < 2 ? (W - m.l - m.r) / 2 : i * (W - m.l - m.r) / (pts.length - 1));
@@ -114,14 +131,20 @@ function drawChart(all) {
   });
 }
 
+$('#plan-form').elements.sensor.addEventListener('change', ev => { $('#trunk-field').hidden = ev.target.value !== 'pose'; });
 $('#plan-form').addEventListener('submit', async ev => {
   ev.preventDefault();
   const f = ev.target, status = $('#form-status'), button = $('#approve');
-  const exercise = Object.fromEntries(['targetDeg', 'prescribedReps', 'holdMs', 'maxTrunkDeviationDeg'].map(k => [k, Number(f.elements[k].value)]));
+  const e = primary(state.active);
+  const change = Object.fromEntries(['targetDeg', 'maxSafeDeg', 'prescribedReps', 'holdMs'].map(k => [k, Number(f.elements[k].value)]));
+  change.sensor = f.elements.sensor.value;
+  // A trunk lean limit needs the camera; the AirPod on the handle cannot see the trunk.
+  change.maxTrunkDeviationDeg = change.sensor === 'pose' ? Number(f.elements.maxTrunkDeviationDeg.value) || 12 : null;
+  change.progression = { maxTargetDeg: Number(f.elements.maxTargetDeg.value), autoApply: f.elements.autoApply.checked };
   button.disabled = true; status.className = 'form-status'; status.textContent = 'Saving…';
   try {
     const r = await fetch('/api/plans', { method: 'POST', body: JSON.stringify({
-      exercise, rationale: f.elements.rationale.value, coachingNote: f.elements.coachingNote.value,
+      changes: { [e.id]: change }, rationale: f.elements.rationale.value, coachingNote: f.elements.coachingNote.value,
       expectedActiveVersion: state.active.version, basedOnExerciseIds: state.sessions.slice(0, 3).map(s => s.exerciseId) }) });
     const body = await r.json();
     if (!r.ok) throw Error(body.error);
@@ -210,3 +233,28 @@ $('#replay-close').addEventListener('click', () => { $('#replay-card').hidden = 
 (function tick(now) { if (playing && replay) { const f = replay.frames[cursor]; const target = f.t + (lastTick ? now - lastTick : 0);
   const i = frameAt(target); if (i >= replay.frames.length - 1) { playing = false; $('#replay-play').textContent = 'Play'; } showFrame(i); }
   lastTick = now; requestAnimationFrame(tick); })(0);
+
+const DECISION = { progress: ['Level up', 'good'], regress: ['Step back', 'warn'], clinician_review: ['Needs you', 'warn'], hold: ['Hold', ''] };
+function renderProposals() {
+  const pending = state.proposals.filter(p => p.status === 'pending');
+  const recent = state.proposals.filter(p => p.status !== 'pending' && p.status !== 'superseded').slice(0, 3);
+  const item = p => {
+    const [name, tone] = DECISION[p.decision];
+    const change = p.to ? `${p.from.targetDeg}° → ${p.to.targetDeg}°` : `${p.from.targetDeg}°`;
+    const status = { applied: `applied as v${p.appliedPlanVersion}`, approved: `approved as v${p.appliedPlanVersion}`, dismissed: 'dismissed', info: '' }[p.status] ?? '';
+    return `<div class="proposal ${tone}"><div class="proposal-head"><strong>${name}</strong> <span>${esc(p.exerciseLabel)} · ${change}</span></div>
+      <div class="why">${p.reasons.map(esc).join(' ')}</div>
+      <div class="muted small">${new Date(p.createdAt).toLocaleString()} · ${p.evidence.length} session${p.evidence.length === 1 ? '' : 's'}${p.evidence.some(e => e.simulated) ? ' (simulated)' : ''}${status ? ' · ' + status : ''}</div>
+      ${p.status === 'pending' ? `<div class="proposal-actions">${p.to ? `<button type="button" class="small-btn" data-approve="${p.id}">Approve</button>` : ''}
+        <button type="button" class="ghost" data-dismiss="${p.id}">Dismiss</button></div>` : ''}</div>`;
+  };
+  $('#proposals').innerHTML = (pending.length ? pending.map(item).join('') : '<p class="muted small">Nothing waiting for you.</p>') +
+    (recent.length ? `<h3 class="small muted">Recent</h3>${recent.map(item).join('')}` : '');
+  document.querySelectorAll('[data-approve],[data-dismiss]').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.approve ?? b.dataset.dismiss, action = b.dataset.approve ? 'approve' : 'dismiss';
+    b.disabled = true;
+    const r = await fetch(`/api/proposals/${id}/${action}`, { method: 'POST', body: JSON.stringify({ approvedBy: 'PM&R physician (demo)' }) });
+    if (!r.ok) { b.disabled = false; alert((await r.json()).error); return; }
+    await load();
+  }));
+}

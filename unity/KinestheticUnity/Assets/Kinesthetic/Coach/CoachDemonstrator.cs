@@ -127,7 +127,8 @@ namespace Kinesthetic.Coach
             request.timeout = 3;
             yield return request.SendWebRequest();
             if (request.result != UnityWebRequest.Result.Success) yield break;   // keep the defaults offline
-            var plan = JObject.Parse(request.downloadHandler.text); var e = plan["exercise"];
+            var plan = JObject.Parse(request.downloadHandler.text);
+            var e = (plan["exercises"] as JArray)?.FirstOrDefault(x => (string)x["type"] == "seated_shoulder_raise");
             targetDeg = (float?)e?["targetDeg"] ?? targetDeg;
             holdSeconds = ((float?)e?["holdMs"] ?? holdSeconds * 1000) / 1000f;
             var side = (string)e?["side"] ?? patientSide;

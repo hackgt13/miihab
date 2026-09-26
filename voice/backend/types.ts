@@ -45,14 +45,22 @@ export interface CarePlan {
   approvedBy: string;
   approvedAt: string;
   rationale: string;
-  exercise: {
+  origin: "clinician" | "auto-progression";
+  goal: { text: string; components: string[] };
+  /** Each exercise's band: reps count from targetDeg; above maxSafeDeg is an overshoot to avoid. */
+  exercises: {
+    id: string;
     type: string;
     side: "left" | "right";
+    sensor: "imu" | "pose";
     targetDeg: number;
+    maxSafeDeg: number;
     prescribedReps: number;
+    sets: number;
     holdMs: number;
-    maxTrunkDeviationDeg: number;
-  };
+    loadKg: number;
+    assistance: "assisted" | "active" | "resisted";
+  }[];
   coachingNote: string;
 }
 

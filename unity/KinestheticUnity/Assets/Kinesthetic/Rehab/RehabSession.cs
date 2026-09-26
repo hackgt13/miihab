@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Linq;
 using System.IO;
 using System.Text;
 using Newtonsoft.Json.Linq;
@@ -124,10 +125,14 @@ namespace Kinesthetic.Rehab
 
         void ApplyPlan(JObject plan)
         {
-            var e = plan["exercise"] as JObject; if (e == null) return;
+            // A plan lists several exercises; this scene measures the shoulder raise.
+            var e = (plan["exercises"] as JArray)?.OfType<JObject>().FirstOrDefault(x => (string)x["type"] == "seated_shoulder_raise");
+            if (e == null) return;
             planVersion = plan["version"]?.Value<int>() ?? planVersion;
             side = (string)e["side"] ?? side;
             targetDeg = e["targetDeg"]?.Value<float>() ?? targetDeg;
+            var ceiling = e["maxSafeDeg"]?.Value<float>();
+            if (ceiling > targetDeg) bandDeg = ceiling.Value - targetDeg;   // the drawn band is the plan's safe band
             prescribedReps = e["prescribedReps"]?.Value<int>() ?? prescribedReps;
             coachingNote = (string)plan["coachingNote"] ?? "";
             UpdatePlanLabels();

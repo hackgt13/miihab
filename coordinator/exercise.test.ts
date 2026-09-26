@@ -13,7 +13,7 @@ test('live exercise: pose stream → rep events on /exercise, pose viewers untou
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-exercise-'));
   const port = 18769;
   const child = spawn(process.execPath, ['server.ts'], {cwd:import.meta.dirname,
-    env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:directory, KINESTHETIC_PLANS_DIRECTORY:join(directory,"plans")}, stdio:['ignore','pipe','pipe']});
+    env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:directory, KINESTHETIC_PLANS_DIRECTORY:join(directory,"plans"), KINESTHETIC_PROPOSALS_DIRECTORY:join(directory,"proposals")}, stdio:['ignore','pipe','pipe']});
   const sockets: WebSocket[] = [];
   const open = async (path: string) => { const ws = new WebSocket(`ws://127.0.0.1:${port}${path}`); sockets.push(ws); await once(ws, 'open'); return ws; };
   try {
@@ -25,7 +25,7 @@ test('live exercise: pose stream → rep events on /exercise, pose viewers untou
     const producer = await open('/pose?role=producer');
 
     const started = await (await fetch(`http://127.0.0.1:${port}/exercise/start`, {method:'POST',
-      body:JSON.stringify({side:'right', targetDeg:80, prescribedReps:2, planVersion:1})})).json();
+      body:JSON.stringify({side:'right', targetDeg:80, prescribedReps:2, planVersion:1, sensor:'pose'})})).json();
     assert.match(started.exerciseId, /^[0-9a-f-]{36}$/);
 
     const sessionId = randomUUID(); let sequence = 0, t = 0;

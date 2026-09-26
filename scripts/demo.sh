@@ -33,7 +33,7 @@ if g=$(get http://127.0.0.1:8767/); then
   [[ $airpod == none ]] && warn "No AirPod motion yet — pair AirPods to this Mac; the Club Motion app starts streaming automatically" || ok "AirPod motion: $airpod"
 else bad "Golf relay :8767 not responding — see local-data/logs/golf-relay.log"; fi
 if p=$(get http://127.0.0.1:8766/api/plans/active); then
-  ok "Portal http://localhost:8766/portal/ · active plan $(print -r -- $p | python3 -c 'import sys,json;d=json.load(sys.stdin);e=d["exercise"];print("v%s (target %s°, %s reps)"%(d["version"],e["targetDeg"],e["prescribedReps"]))')"
+  ok "Portal http://localhost:8766/portal/ · active plan $(print -r -- $p | python3 -c 'import sys,json;d=json.load(sys.stdin);e=next(x for x in d["exercises"] if x["type"]=="seated_shoulder_raise");print("v%s (shoulder raise %s–%s°, %s reps)"%(d["version"],e["targetDeg"],e["maxSafeDeg"],e["prescribedReps"]))')"
 else bad "Portal API not responding"; fi
 pgrep -f "Unity.app/Contents/MacOS/Unity" >/dev/null && ok "Unity editor running" || warn "Unity editor not running — open unity/KinestheticUnity"
 

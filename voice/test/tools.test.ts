@@ -9,8 +9,10 @@ import { AnalyticsService } from '../backend/services/analyticsService.ts';
 import { ToolService, TOOL_DEFINITIONS } from '../backend/services/toolService.ts';
 import type { PatientService } from '../backend/services/patientService.ts';
 
-const plan = { version: 2, approvedBy: 'Dr. Demo', approvedAt: '2026-09-26T06:00:00Z', rationale: 'Progress range',
-  exercise: { type: 'seated_shoulder_raise', side: 'right', targetDeg: 85, prescribedReps: 8, holdMs: 600, maxTrunkDeviationDeg: 10 },
+const plan = { version: 2, approvedBy: 'Dr. Demo', approvedAt: '2026-09-26T06:00:00Z', rationale: 'Progress range', origin: 'clinician',
+  goal: { text: 'Play golf again', components: ['shoulder elevation'] },
+  exercises: [{ id: 'shoulder-raise-right', type: 'seated_shoulder_raise', side: 'right', sensor: 'imu', targetDeg: 85, maxSafeDeg: 100,
+    prescribedReps: 8, sets: 1, holdMs: 600, loadKg: 0, assistance: 'active' }],
   coachingNote: 'Sit tall.' };
 const summary = (id: string, endedAt: string, valid: number, peak: number | null) => ({ exerciseId: id, endedAt,
   exercise: 'seated_shoulder_raise', side: 'right', planVersion: 2, config: { targetDeg: 85 }, prescribed: 8,

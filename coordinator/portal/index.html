@@ -71,6 +71,12 @@
     </div>
 
     <aside class="side-col">
+      <section class="card" id="progression-card">
+        <h2>Progression</h2>
+        <p class="muted small">After each session, fixed rules compare reps in the safe band, overshoots and reported pain. Inside your envelope they can apply a level change; otherwise they wait for you.</p>
+        <div id="proposals"></div>
+      </section>
+
       <section class="card">
         <h2>Active plan <span id="plan-version" class="pill"></span></h2>
         <dl class="plan" id="plan"></dl>
@@ -79,13 +85,18 @@
 
       <section class="card">
         <h2>Change the plan</h2>
+        <p class="muted small" id="form-exercise"></p>
         <form id="plan-form">
           <div class="grid2">
-            <label>Target angle (°)<input name="targetDeg" type="number" min="35" max="160" step="1" required></label>
+            <label>Target angle (°)<input name="targetDeg" type="number" min="30" max="140" step="1" required></label>
+            <label>Safe ceiling (°)<input name="maxSafeDeg" type="number" min="40" max="150" step="1" required></label>
             <label>Reps<input name="prescribedReps" type="number" min="1" max="30" step="1" required></label>
             <label>Hold (ms)<input name="holdMs" type="number" min="0" max="3000" step="50" required></label>
-            <label>Trunk lean limit (°)<input name="maxTrunkDeviationDeg" type="number" min="3" max="45" step="1" required></label>
+            <label>Measured with<select name="sensor"></select></label>
+            <label id="trunk-field">Trunk lean limit (°)<input name="maxTrunkDeviationDeg" type="number" min="3" max="45" step="1"></label>
+            <label>Auto-progress up to (°)<input name="maxTargetDeg" type="number" min="30" max="140" step="1" required></label>
           </div>
+          <label class="check"><input name="autoApply" type="checkbox"> Apply level changes inside the envelope automatically</label>
           <label>Coaching note for the patient<input name="coachingNote" type="text" maxlength="500"></label>
           <label>Rationale <span class="muted">(required, saved with the plan)</span><textarea name="rationale" rows="3" required></textarea></label>
           <button type="submit" id="approve">Approve new plan version</button>
