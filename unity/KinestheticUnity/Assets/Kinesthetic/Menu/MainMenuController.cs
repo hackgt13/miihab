@@ -19,7 +19,10 @@ namespace Kinesthetic.Menu
         PaneCarousel carousel;
         VisualElement helpOverlay, nameOverlay;
         TextField nameField;
-        Button[] cards;
+        Button[] cards;             // every gallery card, in catalog order; only one page of them is showing
+        ActivityEntry[] galleryEntries;
+        int page;
+        Label pageLabel;
         Button music;
         Label caption;
         ActivityNavigation navigation;
@@ -40,15 +43,14 @@ namespace Kinesthetic.Menu
         // The board's own scope is finished in Bind, once the ring says which panes it holds: every pane
         // gets a button here (see BuildPaneLinks), and a button the gaze cannot commit is a broken one.
         static readonly string[] BoardScope = { "start-activity", "friends", "music", "help", "edit-name" };
-        static readonly string[] ActivityScope = { "golf-card", "studio-card", "bowling-card" };
         static readonly string[] FriendsScope = { "friends-invite", "friends-accept" };
         static readonly string[] CoachingScope = { "visit-therapist" };
-        static readonly string[] ActivityIds = { "golf.adaptive", "rehab.studio", "bowling.adaptive" };
         static readonly string[] HelpScope = { "help-close" };
         static readonly string[] NameScope = { "name-save", "name-cancel" };
-        // The gallery's scope is the three cards plus one tile per movement, built from the catalog in Bind.
-        string[] activityScope = ActivityScope;
-        readonly List<(KButton tile, ActivityEntry entry)> tiles = new();
+        // The gallery's scope is the page of cards showing plus the pager, rebuilt whenever the page turns.
+        const int CardsPerPage = 6, CardsPerRow = 3;
+        static readonly string[] PagerScope = { "gallery-prev", "gallery-next" };
+        string[] activityScope = PagerScope;
         string[] baseScope = BoardScope;
         string[] scope = BoardScope;
 
@@ -139,18 +141,9 @@ namespace Kinesthetic.Menu
             helpOverlay = root.Q("help-overlay");
             nameOverlay = root.Q("name-overlay");
             nameField = root.Q<TextField>("name-field");
-            cards = new[] { galleryRoot.Q<Button>("golf-card"), galleryRoot.Q<Button>("studio-card"), galleryRoot.Q<Button>("bowling-card") };
             caption = galleryRoot.Q<Label>("selection-caption");
-            BuildMovementTiles();
+            BuildGallery();
             music = root.Q<Button>("music");
-
-            for (int i = 0; i < cards.Length; i++)
-            {
-                int index = i;
-                cards[i].RegisterCallback<PointerEnterEvent>(_ => Select(index, true));
-                cards[i].RegisterCallback<FocusInEvent>(_ => Select(index, true));
-                Act(cards[i], () => Launch(ActivityIds[index]));
-            }
 
             Act(root.Q<Button>("start-activity"), StartFirst);
             // The bottom-right of the board is one button per pane in the ring. None of them opens
@@ -185,14 +178,13 @@ namespace Kinesthetic.Menu
             {
                 if (carousel.Current.id != "gallery") return;
                 if (e.direction != NavigationMoveEvent.Direction.Left && e.direction != NavigationMoveEvent.Direction.Right) return;
+                if (cards.Length == 0) return;
                 int step = e.direction == NavigationMoveEvent.Direction.Left ? -1 : 1;
-                Select((selected + step + cards.Length) % cards.Length, false);
+                int next = (selected + step + cards.Length) % cards.Length;
+                if (next / CardsPerPage != page) ShowPage(next / CardsPerPage);
+                Select(next, false);
                 cards[selected].Focus(); e.StopPropagation();
             });
-
-            galleryRoot.Q("golf-icon").generateVisualContent += c => DrawIcon(c, false);
-            galleryRoot.Q("studio-icon").generateVisualContent += c => DrawIcon(c, true);
-            galleryRoot.Q("bowling-icon").generateVisualContent += DrawBowlingIcon;
 
             // Added at runtime so the generated menu scene needs no change.
             var friends = GetComponent<FriendsPanel>() ?? gameObject.AddComponent<FriendsPanel>();
@@ -321,8 +313,6 @@ namespace Kinesthetic.Menu
             if (!InScope(name)) return;
             int card = Array.FindIndex(cards, c => c != null && c.name == name);
             if (card >= 0) { Select(card, true); cards[card].Focus(); return; }
-            int tile = tiles.FindIndex(t => t.tile.name == name);
-            if (tile >= 0) { Hover(tile); return; }
             navigation.PlayHover();
         }
 
@@ -376,57 +366,112 @@ namespace Kinesthetic.Menu
             root.Q<Button>(focusName)?.Focus();
         }
 
-        /// One small button per movement in the exercise library (the catalog's group "movement" entries), under the
-        /// cards. Generated rather than authored, so `npm run catalog` is all a new movement needs to appear here.
-        void BuildMovementTiles()
+        /// The gallery is the catalog: one card for every activity with a card (activities.json), golf, the studio and
+        /// bowling beside every movement in the exercise library, each built the same way and the same size. Nothing is
+        /// authored in Gallery.uxml, so `npm run catalog` is all a new movement needs to be here as an equal.
+        void BuildGallery()
         {
-            var shelf = galleryRoot.Q("movements");
-            var movements = ActivityCatalog.Movements;
-            if (shelf == null) return;
-            shelf.Clear(); tiles.Clear();
-            if (movements.Length == 0) return;
-            var title = new KEyebrow("MOVEMENTS") { pickingMode = PickingMode.Ignore };
-            title.AddToClassList("movements-title");
-            shelf.Add(title);
-            foreach (var entry in movements)
+            var grid = galleryRoot.Q("cards");
+            galleryEntries = ActivityCatalog.Gallery;
+            grid?.Clear();
+            cards = new Button[galleryEntries.Length];
+            for (int i = 0; i < galleryEntries.Length; i++)
             {
-                var tile = new KButton { name = "tile-" + entry.Id, text = entry.DisplayName, size = KButton.Size.Small, tooltip = entry.Tagline };
-                tile.AddToClassList("movement-tile");
-                int index = tiles.Count;
-                tile.RegisterCallback<PointerEnterEvent>(_ => Hover(index));
-                tile.RegisterCallback<FocusInEvent>(_ => Hover(index));
-                string id = entry.Id;
-                Act(tile, () => Launch(id));
-                shelf.Add(tile); tiles.Add((tile, entry));
+                var entry = galleryEntries[i];
+                var card = cards[i] = Card(entry, i % CardsPerRow == 1);
+                int index = i; string id = entry.Id;
+                card.RegisterCallback<PointerEnterEvent>(_ => Select(index, true));
+                card.RegisterCallback<FocusInEvent>(_ => Select(index, true));
+                Act(card, () => Launch(id));
+                grid?.Add(card);
             }
-            activityScope = ActivityScope.Concat(tiles.Select(t => t.tile.name)).ToArray();
+            var pager = galleryRoot.Q("pager");
+            if (pager != null)
+            {
+                pager.Clear();
+                var prev = new KButton { name = "gallery-prev", text = "‹", shape = KButton.Shape.Round, size = KButton.Size.Small, tooltip = "Previous page" };
+                var next = new KButton { name = "gallery-next", text = "›", shape = KButton.Shape.Round, size = KButton.Size.Small, tooltip = "Next page" };
+                pageLabel = new Label { pickingMode = PickingMode.Ignore };
+                pageLabel.AddToClassList("page-label");
+                pager.Add(prev); pager.Add(pageLabel); pager.Add(next);
+                Act(prev, () => TurnPage(-1));
+                Act(next, () => TurnPage(1));
+            }
+            ShowPage(0);
         }
 
-        /// A movement tile under the gaze or the pointer: lit, and the caption says where the AirPod goes.
-        void Hover(int index)
+        /// One card: the same tag, icon, title, description and arrow the authored cards had, for every activity.
+        static Button Card(ActivityEntry entry, bool middle)
         {
-            for (int i = 0; i < tiles.Count; i++) tiles[i].tile.Hot = i == index;
-            if (caption != null) caption.text = $"{tiles[index].entry.DisplayName} · {tiles[index].entry.Tagline}";
-            navigation.PlayHover();
+            var card = new Button { name = "card-" + entry.Id, tooltip = entry.DisplayName };
+            card.AddToClassList("activity-card"); card.AddToClassList("gallery-card");
+            if (middle) card.AddToClassList("row-middle");
+            VisualElement Part(VisualElement parent, VisualElement child, string cls)
+            { child.pickingMode = PickingMode.Ignore; child.AddToClassList(cls); parent.Add(child); return child; }
+            Part(card, new Label(entry.CardTag), "preview-tag");
+            var info = Part(card, new VisualElement(), "card-info");
+            Part(info, new VisualElement(), "mode-icon").generateVisualContent += c => DrawCardIcon(c, entry);
+            var copy = Part(info, new VisualElement(), "card-copy");
+            Part(copy, new Label(entry.DisplayName), "card-title");
+            Part(copy, new Label(entry.Tagline), "card-description");
+            Part(info, new Label("›"), "card-arrow");
+            return card;
+        }
+
+        int Pages => Mathf.Max(1, (cards.Length + CardsPerPage - 1) / CardsPerPage);
+        void TurnPage(int step) { navigation.PlaySelect(); ShowPage((page + step + Pages) % Pages); Select(page * CardsPerPage, false); }
+
+        void ShowPage(int index)
+        {
+            page = Mathf.Clamp(index, 0, Pages - 1);
+            var showing = new List<string>();
+            for (int i = 0; i < cards.Length; i++)
+            {
+                bool on = i / CardsPerPage == page;
+                cards[i].EnableInClassList("hidden", !on);
+                if (on) showing.Add(cards[i].name);
+            }
+            if (pageLabel != null) pageLabel.text = $"{page + 1} of {Pages}";
+            galleryRoot.Q("pager")?.EnableInClassList("hidden", Pages < 2);
+            activityScope = showing.Concat(PagerScope).ToArray();
+            if (carousel != null && carousel.Current.id == "gallery") scope = activityScope;
         }
 
         void Select(int index, bool sound)
         {
-            foreach (var t in tiles) t.tile.Hot = false;
-            bool changed = index != selected; selected = index;
+            if (cards.Length == 0) return;
+            bool changed = index != selected; selected = Mathf.Clamp(index, 0, cards.Length - 1);
             for (int i = 0; i < cards.Length; i++) cards[i]?.EnableInClassList("selected", i == selected);
-            if (caption != null)
-                caption.text = selected switch
-                {
-                    0 => "Take a swing with a friend.",
-                    1 => "Make a little time for yourself.",
-                    _ => "Aim down the lane. Swing gently to roll."
-                };
+            if (caption != null) caption.text = galleryEntries[selected].CardCaption;
             if (sound && changed) navigation.PlayHover();
         }
 
         void MusicChanged(bool enabled) { if (music != null) music.text = enabled ? "Music: On" : "Music: Off"; }
         void OnDestroy() { if (navigation) navigation.MusicChanged -= MusicChanged; }
+
+        /// Golf, the studio and bowling keep their drawings. A movement is a figure with the tracker marked where it is
+        /// worn, so the card itself says where the AirPod goes.
+        static void DrawCardIcon(MeshGenerationContext ctx, ActivityEntry entry)
+        {
+            switch (entry.Id)
+            {
+                case "golf.adaptive": DrawIcon(ctx, false); return;
+                case "rehab.studio": DrawIcon(ctx, true); return;
+                case "bowling.adaptive": DrawBowlingIcon(ctx); return;
+            }
+            var p = ctx.painter2D;
+            p.strokeColor = Palette.Prussian60; p.lineWidth = 3; p.lineCap = LineCap.Round; p.lineJoin = LineJoin.Round;
+            void Line(params Vector2[] points) { p.BeginPath(); p.MoveTo(points[0]); for (int i = 1; i < points.Length; i++) p.LineTo(points[i]); p.Stroke(); }
+            p.BeginPath(); p.Arc(new(31, 14), 5.5f, Angle.Degrees(0), Angle.Degrees(360)); p.Stroke();
+            Line(new(31, 20), new(31, 37));
+            Line(new(20, 33), new(31, 24), new(42, 33));
+            Line(new(24, 52), new(31, 37), new(38, 52));
+            string tag = entry.CardTag ?? "";
+            Vector2 at = tag.Contains("EARS") ? new(37, 14) : tag.Contains("CHEST") ? new(31, 27)
+                : tag.Contains("THIGH") ? new(35, 43) : tag.Contains("ANKLE") ? new(37, 49) : new(42, 33);
+            p.fillColor = Palette.Cerulean40; p.strokeColor = Palette.Sand00; p.lineWidth = 2;
+            p.BeginPath(); p.Arc(at, 5, Angle.Degrees(0), Angle.Degrees(360)); p.Fill(); p.Stroke();
+        }
 
         static void DrawBowlingIcon(MeshGenerationContext ctx)
         {

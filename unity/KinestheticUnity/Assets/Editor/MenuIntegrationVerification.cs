@@ -131,9 +131,11 @@ public static class MenuIntegrationVerification
             for (int i = 0; i < 3; i++) yield return null;
             var gallerySlot = ring.Slots.First(s => s.id == "gallery");
             var galleryDoc = gallerySlot.pane.GetComponent<UIDocument>();
-            Check(Pick(galleryDoc, galleryDoc.rootVisualElement.Q<Button>("bowling-card"))?.name == "bowling-card",
+            // Cards are generated from the catalog (MainMenuController.BuildGallery), named card-<activity id>.
+            const string bowlingCard = "card-bowling.adaptive";
+            Check(Pick(galleryDoc, galleryDoc.rootVisualElement.Q<Button>(bowlingCard))?.name == bowlingCard,
                 "Bowling card cannot be selected by a ray");
-            Commit(menu, "bowling-card");
+            Commit(menu, bowlingCard);
             while (SceneManager.GetActiveScene().name != bowling.Scene || ActivityNavigation.Instance.Busy) yield return null;
             yield return null;
             var navigation = ActivityNavigation.Instance;

@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { movementActivities } from './movement-activities.ts';
-import { parseCatalog } from './activities.ts';
+import { parseCatalog } from './activity-schema.ts';
 
 const source = resolve(import.meta.dirname, 'activities.json');
 export const UNITY_COPY = resolve(import.meta.dirname, '../unity/KinestheticUnity/Assets/Kinesthetic/Activities/Resources/Activities/activities.json');

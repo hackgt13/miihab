@@ -122,36 +122,24 @@ namespace Kinesthetic.Rehab
         void DrawGhosts()
         {
             var rig = view.Rig;
-            bool left = view.Side == "left", curl = view.ExerciseKind == "elbow-flexion.v1";
+            bool left = view.Side == "left";
             float target = view.TargetDeg, ceiling = view.TargetDeg + view.BandDeg;
-            Transform upper = left ? rig.LeftUpperArm : rig.RightUpperArm, forearm = left ? rig.LeftForearm : rig.RightForearm,
-                hand = left ? rig.LeftHand : rig.RightHand;
-            float upperLength = Vector3.Distance(upper.position, forearm.position), forearmLength = Vector3.Distance(forearm.position, hand.position);
-            var shoulder = upper.position;
             Vector3 Reflect(Vector3 p) => copy.TransformPoint(source.InverseTransformPoint(p));
-
-            if (curl)
+            // The measured segment, whichever it is (PoseRig.MovementSegment): its ghost at the target and at the
+            // ceiling, and the band just beyond its end, so the live limb points into the band rather than covering it.
+            var body = Kinesthetic.Activities.ActivityCatalog.MovementFor(view.ExerciseKind)?.Body;
+            targetGhostForearm.enabled = ceilingGhostForearm.enabled = false;
+            if (!rig.MovementSegment(body, left, target, out var origin, out var toTarget, out var length))
             {
-                var elbow = shoulder + rig.ImuUpperArmAtSide(left) * upperLength;
-                Segment(targetGhost, Reflect(shoulder), Reflect(elbow));
-                Segment(targetGhostForearm, Reflect(elbow), Reflect(elbow + rig.ImuForearmDirection(target) * forearmLength));
-                Segment(ceilingGhost, Reflect(shoulder), Reflect(elbow));
-                Segment(ceilingGhostForearm, Reflect(elbow), Reflect(elbow + rig.ImuForearmDirection(ceiling) * forearmLength));
-                targetHand.position = Reflect(elbow + rig.ImuForearmDirection(target) * forearmLength);
-                ceilingHand.position = Reflect(elbow + rig.ImuForearmDirection(ceiling) * forearmLength);
-                Arc(n => Reflect(elbow + rig.ImuForearmDirection(Mathf.Lerp(target, ceiling, n)) * forearmLength * 1.25f));
+                targetGhost.enabled = ceilingGhost.enabled = band.enabled = false;
+                return;
             }
-            else
-            {
-                float reach = upperLength + forearmLength;
-                Segment(targetGhost, Reflect(shoulder), Reflect(shoulder + rig.ImuArmDirection(left, target) * reach));
-                Segment(ceilingGhost, Reflect(shoulder), Reflect(shoulder + rig.ImuArmDirection(left, ceiling) * reach));
-                targetGhostForearm.enabled = ceilingGhostForearm.enabled = false;
-                targetHand.position = Reflect(shoulder + rig.ImuArmDirection(left, target) * reach);
-                ceilingHand.position = Reflect(shoulder + rig.ImuArmDirection(left, ceiling) * reach);
-                // The band sits just beyond the hand, so the live arm points into it rather than covering it.
-                Arc(n => Reflect(shoulder + rig.ImuArmDirection(left, Mathf.Lerp(target, ceiling, n)) * reach * 1.2f));
-            }
+            rig.MovementSegment(body, left, ceiling, out _, out var toCeiling, out _);
+            Segment(targetGhost, Reflect(origin), Reflect(origin + toTarget * length));
+            Segment(ceilingGhost, Reflect(origin), Reflect(origin + toCeiling * length));
+            targetHand.position = Reflect(origin + toTarget * length);
+            ceilingHand.position = Reflect(origin + toCeiling * length);
+            Arc(n => { rig.MovementSegment(body, left, Mathf.Lerp(target, ceiling, n), out _, out var d, out _); return Reflect(origin + d * length * 1.2f); });
 
             // Palette roles: cerulean is the measured arm still climbing, jungle is in the band (good), coral is over the ceiling.
             var angle = view.ShownAngle;

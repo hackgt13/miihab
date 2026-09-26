@@ -31,12 +31,17 @@ namespace Kinesthetic.Rehab
         public string motionUrl = SensorHub.DefaultMotionUrl;
         public string wristMotionUrl = "ws://127.0.0.1:8767/bowling-motion?role=viewer";
         bool wristMotion;
-        string SensorPlacement => movementPlacement ?? (wristMotion ? "wrist" : "handle");
+        // The movement tile for the kind being measured: its body model draws the joint, its tag says where the
+        // tracker goes ("AIRPODS IN YOUR EARS" → "ears"). Every library kind has one, so a studio opened on its own
+        // draws a curl as a curl.
+        ActivityEntry Modelled => ActivityCatalog.MovementFor(exerciseKind);
+        BodyModel Body => Modelled?.Body;
+        string SensorPlacement => Modelled?.CardTag?.Split(' ').LastOrDefault()?.ToLowerInvariant() ?? (wristMotion ? "wrist" : "handle");
         // A movement tile from the gallery (activities.json group "movement"): this studio measures that one kind, as
         // the plan prescribes it or, when the plan does not, as a practice set at the library's defaults. The
         // coordinator decides which (GET /api/prescription); null when the studio was opened as itself.
         ActivityEntry movement;
-        string movementLabel, movementSensor, movementPlacement, movementPosture;
+        string movementLabel, movementPosture;
         bool practice;
         bool autoArmed, servicesStarting;
         long motionTicks; float stillSince = -1, enteredAt;
@@ -277,10 +282,7 @@ namespace Kinesthetic.Rehab
             practice = reply["practice"]?.Value<bool>() == true;
             exerciseKind = (string)x["exerciseKind"] ?? exerciseKind;
             movementLabel = (string)reply["label"] ?? movementLabel;
-            movementSensor = (string)reply["sensor"];
             movementPosture = (string)reply["posture"];
-            // "AirPods in your ears" → "ears": the word the status line puts after "your".
-            movementPlacement = movementSensor?.Split(' ').LastOrDefault();
             var p = x["params"] as JObject;
             bool nextWrist = (string)p?["imuSource"] == "wrist";
             if (nextWrist != wristMotion) { wristMotion = nextWrist; motionTicks = 0; motionSequence = -1; motionSession = null; stillSince = -1; }
@@ -363,6 +365,22 @@ namespace Kinesthetic.Rehab
             UpdatePlanLabels();
         }
 
+        /// "RIGHT ARM  ·  " for a limb, "RIGHT SIDE  ·  " for a side bend, nothing for a nod or a forward bend.
+        string SideLabel
+        {
+            get
+            {
+                var b = Body; string s = side.ToUpperInvariant();
+                if (b == null) return $"{s} ARM  ·  ";
+                return b.Segment switch
+                {
+                    "arm" or "forearm" => $"{s} ARM  ·  ",
+                    "thigh" or "shank" or "leg" => $"{s} LEG  ·  ",
+                    _ => Mathf.Abs(b.Toward.x) > .5f ? $"{s} SIDE  ·  " : "",
+                };
+            }
+        }
+
         static float? Num(JToken t) => t?.Type is JTokenType.Float or JTokenType.Integer ? t.Value<float>() : null;
         static string Seconds(float ms) => $"{ms / 1000:0.#} s";
 
@@ -382,17 +400,18 @@ namespace Kinesthetic.Rehab
         Briefing Prescription() => new()
         {
             eyebrow = practice ? "PRACTICE · NOT IN YOUR PLAN" : $"PRESCRIBED PLAN · V{planVersion}",
-            title = movementLabel ?? (exerciseKind == "elbow-flexion.v1" ? "Elbow bends" : "Shoulder raises"),
+            title = movementLabel ?? Modelled?.DisplayName ?? "Shoulder raises",
             subtitle = movementPosture ?? (string.IsNullOrEmpty(side) ? "Seated" : $"{char.ToUpperInvariant(side[0])}{side.Substring(1)} arm, seated"),
             // The hold and the tempo are what the set is judged on beyond the count, so they are read before it.
             lines = new[]
             {
+                // Where the tracker goes comes first: the reading is only as good as the strap.
+                new BriefingLine("Wear it", useCameraPose ? "Camera" : Modelled?.Wear ?? $"AirPod on your {SensorPlacement}"),
                 new BriefingLine("Repetitions", prescribedReps.ToString()),
-                new BriefingLine("Raise to", $"{targetDeg:0}°"),
+                new BriefingLine("Move to", $"{targetDeg:0}°"),
                 new BriefingLine("Stay under", $"{targetDeg + bandDeg:0}°"),
-                new BriefingLine("Hold at the top", HoldPrescribed ? Seconds(HoldTargetMs) : "No hold"),
-                new BriefingLine("Tempo", $"{Seconds(raiseMs)} up · {Seconds(lowerMs)} down"),
-                new BriefingLine("Measured by", useCameraPose ? "Camera" : movementSensor ?? $"AirPod on your {SensorPlacement}"),
+                new BriefingLine("Hold at the end", HoldPrescribed ? Seconds(HoldTargetMs) : "No hold"),
+                new BriefingLine("Tempo", $"{Seconds(raiseMs)} out · {Seconds(lowerMs)} back"),
             },
             note = coachingNote,
             noteFrom = "FROM YOUR CARE TEAM",
@@ -545,10 +564,11 @@ namespace Kinesthetic.Rehab
         void DriveFromImu()
         {
             rig.Apply(null);
-            if (!running || !Fresh || !liveAngle.HasValue) return;
-            shownAngle = Mathf.Lerp(shownAngle, liveAngle.Value, 1 - Mathf.Exp(-12 * Time.unscaledDeltaTime));
-            bool curl = exerciseKind == "elbow-flexion.v1";
-            rig.ApplyImuArm(side == "left", curl ? null : shownAngle, curl ? shownAngle : null);
+            // At rest the Mii still takes the movement's posture (arm out for 90/90, standing for a leg raise), so
+            // the patient can see how to set up before the first rep.
+            bool live = running && Fresh && liveAngle.HasValue;
+            if (live) shownAngle = Mathf.Lerp(shownAngle, liveAngle.Value, 1 - Mathf.Exp(-12 * Time.unscaledDeltaTime));
+            rig.ApplyMovement(Body, side == "left", live ? shownAngle : 0);
         }
 
         void ReadExercise()
@@ -676,7 +696,7 @@ namespace Kinesthetic.Rehab
             root.Q<KReadout>("summary-valid").value = valid.ToString();
             root.Q<KReadout>("summary-attempted").value = attempted.ToString();
             root.Q<KReadout>("summary-peak").value = median;
-            root.Q<Label>("summary-plan").text = $"{side.ToUpperInvariant()} ARM  ·  TARGET {targetDeg:0}°  ·  {prescribedReps} REPS";
+            root.Q<Label>("summary-plan").text = $"{SideLabel}TARGET {targetDeg:0}°  ·  {prescribedReps} REPS";
             root.Q<Label>("summary-progress")?.AddToClassList("hidden");   // filled by the progression verdict that follows
             var form = FormSummary(s["quality"] as JObject);
             if (root.Q<Label>("summary-form") is Label formLine) { formLine.text = form; formLine.EnableInClassList("hidden", form.Length == 0); }
@@ -732,9 +752,15 @@ namespace Kinesthetic.Rehab
             across = Vector3.ProjectOnPlane(across, down).normalized;
             float reach = Vector3.Distance(rig.RightUpperArm.position, rig.RightForearm.position) +
                           Vector3.Distance(rig.RightForearm.position, rig.RightHand.position);
-            // With the IMU, guides follow the same plane the arm is drawn in (PoseRig.ImuArmDirection).
-            Vector3 At(float deg, float r) { float a = deg * Mathf.Deg2Rad;
-                return shoulder + (useCameraPose ? down * Mathf.Cos(a) + across * Mathf.Sin(a) : rig.ImuArmDirection(left, deg)) * r; }
+            // With the IMU, guides are laid along the measured segment itself (PoseRig.MovementSegment): the arm, the
+            // shin, the head, whatever the movement moves, from the joint it moves about.
+            var body = useCameraPose ? null : Body;
+            if (rig.MovementSegment(body, left, 0, out var origin, out _, out var length)) { shoulder = origin; reach = length; }
+            Vector3 At(float deg, float r)
+            {
+                if (rig.MovementSegment(body, left, deg, out _, out var direction, out _)) return shoulder + direction * r;
+                float a = deg * Mathf.Deg2Rad; return shoulder + (down * Mathf.Cos(a) + across * Mathf.Sin(a)) * r;
+            }
 
             const int n = 24; targetBand.positionCount = n;
             for (int i = 0; i < n; i++) targetBand.SetPosition(i, At(targetDeg + bandDeg * i / (n - 1), reach));

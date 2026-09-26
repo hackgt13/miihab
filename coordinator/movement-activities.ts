@@ -9,7 +9,7 @@
 // plan's prescription for that kind if there is one, and otherwise a practice set at the library's defaults
 // (plans.ts, prescriptionForActivity).
 
-import { LIBRARY, type LibraryExercise } from './exercises.ts';
+import { LIBRARY, WEAR, type LibraryExercise } from './exercises.ts';
 
 export const MOVEMENT_PREFIX = 'movement.';
 
@@ -21,6 +21,10 @@ export function movementActivity(x: LibraryExercise) {
     id: movementActivityId(x.kind),
     displayName: x.label,
     tagline: `${x.sensor}. ${x.posture}`,
+    // The same card as golf's or the studio's: the tag says where the tracker goes, the caption how to wear it.
+    card: { tag: x.sensor.toUpperCase(), caption: WEAR[x.sensor] },
+    wear: WEAR[x.sensor],
+    body: x.body,
     category: 'therapy',
     scene: 'Rehab',
     questScene: 'QuestRehab',
@@ -34,7 +38,7 @@ export function movementActivity(x: LibraryExercise) {
     help: {
       title: `Today we will practice: ${x.label.toLowerCase()}.`,
       steps: [
-        { step: 'Get set', copy: `${x.sensor}. ${x.posture} Hold still until Ready.` },
+        { step: 'Get set', copy: `${WEAR[x.sensor]} ${x.posture} Hold still until Ready.` },
         { step: 'Move', copy: x.cue },
         { step: 'Rest', copy: 'Return to rest between reps. Finish set stops early.' },
       ],
