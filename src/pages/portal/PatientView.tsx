@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { usePatientData } from '../../hooks/useLivePatient'
+import { concerning } from '../../data/coordinator'
 import { evaluateTrigger, computeNextSession } from '../../data/rules'
 import { useSessionSocket } from '../../hooks/useSessionSocket'
 import { TriggerCard } from '../../ui/TriggerCard'
@@ -13,6 +14,7 @@ import { PlanVersioning } from '../../ui/PlanVersioning'
 import { DataQuality } from '../../ui/DataQuality'
 import { Adherence } from '../../ui/Adherence'
 import { VisitNotes } from '../../ui/VisitNotes'
+import { PatientRelay } from '../../ui/PatientRelay'
 import type { PatientStatus } from '../../data/types'
 
 const statusColor: Record<PatientStatus, string> = {
@@ -149,6 +151,11 @@ export function PatientView() {
           </div>
         </div>
       </div>
+
+      {/* ── 0. What the patient said ──────────────────────────
+             Above the trigger card on purpose: the rule below is a machine reading sensor output, and this
+             is the patient's own account. When they disagree, the physician should have read this first. */}
+      <PatientRelay replies={concerning(data.replies)} />
 
       {/* ── 1. Trigger card ───────────────────────────────────── */}
       <TriggerCard

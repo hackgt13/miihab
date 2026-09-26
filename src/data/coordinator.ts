@@ -21,7 +21,7 @@
 //   · more than one patient       — the coordinator is one machine, one patient, `patientId: null`
 import type {
   PatientData, PatientReport, PatientStatus, PlanVersion, RepEvent, ReplayMoment,
-  SessionHandoff, SessionSummary,
+  SessionHandoff, SessionSummary, VisitReply,
 } from './types'
 
 /** The one real patient. Seeded patients keep their own ids, so the two can stand side by side. */
@@ -89,15 +89,6 @@ interface CoordinatorPlan {
   goal?: { text?: string }
   coachingNote?: string
   activities: CoordinatorPlanActivity[]
-}
-
-/** What the patient relays at the end of a visit (coordinator/visit.ts). Quick replies carry fixed text. */
-interface CoordinatorReply {
-  id: string
-  kind: 'fine' | 'easy' | 'hard' | 'hurt' | 'message'
-  text: string
-  planVersion: number | null
-  at: string
 }
 
 interface CoordinatorDashboard {
@@ -184,9 +175,9 @@ function replayMoments(summary: CoordinatorSummary): ReplayMoment[] {
  * latest session rather than being pinned to a moment inside it — which is why `t` is 0 and the portal
  * says "reported at the visit" instead of a timestamp inside the recording.
  */
-const SEVERITY: Record<CoordinatorReply['kind'], number> = { hurt: 8, hard: 6, message: 5, easy: 2, fine: 0 }
+const SEVERITY: Record<VisitReply['kind'], number> = { hurt: 8, hard: 6, message: 5, easy: 2, fine: 0 }
 
-function patientReports(replies: CoordinatorReply[], now: Date): PatientReport[] {
+function patientReports(replies: VisitReply[], now: Date): PatientReport[] {
   const since = now.getTime() - 14 * 86_400_000
   return replies
     .filter(r => Date.parse(r.at) >= since)
@@ -250,16 +241,27 @@ function planVersion(plan: CoordinatorPlan, previous: CoordinatorPlan | undefine
 
 // ── The patient ───────────────────────────────────────────────────────────
 
+/** How recent a patient's word still counts as news a physician has not acted on. */
+const RELAY_WINDOW_DAYS = 7
+
+/** The replies a physician is meant to see rather than skim past, newest first. */
+export const concerning = (replies: VisitReply[] = [], now = new Date()): VisitReply[] =>
+  replies.filter(r => (r.kind === 'hurt' || r.kind === 'hard' || r.kind === 'message')
+    && Date.parse(r.at) >= now.getTime() - RELAY_WINDOW_DAYS * 86_400_000)
+
 /**
- * A status for the sidebar, from what the data supports and nothing more. The portal's own trigger rule
- * needs a patient-reported symptom to fire and nothing collects one, so this is about turning up and
- * moving: silence for a week is what a clinician wants flagged, and it is the one thing the records can
- * honestly say.
+ * A status for the sidebar, from what the data supports and nothing more.
+ *
+ * Two things a physician wants flagged, in order. Pain first: the patient said something hurt, which is the
+ * only thing on this page they said in their own words and the only one that can mean stop. Then silence —
+ * a week without a session is the other thing the records can honestly say.
  */
-function statusOf(sessions: SessionSummary[], daysSinceLast: number): PatientStatus {
+function statusOf(sessions: SessionSummary[], daysSinceLast: number, replies: VisitReply[]): PatientStatus {
+  const said = concerning(replies)
+  if (said.some(r => r.kind === 'hurt')) return 'alert'
   if (sessions.length === 0) return 'watch'
   if (daysSinceLast >= 7) return 'alert'
-  if (daysSinceLast >= 3) return 'watch'
+  if (said.length > 0 || daysSinceLast >= 3) return 'watch'
   return 'good'
 }
 
@@ -284,7 +286,7 @@ export async function fetchLivePatient(): Promise<PatientData> {
     get<CoordinatorPlan[]>('/api/plans'),
     get<CoordinatorActivity[]>('/api/activity-sessions'),
     get<{ me?: { displayName?: string } }>('/api/friends').catch(() => ({ me: undefined })),
-    get<CoordinatorReply[]>('/api/visit/replies').catch(() => [] as CoordinatorReply[]),
+    get<VisitReply[]>('/api/visit/replies').catch(() => [] as VisitReply[]),
   ])
 
   const real = summaries.filter(isReal).sort((a, b) => a.endedAt.localeCompare(b.endedAt))
@@ -348,9 +350,15 @@ export async function fetchLivePatient(): Promise<PatientData> {
       // not a name, and a clinician's sidebar is the wrong place to render it.
       name: (people.me?.displayName ?? '').trim().replace(/^You$/, '') || 'This headset',
       condition: dashboard.goal || plans[plans.length - 1]?.goal?.text || 'Home rehab program',
-      status: statusOf(sessions, daysSinceLast),
+      status: statusOf(sessions, daysSinceLast, replies),
       urgency: -1,               // the live patient sorts above the seeded ones
-      flagDetail: `Day ${dashboard.programDay} of ${dashboard.programTotalDays} · ${sessions.length} session${sessions.length === 1 ? '' : 's'}`,
+      // The sidebar line leads with the patient's own word when there is one: a physician scanning the
+      // list should not have to open a patient to find out they reported pain.
+      flagDetail: [
+        concerning(replies)[0] && `“${concerning(replies)[0].text}”`,
+        `Day ${dashboard.programDay} of ${dashboard.programTotalDays}`,
+        `${sessions.length} session${sessions.length === 1 ? '' : 's'}`,
+      ].filter(Boolean).join(' · '),
       lastSession: latest ? saidWhen(daysSinceLast) : 'None yet',
       sessionCount: sessions.length,
       weeksActive: Math.max(1, Math.ceil(dashboard.programDay / 7)),
@@ -363,6 +371,7 @@ export async function fetchLivePatient(): Promise<PatientData> {
     latestHandoff: handoff,
     schedule,
     plans: plans.map((plan, i) => planVersion(plan, plans[i - 1])).reverse(),   // newest first
+    replies: [...replies].sort((a, b) => b.at.localeCompare(a.at)),
     rtm: {
       patientId: LIVE_PATIENT_ID,
       month,
