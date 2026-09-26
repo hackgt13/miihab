@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>org.kinesthetic.bowlingmotion</string>
+<key>CFBundleName</key><string>Kinesthetic Bowling Motion</string>
+<key>CFBundleExecutable</key><string>ClubMotionBridge</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>NSMotionUsageDescription</key><string>Kinesthetic reads wrist-mounted AirPod motion to aim and roll your bowling ball.</string>
+<key>NSBluetoothAlwaysUsageDescription</key><string>Kinesthetic uses your connected AirPods for bowling motion.</string>
+<key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
+</dict></plist>

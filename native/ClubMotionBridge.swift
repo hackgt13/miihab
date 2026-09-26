@@ -2,6 +2,29 @@ import SwiftUI
 import CoreMotion
 import Foundation
 
+enum MotionActivity {
+#if BOWLING
+    static let bowling = true
+    static let title = "Kinesthetic · Bowling Motion"
+    static let equipment = "wrist"
+    static let game = "bowling"
+    static let path = "bowling-motion"
+    static let type = "bowling"
+    static let healthKey = "bowlingPlayers"
+    static let instruction = "Face the pins. Hold your hand still in Bowling."
+#else
+    static let bowling = false
+    static let title = "Kinesthetic · Club Motion"
+    static let equipment = "club"
+    static let game = "golf"
+    static let path = "golf"
+    static let type = "club"
+    static let healthKey = "players"
+    static let instruction = "Calibrate at address in Unity after mounting."
+#endif
+    static let activeNotification = Notification.Name("org.kinesthetic.motion.active")
+}
+
 // Adapted from Aircade's MotionModel.start/receive: real CMHeadphoneMotionManager,
 // reporting-earbud identity, finite quaternions and increasing sensor timestamps.
 // Native motion requires a supported paired AirPods set; no simulated fallback.
@@ -11,6 +34,7 @@ import Foundation
     @Published var source = "Waiting"
     @Published var samples = 0
     @Published var running = false
+    @Published var monitoring = false
     @Published var relayConnected = false
     @Published var speed = 0.0
     private var manager: CMHeadphoneMotionManager?
@@ -24,6 +48,9 @@ import Foundation
     private var discoveryTimer: Timer?
 
     func startAutomatically() {
+        monitoring = true
+        DistributedNotificationCenter.default().postNotificationName(MotionActivity.activeNotification,
+            object: MotionActivity.game, userInfo: nil, deliverImmediately: true)
         if discoveryTimer == nil {
             discoveryTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.checkConnection() }
@@ -52,16 +79,16 @@ import Foundation
         do {
             let (data, _) = try await URLSession.shared.data(from: URL(string: "http://127.0.0.1:8767/")!)
             let health = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-            let players = health?["players"] as? [String] ?? []
+            let players = health?[MotionActivity.healthKey] as? [String] ?? []
             guard running, socket === task else { return }
             if players.contains(player) && samples > 0 && ProcessInfo.processInfo.systemUptime-lastSampleReceived < 1 {
                 relayConnected = true
-                status = "Streaming to Unity via the local golf relay."
+                status = "Connected to Unity \(MotionActivity.game)."
             }
             else { status = "AirPod motion detected; reconnecting to Unity…"; stop(keepStatus: true) }
         } catch {
             guard running, socket === task else { return }
-            status = "Local golf relay unavailable. Retrying…"
+            status = "Local motion relay unavailable. Retrying…"
             stop(keepStatus: true)
         }
     }
@@ -71,7 +98,7 @@ import Foundation
         let manager = CMHeadphoneMotionManager()
         guard manager.isDeviceMotionAvailable else {status="AirPod motion is unavailable. Pair a supported set and try again.";return}
         self.manager=manager
-        let url=URL(string:"ws://127.0.0.1:8767/golf?role=producer&player=\(player)")!
+        let url=URL(string:"ws://127.0.0.1:8767/\(MotionActivity.path)?role=producer&player=\(player)")!
         let task=URLSession.shared.webSocketTask(with:url)
         socket=task;task.resume()
         session=UUID().uuidString;lastTime = -1;samples=0;running=true
@@ -102,7 +129,7 @@ import Foundation
                 self.lastSampleReceived=ProcessInfo.processInfo.systemUptime
                 self.speed=sqrt(r.x*r.x+r.y*r.y+r.z*r.z)
                 guard !self.sending else {return}
-                let p:[String:Any]=["type":"club.motion","playerId":self.player,
+                let p:[String:Any]=["type":"\(MotionActivity.type).motion","playerId":self.player,
                     "sourceId":sensorSource,"sessionId":self.session,"sequence":self.samples,
                     "sensorTime":time,"quaternion":[q.x,q.y,q.z,q.w],"rotationRate":[r.x,r.y,r.z]]
                 guard let data=try? JSONSerialization.data(withJSONObject:p),let text=String(data:data,encoding:.utf8) else{return}
@@ -120,14 +147,25 @@ import Foundation
         if !keepStatus {status="Stopped. Unity will require calibration after reconnecting."}
     }
     func pause() {
+        monitoring = false
         discoveryTimer?.invalidate(); discoveryTimer=nil
         stop()
     }
 }
 
 final class ClubAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        DistributedNotificationCenter.default().addObserver(self, selector: #selector(otherActivityStarted(_:)),
+            name: MotionActivity.activeNotification, object: nil)
+    }
+    @objc private func otherActivityStarted(_ notification: Notification) {
+        guard let activity = notification.object as? String, activity != MotionActivity.game else { return }
+        NotificationCenter.default.post(name: Notification.Name("PauseOtherMotion"), object: nil)
+    }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         NotificationCenter.default.post(name: Notification.Name("ResumeClubMotion"), object: nil)
+        sender.activate(ignoringOtherApps: true)
+        for window in sender.windows where window.canBecomeMain { window.makeKeyAndOrderFront(nil) }
         return true
     }
 }
@@ -135,23 +173,26 @@ final class ClubAppDelegate: NSObject, NSApplicationDelegate {
     @NSApplicationDelegateAdaptor(ClubAppDelegate.self) var appDelegate
     @StateObject private var bridge=ClubMotionBridge()
     var body: some Scene {
-        WindowGroup("Kinesthetic · Club Motion") {
+        WindowGroup(MotionActivity.title) {
             VStack(alignment:.leading,spacing:18) {
-                Text(bridge.relayConnected ? "Your club. Connected." : "Connecting your club…").font(.largeTitle.bold())
-                Text("AirPods motion → Unity golf").foregroundStyle(.secondary)
-                Picker("Player",selection:$bridge.player) {
-                    Text("Patient").tag("patient");Text("Friend").tag("friend")
-                }.disabled(bridge.running)
+                Text(bridge.relayConnected ? "Your \(MotionActivity.equipment). Connected." : bridge.monitoring ? "Connecting your \(MotionActivity.equipment)…" : "\(MotionActivity.game.capitalized) motion paused.").font(.largeTitle.bold())
+                Text("AirPods motion → Unity \(MotionActivity.game)").foregroundStyle(.secondary)
+                if !MotionActivity.bowling {
+                    Picker("Player",selection:$bridge.player) {
+                        Text("Patient").tag("patient");Text("Friend").tag("friend")
+                    }.disabled(bridge.running)
+                }
                 Text(bridge.status).fixedSize(horizontal:false,vertical:true)
                 Text("Reporting AirPod: \(bridge.source)")
                 Text(String(format:"Angular speed: %.2f rad/s · %d samples",bridge.speed,bridge.samples)).monospacedDigit()
                 HStack {
-                    Button(bridge.running ? "Stop motion" : "Start motion") {if bridge.running {bridge.pause()} else {bridge.startAutomatically()}}
-                    Text("Calibrate at address in Unity after mounting.").font(.caption).foregroundStyle(.secondary)
+                    Button(bridge.monitoring ? "Pause motion" : "Start motion") {if bridge.monitoring {bridge.pause()} else {bridge.startAutomatically()}}
+                    Text(MotionActivity.instruction).font(.caption).foregroundStyle(.secondary)
                 }
             }.padding(28).frame(width:510)
                 .task { bridge.startAutomatically() }
                 .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ResumeClubMotion"))) { _ in bridge.startAutomatically() }
+                .onReceive(NotificationCenter.default.publisher(for: Notification.Name("PauseOtherMotion"))) { _ in bridge.pause() }
         }.windowResizability(.contentSize)
     }
 }

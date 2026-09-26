@@ -1,0 +1,37 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:Style src="Bowling.uss" />
+  <ui:VisualElement name="bowlingRoot" class="bowling" picking-mode="Ignore">
+    <ui:VisualElement class="top" picking-mode="Ignore">
+      <ui:VisualElement class="brand"><ui:Label text="REHABMII SPORTS" class="eyebrow" /><ui:Label text="Bowling" class="title" /></ui:VisualElement>
+      <ui:VisualElement class="top-actions"><ui:Label name="device" text="Connecting AirPods…" class="device" /><ui:Button name="calibrate" text="Recenter" /><ui:Button name="pause" text="Pause" /></ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="scoreboard" class="scoreboard" />
+    <ui:VisualElement class="spacer" picking-mode="Ignore" />
+    <ui:VisualElement class="bottom" picking-mode="Ignore">
+      <ui:VisualElement class="metric"><ui:Label text="ESTIMATED AIM" class="eyebrow" /><ui:Label name="aim" text="Straight" class="metric-value" /><ui:Label text="Relative to your calibration" class="small" /></ui:VisualElement>
+      <ui:VisualElement class="cue"><ui:Label name="frameLabel" text="FRAME 1 · BALL 1" class="eyebrow" /><ui:Label name="cue" text="Swing back, then forward." class="cue-title" /></ui:VisualElement>
+      <ui:VisualElement class="metric"><ui:Label text="SWING POWER" class="eyebrow" /><ui:Label name="power" text="0%" class="metric-value" /><ui:Label text="A comfortable swing is enough" class="small" /></ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="setup" class="overlay">
+      <ui:VisualElement class="card">
+        <ui:Label text="LET'S GET READY" class="eyebrow" /><ui:Label text="Today we will practice bowling." class="card-title" />
+        <ui:VisualElement class="step"><ui:Label text="1" class="number" /><ui:Label text="Secure your AirPod to your wrist or hand." class="step-text" /></ui:VisualElement>
+        <ui:VisualElement class="step"><ui:Label text="2" class="number" /><ui:Label text="Face the pins. Rest your hand by your side." class="step-text" /></ui:VisualElement>
+        <ui:VisualElement class="step"><ui:Label text="3" class="number" /><ui:Label text="Swing back, then forward to roll." class="step-text" /></ui:VisualElement>
+        <ui:Label name="setupStatus" text="Connecting AirPods…" class="setup-status" />
+        <ui:Label text="Starts automatically when you're ready. Keep the AirPod secured as you swing." class="fine" />
+        <ui:VisualElement class="actions"><ui:Button name="retry" text="Reconnect" /><ui:Button name="setupBack" text="Back" /></ui:VisualElement>
+      </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="paused" class="overlay hidden"><ui:VisualElement class="card">
+      <ui:Label text="TAKE YOUR TIME" class="eyebrow" /><ui:Label text="Ready when you are." class="card-title" />
+      <ui:Label text="Face the pins, rest your hand, then swing back and forward." class="step-text" />
+      <ui:VisualElement class="actions"><ui:Button name="resume" text="Keep playing" class="primary" /><ui:Button name="pauseBack" text="Back" /></ui:VisualElement>
+    </ui:VisualElement></ui:VisualElement>
+    <ui:VisualElement name="results" class="overlay hidden"><ui:VisualElement class="card">
+      <ui:Label text="ROUND COMPLETE" class="eyebrow" /><ui:Label text="Nice bowling!" class="card-title" />
+      <ui:Label name="finalScore" text="0" class="result-score" /><ui:Label text="POINTS" class="fine" />
+      <ui:VisualElement class="actions"><ui:Button name="replay" text="Play again" class="primary" /><ui:Button name="resultBack" text="Back" /></ui:VisualElement>
+    </ui:VisualElement></ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

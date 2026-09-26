@@ -31,15 +31,26 @@ PY
   compiler_flags=(-vfsoverlay "$build_tmp/overlay.json" -Xcc -ivfsoverlay -Xcc "$build_tmp/overlay.json")
 fi
 
-"$swift_exe" -parse-as-library -target "$build_arch-apple-macos14.0" \
+for motion_mode in club bowling; do
+  activity_flags=()
+  if [[ "$motion_mode" == bowling ]]; then
+    activity_flags=(-D BOWLING)
+    app_name='Kinesthetic Bowling Motion'
+    plist='native/BowlingInfo.plist'
+  else
+    app_name='Kinesthetic Club Motion'
+    plist='native/Info.plist'
+  fi
+  "$swift_exe" -parse-as-library -target "$build_arch-apple-macos14.0" \
   -sdk "$sdk_path" \
-  "${compiler_flags[@]}" \
+  "${compiler_flags[@]}" "${activity_flags[@]}" \
   native/ClubMotionBridge.swift \
   -o "$build_tmp/ClubMotionBridge" \
   -framework SwiftUI -framework CoreMotion \
   -module-cache-path "$build_tmp/module-cache"
-mkdir -p 'native/build/Kinesthetic Club Motion.app/Contents/MacOS'
-cp native/Info.plist 'native/build/Kinesthetic Club Motion.app/Contents/Info.plist'
-cp "$build_tmp/ClubMotionBridge" 'native/build/Kinesthetic Club Motion.app/Contents/MacOS/ClubMotionBridge'
-codesign --force --deep --sign - 'native/build/Kinesthetic Club Motion.app'
-print -- 'Built native/build/Kinesthetic Club Motion.app'
+  mkdir -p "native/build/$app_name.app/Contents/MacOS"
+  cp "$plist" "native/build/$app_name.app/Contents/Info.plist"
+  cp "$build_tmp/ClubMotionBridge" "native/build/$app_name.app/Contents/MacOS/ClubMotionBridge"
+  codesign --force --deep --sign - "native/build/$app_name.app"
+  print -- "Built native/build/$app_name.app"
+done
