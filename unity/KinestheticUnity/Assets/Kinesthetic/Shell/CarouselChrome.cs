@@ -70,6 +70,7 @@ namespace Kinesthetic.Shell
                 previous.clicked += carousel.Previous;
                 next.clicked += carousel.Next;
                 carousel.Changed += _ => Mark();
+                carousel.Settled += _ => Mark();
             }
 
             dots = root.Q("carousel-dots");
@@ -98,6 +99,10 @@ namespace Kinesthetic.Shell
             var order = carousel.LeftToRight;
             for (int i = 0; i < dots.childCount && i < order.Count; i++)
                 dots[i].EnableInClassList("here", order[i] == carousel.CurrentIndex);
+
+            // An arrow pointing at nothing is worse than no arrow: it invites a press and then appears broken.
+            previous?.SetEnabled(carousel.CanStep(-1));
+            next?.SetEnabled(carousel.CanStep(1));
         }
 
         /// Stand the chrome in a scene that already has a ring. One call, because wiring arrows should not
