@@ -63,12 +63,19 @@ enum MotionActivity {
         monitoring = true
         DistributedNotificationCenter.default().postNotificationName(MotionActivity.activeNotification,
             object: MotionActivity.game, userInfo: nil, deliverImmediately: true)
+        route.watch { [weak self] in Task { @MainActor in self?.reclaimRoute() } }
         if discoveryTimer == nil {
             discoveryTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.checkConnection() }
             }
         }
         checkConnection()
+    }
+
+    private func reclaimRoute() {
+        guard monitoring else { return }
+        if let note = route.claim() { status = note }
+        routeHeld = route.holding
     }
 
     private func checkConnection() {
