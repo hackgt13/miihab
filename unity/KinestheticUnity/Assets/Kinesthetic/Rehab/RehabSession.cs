@@ -621,7 +621,8 @@ namespace Kinesthetic.Rehab
             // the patient can see how to set up before the first rep.
             bool live = running && Fresh && liveAngle.HasValue;
             float before = shownAngle, dt = Time.unscaledDeltaTime;
-            if (live) shownAngle = Mathf.Lerp(shownAngle, liveAngle.Value, 1 - Mathf.Exp(-12 * dt));
+            // Tight smoothing: the dial and the arm answer the joint within a sample or two, not a beat later.
+            if (live) shownAngle = Mathf.Lerp(shownAngle, liveAngle.Value, 1 - Mathf.Exp(-22 * dt));
             // The speed of the angle being shown, for the mechanics' feel. Presentation only; the tempo verdict is the coordinator's.
             speedDegS = live && dt > 0 ? Mathf.Lerp(speedDegS, (shownAngle - before) / dt, 1 - Mathf.Exp(-10 * dt)) : 0;
             rig.ApplyMovement(Body, side == "left", live ? shownAngle : 0);

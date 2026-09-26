@@ -100,6 +100,7 @@ namespace Kinesthetic.Rehab.Mechanics
             RepMechanic.Attach<PacerMechanic>(host, view);     // first: the reticle reads the pace it sets this frame
             RepMechanic.Attach<BalanceMechanic>(host, view);
             RepMechanic.Attach<ReticleMechanic>(host, view);
+            RepMechanic.Attach<DialMechanic>(host, view);
         }
     }
 }
