@@ -6,7 +6,7 @@
 
 import {
   RepSession, angle, len, mid, sub,
-  type ExerciseKind, type Frame, type Observation, type Reference, type RepParams,
+  type ExerciseKind, type Observation, type ObservationInput, type Reference, type RepParams,
   type ResolvedParams, type Sample as RepSample, type SharedInvalidReason, type Side, type Vec,
 } from './kind.ts';
 
@@ -26,8 +26,8 @@ export const shoulderRaise: ExerciseKind<'trunk_compensation'> = {
 
   landmarks: (p: ResolvedParams) => [IDX.shoulder[p.side], IDX.elbow[p.side], ...IDX.hips, ...IDX.shoulders],
 
-  observe(frame: Frame, p: ResolvedParams, reference: Reference | null): Observation | null {
-    const w = frame.worldLandmarks;
+  observe(input: ObservationInput, p: ResolvedParams, reference: Reference | null): Observation | null {
+    const w = input.pose!.worldLandmarks;
     const shoulder = w[IDX.shoulder[p.side]], elbow = w[IDX.elbow[p.side]];
     const upper = sub(elbow, shoulder), upperArmM = len(upper);
     if (upperArmM < 0.08) return null;

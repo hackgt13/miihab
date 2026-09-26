@@ -5,8 +5,9 @@
 import { RepSession, type ExerciseKind, type RepParams } from './kind.ts';
 import { shoulderRaise } from './shoulder-raise.ts';
 import { seatedTrunkRotation } from './seated-trunk-rotation.ts';
+import { armElevation } from './arm-elevation.ts';
 
-export const EXERCISES: readonly ExerciseKind<any>[] = [shoulderRaise, seatedTrunkRotation];
+export const EXERCISES: readonly ExerciseKind<any>[] = [shoulderRaise, seatedTrunkRotation, armElevation];
 export const DEFAULT_EXERCISE = shoulderRaise.id;
 
 /** Plan schema v1 names the exercise with a free string; v2 will key on the id directly. */
