@@ -102,20 +102,23 @@ Button:disabled { opacity: .55; }
 
 /* ---------------------------------------------------------------- pane links
 
-   The stack that took the place of the single "Choose activity" tile: one small button for every pane in
-   the ring, built by MainMenuController.BuildPaneLinks. They share the tile's footprint, so a taller stack
-   makes each one shorter rather than pushing the Today tile up. Each names where it goes and points the way
-   the ring will turn to get there. */
+   The row that took the place of the single "Choose activity" tile: one small button for every pane in
+   the ring, built by MainMenuController.BuildPaneLinks. They sit side by side in the order the panes stand,
+   left to right, so the row is a map of the ring: the button on the left goes to the pane on the left. Each
+   carries a chevron on the side the ring will turn toward. They share the tile's footprint, so a longer row
+   makes each one narrower rather than pushing the Today tile up. */
 
-.pane-links { flex-shrink: 0; }
-.pane-link { flex-direction: row; align-items: center; justify-content: space-between; padding: 11px 22px 11px 24px; margin: 0 0 8px; border-radius: 20px; border-width: 2px; border-bottom-width: 4px; border-color: var(--sand-00-a80); border-bottom-color: var(--slate-50-a42); background-color: var(--sand-00-a82); transition-duration: .16s; }
-.pane-link.last { margin-bottom: 0; }
+.pane-links { flex-direction: row; align-items: stretch; flex-shrink: 0; }
+.pane-link { flex-grow: 1; flex-basis: 0; min-width: 0; flex-direction: row; align-items: center; padding: 12px 18px; margin: 0 8px 0 0; border-radius: 20px; border-width: 2px; border-bottom-width: 4px; border-color: var(--sand-00-a80); border-bottom-color: var(--slate-50-a42); background-color: var(--sand-00-a82); transition-duration: .16s; }
+.pane-link.last { margin-right: 0; }
 .pane-link:hover, .pane-link:focus { background-color: var(--sand-00-a95); border-color: var(--cerulean-40-a95); border-bottom-color: var(--cerulean-50); scale: 1.02; }
 .pane-link:active { background-color: var(--cerulean-10-a95); scale: 1.005; }
 .pane-link-copy { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.pane-link-title { font-size: 24px; color: var(--prussian-50); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
-.pane-link-sub { font-size: 15px; color: var(--slate-50); margin-top: 1px; white-space: normal; }
-.pane-link-arrow { font-size: 34px; color: var(--cerulean-50); margin-left: 14px; flex-shrink: 0; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.pane-link-title { font-size: 23px; color: var(--prussian-50); -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.pane-link-sub { font-size: 14px; color: var(--slate-50); margin-top: 1px; white-space: normal; }
+.pane-link-arrow { font-size: 34px; color: var(--cerulean-50); flex-shrink: 0; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-ExtraBold.ttf"); }
+.pane-link-arrow.leading { margin-right: 12px; }
+.pane-link-arrow.trailing { margin-left: 12px; }
 
 /* ---------------------------------------------------------------- overlays */
 

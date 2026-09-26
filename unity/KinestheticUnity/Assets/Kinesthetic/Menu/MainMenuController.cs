@@ -50,8 +50,8 @@ namespace Kinesthetic.Menu
         // title alone does not say why someone would go there, add one line here.
         static readonly Dictionary<string, string> PaneBlurbs = new()
         {
-            ["gallery"] = "Browse everything you can play",
-            ["friends"] = "See who is cheering you on",
+            ["gallery"] = "Everything you can play",
+            ["friends"] = "Who is cheering you on",
         };
 
         /// The button that turns the ring to a pane, by slot id: "pane-gallery", "pane-friends".
@@ -208,10 +208,11 @@ namespace Kinesthetic.Menu
 
         bool InScope(string name) => Array.IndexOf(scope, name) >= 0;
 
-        /// One button for every pane in the ring except the board itself, stacked where "Choose activity"
+        /// One button for every pane in the ring except the board itself, in a row where "Choose activity"
         /// used to be. Built from the carousel's own slots rather than authored in the UXML, so a pane
         /// adopted in MainMenuSetup shows up here without anyone remembering to add it — and in the order
-        /// they physically stand, left to right, with a chevron pointing the way the ring will turn.
+        /// they physically stand, left to right, so the row is a map of the ring. A pane to the left gets
+        /// its chevron on the left, a pane to the right on the right: the way the ring will turn.
         void BuildPaneLinks()
         {
             var links = root.Q("pane-links");
@@ -238,9 +239,11 @@ namespace Kinesthetic.Menu
                 var sub = new Label(PaneBlurbs.TryGetValue(id, out var blurb) ? blurb : $"Turn to {slot.title}") { pickingMode = PickingMode.Ignore };
                 sub.AddToClassList("pane-link-sub");
                 copy.Add(title); copy.Add(sub);
-                var arrow = new Label(at < home ? "‹" : "›") { pickingMode = PickingMode.Ignore };
+                bool left = at < home;
+                var arrow = new Label(left ? "‹" : "›") { pickingMode = PickingMode.Ignore };
                 arrow.AddToClassList("pane-link-arrow");
-                button.Add(copy); button.Add(arrow);
+                arrow.AddToClassList(left ? "leading" : "trailing");
+                if (left) { button.Add(arrow); button.Add(copy); } else { button.Add(copy); button.Add(arrow); }
                 button.tooltip = slot.title;
                 links.Add(button);
                 Act(button, () => carousel.Show(id));
