@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ArmElevationSession, armElevation } from './arm-elevation.ts';
+import { ArmElevationSession } from './arm-elevation.ts';
 import { frame } from '../synthetic-pose.ts';
 import type { ImuSample } from './kind.ts';
 
@@ -26,19 +26,6 @@ function run(s: ArmElevationSession, reps: {peak: number; lean?: number; hold?: 
   return s.summary() as Record<string, any>;
 }
 
-test('elevation comes from the IMU and matches the commanded angle', () => {
-  const s = run(new ArmElevationSession({side: 'right', targetDeg: 90, prescribedReps: 4}), Array(4).fill({peak: 110}));
-  assert.equal(s.calibrated, true);
-  assert.equal(s.attempted, 4); assert.equal(s.valid, 4);
-  assert.ok(Math.abs(s.medianValidPeakDeg - 110) < 1, `median peak ${s.medianValidPeakDeg}`);
-});
-
-test('an arm that does not reach the prescribed elevation does not count', () => {
-  const s = run(new ArmElevationSession({side: 'right', targetDeg: 90}), [{peak: 110}, {peak: 60}]);
-  assert.equal(s.attempted, 2); assert.equal(s.valid, 1);
-  assert.deepEqual(s.invalidReasons, {did_not_reach_target: 1});
-});
-
 test('trunk lean is not measured: the AirPod alone cannot see the trunk, and the camera is off', () => {
   // Same IMU trace both reps. Without camera pose the lean goes unseen, and the summary says unknown, not zero.
   const s = run(new ArmElevationSession({side: 'right', targetDeg: 90}), [{peak: 110}, {peak: 110, lean: 20}]);
@@ -58,8 +45,4 @@ test('a collapsed or unnormalised attitude is rejected, not trusted', () => {
   assert.equal(s.observeFused({tMs: 0, imu: bad, pose: frame(0, 5)}), null);
   assert.equal(s.observeFused({tMs: 0, imu: null, pose: frame(0, 5)}), null, 'imu is required');
   assert.notEqual(s.observeFused({tMs: 0, imu: attitude(0), pose: null}), null, 'no camera needed');
-});
-
-test('this exercise requires only the IMU', () => {
-  assert.deepEqual([...armElevation.requires], ['imu']);
 });

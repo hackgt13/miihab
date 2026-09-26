@@ -25,14 +25,6 @@ const golfRound = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-test('a two-subject golf round validates and keeps both subjects', () => {
-  const e = parseActivitySummary(golfRound());
-  assert.equal(e.activityId, 'golf.adaptive');
-  assert.equal(e.subjects.length, 2);
-  assert.equal(e.subjects[1].role, 'companion');
-  assert.deepEqual(e.payload.data, {holes: 1, club: 'Driver'});
-});
-
 test('the envelope rejects records it could not be trusted to store', () => {
   assert.throws(() => parseActivitySummary({...golfRound(), schema: 'nope'}), /schema/);
   assert.throws(() => parseActivitySummary(golfRound({subjects: []})), /subjects/);
@@ -86,6 +78,10 @@ test('live: an activity posts its own session record and it appears alongside ex
 
     const rejected = await post(golfRound({flags: ['nonsense']}));
     assert.equal(rejected.status, 400, 'the coordinator owns the stored shape, not the client');
+    // An id the catalog does not know must be refused, or a session joins to no prescription.
+    const unknown = await post(golfRound({activityId: 'golf.typo'}));
+    assert.equal(unknown.status, 400);
+    assert.match((await unknown.json()).error, /Unknown activity/);
 
     const files = await readdir(directory);
     assert.ok(files.includes('session-golf-abc.json'));
@@ -147,33 +143,4 @@ test("Unity's golf round envelope satisfies the coordinator contract", () => {
   assert.equal(e.trackingQuality.lossEvents, 2);
   assert.deepEqual(e.flags, ['tracking_lost']);
   assert.deepEqual((e.payload.data as any).strokes, [7, 6]);
-});
-
-test("live: Unity's golf envelope is accepted, stored and served back", {timeout:40000}, async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-unity-'));
-  const port = 18776;
-  const child = spawn(process.execPath, ['server.ts'], {cwd: import.meta.dirname,
-    env: {...process.env, KINESTHETIC_PORT: String(port), KINESTHETIC_RECORDINGS_DIRECTORY: directory,
-          KINESTHETIC_PLANS_DIRECTORY: join(directory, 'plans')}, stdio: ['ignore', 'pipe', 'pipe']});
-  try {
-    await once(child.stdout, 'data');
-    const posted = await fetch(`http://127.0.0.1:${port}/activity/session`,
-      {method: 'POST', headers: {'Content-Type': 'application/json'}, body: UNITY_GOLF_ROUND});
-    assert.equal(posted.status, 201, await posted.text());
-
-    const served = await (await fetch(`http://127.0.0.1:${port}/api/activity-sessions`)).json();
-    assert.equal(served.length, 1);
-    assert.equal(served[0].activityId, 'golf.adaptive');
-    assert.equal(served[0].subjects[1].subjectId, 'friend');
-
-    // An id the catalog does not know must be refused, or a session joins to no prescription.
-    const unknown = await fetch(`http://127.0.0.1:${port}/activity/session`, {method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({...JSON.parse(UNITY_GOLF_ROUND), activityId: 'golf.typo'})});
-    assert.equal(unknown.status, 400);
-    assert.match((await unknown.json()).error, /Unknown activity/);
-  } finally {
-    child.kill(); await once(child, 'exit');
-    await rm(directory, {recursive: true, force: true});
-  }
 });

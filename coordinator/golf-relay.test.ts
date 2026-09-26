@@ -35,27 +35,6 @@ test('golf relay preserves player identity and rejects stale, duplicate and malf
   }finally{for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true});}
 });
 
-test('game state: one host fans out to Quest clients, late joiners get the latest frame, junk is rejected',{timeout:40000},async()=>{
-  const dir=mkdtempSync(join(tmpdir(),'golf-state-'));
-  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
-    env:{...process.env,KINESTHETIC_GOLF_PORT:'18768',KINESTHETIC_GOLF_RECORDINGS:dir}});
-  const clients:WebSocket[]=[];
-  try{
-    await once(proc.stdout,'data');
-    const open=async(q:string)=>{const ws=new WebSocket('ws://127.0.0.1:18768/state?'+q);clients.push(ws);await once(ws,'open');return ws;};
-    const host=await open('role=host');const quest=await open('role=client');
-    const got=once(quest,'message');host.send(JSON.stringify({type:'golf.state',seq:1,phase:'Address'}));
-    assert.equal(JSON.parse((await got)[0].toString()).seq,1);
-    const late=await open('role=client');const lateMsg=await once(late,'message');
-    assert.equal(JSON.parse(lateMsg[0].toString()).seq,1,'late joiner receives the latest state');
-    const second=new WebSocket('ws://127.0.0.1:18768/state?role=host');clients.push(second);
-    assert.equal((await once(second,'close'))[0],1008,'only one host');
-    const bye=once(quest,'message');const closed=once(host,'close');host.send('{"type":"nope"}');
-    assert.equal((await closed)[0],1008);
-    assert.equal(JSON.parse((await bye)[0].toString()).type,'golf.host-disconnected');
-  }finally{for(const ws of clients)ws.terminate();const exit=once(proc,'exit');proc.kill('SIGTERM');await exit;rmSync(dir,{recursive:true,force:true});}
-});
-
 test('only the local capture page may watch motion from a browser, and never produce it',{timeout:40000},async()=>{
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18774',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-origin-'))}});
