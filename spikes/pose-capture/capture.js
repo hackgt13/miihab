@@ -42,7 +42,9 @@ function openUnityBridge() {
   const socket = new WebSocket('ws://127.0.0.1:8766/pose?role=producer');
   unitySocket = socket;
   ui.bridge.textContent = 'Connecting to the local Unity bridge…';
+  document.body.dataset.bridge = 'connecting';
   socket.onopen = () => {
+    document.body.dataset.bridge = 'connected';
     ui.unity.textContent = 'Disconnect Unity';
     ui.bridge.textContent = 'Unity bridge connected · pose is recorded locally while capture runs.';
   };
@@ -59,11 +61,12 @@ function openUnityBridge() {
     if (unitySocket !== socket) return;
     unitySocket = null;
     ui.unity.textContent = 'Reconnect Unity';
+    document.body.dataset.bridge = unityWanted ? 'waiting' : 'paused';
     ui.bridge.textContent = unityWanted ?
       `Unity bridge disconnected${event.reason ? ': ' + event.reason : '.'} Retrying…` : 'Unity bridge paused.';
     if (unityWanted) unityRetry = setTimeout(openUnityBridge, 1500);
   };
-  socket.onerror = () => { ui.bridge.textContent = 'Waiting for the local Unity bridge on port 8766…'; };
+  socket.onerror = () => { document.body.dataset.bridge = 'waiting'; ui.bridge.textContent = 'Waiting for the local Unity bridge on port 8766…'; };
 }
 function connectUnity() {
   if (unitySocket?.readyState === WebSocket.OPEN) {
@@ -71,6 +74,7 @@ function connectUnity() {
     unitySocket.close();
     ui.unity.textContent = 'Reconnect Unity';
     ui.bridge.textContent = 'Unity bridge paused.';
+    document.body.dataset.bridge = 'paused';
   } else {
     unityWanted = true;
     clearTimeout(unityRetry);
@@ -95,6 +99,7 @@ function setButtons() {
   ui.file.disabled = busy || active;
   ui.stop.disabled = busy || !active;
   ui.export.disabled = busy || !frames.length;
+  document.body.dataset.capture = active ? 'live' : busy ? 'starting' : 'idle';
 }
 
 function clearOverlay() { context.clearRect(0, 0, canvas.width, canvas.height); }
@@ -103,6 +108,7 @@ function showFraming(framing = null, subjectDetected = false) {
   for (const view of framingCards) {
     const state = framing?.[view.id];
     view.card.dataset.visible = String(Boolean(state?.jointsInView));
+    view.card.dataset.state = !state ? 'waiting' : state.jointsInView && subjectDetected ? 'ok' : 'adjust';
     view.result.textContent = !state ? 'Waiting' : state.jointsInView ? 'Joints in view' : 'Adjust framing';
     view.detail.textContent = !state ? 'Start capture to check.' : !subjectDetected ? 'No person detected.' :
       state.jointsInView ? 'Keep these joints visible throughout the motion.' :

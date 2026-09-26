@@ -15,6 +15,7 @@ const bowlingDir=resolve(process.env.KINESTHETIC_BOWLING_RECORDINGS ??
   (process.env.KINESTHETIC_GOLF_RECORDINGS ? resolve(golfDir,'bowling') : resolve(import.meta.dirname,'../local-data/bowling')));
 const motions=new Map([['/golf',motionChannel('club',golfDir)],['/bowling-motion',motionChannel('bowling',bowlingDir)]]);
 const golfMotion=motions.get('/golf')!,bowlingMotion=motions.get('/bowling-motion')!;
+const viewerOrigins=new Set(['http://127.0.0.1:8766','http://localhost:8766']);
 const loopback=(address?:string)=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(address??'');
 const channels=new Map(['/state','/bowling-state'].map(path=>[path,{
   host:null as WebSocket|null,clients:new Set<WebSocket>(),last:null as string|null,
@@ -62,8 +63,10 @@ server.on('upgrade',(req,socket,head)=>{
     stateSockets.handleUpgrade(req,socket,head,ws=>stateSockets.emit('connection',ws,role,u.pathname));return;
   }
   if(!loopback(req.socket.remoteAddress)){socket.destroy();return;}
+  // Browsers always send Origin. Only the local capture page may watch motion, read-only, from the Mac itself.
+  const browserViewer=role==='viewer' && loopback(req.socket.remoteAddress) && viewerOrigins.has(req.headers.origin??'');
   if(!motions.has(u.pathname) || !['producer','viewer'].includes(role??'') ||
-    (role==='producer' && !['patient','friend'].includes(player??'')) || req.headers.origin){socket.destroy();return;}
+    (role==='producer' && !['patient','friend'].includes(player??'')) || (req.headers.origin && !browserViewer)){socket.destroy();return;}
   sockets.handleUpgrade(req,socket,head,ws=>sockets.emit('connection',ws,role,player,u.pathname));
 });
 function broadcast(viewers:Set<WebSocket>,p:unknown){const text=JSON.stringify(p);for(const ws of viewers)if(ws.readyState===WebSocket.OPEN && ws.bufferedAmount<16384)ws.send(text);}
