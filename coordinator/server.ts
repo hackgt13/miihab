@@ -25,6 +25,7 @@ import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from '.
 import { LIBRARY } from './exercises.ts';
 import { buildDashboard, golfUnlock } from './dashboard.ts';
 import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
+import { HeadLean } from './head-lean.ts';
 import { applyProgramUpdate, buildVisit, therapistFromEnv, VisitStore } from './visit.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -116,8 +117,25 @@ function exerciseBroadcast(message: any) {
   for (const ws of exerciseViewers) if (ws.readyState === WebSocket.OPEN && ws.bufferedAmount < 128*1024) ws.send(text);
 }
 // Engine output goes to /exercise viewers and the session log the same way for both sensors.
+// The headset's head pose during an AirPod set (head-lean.ts): head travel per rep, a camera-free sign of leaning to
+// compensate. Read from the relay's /head channel while a set runs; with no headset the summary says so.
+const headUrl = process.env.KINESTHETIC_HEAD_URL ?? 'ws://127.0.0.1:8767/head?role=viewer';
+let head: WebSocket | null = null, headLean: HeadLean | null = null;
+function watchHead() {
+  if (head) return;
+  const ws = new WebSocket(headUrl); head = ws;
+  ws.on('message', data => {
+    if (!headLean) return;
+    let p: any; try { p = JSON.parse(String(data)); } catch { return; }
+    if (p.type === 'head.pose') headLean.push(Number(p.hostMonotonicMs), p.p);
+  });
+  ws.on('close', () => { if (head !== ws) return; head = null; if (headLean) setTimeout(watchHead, 1000); });
+  ws.on('error', () => {});
+}
+
 function feed(events: RepEvent[], sourceSessionId: string | null) {
   if (!exercise) return;
+  for (const event of events) if (event.type === 'rep.completed') headLean?.rep(event.rep, event.startMs, event.tMs);
   const sample = exercise.samples.at(-1);
   // `quality` is the rep qualities' live readout (hold timer, tempo pace, hitches) while a rep runs; null between reps.
   if (sample) exerciseBroadcast({type:'exercise.sample', payload:{...sample, phase:exercise.phase, rep:exercise.currentRep, quality:exercise.live}});
@@ -216,7 +234,9 @@ async function finishExercise() {
   const summary = {exerciseId, prescriptionId: exercisePrescriptionId, poseSessionId: exercisePoseSession, poseSource: exerciseSource,
     simulated: /synthetic|fixture|simulat/i.test(exerciseSource ?? ''), endedAt: new Date().toISOString(),
     sensor: exercise.kind.requires.includes('imu') ? 'imu' : 'pose', sensors: assigner ? {imu: assigner.state.imu, ref: assigner.state.ref} : null,
-    practice: exercisePractice, ...measured, config: measured.params};
+    practice: exercisePractice, ...measured, config: measured.params,
+    headLean: headLean?.summary() ?? {available: false, thresholdCm: 5}};
+  headLean = null;
   await writeFile(resolve(recordings, `exercise-${exerciseId}.summary.json`), JSON.stringify(summary, null, 2));
   const envelope = activitySummaryFromExercise({activitySessionId: exerciseId, activityId: exerciseActivityId,
     venueId: requireActivity(exerciseActivityId).venue,
@@ -279,6 +299,8 @@ const server = createServer(async (request, response) => {
         // The prescription's params tune the qualities the exercise is coached on (holdTargetMs, lowerMs, …).
         {...p, ...body});
       exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; exercisePractice = !!launched?.practice; lastImuMs = -Infinity;
+      headLean = kind.requires.includes('imu') ? new HeadLean() : null;
+      if (headLean) watchHead();
       if (kind.requires.includes('imu')) {
         // One IMU takes whatever is live; two are told apart by which one moves (exercise/imu-assign.ts). Both relay
         // channels are read: which app or Mac a pair came through says nothing about what it measures.

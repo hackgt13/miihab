@@ -92,6 +92,7 @@ namespace Kinesthetic.Golf
                         }
                     }
                 }
+                catch (Exception) when (cancel.IsCancellationRequested) { break; }   // closed on purpose (scene change)
                 catch (Exception e)
                 {
                     // Once per distinct failure, so a headset that cannot reach the Mac says why.
