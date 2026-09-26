@@ -100,9 +100,6 @@ export const parseCatalog = parse;
 export function activityById(id: string | null | undefined): Activity | null {
   return ACTIVITIES.find(a => a.id === id) ?? null;
 }
-export function isKnownActivity(id: string | null | undefined): boolean {
-  return !!activityById(id);
-}
 /** Throws naming every known id, so a typo is diagnosable rather than silently accepted. */
 export function requireActivity(id: string | null | undefined): Activity {
   const found = activityById(id);

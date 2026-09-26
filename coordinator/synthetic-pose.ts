@@ -1,4 +1,4 @@
-import type { Frame, Point } from './measurement.ts';
+import type { Frame, Point } from './exercise/shoulder-raise.ts';
 
 // Synthetic seated body in MediaPipe world coordinates (metres, y down, hip-centred).
 // armDeg: right upper arm elevation from hanging down (frontal plane). leanDeg: trunk lean sideways.

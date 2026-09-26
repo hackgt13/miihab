@@ -22,7 +22,7 @@ Uses original source timing and labels packets `recorded-video` even when the ex
 
 Tests use a temporary recording directory and loopback port 18766. Device clocks, phone JPEG transport, care plans, measurements, clinical storage, and Unity golf-state relay are later increments.
 
-## Shoulder-raise measurement (`measurement.ts`)
+## Shoulder-raise measurement (`exercise/shoulder-raise.ts`)
 
 Deterministic rep counting from raw MediaPipe world landmarks: calibrate a resting torso reference, then
 `rest → rep → target held (holdMs) → back to rest`. Each rep is valid or invalid with a reason
@@ -59,7 +59,7 @@ API: `GET /api/plans`, `GET /api/plans/active`, `POST /api/plans {exercise, rati
 ## Movement replay (portal)
 
 `GET /api/sessions/<exerciseId>/replay` returns the session's recorded landmarks (~15 fps), per-frame arm elevation and
-trunk lean computed by `measurement.ts` with the session's own saved calibration, and its rep boundaries. The portal's
+trunk lean computed by `exercise/shoulder-raise.ts` with the session's own saved calibration, and its rep boundaries. The portal's
 **Replay** button draws the recorded skeleton (measured arm highlighted), the elevation trace against the plan target,
 and each rep (not-counted reps shaded and labeled). Deep link: `/portal/?replay=<exerciseId>&rep=<n>`.
 

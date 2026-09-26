@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ShoulderRaiseSession } from './measurement.ts';
+import { ShoulderRaiseSession } from './exercise/shoulder-raise.ts';
 import { frame } from './synthetic-pose.ts';
 
 /** Rest 1 s, then each rep: rise 0.6 s, hold `hold` s at peak, lower 0.6 s, rest 0.5 s. 30 fps. */

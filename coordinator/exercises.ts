@@ -36,9 +36,3 @@ export const LIBRARY: Record<string, LibraryExercise> = {
     limits: { sets: [1, 5], loadKg: [0, 10] },
   },
 };
-
-export function libraryEntry(kind: string): LibraryExercise {
-  const entry = LIBRARY[kind];
-  if (!entry) throw Error(`No catalog entry for exercise "${kind}". Known: ${Object.keys(LIBRARY).join(', ')}.`);
-  return entry;
-}
