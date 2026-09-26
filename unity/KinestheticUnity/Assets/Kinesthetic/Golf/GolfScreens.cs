@@ -8,7 +8,9 @@ namespace Kinesthetic.Golf
     {
         readonly KinestheticGolf game;
         readonly VisualElement root, setup, results;
-        readonly Button launch, play, setupButton;
+        readonly Button retry, close, setupButton;
+        bool automaticStart;
+        float readyAt = -1, openedAt;
         bool resultsShown;
         public bool SetupVisible => !setup.ClassListContains("hidden");
 
@@ -16,28 +18,30 @@ namespace Kinesthetic.Golf
         {
             this.root=root; this.game=game;
             setup=root.Q("golf-setup"); results=root.Q("golf-results");
-            setupButton=root.Q<Button>("setup-open"); launch=root.Q<Button>("setup-connect"); play=root.Q<Button>("setup-play");
-            setupButton.clicked+=OpenSetup;
-            launch.clicked+=game.StartCapture;
-            play.clicked+=CloseSetup;
-            root.Q<Button>("setup-close").clicked+=CloseSetup;
+            setupButton=root.Q<Button>("setup-open"); retry=root.Q<Button>("setup-retry"); close=root.Q<Button>("setup-close");
+            setupButton.clicked+=()=>OpenSetup(false);
+            retry.clicked+=()=>{openedAt=Time.unscaledTime; game.StartCapture();};
+            close.clicked+=CloseSetup;
             root.Q<Button>("round-replay").clicked+=()=> {
                 game.RestartRound(); resultsShown=false; results.AddToClassList("hidden");
-                OpenSetup();
+                OpenSetup(true);
             };
             root.Q<Button>("round-menu").clicked+=()=>ActivityNavigation.Ensure().OpenReturn();
             root.Q<Button>("sound-toggle").clicked+=()=>ActivityNavigation.Ensure().PlaySelect();
-            OpenSetup();
+            OpenSetup(true);
         }
-        void OpenSetup()
+        void OpenSetup(bool autoStart)
         {
             if(game.Phase=="Round complete")return;
-            setup.RemoveFromClassList("hidden"); launch.Focus();
+            automaticStart=autoStart; readyAt=-1; openedAt=Time.unscaledTime;
+            close.EnableInClassList("hidden",autoStart);
+            setup.RemoveFromClassList("hidden");
+            if(!autoStart)close.Focus();
             ActivityNavigation.Ensure().PlaySelect();
         }
         void CloseSetup()
         {
-            setup.AddToClassList("hidden"); setupButton.Focus();
+            automaticStart=false; setup.AddToClassList("hidden"); setupButton.Focus();
             ActivityNavigation.Ensure().PlayBack();
         }
         void Step(string name, bool complete, string waiting, string ready)
@@ -49,18 +53,23 @@ namespace Kinesthetic.Golf
         public void Update()
         {
             bool ready=game.StrikePoseReady && game.MotionReady && game.ClubCalibrated;
-            Step("setup-camera",game.StrikePoseReady,"Keep shoulders, elbows and both hands in view.","Both arms are in view.");
-            Step("setup-motion",game.MotionReady,"Pair AirPods with this Mac; mount the reporting AirPod on the club.","Live club movement connected.");
-            Step("setup-calibration",ready,"Rest the club at the mat. Hold still to calibrate automatically.","Club calibrated. You're ready to swing.");
-            play.SetEnabled(ready); launch.SetEnabled(!game.StartingCapture);
-            launch.text=game.StartingCapture?"Connecting…":game.CaptureRequested?"Reconnect devices":"Connect camera & AirPods";
-            root.Q<Label>("setup-status").text=ready?"All set. Enjoy your round together.":game.CaptureRequested?game.CaptureStatus:"Connect your devices when you're ready.";
-            root.Q<Label>("device-status").text=ready?"Ready to swing":!game.CaptureRequested?"Set up to play":!game.StrikePoseReady?"Camera needs a clear view":!game.MotionReady?"Waiting for AirPods":"Hold still to calibrate";
+            Step("setup-camera",game.StrikePoseReady,"Keep both hands in view.","Camera ready.");
+            Step("setup-motion",game.MotionReady,"Mount your paired AirPod on the club.","AirPod ready.");
+            Step("setup-calibration",ready,"Rest the club at the mat.","Ready. Swing gently.");
+            bool counting=ready && ActivityNavigation.Instance?.OverlayOpen!=true;
+            if(!counting)readyAt=-1;
+            else if(readyAt<0)readyAt=Time.unscaledTime;
+            float countdown=readyAt<0?3:Mathf.Max(0,3-(Time.unscaledTime-readyAt));
+            bool retryNeeded=!ready && !game.StartingCapture && Time.unscaledTime-openedAt>12;
+            retry.EnableInClassList("hidden",!retryNeeded);
+            root.Q<Label>("setup-status").text=automaticStart && counting?$"Starting in {Mathf.Max(1,Mathf.CeilToInt(countdown))}…":ready?"You're ready.":game.StartingCapture?"Connecting…":!game.StrikePoseReady?game.CaptureStatus:!game.MotionReady?"Waiting for AirPods…":"Hold still…";
+            root.Q<Label>("device-status").text=ready?"Ready":!game.StrikePoseReady?"Camera connecting…":!game.MotionReady?"AirPods connecting…":"Hold still…";
+            if(SetupVisible && automaticStart && counting && countdown<=0)CloseSetup();
             root.Q("device-chip").EnableInClassList("connected",ready);
             setupButton.SetEnabled(game.Phase=="Address");
             if(game.Phase!="Round complete" || resultsShown)return;
             resultsShown=true; setup.AddToClassList("hidden"); results.RemoveFromClassList("hidden");
-            root.Q<Label>("round-title").text=game.Strokes[0]==game.Strokes[1]?"A round shared. A tie earned.":"A round well played.";
+            root.Q<Label>("round-title").text=game.Strokes[0]==game.Strokes[1]?"A tie!":"Nice round!";
             root.Q<Label>("round-you").text=game.Strokes[0].ToString();
             root.Q<Label>("round-friend").text=game.Strokes[1].ToString();
             root.Q<Label>("round-you-par").text=ScoreName(game.Strokes[0]);

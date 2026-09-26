@@ -10,7 +10,7 @@
                 <ui:VisualElement class="help-step"><ui:Label text="1" class="help-number" /><ui:VisualElement class="help-step-copy"><ui:Label name="help-step-one" class="help-step-title" /><ui:Label name="help-copy-one" class="help-copy" /></ui:VisualElement></ui:VisualElement>
                 <ui:VisualElement class="help-step"><ui:Label text="2" class="help-number" /><ui:VisualElement class="help-step-copy"><ui:Label name="help-step-two" class="help-step-title" /><ui:Label name="help-copy-two" class="help-copy" /></ui:VisualElement></ui:VisualElement>
                 <ui:VisualElement class="help-step"><ui:Label text="3" class="help-number" /><ui:VisualElement class="help-step-copy"><ui:Label name="help-step-three" class="help-step-title" /><ui:Label name="help-copy-three" class="help-copy" /></ui:VisualElement></ui:VisualElement>
-                <ui:VisualElement class="help-bottom"><ui:Button name="activity-music" text="Menu music: On" /><ui:Button name="activity-help-close" text="Got it  ›" class="primary" /></ui:VisualElement>
+                <ui:VisualElement class="help-bottom"><ui:Button name="activity-music" text="Music: On" /><ui:Button name="activity-help-close" text="Got it  ›" class="primary" /></ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="return-dialog" class="return-shade hidden">

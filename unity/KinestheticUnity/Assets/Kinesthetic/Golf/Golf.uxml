@@ -34,48 +34,39 @@
         </ui:VisualElement>
         <ui:VisualElement name="device-chip" class="device-chip">
             <ui:VisualElement class="device-dot" />
-            <ui:Label name="device-status" text="Set up to play" />
-            <ui:Button name="setup-open" text="Setup" />
+            <ui:Label name="device-status" text="Connecting…" />
+            <ui:Button name="setup-open" text="Quick guide" />
         </ui:VisualElement>
         <ui:VisualElement class="footer">
-            <ui:Label name="guidance" text="Click the camera to start" class="footer-guidance" picking-mode="Ignore" />
-            <ui:Button name="camera-start" tooltip="Start camera and AirPod tracking">
-                <ui:VisualElement class="camera-icon" picking-mode="Ignore">
-                    <ui:VisualElement class="camera-top" picking-mode="Ignore" />
-                    <ui:VisualElement class="camera-body" picking-mode="Ignore">
-                        <ui:VisualElement class="camera-lens" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
-            </ui:Button>
+            <ui:Label name="guidance" text="Connecting…" class="footer-guidance" picking-mode="Ignore" />
         </ui:VisualElement>
         <ui:VisualElement name="golf-setup" class="golf-overlay">
             <ui:VisualElement class="setup-sheet">
                 <ui:VisualElement class="setup-hero">
                     <ui:Label text="REHABMII SPORTS" class="sheet-eyebrow" />
-                    <ui:Label text="A little fresh air.&#10;A round together." class="setup-title" />
+                    <ui:Label text="Today we will&#10;practice golf." class="setup-title" />
                     <ui:Label text="GOLF  /  HOLE 1  /  PAR 4" class="setup-tag" />
                     <ui:VisualElement class="hero-space" />
-                    <ui:Label text="Two players. One shared course." class="hero-detail" />
+                    <ui:Label text="Take turns with a friend." class="hero-detail" />
                 </ui:VisualElement>
                 <ui:VisualElement class="setup-content">
-                    <ui:Label text="Let's get you ready" class="sheet-title" />
-                    <ui:Label text="You and your friend take turns. The club is selected for each shot." class="sheet-copy" />
+                    <ui:Label text="Three easy steps" class="sheet-title" />
+                    <ui:Label text="Aim. Swing gently. Take turns." class="sheet-copy" />
                     <ui:VisualElement name="setup-camera" class="setup-step">
                         <ui:Label text="1" class="step-badge" />
-                        <ui:VisualElement class="step-copy"><ui:Label text="Find your frame" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
+                        <ui:VisualElement class="step-copy"><ui:Label text="Get in view" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="setup-motion" class="setup-step">
                         <ui:Label text="2" class="step-badge" />
-                        <ui:VisualElement class="step-copy"><ui:Label text="Connect your club" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
+                        <ui:VisualElement class="step-copy"><ui:Label text="Pick up your club" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="setup-calibration" class="setup-step">
                         <ui:Label text="3" class="step-badge" />
-                        <ui:VisualElement class="step-copy"><ui:Label text="Settle at address" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
+                        <ui:VisualElement class="step-copy"><ui:Label text="Hold still" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="assist-row"><ui:Button name="sound-toggle" text="Sound assist: on" /><ui:Label name="audio-status" text="" class="assist-status" /></ui:VisualElement>
-                    <ui:Label name="setup-status" text="Connect your devices when you're ready." class="setup-status" />
-                    <ui:Button name="setup-connect" text="Connect camera &amp; AirPods" class="sheet-primary" />
-                    <ui:VisualElement class="sheet-actions"><ui:Button name="setup-close" text="View course" /><ui:Button name="setup-play" text="Let's play  ›" class="sheet-primary" /></ui:VisualElement>
+                    <ui:Label name="setup-status" text="Connecting…" class="setup-status" />
+                    <ui:VisualElement class="sheet-actions"><ui:Button name="setup-retry" text="Try again" class="hidden" /><ui:Button name="setup-close" text="Got it" class="hidden" /></ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
@@ -84,13 +75,13 @@
                 <ui:Label text="✓" class="result-medallion" />
                 <ui:Label text="HOLE COMPLETE" class="sheet-eyebrow result-eyebrow" />
                 <ui:Label name="round-title" text="A round well played." class="sheet-title result-title" />
-                <ui:Label text="Fresh air. Good company. Every swing counts." class="sheet-copy" />
+                <ui:Label text="Hole complete." class="sheet-copy" />
                 <ui:VisualElement class="score-cards">
                     <ui:VisualElement class="score-card"><ui:Label text="YOU" class="score-name" /><ui:Label name="round-you" text="—" class="result-score" /><ui:Label text="strokes" class="score-unit" /><ui:Label name="round-you-par" text="" class="score-par" /></ui:VisualElement>
                     <ui:VisualElement class="score-card friend-card"><ui:Label text="YOUR FRIEND" class="score-name" /><ui:Label name="round-friend" text="—" class="result-score" /><ui:Label text="strokes" class="score-unit" /><ui:Label name="round-friend-par" text="" class="score-par" /></ui:VisualElement>
                 </ui:VisualElement>
                 <ui:Label text="HOLE 1   ·   PAR 4" class="result-footnote" />
-                <ui:VisualElement class="sheet-actions"><ui:Button name="round-menu" text="Choose activity" /><ui:Button name="round-replay" text="Play another round  ›" class="sheet-primary" /></ui:VisualElement>
+                <ui:VisualElement class="sheet-actions"><ui:Button name="round-menu" text="Choose activity" /><ui:Button name="round-replay" text="Play again  ›" class="sheet-primary" /></ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

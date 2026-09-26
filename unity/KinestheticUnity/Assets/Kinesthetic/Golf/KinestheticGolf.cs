@@ -79,10 +79,10 @@ namespace Kinesthetic.Golf
         Quaternion lastAttitude;
         Vector3 cameraVelocity, lastSafeLie;
         Label heading, score, distance, guidance;
-        Button cameraStart;
+        Button setupButton;
         bool captureRequested, startingCapture;
         float readySince=-1, advanceAt=-1;
-        string captureStatus="Click the camera to start";
+        string captureStatus="Connecting…";
         [Serializable] class CaptureHealth { public string captureStatus; public bool sourceConnected; public float frameAgeMs; }
 
         string logPath;
@@ -105,19 +105,18 @@ namespace Kinesthetic.Golf
             impactAudio.Transient+=(at,peak)=>{if(Phase=="Address" && PoseReady && IMUReady && swing.Calibrated)contact.ObserveAudio(at);};
             // Headsets render this host's state; they never run their own shot simulation.
             if(!GetComponent<GolfStatePublisher>())gameObject.AddComponent<GolfStatePublisher>();
-            BindUI(); BeginTurn(0);
+            BindUI(); BeginTurn(0); StartCapture();
         }
         bool BindUI()
         {
             var root=GetComponent<UIDocument>().rootVisualElement;
-            var button=root?.Q<Button>("camera-start");
+            var button=root?.Q<Button>("setup-open");
             if(button==null)return false;
-            if(button==cameraStart)return true;
+            if(button==setupButton)return true;
             hud?.Dispose();
             heading=root.Q<Label>("heading"); score=root.Q<Label>("score");
             distance=root.Q<Label>("distance"); guidance=root.Q<Label>("guidance");
-            cameraStart=root.Q<Button>("camera-start");
-            cameraStart.clicked+=StartCapture;
+            setupButton=button;
             root.Q<Button>("aim-left").clicked+=()=>Aim(-3);
             root.Q<Button>("aim-right").clicked+=()=>Aim(3);
 
@@ -397,11 +396,10 @@ namespace Kinesthetic.Golf
             score.text=$"YOU {Strokes[0]} — {Strokes[1]} FRIEND";
             distance.text=$"{Vector3.ProjectOnPlane(cup.position-ball.position,Vector3.up).magnitude*1.0936133f:0} yards to go";
             bool framesFresh=LivePoseClient.Fresh(poseTicks);
-            guidance.text=!captureRequested?"Click the camera to start":Phase!="Address"?Message:
-                !framesFresh?captureStatus:!StrikePoseReady?"Camera on · keep shoulders, elbows and both hands in view":
-                !IMUReady?"Camera on · waiting for AirPod motion":swing.Calibrated?"Ready to swing":
-                readySince<0?"Hold the club still at the mat":$"Hold still · calibrating {Mathf.Max(1,Mathf.CeilToInt(2-(Time.unscaledTime-readySince)))}";
-            cameraStart.EnableInClassList("ready",swing.Calibrated && StrikePoseReady && IMUReady);
+            guidance.text=!captureRequested?"Connecting…":Phase!="Address"?Message:
+                !framesFresh?captureStatus:!StrikePoseReady?"Keep both hands in view.":
+                !IMUReady?"Waiting for AirPods…":swing.Calibrated?"Swing gently.":
+                readySince<0?"Hold the club still.":$"Hold still · calibrating {Mathf.Max(1,Mathf.CeilToInt(2-(Time.unscaledTime-readySince)))}";
             if(audioStatus!=null)audioStatus.text=enableSoundAssist && !PoseReady?"Sound assist waiting for camera":impactAudio.Status;
             if(soundToggle!=null)soundToggle.text=enableSoundAssist?"Sound assist: on":"Sound assist: off";
             hud?.Update();
@@ -429,7 +427,7 @@ namespace Kinesthetic.Golf
             if(startingCapture)return;
             if(Phase=="Round complete")RestartRound();
             captureRequested=true; readySince=-1; ResetSwing();
-            captureStatus="Starting camera and AirPod motion…";
+            captureStatus="Connecting camera and AirPods…";
             StartCoroutine(StartCaptureServices());
         }
         IEnumerator StartCaptureServices()
@@ -441,13 +439,13 @@ namespace Kinesthetic.Golf
                 System.Diagnostics.Process process=null;
                 try {process=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
                     FileName="/bin/zsh", Arguments="\""+script+"\"", UseShellExecute=false, CreateNoWindow=true
-                });} catch(Exception e){captureStatus="Could not start capture: "+e.Message;}
+                });} catch(Exception e){captureStatus="Could not connect. Try again."; Debug.LogWarning(e.Message);}
                 if(process!=null) {
                     while(!process.HasExited)yield return null;
-                    if(process.ExitCode!=0)captureStatus="Capture could not start · click camera to retry";
+                    if(process.ExitCode!=0)captureStatus="Could not connect. Try again.";
                     process.Dispose();
                 }
-            } else captureStatus="Capture launcher missing";
+            } else captureStatus="Open camera capture on your Mac.";
 #else
             yield return null;   // capture services are launched only on the Mac host
 #endif
@@ -463,9 +461,9 @@ namespace Kinesthetic.Golf
                     yield return request.SendWebRequest();
                     if(request.result==UnityWebRequest.Result.Success) {
                         var state=JsonUtility.FromJson<CaptureHealth>(request.downloadHandler.text);
-                        captureStatus=!state.sourceConnected?"Camera disconnected · click camera to reconnect":
-                            state.captureStatus=="Camera streaming"?"Camera frames paused · click camera to reconnect":state.captureStatus;
-                    } else captureStatus="Camera service unavailable · click camera to retry";
+                        captureStatus=!state.sourceConnected?"Allow camera access in the capture window.":
+                            state.captureStatus=="Camera streaming"?"Keep the camera window open.":state.captureStatus;
+                    } else captureStatus="Could not connect. Try again.";
                 }
                 yield return new WaitForSecondsRealtime(1);
             }

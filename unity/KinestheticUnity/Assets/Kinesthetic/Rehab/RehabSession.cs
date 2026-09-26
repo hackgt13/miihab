@@ -33,7 +33,7 @@ namespace Kinesthetic.Rehab
         public bool IsBusy => startingSession || stoppingSession;
         int attempted, valid;
         float? liveAngle; string phase = "idle";
-        string status = "Sit tall, rest your arms, and start when you're ready.";
+        string status = "Rest your arms. Press Start session.";
         float flashUntil; Color flash;
         Label title, reps, angle, statusLabel, planLabel, summaryLabel; Button start; VisualElement summaryCard;
         Label sideLabel, repGoal, targetLabel, progressNote, angleNote, cameraStatus, cueTitle, cueSymbol;
@@ -189,12 +189,12 @@ namespace Kinesthetic.Rehab
             cameraStatus.text = fresh ? "Camera connected" : running ? "Looking for you…" : "Camera on standby";
             angleMeter.value = fresh && liveAngle.HasValue && running ? Mathf.Clamp01(liveAngle.Value / Mathf.Max(1, targetDeg)) * 100 : 0;
             angleNote.text = !running ? "Your range appears when you begin" : !fresh || !liveAngle.HasValue ? "Waiting for a clear view of your arm" : "Measured from your live movement";
-            progressNote.text = valid >= prescribedReps ? "Your set is complete" : valid == 0 ? "One good movement at a time" : $"{prescribedReps - valid} more · take your time";
+            progressNote.text = valid >= prescribedReps ? "Your set is complete" : valid == 0 ? "Take your time." : $"{prescribedReps - valid} more · take your time";
             bool attention = sessionError || running && !fresh;
             bool reached = running && fresh && liveAngle.HasValue && liveAngle.Value >= targetDeg;
             cueIcon.EnableInClassList("attention", attention);
             cueIcon.EnableInClassList("good", reached || valid >= prescribedReps);
-            cueTitle.text = stoppingSession ? "Saving your session" : startingSession ? "Getting the studio ready" : sessionError ? (running ? "Let's finish saving your session" : "Let's get you connected") : !running ? (valid >= prescribedReps ? "A little stronger, one set at a time" : "Make yourself comfortable") : attention ? "Let's get you in view" : !calibrated ? "Find your resting position" : reached ? "Hold gently, then lower" : "Move at your own pace";
+            cueTitle.text = stoppingSession ? "Saving your session" : startingSession ? "Getting ready…" : sessionError ? (running ? "Let's finish saving your session" : "Let's get you connected") : !running ? (valid >= prescribedReps ? "Set complete." : "Sit comfortably.") : attention ? "Let's get you in view" : !calibrated ? "Rest your arm." : reached ? "Hold gently, then lower" : "Raise, hold, lower.";
             cueSymbol.text = attention ? "!" : reached || valid >= prescribedReps ? "✓" : !running || !calibrated ? "1" : phase == "rep" ? "2" : "3";
             if (paintedReps != valid || paintedGoal != prescribedReps)
             {
@@ -308,12 +308,12 @@ namespace Kinesthetic.Rehab
             }
             var root = GetComponent<UIDocument>().rootVisualElement;
             root.Q<Label>("summary-title").text = attempted == 0 ? "Ready for another day" : valid >= prescribedReps ? "Your set is complete" : "Practice, at your pace";
-            root.Q<Label>("summary-subtitle").text = attempted == 0 ? "No repetitions were recorded this time." : "Here's what your camera measured today.";
+            root.Q<Label>("summary-subtitle").text = attempted == 0 ? "No repetitions were recorded this time." : "Your session summary.";
             root.Q<Label>("summary-valid").text = valid.ToString();
             root.Q<Label>("summary-attempted").text = attempted.ToString();
             root.Q<Label>("summary-peak").text = median;
             root.Q<Label>("summary-plan").text = $"{side.ToUpperInvariant()} ARM  ·  TARGET {targetDeg:0}°  ·  {prescribedReps} REPS";
-            summaryLabel.text = notes.Length > 0 ? notes.ToString().TrimEnd() : attempted == 0 ? "Return to the studio when you're ready to begin." : "Every controlled movement counts.";
+            summaryLabel.text = notes.Length > 0 ? notes.ToString().TrimEnd() : attempted == 0 ? "Return to the studio when you're ready to begin." : "Nice work.";
             root.Q<Label>("summary-saved").text = s["simulated"]?.Value<bool>() == true ? "Demo session · simulated movement" : "Session saved · available to your care team";
             summaryCard.RemoveFromClassList("hidden");
             root.Q<Button>("summary-close").Focus();

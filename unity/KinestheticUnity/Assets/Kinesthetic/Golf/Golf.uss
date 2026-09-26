@@ -36,14 +36,6 @@ Button.round-button { width: 35px; height: 35px; padding: 0; border-radius: 18px
 Button.aim-button { font-size: 20px; width: 48px; height: 44px; padding: 0; border-radius: 12px; }
 .footer { position: absolute; bottom: 18px; left: 26%; right: 23%; align-items: center; }
 .footer-guidance { padding: 7px 14px; margin-bottom: 8px; background-color: rgba(14,38,53,.8); border-radius: 10px; font-size: 17px; -unity-font-style: bold; -unity-text-align: middle-center; white-space: normal; }
-#camera-start { width: 100px; height: 82px; padding: 0; border-radius: 25px; border-width: 4px; border-color: #82ceef; align-items: center; justify-content: center; background-color: #f5fbff; }
-#camera-start:hover { background-color: #d5f3ff; border-color: white; }
-#camera-start:active { background-color: #a6e2fa; }
-#camera-start.ready { border-color: #8bf0b1; }
-.camera-icon { width: 57px; height: 43px; }
-.camera-top { position: absolute; left: 16px; top: 0; width: 26px; height: 10px; background-color: #377ba6; border-radius: 4px; }
-.camera-body { position: absolute; left: 0; top: 7px; width: 57px; height: 36px; background-color: #377ba6; border-radius: 7px; align-items: center; justify-content: center; }
-.camera-lens { width: 25px; height: 25px; border-width: 4px; border-color: #f5fbff; border-radius: 14px; }
 
 .device-chip { position: absolute; right: 35px; bottom: 58px; flex-direction: row; align-items: center; padding: 8px 10px 8px 14px; background-color: rgba(255,255,255,.97); border-radius: 18px; color: #547384; -unity-font: url("project://database/Assets/Kinesthetic/Rehab/Fonts/Nunito-SemiBold.ttf"); -unity-font-style: normal; }
 .device-chip Label { font-size: 12px; max-width: 185px; white-space: normal; }
