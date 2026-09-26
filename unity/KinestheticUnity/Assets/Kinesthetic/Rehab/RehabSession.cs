@@ -84,6 +84,10 @@ namespace Kinesthetic.Rehab
         public IEnumerator RequestExit(Action<bool> succeeded) => FinishSession(succeeded);
         int attempted, valid;
         float? liveAngle; string phase = "idle";
+        // The base segment's own movement, from a two-sensor exercise (coordinator/exercise/imu-pair.ts).
+        // Null for a one-sensor kind, which cannot see the rest of the body and says so rather than
+        // reporting zero — so null here means "not measured", never "not leaning".
+        float? liveCompensation;
         float lastSampleAt = -99, shownAngle; string exerciseKind = "arm-elevation.v1";
         Kinesthetic.Coach.CoachDemonstrator coach;
         bool voiceOn; string currentExerciseId;
@@ -115,6 +119,10 @@ namespace Kinesthetic.Rehab
         KReadout repCount, angleReadout, matchReadout;
         KChip sensorStatus; KTag cueStep;
         KArc repRing; KMeter angleMeter;
+        VisualElement leanRow; KReadout leanReadout; KMeter leanMeter;
+        /// The lean at which a rep stops counting, from the plan. The bar fills toward it, so a patient
+        /// can correct while the rep is happening rather than be told afterwards that it did not count.
+        float maxCompensationDeg = 12;
         string coachingNote = "";
         // Rep qualities (coordinator/exercise/quality.ts): how well a counted rep is made — the hold at the top,
         // the tempo of each phase, hitches, the streak. The coordinator judges; this renders. Their configs are
@@ -222,6 +230,7 @@ namespace Kinesthetic.Rehab
             hudCoach = root.Q("hud-coach"); angleDetails = root.Q("angle-details");
             hudCoachLine = root.Q<Label>("hud-coach-line");
             repRing = root.Q<KArc>("rep-ring"); angleMeter = root.Q<KMeter>("angle-meter");
+            leanRow = root.Q("lean-row"); leanReadout = root.Q<KReadout>("lean-readout"); leanMeter = root.Q<KMeter>("lean-meter");
             holdRing = root.Q<KArc>("hold-ring"); holdReadout = root.Q<KReadout>("hold-readout");
             formRow = root.Q("form-row"); streakReadout = root.Q<KReadout>("streak"); bestHoldReadout = root.Q<KReadout>("best-hold");
             formNoteLabel = root.Q<Label>("form-note");
@@ -301,6 +310,7 @@ namespace Kinesthetic.Rehab
             if (Num(p?["targetMaxDeg"]) is float ceiling && ceiling > targetDeg) bandDeg = ceiling - targetDeg;
             prescribedReps = x["targetCount"]?.Value<int>() ?? prescribedReps;
             planHoldMs = Num(p?["holdMs"]) ?? 0;
+            maxCompensationDeg = Num(p?["maxCompensationDeg"]) ?? maxCompensationDeg;
             holdTargetMs = Num(p?["holdTargetMs"]) ?? holdTargetMs;
             raiseMs = Num(p?["raiseMs"]) ?? raiseMs; lowerMs = Num(p?["lowerMs"]) ?? lowerMs;
             if (practice) coachingNote = (string)x["note"] ?? "";
@@ -346,7 +356,7 @@ namespace Kinesthetic.Rehab
                 currentExerciseId = (string)reply["exerciseId"]; exerciseKind = (string)reply["exerciseKind"] ?? exerciseKind; shownAngle = 0;
             }
             catch (Exception) { currentExerciseId = null; }
-            running = true; calibrated = false; attempted = valid = 0; liveAngle = null;
+            running = true; calibrated = false; attempted = valid = 0; liveAngle = null; liveCompensation = null;
             liveQuality = null; streak = 0; bestHoldMs = 0; holdMetRep = 0; formNote = "";
             status = useCameraPose ? "Hold still with your arms relaxed · calibrating" : $"Keep your {SensorPlacement} still · calibrating";
             start.text = "Finish set";
@@ -541,6 +551,22 @@ namespace Kinesthetic.Rehab
             var tempo = live ? liveQuality?["tempo"] as JObject : null;
             // The corner figure. `percent` is null until the rep has enough of itself to judge, and
             // that is shown as a dash rather than a number nobody should believe yet.
+            // The trunk's own movement, while it is moving. Hidden entirely for a one-sensor exercise:
+            // it reports null there, which means "not measured", and a zero would read as "not leaning".
+            if (leanRow != null)
+            {
+                bool measured = live && liveCompensation.HasValue;
+                leanRow.EnableInClassList("hidden", !measured);
+                if (measured)
+                {
+                    float lean = liveCompensation.Value, limit = Mathf.Max(1, maxCompensationDeg);
+                    leanReadout.value = $"{lean:0}°";
+                    leanMeter.fraction = Mathf.Clamp01(lean / limit);
+                    // Amber before it costs them the rep, not after.
+                    leanMeter.tone = lean >= limit ? KMeter.Tone.Target : lean >= limit * .6f ? KMeter.Tone.Progress : KMeter.Tone.Good;
+                    leanReadout.caption = lean >= limit ? "too much lean" : "trunk";
+                }
+            }
             if (matchReadout != null)
             {
                 var match = live ? liveQuality?["trajectory"] as JObject : null;
@@ -640,6 +666,7 @@ namespace Kinesthetic.Rehab
                     case "exercise.sample":
                         phase = (string)p["phase"] ?? phase;
                         liveAngle = p["valid"]?.Value<bool>() == true && p["angleDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? p["angleDeg"].Value<float>() : null;
+                        liveCompensation = p["compensationDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? p["compensationDeg"].Value<float>() : null;
                         if (liveAngle.HasValue) lastSampleAt = Time.unscaledTime;
                         liveQuality = p["quality"] as JObject;
                         // The moment the hold reaches its target is worth a flash, once per rep.

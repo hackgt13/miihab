@@ -22,6 +22,12 @@
                 <k:KReadout name="best-hold" value="—" caption="best hold" size="Compact" class="form-metric" />
             </ui:VisualElement>
             <k:KText name="form-note" text="" size="Caption" tone="Soft" class="form-note hidden" />
+            <!-- Two-sensor exercises only: how much of the movement is the trunk's, while it is
+                 happening. A single sensor cannot see this, so the row stays hidden for those. -->
+            <ui:VisualElement name="lean-row" class="lean-row hidden">
+                <k:KReadout name="lean-readout" value="—" caption="trunk" size="Compact" />
+                <k:KMeter name="lean-meter" form="Bar" class="lean-meter" />
+            </ui:VisualElement>
             <ui:VisualElement name="angle-details" class="angle-details hidden">
                 <k:KReadout name="angle-readout" value="—" caption="Target 85°" size="Compact" />
                 <k:KMeter name="angle-meter" form="Bar" class="angle-meter" />
