@@ -32,6 +32,27 @@ namespace Kinesthetic.Panes
             return null;
         }
 
+        /// The enabled, named Button under `ray` on `owner`'s own pane, or null. Every menu input —
+        /// GazeDwell's dwell, PanePointerInput's cursor, CarouselChrome's click — asks this, so a head and
+        /// a mouse land on the same name and PressGate turns that name into one action.
+        ///
+        /// The nearest collider answers, and nothing else is consulted: a pane standing in front of
+        /// `owner` makes this null for `owner`. That is the whole hit-test rule between the ring and its
+        /// arrows — the chrome panel sits wider and further back, so the facing pane wins every ray in
+        /// front of it and the arrows answer only past its edge.
+        public static Button NamedButtonOn(GameObject owner, Ray ray, float maxDistance)
+        {
+            var button = Under<Button>(ray, maxDistance, Physics.DefaultRaycastLayers, out var pane, out _, out _);
+            return pane && pane.gameObject == owner && !string.IsNullOrEmpty(button?.name) ? button : null;
+        }
+
+        /// Picking projects through a Pane, so anything picked needs one. With no content set a Pane is
+        /// pure projection: it changes no size, no settings and no collider.
+        public static void MakePickable(GameObject owner)
+        {
+            if (!owner.GetComponent<Pane>()) owner.AddComponent<Pane>();
+        }
+
         static VisualElement Pick(VisualElement element, Vector2 point)
         {
             if (element.resolvedStyle.display == DisplayStyle.None || !element.visible) return null;

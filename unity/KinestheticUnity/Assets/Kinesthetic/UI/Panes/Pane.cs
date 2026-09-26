@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Kinesthetic.UI;
 using UnityEngine.UIElements;
 
 namespace Kinesthetic.Panes
@@ -118,14 +119,16 @@ namespace Kinesthetic.Panes
         public void SetFocused(bool focused)
         {
             Focused = focused;
-            frame?.EnableInClassList("pane-focused", focused);
+            frame?.EnableInClassList("k-pane--focused", focused);
+            frame?.EnableInClassList("k-pane--idle", !focused);
         }
 
-        /// Hover comes from the raycast, not from :hover, which never fires on a world-space panel.
+        /// Hover comes from the raycast, not from :hover, which never fires on a world-space panel. The
+        /// grip takes the same k-hot a KButton answers to; the close button is one, so it is told directly.
         public void Highlight(VisualElement element)
         {
-            grip?.EnableInClassList("pane-hot", element != null && element == grip);
-            close?.EnableInClassList("pane-hot", element != null && element == close);
+            grip?.EnableInClassList("k-hot", element != null && element == grip);
+            if (close is KButton button) button.Hot = element != null && element == close;
         }
 
         public bool IsGrip(VisualElement element) => element != null && grip != null && element == grip;

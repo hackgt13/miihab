@@ -1,5 +1,6 @@
 using System.IO;
 using UnityEngine;
+using Kinesthetic.UI;
 using UnityEngine.UIElements;
 using UnityEngine.Video;
 
@@ -62,8 +63,8 @@ namespace Kinesthetic.Panes
                 case Kind.Text:
                     var scroll = new ScrollView { horizontalScrollerVisibility = ScrollerVisibility.Hidden };
                     scroll.style.flexGrow = 1;
-                    var body = new Label(File.ReadAllText(path));
-                    body.AddToClassList("pane-reading");
+                    var body = new KText { text = File.ReadAllText(path), size = KText.Size.Body, tone = KText.Tone.Soft };
+                    body.AddToClassList("k-pane__reading");
                     scroll.Add(body); root.Add(scroll);
                     break;
 
@@ -103,7 +104,7 @@ namespace Kinesthetic.Panes
         void Fail(VisualElement root, string why)
         {
             message = new Label(why);
-            message.AddToClassList("pane-problem");
+            message.AddToClassList("k-pane__problem");
             root.Add(message);
         }
 

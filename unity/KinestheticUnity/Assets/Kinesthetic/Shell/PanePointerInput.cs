@@ -18,11 +18,10 @@ namespace Kinesthetic.Shell
     /// rather than folded into it: one resolves a ray from the centre of the view after a dwell, the other
     /// from the cursor on a click, and the only thing they should share is the vocabulary.
     ///
-    /// The maths is GazeDwell's, and it is not obvious: a world-space panel lays its elements out in the
-    /// panel's own units, centred and y-up, which is exactly the space the hit point lands in once it is put
-    /// back into the collider's local space. So the hit converts straight to element coordinates with no
-    /// pixel scaling — confirmed on this project's own 1600x900 panels, whose element rects come back as
-    /// 16x9 centred on zero.
+    /// The picking is GazeDwell's, because it is one call: Panes.WorldPanelPick.NamedButtonOn. It projects
+    /// through the panel's own transform once, so it does not depend on a panel being 1:1 with its metres,
+    /// and it picks in paint order, so a modal's shade blocks the buttons under it and a disabled button is
+    /// never committed.
     [RequireComponent(typeof(UIDocument))]
     public sealed class PanePointerInput : MonoBehaviour
     {
@@ -37,7 +36,11 @@ namespace Kinesthetic.Shell
         UIDocument document;
         string hot;
 
-        void Awake() => document = GetComponent<UIDocument>();
+        void Awake()
+        {
+            document = GetComponent<UIDocument>();
+            Panes.WorldPanelPick.MakePickable(gameObject);
+        }
 
         void Update()
         {
@@ -65,22 +68,8 @@ namespace Kinesthetic.Shell
         /// The name of the Button under this screen point on this pane, or null.
         string Under(Camera cam, Vector2 screenPoint, out Button found)
         {
-            found = null;
-            var ray = cam.ScreenPointToRay(screenPoint);
-            if (!Physics.Raycast(ray, out var hit, maxDistance)) return null;
-            if (!hit.collider.transform.IsChildOf(transform)) return null;   // a nearer pane owns this one
-            var root = document.rootVisualElement;
-            if (root == null) return null;
-
-            var local = hit.collider.transform.InverseTransformPoint(hit.point);
-            var point = new Vector2(local.x, local.y);
-            foreach (var button in root.Query<Button>().ToList())
-                if (!string.IsNullOrEmpty(button.name) && button.worldBound.Contains(point))
-                {
-                    found = button;
-                    return button.name;
-                }
-            return null;
+            found = Panes.WorldPanelPick.NamedButtonOn(gameObject, cam.ScreenPointToRay(screenPoint), maxDistance);
+            return found?.name;
         }
     }
 }

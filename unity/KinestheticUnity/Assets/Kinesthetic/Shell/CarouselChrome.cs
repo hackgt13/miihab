@@ -22,32 +22,27 @@ namespace Kinesthetic.Shell
         Button previous, next;
         readonly PressGate press = new();
 
-        void Start() => Bind();
+        void Start()
+        {
+            Panes.WorldPanelPick.MakePickable(gameObject);
+            Bind();
+        }
 
         /// A world-space panel never receives pointer events — UI Toolkit's `panel.Pick` returns null on one,
         /// which is why the board is driven by dwell rather than by clicks. So the arrows would answer a gaze
         /// and ignore a mouse, which is not what anyone sitting at a Mac expects. This is the pointer half:
         /// a ray from the camera through the cursor, resolved against this panel's own collider.
         ///
-        /// The element maths is GazeDwell's, deliberately: a world-space panel lays its elements out in the
-        /// panel's own units, centred and y-up, which is exactly the space the hit point lands in once it is
-        /// put back into the collider's local space. Both paths end at Press, so neither can drift.
+        /// The picking is GazeDwell's, deliberately — the same WorldPanelPick.NamedButtonOn call — and both
+        /// paths end at Press, so neither can drift.
         void Clicked()
         {
             var mouse = Mouse.current;
             var cam = Camera.main;
             if (mouse == null || cam == null || !mouse.leftButton.wasPressedThisFrame) return;
 
-            var ray = cam.ScreenPointToRay(mouse.position.ReadValue());
-            if (!Physics.Raycast(ray, out var hit, 40f)) return;
-            if (!hit.collider.transform.IsChildOf(transform)) return;
-
-            var root = GetComponent<UIDocument>()?.rootVisualElement;
-            if (root == null) return;
-            var local = hit.collider.transform.InverseTransformPoint(hit.point);
-            var point = new Vector2(local.x, local.y);
-            foreach (var button in root.Query<Button>().ToList())
-                if (!string.IsNullOrEmpty(button.name) && button.worldBound.Contains(point)) { Press(button.name); return; }
+            var button = Panes.WorldPanelPick.NamedButtonOn(gameObject, cam.ScreenPointToRay(mouse.position.ReadValue()), 40f);
+            if (button != null) Press(button.name);
         }
 
         // The document rebuilds its tree when it is enabled, and the carousel may adopt its windows after
