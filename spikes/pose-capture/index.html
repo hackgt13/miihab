@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kinesthetic · Capture proof</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">KINESTHETIC / FIRST CAPTURE PROOF</p>
+      <h1>See the motion we capture.</h1>
+      <p>Local camera or recorded video → MediaPipe landmarks → inspectable JSON.</p>
+    </header>
+    <section class="controls" aria-label="Capture controls">
+      <label>Camera<select id="camera"><option value="">Default camera</option></select></label>
+      <button id="start" type="button">Retry camera</button>
+      <label class="file-button">Open recorded video<input id="file" type="file" accept="video/*"></label>
+      <button id="stop" type="button" disabled>Stop capture</button>
+      <button id="export" type="button" disabled>Export JSON</button>
+      <button id="unity" type="button">Reconnect Unity</button>
+    </section>
+    <p id="status" role="status">Starting camera… Allow camera access if prompted.</p>
+    <p id="bridge" class="note">Connecting pose to Unity automatically…</p>
+    <p class="setup-note">Place the camera far enough away to include your shoulders, hips, elbows, and wrists throughout the movement. Check the side you are testing below.</p>
+    <section id="framing" class="framing" aria-label="Exercise framing"></section>
+    <div class="stage">
+      <video id="cam" controls playsinline muted></video>
+      <canvas id="overlay" aria-label="Estimated body landmark overlay"></canvas>
+      <p id="placeholder">Your camera or selected video will appear here.</p>
+    </div>
+    <section class="stats" aria-label="Capture statistics">
+      <div><span>Source</span><strong id="source">—</strong></div>
+      <div><span>Frames recorded</span><strong id="frames">0</strong></div>
+      <div><span>Subject</span><strong id="subject">—</strong></div>
+      <div><span>Last inference</span><strong id="latency">—</strong></div>
+    </section>
+    <p class="note">“Joints in view” requires the exercise’s reference joints to be inside the image with visibility ≥ 0.5. It is a framing check, not a measurement-quality guarantee. Teal landmarks meet the visibility threshold; amber landmarks have lower or unknown visibility. Offscreen estimates are hidden. The image is not mirrored. Left/right labels refer to MediaPipe’s subject labels.</p>
+    <p class="note">Camera/video inference runs in this browser. If you connect Unity, pose frames are sent to the local Mac bridge and saved locally; video stays in the browser. No cloud upload. Source video time and inference times are stored separately. Camera hardware exposure timestamps are unavailable here.</p>
+  </main>
+  <script type="module" src="./capture.js"></script>
+</body>
+</html>
