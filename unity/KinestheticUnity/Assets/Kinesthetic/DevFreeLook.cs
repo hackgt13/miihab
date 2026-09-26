@@ -22,6 +22,7 @@ namespace Kinesthetic
     ///
     /// Previews composition and sightlines only: one eye, Metal, editor scripting backend. It is not
     /// evidence that anything works on the headset.
+    [DefaultExecutionOrder(1000)]   // after scene camera drivers (StudioCamera, golf LookAt) so the drag composes on top
     public sealed class DevFreeLook : MonoBehaviour
     {
         public float degreesPerPixel = .15f;
