@@ -73,7 +73,7 @@ pairs() {
   get http://127.0.0.1:8767/ | python3 -c '
 import sys,json
 d=json.load(sys.stdin)
-for role,key in (("club","samples"),("wrist","bowlingSamples")):
+for role,key in (("IMU A","samples"),("IMU B","bowlingSamples")):
     for who,s in d.get(key,{}).items():
         print(role, s["sourceId"], "%dms"%s["ageMs"], "live" if s["ageMs"]<1500 else "stale")' 2>/dev/null
 }
@@ -138,10 +138,10 @@ receive() {
     [[ $(state) == Running ]] || { warn "tunnel dropped, bringing it back"; tunnel_up; }
     [[ -n $adb ]] && { local dev=$("$adb" devices 2>/dev/null | awk 'NR>1 && $2=="device"{print $1}' | head -1)
       [[ -n $dev ]] && ! "$adb" -s "$dev" reverse --list 2>/dev/null | grep -q "tcp:8767 tcp:8767" && quest_wire; }
-    now="$(pairs | awk '{print $1, $4}' | sort | tr '\n' ' ')"
+    now="$(pairs | awk '{print $2, $5}' | sort | tr '\n' ' ')"
     [[ $now == $last ]] && continue
     last=$now
-    print -P "  $(date +%H:%M:%S)  club: $( [[ $now == *'club live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')   wrist: $( [[ $now == *'wrist live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')"
+    print -P "  $(date +%H:%M:%S)  IMU A: $( [[ $now == *'A live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')   IMU B: $( [[ $now == *'B live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')"
   done
 }
 

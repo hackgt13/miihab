@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Two AirPod pairs need two Apple hosts: one Mac reads one CMHeadphoneMotionManager stream.
 # This Mac (the receiver) runs Unity, the coordinator and the golf relay, and streams its own pair on the relay's
-# club channel. The other Mac streams its pair to this relay on the wrist channel. The channel names are transport
+# IMU A channel. The other Mac streams its pair to this relay on the IMU B channel. The channel names are transport
 # only: which pair measures the limb is settled at the start of each set (AGENTS.md, Sensors).
 #
 #   zsh scripts/start_two_airpods.sh receive            this Mac: relay on the network, Club Motion, print what to type
@@ -17,12 +17,12 @@ token_file=local-data/pair-token.txt
 bowling_app="native/build/Kinesthetic Bowling Motion.app"
 bowling_zip="native/build/Kinesthetic Bowling Motion.zip"
 
-# The relay's health JSON, one line per live pair: "club Left 12ms" / "wrist Right 40ms".
+# The relay's health JSON, one line per live pair: "IMU A Left 12ms live" / "IMU B Right 40ms stale".
 pairs() {
   python3 -c '
 import sys,json
 d=json.load(sys.stdin)
-for role,key in (("club","samples"),("wrist","bowlingSamples")):
+for role,key in (("IMU A","samples"),("IMU B","bowlingSamples")):
     for who,s in d.get(key,{}).items():
         print(role, s["sourceId"], "%dms"%s["ageMs"], "live" if s["ageMs"]<1500 else "stale")'
 }
@@ -74,17 +74,17 @@ receive() {
 
   print "\nPairs"
   if [[ " $* " == *" --wait "* ]]; then
-    print "  waiting for a live pair on each channel: club (this Mac) and wrist (the other Mac); Ctrl-C to stop"
+    print "  waiting for a live pair on each channel: IMU A (this Mac) and IMU B (the other Mac); Ctrl-C to stop"
     while true; do
       live=$(get http://127.0.0.1:8767/ | pairs)
-      if [[ $live == *"club "*live* && $live == *"wrist "*live* ]]; then break; fi
+      if [[ $live == *"IMU A "*live* && $live == *"IMU B "*live* ]]; then break; fi
       sleep 1
     done
   fi
   live=$(get http://127.0.0.1:8767/ | pairs)
   [[ -n $live ]] && print -r -- "$live" | while read -r l; do [[ $l == *live ]] && ok "$l" || warn "$l (last sample long ago)"; done
-  [[ $live == *"club "*live* ]]  || warn "No live club pair — pair AirPods to this Mac; Club Motion shows the reporting bud"
-  [[ $live == *"wrist "*live* ]] || warn "No live wrist pair yet — waiting on the other Mac"
+  [[ $live == *"IMU A "*live* ]]  || warn "No live IMU A — pair AirPods to this Mac; Club Motion shows the reporting bud"
+  [[ $live == *"IMU B "*live* ]] || warn "No live IMU B yet — waiting on the other Mac"
 }
 
 send() {
@@ -106,10 +106,10 @@ send() {
   print "  waiting for this pair to reach the receiver; Ctrl-C to stop"
   for i in {1..120}; do
     live=$(get "http://$ip:8767/?token=$token" | pairs)
-    if [[ $live == *"wrist "*live* ]]; then ok "${${(f)live}[(r)wrist *]} — streaming"; return 0; fi
+    if [[ $live == *"IMU B "*live* ]]; then ok "${${(f)live}[(r)IMU B *]} — streaming"; return 0; fi
     sleep 1
   done
-  warn "No wrist samples after two minutes. Check the app's status line: it names the reporting bud once motion arrives."
+  warn "No IMU B samples after two minutes. Check the app's status line: it names the reporting bud once motion arrives."
   return 1
 }
 
