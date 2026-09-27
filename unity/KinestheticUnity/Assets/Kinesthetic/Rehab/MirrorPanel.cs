@@ -51,14 +51,21 @@ namespace Kinesthetic.Rehab
             var facing = viewer - centre; facing.y = 0;
             window.SetPositionAndRotation(centre, Quaternion.LookRotation(facing.sqrMagnitude > 1e-4f ? facing.normalized : -left));
 
-            // Frame: a shallow box, so the reflection sits inside it rather than on a flat sheet.
-            frameMaterial = Lit(Palette.Sand00); var backMaterial = Lit(Palette.Sand10);
+            // Frame: a shallow box, so the reflection sits inside it rather than on a flat sheet. The back is silvered
+            // glass — metallic and near-mirror smooth, so it takes the room from the studio's reflection probes.
+            frameMaterial = Lit(Palette.Sand00); var backMaterial = Lit(Palette.Sand00);
+            backMaterial.SetFloat("_Metallic", 1); backMaterial.SetFloat("_Smoothness", .96f);
             const float t = .018f;
             Box(window, "Frame top", new Vector3(0, height * .5f + t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, .065f), frameMaterial);
             Box(window, "Frame bottom", new Vector3(0, -height * .5f - t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, .065f), frameMaterial);
             Box(window, "Frame left", new Vector3(-width * .5f - t * .5f, 0, -depth * .5f), new Vector3(t, height, .065f), frameMaterial);
             Box(window, "Frame right", new Vector3(width * .5f + t * .5f, 0, -depth * .5f), new Vector3(t, height, .065f), frameMaterial);
             Box(window, "Backing", new Vector3(0, 0, -depth), new Vector3(width, height, .02f), backMaterial);
+            // The glass in front: a faint haze and two diagonal sheen streaks, so it reads as a pane, not an opening.
+            float front = -depth * .5f + .034f;
+            Sheen(window, "Glass", new Vector3(0, 0, front), new Vector2(width, height), 0, .05f);
+            Sheen(window, "Sheen", new Vector3(-width * .18f, height * .12f, front + .001f), new Vector2(width * .16f, height * .75f), 28, .09f);
+            Sheen(window, "Sheen thin", new Vector3(width * .04f, height * .02f, front + .001f), new Vector2(width * .05f, height * .75f), 28, .07f);
 
             // The copy is made inside an inactive holder, so none of its scripts (the rig, the face) ever wake.
             var holder = new GameObject("Mirror holder"); holder.SetActive(false);
@@ -95,8 +102,7 @@ namespace Kinesthetic.Rehab
             targetHand = Orb(window, "Ghost hand · target"); ceilingHand = Orb(window, "Ghost hand · safe ceiling");
         }
 
-        // The window is its own object, not a child of this one: it goes when the mirror does (a group session
-        // puts the other person where it stood).
+        // The window is its own object, not a child of this one: it goes when the mirror does.
         void OnDestroy() { if (window) Destroy(window.gameObject); }
 
         void LateUpdate()
@@ -190,6 +196,18 @@ namespace Kinesthetic.Rehab
         static Material Lit(Color c)
         {
             var m = new Material(Shader.Find("Universal Render Pipeline/Lit")); m.color = c; m.SetFloat("_Smoothness", .35f); return m;
+        }
+        /// A see-through quad on the glass, clipped to the frame only by being sized to it.
+        static void Sheen(Transform parent, string name, Vector3 at, Vector2 size, float tiltDeg, float alpha)
+        {
+            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad); quad.name = name;
+            Destroy(quad.GetComponent<Collider>());
+            quad.transform.SetParent(parent, false);
+            quad.transform.localPosition = at; quad.transform.localRotation = Quaternion.Euler(0, 0, tiltDeg);
+            quad.transform.localScale = new Vector3(size.x, size.y, 1);
+            var r = quad.GetComponent<Renderer>();
+            r.material = new Material(Shader.Find("Sprites/Default")) { color = Fade(Palette.Sand00, alpha) };   // two-sided, honours alpha
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
         static void Box(Transform parent, string name, Vector3 at, Vector3 size, Material material)
         {

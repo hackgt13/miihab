@@ -871,22 +871,14 @@ namespace Kinesthetic.Rehab
             if (groups) groups.RoomChanged -= ArrangeCompany;
         }
 
-        /// The mirror when you are on your own, the other person when you are in a group — never both, since they
-        /// stand in the same place.
+        /// The mirror always; the rest of the group too while you are in one, seated past the mirror's edge.
         void ArrangeCompany()
         {
             if (useCameraPose || !this) return;
+            if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
             bool together = Kinesthetic.Menu.GroupPanel.Instance?.InRoom == true;
-            if (together)
-            {
-                if (GetComponent<MirrorPanel>() is MirrorPanel mirror) Destroy(mirror);
-                if (!GetComponent<PeerAvatar>()) gameObject.AddComponent<PeerAvatar>().view = this;
-            }
-            else
-            {
-                if (GetComponent<PeerAvatar>() is PeerAvatar partner) Destroy(partner);
-                if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
-            }
+            if (together && !GetComponent<PeerAvatar>()) gameObject.AddComponent<PeerAvatar>().view = this;
+            else if (!together && GetComponent<PeerAvatar>() is PeerAvatar partner) Destroy(partner);
         }
     }
 }

@@ -8,9 +8,9 @@ namespace Kinesthetic.Rehab
 {
     /// <summary>
     /// The rest of a group session, seated around the patient: everyone on the Tab list, on an arc to the patient's
-    /// left that starts where the mirror window stands when they are on their own, each turned toward them and doing
-    /// the same movement. RehabSession adds this instead of the mirror when the patient is in a group (GroupPanel),
-    /// so the generated scene needs no change.
+    /// left that starts just past the mirror window's edge, each turned toward them and doing the same movement.
+    /// RehabSession adds this beside the mirror when the patient is in a group (GroupPanel), so the generated scene
+    /// needs no change.
     ///
     /// Each person is a copy of the patient's own seated Mii and wheelchair, recoloured with their Mii's skin, hair
     /// and shirt (KMiiFace), so the person in the room matches the face in the member list. How they move:
@@ -24,10 +24,10 @@ namespace Kinesthetic.Rehab
     public sealed class PeerAvatar : MonoBehaviour
     {
         public IRehabView view;
-        [Tooltip("How far the seats are from the patient's hips, in metres. The first stands where the mirror does.")]
+        [Tooltip("How far the seats are from the patient's hips, in metres.")]
         public float radius = 2.72f;
         [Tooltip("Where the arc starts and how far apart the seats are, in degrees to the patient's left of straight ahead.")]
-        public float firstSeatDeg = 36, seatSpacingDeg = 24;
+        public float firstSeatDeg = 62, seatSpacingDeg = 24;   // the mirror spans about 24–48° (MirrorPanel)
         [Tooltip("Degrees each person is turned away from facing the patient. 0 faces them; ~55 shows a forward raise in profile instead of end-on.")]
         public float turnDeg = 0;
 
