@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kinesthetic · Motion lab</title>
+<style>
+/* Motion lab: the biceps curl rebuilt from two AirPods (coordinator/exercise/trajectory.ts). Colour by role:
+   series-1 is the selected rep, context is every other rep, the seq ramp is a magnitude, status is a verdict. */
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --line: #e1e0d9; --axis: #c3c2b7;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --series-1: #2a78d6; --series-2: #eb6834; --context: #c9c8c0; --ideal: #0b0b0b;
+  --good: #0ca30c; --warning: #fab219; --critical: #d03b3b; --good-ink: #006300;
+  --seq-0: #cde2fb; --seq-1: #9ec5f4; --seq-2: #6da7ec; --seq-3: #3987e5; --seq-4: #256abf; --seq-5: #184f95; --seq-6: #0d366b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --line: #2c2c2a; --axis: #383835;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --series-1: #3987e5; --series-2: #d95926; --context: #45443f; --ideal: #ffffff; --good-ink: #0ca30c;
+    --seq-0: #104281; --seq-1: #184f95; --seq-2: #256abf; --seq-3: #3987e5; --seq-4: #6da7ec; --seq-5: #9ec5f4; --seq-6: #cde2fb;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif; }
+header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; } .brand span { font-weight: 500; color: var(--ink-2); margin-left: 8px; }
+header .spacer { flex: 1; }
+select, button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 8px; padding: 6px 10px; }
+button { cursor: pointer; } button[aria-pressed="true"] { border-color: var(--series-1); color: var(--series-1); font-weight: 600; }
+.badge { font-size: 12px; font-weight: 700; letter-spacing: .6px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--axis); color: var(--ink-2); }
+main { max-width: 1320px; margin: 0 auto; padding: 18px 24px 40px; }
+.hero { display: grid; grid-template-columns: 220px repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1100px) { .hero { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .hero { grid-template-columns: repeat(2, minmax(0, 1fr)); } main { padding: 12px 16px 32px; } header { padding: 10px 16px; } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.tile .label { font-size: 12.5px; color: var(--ink-2); }
+.tile .value { font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tile .value small { font-size: 15px; font-weight: 600; color: var(--ink-2); }
+.tile .sub { font-size: 12px; color: var(--muted); }
+.tile.big .value { font-size: 52px; line-height: 1.05; }
+.meter { height: 6px; border-radius: 3px; background: var(--line); margin: 8px 0 6px; overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 3px; background: var(--series-1); }
+.status { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.status::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--dot); }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; }
+@media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; min-width: 0; }
+.card h2 { font-size: 15px; margin: 0; } .card .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.card .head .spacer { flex: 1; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+#stage { position: relative; } #scene { width: 100%; height: 520px; display: block; cursor: grab; touch-action: none; }
+#scene.dragging { cursor: grabbing; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 18px; height: 3px; border-radius: 2px; background: var(--c); }
+.swatch.dash { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
+.ramp { width: 64px; height: 8px; border-radius: 2px; background: linear-gradient(90deg, var(--seq-0), var(--seq-3), var(--seq-6)); }
+.tooltip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 12.5px; box-shadow: 0 2px 8px rgba(0,0,0,.14); white-space: nowrap; z-index: 2; }
+.tooltip b { font-variant-numeric: tabular-nums; }
+#timeline { width: 100%; height: 240px; display: block; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { padding: 6px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+th { font-size: 12px; color: var(--ink-2); font-weight: 600; } td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; } tbody tr:hover { background: color-mix(in srgb, var(--series-1) 7%, transparent); }
+tbody tr.on { background: color-mix(in srgb, var(--series-1) 14%, transparent); }
+.bar { height: 6px; border-radius: 3px; background: var(--line); min-width: 60px; } .bar i { display: block; height: 100%; border-radius: 3px; background: var(--series-1); }
+.note { font-size: 13px; color: var(--ink-2); }
+.note li { margin-bottom: 4px; }
+.empty { padding: 40px 10px; text-align: center; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Kinesthetic <span>Motion lab · biceps curl</span></div>
+  <select id="session" aria-label="Recorded set"></select>
+  <span id="badge" class="badge" hidden>SIMULATED</span>
+  <div class="spacer"></div>
+  <a href="/portal/" class="hint">Clinician review</a>
+</header>
+<main id="main">
+  <section class="hero" id="hero"></section>
+  <div class="grid">
+    <div>
+      <section class="card">
+        <div class="head">
+          <h2>Wrist path in 3D</h2>
+          <span class="hint">drag to orbit · scroll to zoom</span>
+          <div class="spacer"></div>
+          <button data-mode="paths" aria-pressed="true">Paths</button>
+          <button data-mode="cloud" aria-pressed="false">Point cloud</button>
+          <select id="colour" aria-label="Colour by">
+            <option value="focus">Colour: selected rep</option>
+            <option value="deviation">Colour: distance from ideal</option>
+            <option value="speed">Colour: elbow speed</option>
+          </select>
+          <button id="replay">▶ Replay</button>
+        </div>
+        <div id="stage"><canvas id="scene"></canvas><div id="tip3d" class="tooltip" hidden></div></div>
+        <div class="legend" id="legend3d"></div>
+      </section>
+      <section class="card">
+        <div class="head"><h2>Elbow angle over the set</h2><div class="spacer"></div><span class="hint">degrees · shaded bands are reps</span></div>
+        <div style="position:relative"><svg id="timeline" role="img" aria-label="Elbow angle and upper-arm swing over time"></svg><div id="tipline" class="tooltip" hidden></div></div>
+        <div class="legend">
+          <span><i class="swatch" style="--c:var(--series-1)"></i>Elbow angle</span>
+          <span><i class="swatch" style="--c:var(--series-2)"></i>Upper-arm swing</span>
+          <span><i class="swatch dash" style="--c:var(--ideal)"></i>Minimum-jerk ideal (selected rep)</span>
+        </div>
+      </section>
+    </div>
+    <div>
+      <section class="card">
+        <div class="head"><h2>Reps</h2><div class="spacer"></div><span class="hint">click a rep to follow it</span></div>
+        <table><thead><tr><th>#</th><th class="num">Peak</th><th class="num">Path</th><th class="num">Smooth</th><th class="num">Drift</th><th>Score</th></tr></thead><tbody id="reps"></tbody></table>
+      </section>
+      <section class="card note">
+        <h2 style="margin-bottom:8px">How this is measured</h2>
+        <ul id="method" style="padding-left:18px;margin:0"></ul>
+      </section>
+    </div>
+  </div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const fmt = (x, n = 0) => Number(x).toFixed(n);
+// A view can be linked: ?mode=cloud&colour=deviation opens straight onto it.
+const query = new URLSearchParams(location.search);
+let data = null, selected = 1, cursor = null, mode = query.get('mode') === 'cloud' ? 'cloud' : 'paths',
+  colour = ['deviation', 'speed'].includes(query.get('colour')) ? query.get('colour') : 'focus';
+
+// ---- status: a verdict wears a status colour and a word, never colour alone ----
+const verdict = v => v >= 85 ? ['good', 'Strong'] : v >= 70 ? ['warning', 'Fair'] : ['critical', 'Needs work'];
+const status = v => { const [k, w] = verdict(v); return `<span class="status" style="--dot:var(--${k})">${w}</span>`; };
+
+async function sessions() {
+  const list = await (await fetch('/api/trajectory')).json();
+  const pick = $('#session'); pick.innerHTML = '';
+  for (const s of list) {
+    const o = document.createElement('option'); o.value = s.id;
+    const when = s.endedAt ? new Date(s.endedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : s.id.slice(0, 8);
+    o.textContent = `${when}${s.simulated ? ' · simulated' : ''}${s.practice ? ' · practice' : ''}`;
+    pick.append(o);
+  }
+  const wanted = new URLSearchParams(location.search).get('id');
+  // Open on a set that has both AirPods: the newest with a trajectory, else the newest.
+  pick.value = wanted ?? list[0]?.id ?? '';
+  pick.onchange = () => load(pick.value);
+  if (pick.value) load(pick.value); else $('#main').innerHTML = '<div class="empty">No biceps-curl sets recorded yet. <code>node coordinator/exercise/curl-synth.ts --write</code> makes a labelled simulated one.</div>';
+}
+
+async function load(id) {
+  data = await (await fetch('/api/trajectory/' + id)).json();
+  const keep = new URLSearchParams(location.search); keep.set('id', id);
+  history.replaceState(null, '', '?' + keep);
+  $('#badge').hidden = !data.simulated;
+  selected = data.reps[0]?.rep ?? 0; cursor = null;
+  hero(); table(); method(); fit(); draw3d(); timeline();
+}
+
+// ---- hero: the headline and the five scores that make it ----
+function hero() {
+  const s = data.set, h = $('#hero');
+  if (!s) {
+    h.innerHTML = `<div class="tile big" style="grid-column:1/-1"><div class="label">No trajectory for this set</div>
+      <div class="sub">A curl's path needs both AirPods: the wrist and the upper arm. This recording has ${data.meta.frames ? 'too little paired motion' : 'only one of them'}, so there is nothing to rebuild.</div></div>`;
+    return;
+  }
+  const tile = (label, v, sub) => `<div class="tile"><div class="label">${label}</div><div class="value">${fmt(v)}<small>%</small></div>
+    <div class="meter"><i style="width:${Math.max(0, Math.min(100, v))}%"></i></div>${status(v)}<div class="sub">${sub}</div></div>`;
+  h.innerHTML = `<div class="tile big"><div class="label">Curl quality</div><div class="value">${fmt(s.score)}</div>${status(s.score)}
+      <div class="sub">${s.reps} reps · ${data.meta.hz} Hz · ${data.meta.frames} paired frames</div></div>`
+    + tile('Path accuracy', s.pathAccuracy, `wrist within ~${data.meta.sigmaCm} cm of the ideal arc`)
+    + tile('Range', s.range, `peak elbow vs the ${data.meta.targetDeg}° target`)
+    + tile('Smoothness', s.smoothness, 'fit to a minimum-jerk curve')
+    + tile('Elbow stability', s.stability, 'upper arm kept still')
+    + tile('Consistency', s.consistency, 'alike peaks across the set');
+}
+
+function table() {
+  const body = $('#reps'); body.innerHTML = '';
+  for (const r of data.reps) {
+    const tr = document.createElement('tr'); tr.className = r.rep === selected ? 'on' : '';
+    tr.innerHTML = `<td>${r.rep}</td><td class="num">${fmt(r.peakElbowDeg)}°</td><td class="num">${fmt(r.pathAccuracy)}%</td>
+      <td class="num">${fmt(r.smoothness)}%</td><td class="num">${fmt(r.elbowDriftDeg)}°</td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="flex:1"><i style="width:${r.score}%"></i></div><b style="font-variant-numeric:tabular-nums">${fmt(r.score)}</b></div></td>`;
+    tr.onclick = () => { selected = r.rep; table(); draw3d(); timeline(); };
+    body.append(tr);
+  }
+}
+
+function method() {
+  const m = data.meta;
+  $('#method').innerHTML = [
+    `Each AirPod reads the world's vertical in its own frame, so each gives its segment's tilt against gravity. Heading is never used: AirPod yaw drifts, and two pairs never share one.`,
+    `The curl's plane is found from how the forearm moved, not from how the AirPod was strapped. The wrist is placed from a model arm (upper arm ${Math.round(m.upperArmM * 100)} cm, forearm ${Math.round(m.forearmM * 100)} cm); every score is a ratio, so it does not hang on those lengths.`,
+    `Ideal curl: the upper arm hangs still and the wrist sweeps a circle about the elbow. Path accuracy is how close each frame stays to it (Gaussian, σ ${m.sigmaCm} cm).`,
+    `Smoothness is how well each lift and each lower fits a minimum-jerk curve, the classic model of a practised human movement.`,
+    `Sideways drift is only the part gravity can see: none of it when the forearm is horizontal, where sideways is a turn of heading.`,
+    data.simulated ? `<b>This set is simulated</b> (coordinator/exercise/curl-synth.ts): not a person moving.` : `Review only: the counted reps are the rep engine's${data.engine?.valid != null ? ` (${data.engine.valid} of ${data.engine.attempted} counted)` : ''}.`,
+  ].map(x => `<li>${x}</li>`).join('');
+}
+
+// ---- 3D: a tiny perspective renderer on a canvas, no dependencies ----
+const view = { yaw: -0.65, pitch: 0.28, dist: 1.05, spin: true };
+let centre = [0.1, -0.3, 0];
+function fit() {
+  if (!data?.points.length) return;
+  const xs = data.points.map(p => p.wrist[0]), ys = data.points.map(p => p.wrist[1]);
+  centre = [(Math.min(0, ...xs) + Math.max(...xs)) / 2, (Math.min(0, ...ys) + Math.max(0, ...ys)) / 2, 0];
+}
+function project(p, w, h) {
+  const x0 = p[0] - centre[0], y0 = p[1] - centre[1], z0 = p[2] - centre[2];
+  const cy = Math.cos(view.yaw), sy = Math.sin(view.yaw), cp = Math.cos(view.pitch), sp = Math.sin(view.pitch);
+  const x1 = x0 * cy + z0 * sy, z1 = -x0 * sy + z0 * cy;
+  const y2 = y0 * cp - z1 * sp, z2 = y0 * sp + z1 * cp;
+  const f = Math.min(w, h) * 1.45, d = view.dist - z2;
+  return [w / 2 + f * x1 / d, h / 2 - f * y2 / d, d];
+}
+const seq = t => { const i = Math.max(0, Math.min(6, Math.round(t * 6))); return css('--seq-' + i); };
+
+function colourOf(p) {
+  if (colour === 'deviation') return seq(Math.min(1, p.deviationCm / 12));
+  if (colour === 'speed') return seq(Math.min(1, Math.abs(p.speed) / 160));
+  return p.rep === selected ? css('--series-1') : css('--context');
+}
+
+function draw3d() {
+  const canvas = $('#scene'), dpr = devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const g = canvas.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = css('--surface'); g.fillRect(0, 0, w, h);
+  if (!data?.points.length) return;
+  const P = p => project(p, w, h);
+  const line = (pts, stroke, width, dash = []) => {
+    g.beginPath(); g.setLineDash(dash); g.strokeStyle = stroke; g.lineWidth = width; g.lineJoin = g.lineCap = 'round';
+    pts.forEach((p, i) => { const [x, y] = P(p); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); g.setLineDash([]);
+  };
+
+  // The curl's plane as a hairline grid, and the three body axes, so the space reads as a room.
+  g.globalAlpha = .9;
+  for (let x = -0.1; x <= 0.5001; x += 0.1) line([[x, -0.6, 0], [x, 0.05, 0]], css('--line'), 1);
+  for (let y = -0.6; y <= 0.0501; y += 0.1) line([[-0.1, y, 0], [0.5, y, 0]], css('--line'), 1);
+  g.globalAlpha = 1;
+  const axis = (to, label) => { line([[0, 0, 0], to], css('--axis'), 1.5); const [x, y] = P(to); g.fillStyle = css('--muted'); g.font = '12px system-ui'; g.fillText(label, x + 4, y - 4); };
+  axis([0.18, 0, 0], 'forward'); axis([0, 0.14, 0], 'up'); axis([0, 0, 0.16], 'sideways');
+
+  // The ideal: a circle about the hanging elbow.
+  line(data.ideal, css('--ideal'), 1.5, [5, 5]);
+
+  const pts = data.points;
+  if (mode === 'cloud') {
+    // Every frame as a dot, back to front, each ringed in the surface so dense clusters stay legible.
+    const order = pts.map(p => ({ p, s: P(p.wrist) })).sort((a, b) => b.s[2] - a.s[2]);
+    for (const { p, s } of order) {
+      if (p.rep === 0 && colour === 'focus') continue;
+      const r = (p.rep === selected && colour === 'focus' ? 4.5 : 3.5) * (1.05 / s[2]);
+      g.beginPath(); g.arc(s[0], s[1], r, 0, 7); g.fillStyle = colourOf(p); g.fill();
+      g.lineWidth = 1; g.strokeStyle = css('--surface'); g.stroke();
+    }
+  } else {
+    // Paths, context first and the selected rep on top.
+    const reps = [...new Set(pts.map(p => p.rep))].filter(r => r > 0).sort((a, b) => (a === selected) - (b === selected));
+    for (const r of reps) {
+      const run = pts.filter(p => p.rep === r);
+      if (colour === 'focus') line(run.map(p => p.wrist), r === selected ? css('--series-1') : css('--context'), r === selected ? 3 : 1.5);
+      else for (let i = 1; i < run.length; i++) line([run[i - 1].wrist, run[i].wrist], colourOf(run[i]), r === selected ? 3.5 : 2);
+    }
+  }
+
+  // The arm at the cursor (or the selected rep's peak): shoulder, elbow, wrist.
+  const at = cursor ?? peakOf(selected);
+  if (at) {
+    line([[0, 0, 0], at.elbowPos, at.wrist], css('--ink'), 4);
+    for (const q of [[0, 0, 0], at.elbowPos, at.wrist]) { const [x, y] = P(q); g.beginPath(); g.arc(x, y, 5, 0, 7); g.fillStyle = css('--ink'); g.fill(); g.lineWidth = 2; g.strokeStyle = css('--surface'); g.stroke(); }
+    const [x, y] = P(at.wrist); g.fillStyle = css('--ink'); g.font = '600 12px system-ui';
+    g.fillText(`${fmt(at.elbow)}°  ·  ${fmt(at.deviationCm, 1)} cm off`, x + 10, y + 4);
+  }
+  legend3d();
+}
+const peakOf = rep => { const run = data.points.filter(p => p.rep === rep); return run.length ? run.reduce((a, b) => b.elbow > a.elbow ? b : a) : null; };
+
+function legend3d() {
+  const L = $('#legend3d');
+  const ideal = `<span><i class="swatch dash" style="--c:var(--ideal)"></i>Ideal arc (upper arm still)</span><span><i class="swatch" style="--c:var(--ink);height:4px"></i>Arm now</span>`;
+  L.innerHTML = colour === 'focus'
+    ? `<span><i class="swatch" style="--c:var(--series-1);height:4px"></i>Rep ${selected}</span><span><i class="swatch" style="--c:var(--context)"></i>Other reps</span>${ideal}`
+    : `<span>${colour === 'deviation' ? 'Distance from ideal' : 'Elbow speed'} <i class="ramp"></i> ${colour === 'deviation' ? '0 → 12+ cm' : '0 → 160+ °/s'}</span>${ideal}`;
+}
+
+// Orbit, zoom, hover.
+(() => {
+  const c = $('#scene'); let drag = null;
+  c.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; view.spin = false; c.classList.add('dragging'); c.setPointerCapture(e.pointerId); });
+  c.addEventListener('pointerup', () => { drag = null; c.classList.remove('dragging'); });
+  c.addEventListener('pointermove', e => {
+    if (drag) { view.yaw += (e.clientX - drag[0]) * .008; view.pitch = Math.max(-1.3, Math.min(1.3, view.pitch + (e.clientY - drag[1]) * .006)); drag = [e.clientX, e.clientY]; draw3d(); return; }
+    if (!data?.points.length) return;
+    const r = c.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    let best = null, bd = 18 * 18;
+    for (const p of data.points) { if (!p.rep) continue; const [x, y] = project(p.wrist, r.width, r.height); const d = (x - mx) ** 2 + (y - my) ** 2; if (d < bd) { bd = d; best = p; } }
+    const tip = $('#tip3d');
+    if (!best) { tip.hidden = true; return; }
+    cursor = best; draw3d(); timeline();
+    tip.hidden = false; tip.style.left = (mx + 14) + 'px'; tip.style.top = (my + 10) + 'px';
+    tip.innerHTML = `Rep <b>${best.rep}</b> · ${fmt(best.t, 2)} s<br>Elbow <b>${fmt(best.elbow)}°</b> · swing <b>${fmt(best.upper)}°</b><br>Off the ideal <b>${fmt(best.deviationCm, 1)} cm</b> · <b>${fmt(Math.abs(best.speed))}°/s</b>`;
+  });
+  c.addEventListener('pointerleave', () => { $('#tip3d').hidden = true; cursor = null; draw3d(); timeline(); });
+  c.addEventListener('wheel', e => { e.preventDefault(); view.dist = Math.max(.7, Math.min(4, view.dist * (1 + e.deltaY * .001))); draw3d(); }, { passive: false });
+  let last = performance.now();
+  (function tick(now) { if (view.spin && data) { view.yaw += (now - last) * .00012; draw3d(); } last = now; requestAnimationFrame(tick); })(last);
+})();
+
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode; document.querySelectorAll('[data-mode]').forEach(x => x.setAttribute('aria-pressed', x === b)); draw3d();
+});
+$('#colour').onchange = e => { colour = e.target.value; draw3d(); };
+
+// Replay: the arm moves through the whole set at real speed, the chart's cursor with it.
+$('#replay').onclick = () => {
+  if (!data?.points.length) return;
+  const pts = data.points, t0 = performance.now(), start = pts[0].t;
+  const b = $('#replay'); b.disabled = true; b.textContent = '■ Replaying';
+  (function step(now) {
+    const t = start + (now - t0) / 1000;
+    const i = pts.findIndex(p => p.t >= t);
+    if (i < 0) { cursor = null; b.disabled = false; b.textContent = '▶ Replay'; draw3d(); timeline(); return; }
+    cursor = pts[i]; if (cursor.rep && cursor.rep !== selected) { selected = cursor.rep; table(); }
+    draw3d(); timeline(); requestAnimationFrame(step);
+  })(t0);
+};
+
+// ---- timeline: elbow angle and upper-arm swing on one degrees axis ----
+function timeline() {
+  const svg = $('#timeline'), w = svg.clientWidth, h = svg.clientHeight;
+  const pad = { l: 40, r: 12, t: 12, b: 26 };
+  if (!data?.points.length) { svg.innerHTML = ''; return; }
+  const pts = data.points, T = pts[pts.length - 1].t;
+  const top = Math.max(data.meta.targetDeg, ...pts.map(p => p.elbow)) * 1.08, bottom = Math.min(0, ...pts.map(p => p.upper)) - 5;
+  const X = t => pad.l + (w - pad.l - pad.r) * t / T, Y = v => pad.t + (h - pad.t - pad.b) * (1 - (v - bottom) / (top - bottom));
+  let s = '';
+  for (const r of data.reps) s += `<rect x="${X(r.start)}" y="${pad.t}" width="${X(r.end) - X(r.start)}" height="${h - pad.t - pad.b}" fill="var(--series-1)" opacity="${r.rep === selected ? .12 : .04}"/>`;
+  for (let v = 0; v <= top; v += 30) s += `<line x1="${pad.l}" x2="${w - pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pad.l - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${v}°</text>`;
+  for (let t = 0; t <= T; t += 5) s += `<text x="${X(t)}" y="${h - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${t}s</text>`;
+  s += `<line x1="${pad.l}" x2="${w - pad.r}" y1="${Y(data.meta.targetDeg)}" y2="${Y(data.meta.targetDeg)}" stroke="var(--muted)" stroke-dasharray="2 4"/><text x="${w - pad.r}" y="${Y(data.meta.targetDeg) - 5}" text-anchor="end" font-size="11" fill="var(--ink-2)">target ${data.meta.targetDeg}°</text>`;
+  const path = f => pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.t).toFixed(1)},${Y(f(p)).toFixed(1)}`).join('');
+  s += `<path d="${path(p => p.upper)}" fill="none" stroke="var(--series-2)" stroke-width="2"/>`;
+  s += `<path d="${path(p => p.elbow)}" fill="none" stroke="var(--series-1)" stroke-width="2"/>`;
+  // The selected rep's minimum-jerk ideal, lift and lower, between its own start, peak and end.
+  const rep = data.reps.find(r => r.rep === selected);
+  if (rep) {
+    const run = pts.filter(p => p.rep === selected), pk = peakOf(selected);
+    const mj = x => x * x * x * (10 - 15 * x + 6 * x * x);
+    const leg = (a, b, flip) => { let d = ''; for (let i = 0; i <= 30; i++) { const u = i / 30, t = a.t + (b.t - a.t) * u, v = a.elbow + (b.elbow - a.elbow) * mj(u); d += `${i ? 'L' : 'M'}${X(t).toFixed(1)},${Y(v).toFixed(1)}`; } return d; };
+    if (run.length && pk) {
+      const rise = run.find(p => p.elbow >= .95 * pk.elbow) ?? pk, fall = [...run].reverse().find(p => p.elbow >= .95 * pk.elbow) ?? pk;
+      s += `<path d="${leg(run[0], rise)}${leg(fall, run[run.length - 1])}" fill="none" stroke="var(--ideal)" stroke-width="1.5" stroke-dasharray="5 4" opacity=".7"/>`;
+    }
+    s += `<text x="${X((rep.start + rep.end) / 2)}" y="${pad.t + 12}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink-2)">rep ${rep.rep}</text>`;
+  }
+  if (cursor) s += `<line x1="${X(cursor.t)}" x2="${X(cursor.t)}" y1="${pad.t}" y2="${h - pad.b}" stroke="var(--ink-2)"/><circle cx="${X(cursor.t)}" cy="${Y(cursor.elbow)}" r="4.5" fill="var(--series-1)" stroke="var(--surface)" stroke-width="2"/>`;
+  svg.innerHTML = s;
+  svg.onpointermove = e => {
+    const r = svg.getBoundingClientRect(), t = (e.clientX - r.left - pad.l) / (w - pad.l - pad.r) * T;
+    let best = pts[0]; for (const p of pts) if (Math.abs(p.t - t) < Math.abs(best.t - t)) best = p;
+    cursor = best; draw3d(); timeline();
+    const tip = $('#tipline'); tip.hidden = false; tip.style.left = Math.min(r.width - 170, e.clientX - r.left + 14) + 'px'; tip.style.top = '8px';
+    tip.innerHTML = `${fmt(best.t, 2)} s${best.rep ? ` · rep <b>${best.rep}</b>` : ''}<br>Elbow <b>${fmt(best.elbow)}°</b> · swing <b>${fmt(best.upper)}°</b>`;
+  };
+  svg.onpointerleave = () => { $('#tipline').hidden = true; cursor = null; draw3d(); timeline(); };
+  svg.onclick = () => { if (cursor?.rep) { selected = cursor.rep; table(); draw3d(); timeline(); } };
+}
+
+addEventListener('resize', () => { draw3d(); timeline(); });
+$('#colour').value = colour;
+document.querySelectorAll('[data-mode]').forEach(x => x.setAttribute('aria-pressed', x.dataset.mode === mode));
+sessions();
+</script>
+</body>
+</html>
