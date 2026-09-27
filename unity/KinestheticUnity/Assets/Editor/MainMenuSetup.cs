@@ -118,7 +118,7 @@ public static class MainMenuSetup
         // widens as the panes come closer — 9 degrees at 57 against 6 at 60 — and 57 still keeps 1.3 degrees
         // of clearance past the board's own edge, where 56 leaves only 0.3.
         carousel.spacingDegrees = 62;
-        var menu = Pane("RehabMii activity menu", "MainMenu.uxml", true, "menu.home");
+        var menu = Pane("MiiHab activity menu", "MainMenu.uxml", true, "menu.home");
         var coaching = Pane("Coaching", "Coaching.uxml", false, "menu.coaching");
         var gallery = Pane("Activity gallery", "Gallery.uxml", false, "menu.gallery");
         var friendsPane = Pane("Friends", "Friends.uxml", false, "menu.friends");
