@@ -137,7 +137,7 @@ const MARCUS: PatientData = {
     icd10: 'S14.105D',
     referringPhysician: 'Dr. A. Patel, MD',
     dateOfInjury: '2025-07-12',
-    photoUrl: '/patient-photo.png',
+    photoUrl: `${import.meta.env.BASE_URL}patient-photo.png`,
   },
   sessions: MARCUS_SESSIONS,
   latestHandoff: MARCUS_HANDOFF,

@@ -44,7 +44,8 @@ const routeTree = rootRoute.addChildren([
   portalLayoutRoute.addChildren([portalIndexRoute, patientRoute]),
 ])
 
-export const router = createRouter({ routeTree })
+// Under /ehr on the coordinator; import.meta.env.BASE_URL is '/ehr/' in both the build and `npm run dev`.
+export const router = createRouter({ routeTree, basepath: import.meta.env.BASE_URL.replace(/\/$/, '') || '/' })
 
 declare module '@tanstack/react-router' {
   interface Register {

@@ -7,6 +7,7 @@ import { useSessionSocket } from '../../hooks/useSessionSocket'
 import { LiveReadings } from '../../ui/LiveReadings'
 import { SessionTrendChart } from '../../ui/SessionTrendChart'
 import { VisitNotes } from '../../ui/VisitNotes'
+import { ProgramUpdate } from '../../ui/ProgramUpdate'
 import { PatientRelay } from '../../ui/PatientRelay'
 import type { PatientStatus } from '../../data/types'
 
@@ -318,6 +319,7 @@ export function PatientView() {
         ].map(btn => (
           <button
             key={btn.label}
+            onClick={btn.label === 'Draft Plan' ? () => document.getElementById('program-update')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) : undefined}
             className="flex items-center gap-1 px-2.5 py-[4px] border border-[#c8cdd4] bg-white text-[11px] text-[#374151] rounded-[2px] hover:bg-[#e6eaef] hover:text-[#1666C0] transition-colors cursor-pointer"
           >
             <span className="text-[#1666C0] text-[10px]">{btn.icon}</span>
@@ -448,6 +450,14 @@ export function PatientView() {
               ))}
             </tbody>
           </table>
+
+          {/* The physician changes the live patient's program: a signed plan version the headset picks up. */}
+          {live && (<>
+            <SectionLabel label="Program Update" />
+            <div className="px-3 py-3">
+              <ProgramUpdate />
+            </div>
+          </>)}
 
           {/* Visit whiteboard: notes for the patient's therapist visit */}
           <SectionLabel label="Visit Whiteboard" />

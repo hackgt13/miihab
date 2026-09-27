@@ -5,8 +5,17 @@ behind them, and what changed between plan versions.
 
 ## Running it against real data
 
-    cd ../rehabmii/coordinator && npm start      # the coordinator, on 8766
-    npm run dev                                  # this portal, on 5173
+This portal lives in the RehabMii repo under `ehr/` and is served by the coordinator itself, same origin as
+the data: build it once, then open **http://127.0.0.1:8766/ehr/portal**.
+
+    cd ehr && npm install && npm run build       # scripts/start_demo_services.sh does this if it is missing
+    cd ../coordinator && npm start               # the coordinator, on 8766, serves ehr/dist at /ehr
+
+For live-reload development `npm run dev` still works (on 5173, with `/api` proxied to the coordinator).
+
+**Program update** (live patient): the physician edits the target, safe ceiling, reps, hold and cue, gives a
+reason, and approves. That is one signed `POST /api/visit/program-update`: a new plan version, and a note on the
+visit whiteboard. The headset's menu then leads with "Your plan changed", and the therapist visit explains it.
 
 The sidebar then lists one **Live** patient above the seeded ones. That patient is read from the
 coordinator every ten seconds — `src/data/coordinator.ts` maps its records into the same `PatientData`

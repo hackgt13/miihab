@@ -84,9 +84,13 @@ function readBytes(request: import('node:http').IncomingMessage, limit: number):
   });
 }
 const portalRoot = resolve(root, 'coordinator/portal');
+// The clinician's EHR portal (ehr/, built with `npm run build` there): served here so it reads this coordinator's
+// data same-origin, with no proxy and no CORS.
+const ehrRoot = resolve(root, 'ehr/dist');
 // 5173 is the wiirehab clinician web app's Vite dev server, which writes visit notes.
 const allowedOrigins = new Set([`http://localhost:${port}`, `http://127.0.0.1:${port}`, 'http://localhost:8765', 'http://127.0.0.1:8765', 'http://localhost:5173', 'http://127.0.0.1:5173']);
-const mime: Record<string,string> = { '.html':'text/html', '.js':'text/javascript', '.mjs':'text/javascript', '.css':'text/css', '.wasm':'application/wasm', '.task':'application/octet-stream' };
+const mime: Record<string,string> = { '.html':'text/html', '.js':'text/javascript', '.mjs':'text/javascript', '.css':'text/css', '.wasm':'application/wasm', '.task':'application/octet-stream',
+  '.svg':'image/svg+xml', '.png':'image/png', '.json':'application/json', '.woff2':'font/woff2', '.ico':'image/x-icon' };
 let producer: WebSocket | null = null;
 let latest: any = null;
 let lastReceived = 0;
@@ -687,6 +691,20 @@ const server = createServer(async (request, response) => {
     try { const info = await stat(path); if (!info.isFile()) throw Error();
       response.writeHead(200, {'Content-Type':mime[extname(path)] ?? 'application/octet-stream','Cache-Control':'no-store'}); createReadStream(path).pipe(response);
     } catch { response.writeHead(404).end(); }
+    return;
+  }
+  if (url.pathname === '/ehr' || url.pathname.startsWith('/ehr/')) {
+    const rel = decodeURIComponent(url.pathname.slice('/ehr'.length)) || '/';
+    let path = resolve(ehrRoot, '.' + rel);
+    if (!path.startsWith(ehrRoot + sep) && path !== ehrRoot) { response.writeHead(403).end(); return; }
+    // A route inside the app (/ehr/portal/live) is the app's own: its index answers, and the router takes over.
+    try { if (!(await stat(path)).isFile()) throw Error(); } catch { path = resolve(ehrRoot, 'index.html'); }
+    try {
+      await stat(path);
+      response.writeHead(200, {'Content-Type':mime[extname(path)] ?? 'application/octet-stream',
+        'Cache-Control': path.includes(`${sep}assets${sep}`) ? 'public, max-age=31536000, immutable' : 'no-store'});
+      createReadStream(path).pipe(response);
+    } catch { response.writeHead(404, {'Content-Type':'text/plain'}).end('The EHR portal is not built: run `npm install && npm run build` in ehr/.'); }
     return;
   }
   if (url.pathname === '/exercise') {
