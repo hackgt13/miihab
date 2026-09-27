@@ -23,7 +23,7 @@ import { NORMS, compareToNorm, type Sex, type Side } from './norms.ts';
 import { requireActivity } from './activities.ts';
 import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from './progression.ts';
 import { LIBRARY } from './exercises.ts';
-import { buildDashboard, golfUnlock } from './dashboard.ts';
+import { buildDashboard, golfUnlock, planUpdate } from './dashboard.ts';
 import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
 import { HeadLean } from './head-lean.ts';
 import { applyProgramUpdate, buildVisit, therapistFromEnv, VisitStore } from './visit.ts';
@@ -369,7 +369,9 @@ const server = createServer(async (request, response) => {
       if (request.method === 'GET' && url.pathname === '/api/dashboard') {
         const envelopes = await Promise.all((await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f))
           .map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
-        return json(200, buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes}));
+        // With a plan change the patient has not seen yet, so the menu can say so before anything else.
+        return json(200, {...buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes}),
+          planUpdate: planUpdate({plans: plans.list(), notes: visit.list(), seen: visit.seen})});
       }
       // The therapist visit (Unity: Kinesthetic/Visit, coordinator/visit.ts): the whiteboard's program updates
       // since the patient last visited and what the therapist says about them. The therapist changes the

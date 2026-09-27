@@ -24,7 +24,7 @@
             <k:KButton name="start" text="Connecting…" tone="Primary" size="Medium" class="session-action" />
         </k:KSurface>
         <k:KSurface name="hud-coach" class="voice-caption hidden" tone="Glass" density="Compact" picking-mode="Ignore">
-            <k:KEyebrow text="ALEX · YOUR COACH" backdrop="Dark" />
+            <k:KEyebrow name="hud-coach-state" text="ALEX · YOUR COACH" backdrop="Dark" />
             <k:KText name="hud-coach-line" text="" tone="OnDark" class="voice-line" />
         </k:KSurface>
     </ui:VisualElement>

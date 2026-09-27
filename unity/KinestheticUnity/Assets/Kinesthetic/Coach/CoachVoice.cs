@@ -25,6 +25,8 @@ namespace Kinesthetic.Coach
         public string Line => Time.unscaledTime - lineAt < 7 ? line : "";
         public bool Connected { get; private set; }
         public bool Speaking => level > .03f;
+        /// Connected, with a microphone, and not talking: what the patient says now reaches Alex.
+        public bool Listening => Connected && mic && !Speaking && Time.unscaledTime - lastSpokeAt >= .4f;
 
         ClientWebSocket socket; CancellationTokenSource cancel;
         readonly ConcurrentQueue<string> inbox = new();
@@ -83,6 +85,17 @@ namespace Kinesthetic.Coach
             catch (Exception e) { Debug.LogWarning("Coach voice unavailable: " + e.Message); Close(); }
         }
 
+        /// Tell Alex what just happened in the studio (a rep, a set, a plan change) without interrupting him. Sent as an
+        /// ElevenLabs contextual update; notes made before the conversation opens wait for it.
+        /// With `speak`, Alex answers it now (a rep that did not count, a set ending); otherwise he only knows it.
+        public void Context(string text, bool speak = false)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+            if (Connected && socket?.State == WebSocketState.Open) _ = Send(new JObject { ["type"] = "context", ["text"] = text, ["speak"] = speak }.ToString());
+            else { pendingContext.Enqueue((text, speak)); while (pendingContext.Count > 6) pendingContext.Dequeue(); }
+        }
+        readonly System.Collections.Generic.Queue<(string text, bool speak)> pendingContext = new();
+
         /// Tells the server to speak a scripted line (tutorial mode).
         public void Cue(string step)
         {
@@ -138,7 +151,10 @@ namespace Kinesthetic.Coach
                 JObject m; try { m = JObject.Parse(text); } catch (Exception) { continue; }
                 switch ((string)m["type"])
                 {
-                    case "session_started": Connected = true; StartMicrophone(); StartPlayback(); break;
+                    case "session_started":
+                        Connected = true; StartMicrophone(); StartPlayback();
+                        while (pendingContext.Count > 0) { var (note, speak) = pendingContext.Dequeue(); Context(note, speak); }
+                        break;
                     case "audio_format":
                         outputRate = Rate((string)m["output"], outputRate); inputRate = Rate((string)m["input"], inputRate);
                         if (Connected) { StartPlayback(); StartMicrophone(); }

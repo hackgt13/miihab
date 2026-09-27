@@ -19,8 +19,13 @@ const summary = (id: string, endedAt: string, valid: number, peak: number | null
   attempted: valid + 1, valid, completed: valid, medianValidPeakDeg: peak, invalidReasons: { trunk_compensation: 1 },
   trackingLossEvents: 0, simulated: false });
 
-async function fakeCoordinator(sessions: unknown[]) {
-  const server = createServer((req, res) => {
+async function fakeCoordinator(sessions: unknown[], replies: unknown[] = []) {
+  const server = createServer(async (req, res) => {
+    if (req.method === 'POST' && req.url === '/api/visit/replies') {
+      let text = ''; for await (const chunk of req) text += chunk;
+      replies.push(JSON.parse(text));
+      res.writeHead(201, { 'Content-Type': 'application/json' }).end('{}'); return;
+    }
     const body = req.url === '/api/plans/active' ? plan : req.url === '/api/sessions' ? sessions
       : req.url === '/exercise' ? { running: false } : null;
     res.writeHead(body ? 200 : 404, { 'Content-Type': 'application/json' }).end(JSON.stringify(body ?? {}));
@@ -90,12 +95,15 @@ test('exercise results and the session close use measured data from this session
 });
 
 test('a plan review is filed against the current plan version and the plan itself is untouched', async () => {
-  const { server, url } = await fakeCoordinator([]);
+  const replies: any[] = [];
+  const { server, url } = await fakeCoordinator([], replies);
   try {
     const { service, writes } = memoryPatients({ id: 'patient-1', name: 'Sam', goals: [], precautions: [] });
     const result = await tools(service, url).dispatch('request_plan_review', { reason: 'Shoulder aches after 5 reps', category: 'pain' }) as any;
     assert.equal(result.status, 'sent_to_physician');
     assert.deepEqual(writes.reviews![0], ['patient-1', 'session-1', 2, 'Shoulder aches after 5 reps', 'pain']);
+    // It also reaches the clinician portal, where the care team reads the patient's replies.
+    assert.deepEqual(replies, [{ kind: 'hurt', text: 'Review requested by Alex: Shoulder aches after 5 reps', planVersion: 2 }]);
   } finally { server.close(); }
 });
 

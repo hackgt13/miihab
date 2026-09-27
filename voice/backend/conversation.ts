@@ -85,6 +85,18 @@ export class ElevenLabsConversation {
     });
   }
 
+  /** Tell the agent something without interrupting it (ElevenLabs contextual update): a rep that just finished,
+   * a set ending, a plan change. Measured facts from the coordinator it may quote; it decides whether to speak. */
+  sendContext(text: string): void {
+    this.send({ type: "contextual_update", text });
+  }
+
+  /** A studio report Alex should answer now (a rep that did not count, a set ending): sent as a text turn, which
+   * the agent replies to. The prompt tells it tagged turns come from the studio, not from the patient. */
+  sendPrompt(text: string): void {
+    this.send({ type: "user_message", text });
+  }
+
   end(): void {
     if (!this.closed) {
       this.closed = true;

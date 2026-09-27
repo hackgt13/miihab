@@ -42,7 +42,7 @@ namespace Kinesthetic.Menu
         // person cannot even see. So the menu decides what counts as reachable, per open layer.
         // The board's own scope is finished in Bind, once the ring says which panes it holds: every pane
         // gets a button here (see BuildPaneLinks), and a button the gaze cannot commit is a broken one.
-        static readonly string[] BoardScope = { "start-activity", "friends", "music", "help", "edit-name" };
+        static readonly string[] BoardScope = { "start-activity", "friends", "music", "help", "intro", "edit-name" };
         static readonly string[] FriendsScope = { "friends-invite", "friends-accept" };
         static readonly string[] CoachingScope = { "visit-therapist" };
         static readonly string[] HelpScope = { "help-close" };
@@ -155,6 +155,7 @@ namespace Kinesthetic.Menu
             Act(music, navigation.ToggleMusic);
             Act(root.Q<Button>("help"), () => OpenSheet(helpOverlay, HelpScope, root.Q<Button>("help-close")));
             Act(root.Q<Button>("help-close"), () => CloseSheet(helpOverlay, "help"));
+            Act(root.Q<Button>("intro"), navigation.LoadTutorial);
             Act(root.Q<Button>("edit-name"), OpenNameSheet);
             Act(root.Q<Button>("name-cancel"), () => CloseSheet(nameOverlay, "edit-name"));
             Act(root.Q<Button>("name-save"), SaveName);
@@ -325,6 +326,7 @@ namespace Kinesthetic.Menu
         /// and its Today list can never disagree about what comes next.
         void StartFirst()
         {
+            if (model != null && model.PlanUpdated) { VisitTherapist(); return; }   // the plan changed: hear why first
             var next = model.FirstOutstanding();
             if (next is not { } task) { carousel.Show("gallery"); cards[selected]?.Focus(); return; }
             Launch(task.activityId);
