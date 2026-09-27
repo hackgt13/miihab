@@ -112,10 +112,10 @@ namespace Kinesthetic.Shell
         ///
         /// It hangs off the carousel's own transform rather than the ring inside it, so it does not turn.
         ///
-        /// The width is what places the arrows: they sit near its edges, so a wider panel pushes them further
-        /// off centre. They belong just past the facing pane's edge and short of the neighbour's — the control
-        /// sits on the thing it fetches — and in front of the neighbour in depth, so they keep the ray. The
-        /// defaults suit a 3.7 m pane at 3.5 m; the plaza passes its own (MainMenuSetup).
+        /// The width is what places the arrows. At 4.9 m on a panel 0.18 m behind the ring, they land about
+        /// 30 degrees off centre — past the board's own edge at 27.9, and against the neighbouring pane's
+        /// edge as it comes into view. That is the right place for them: the control sits on the thing it
+        /// fetches. They stay in front of that edge in depth, so they keep the ray.
         public static CarouselChrome Stand(PaneCarousel carousel, PanelSettings panel, VisualTreeAsset tree,
                                            float widthMetres = 4.9f, float behindPanes = .18f)
         {

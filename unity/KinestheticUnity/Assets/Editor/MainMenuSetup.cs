@@ -58,8 +58,7 @@ public static class MainMenuSetup
         var board = Anchor("MenuBoard");
         var camera = new GameObject("Menu camera", typeof(Camera), typeof(AudioListener)).GetComponent<Camera>();
         camera.tag = "MainCamera"; camera.clearFlags = CameraClearFlags.Skybox;
-        // Wide enough for the near board and its arrows.
-        camera.fieldOfView = 96; camera.nearClipPlane = .05f; camera.farClipPlane = 600;
+        camera.fieldOfView = 46; camera.nearClipPlane = .05f; camera.farClipPlane = 600;
         camera.transform.SetPositionAndRotation(eye.position, Quaternion.LookRotation(board.position - eye.position, Vector3.up));
         var sway = plaza.AddComponent<MenuSway>();
         sway.sway = plaza.GetComponentsInChildren<Transform>().Where(t => t.name.StartsWith("Sway ")).ToArray();
@@ -72,11 +71,6 @@ public static class MainMenuSetup
         // collider UIDocument maintains, which comes out 16x9 for a 1600x900 panel — so scale from that to the
         // width the plaza wants. Element rects are in those same units, which is how GazeDwell resolves them.
         const float pixelsPerUnit = 100f, wantedWidth = 3.7f;
-        // How much larger than its 1600 x 900 design each pane's UI draws. The pane itself cannot grow past
-        // the headset's view (below), so the type grows inside it instead: the layout gets 1600 / 1.3 = 1231
-        // pixels across the same 3.7 m, and every element comes out 1.3 times bigger — 3.5 times the size it
-        // read at from 3.5 m, together with the nearer ring. Layouts get 77% of the room they were drawn for.
-        const float uiScale = 1.3f;
 
         // Deliberately NOT carrying Kinesthetic.Panes.Pane onto these. It reuses whatever BoxCollider is
         // already on the object — which here is the 16x9 one UIDocument maintains for its own panel — and
@@ -93,33 +87,38 @@ public static class MainMenuSetup
             var d = go.GetComponent<UIDocument>();
             d.panelSettings = panel;
             d.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;
-            d.worldSpaceSize = new Vector2(1600, 900) / uiScale;   // panel pixels, not metres; the transform maps them
+            d.worldSpaceSize = new Vector2(1600, 900);   // panel pixels, not metres; the transform maps them
             d.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(Root + "/" + uxml);
             go.transform.localScale = Vector3.one * (wantedWidth / (d.worldSpaceSize.x / pixelsPerUnit));
             return go;
         }
 
         // Four panes standing in a ring around the viewpoint rather than four layers stacked on one board.
-        // Coaching is a turn to the LEFT, friends a turn to the RIGHT and the gallery behind, named as angles
-        // because that is the design rather than a consequence of the order they were adopted in. A seated
-        // person is never asked to turn around: the ring brings panes to them.
+        // Coaching is the first turn to the LEFT, the gallery the second, and friends a turn to the RIGHT,
+        // named as angles because that is the design rather than a consequence of the order they were
+        // adopted in. Nothing behind: a seated person should never be asked to turn around, and the ring
+        // brings panes to them.
         //
         // Coaching takes the slot next to the board because the two are one reading: the board says what to
-        // do today, and coaching says what plan that came from.
+        // do today, and coaching says what plan that came from. The gallery moved one slot further out and
+        // lost nothing by it — every pane also has a button on the board (BuildPaneLinks), so the gallery is
+        // still one press from home however far round it stands, and only the arrows count slots.
         var rig = new GameObject("Menu carousel", typeof(PaneCarousel));
         var carousel = rig.GetComponent<PaneCarousel>();
-        // The facing pane stands 1.3 m out (the MenuBoard anchor) and fills about 110 degrees, 2.7 times the
-        // size it read at from 3.5 m, about the width of a Quest's view; the others stand back at 4.2 m, where
-        // each is only 48 degrees wide. At 90 degrees apart that leaves 11 degrees of clear bearing between
-        // the facing pane's edge (54.9) and a neighbour's (66.2), through every angle of a turn
-        // (PaneCarousel.RadiusAt), which is where the arrows stand. Any tighter and a neighbour stands
-        // through the facing pane. 4.2 is also as far back as they go: their corners sweep out to 4.59 m,
-        // and the canopy on the left stands 4.83 m from the viewpoint. Four panes at 90 close the ring,
-        // so the gallery sits behind and is two steps either way; every pane also has a button on the board
-        // (BuildPaneLinks), so it is still one press from home.
-        carousel.spacingDegrees = 90;
-        carousel.sideRadius = 4.2f;
-        var menu = Pane("MiiHab activity menu", "MainMenu.uxml", true, "menu.home");
+        // 60 degrees, not 90, so the neighbours show an edge instead of hiding behind the board — and not
+        // 45, which looks closer but is worse: the board fills +/-27.9 deg of a +/-38.2 deg view, so a
+        // neighbour at 45 puts its near edge at 17 deg, inside the board's silhouette and further away, and
+        // the board simply covers it. An edge only clears the board past twice the pane's own half-angle
+        // (55.7 deg) and leaves the screen past 66.1, so the window is narrow and 60 sits in the middle of
+        // it. 62, which is the smallest spacing that leaves the arrows reachable. Measured on the scene: both
+        // arrows sit centred at 30.5 degrees with their outer edge at 32.9, so a neighbour whose near edge
+        // is at spacing minus 27.9 only stops covering them past 60.8. 62 clears with 1.2 degrees to spare
+        // and still shows 4.1 degrees of the neighbouring pane. The sliver is the gap between the pane's
+        // edge and the frame's, so it
+        // widens as the panes come closer — 9 degrees at 57 against 6 at 60 — and 57 still keeps 1.3 degrees
+        // of clearance past the board's own edge, where 56 leaves only 0.3.
+        carousel.spacingDegrees = 62;
+        var menu = Pane("RehabMii activity menu", "MainMenu.uxml", true, "menu.home");
         var coaching = Pane("Coaching", "Coaching.uxml", false, "menu.coaching");
         var gallery = Pane("Activity gallery", "Gallery.uxml", false, "menu.gallery");
         var friendsPane = Pane("Friends", "Friends.uxml", false, "menu.friends");
@@ -132,9 +131,9 @@ public static class MainMenuSetup
 
         // The arrows ride their own panel, wider than the panes and a little further out, so the facing pane
         // answers the gaze everywhere in front of it and the arrows answer only past its edge.
-        // 5.9 m at 1.48 m puts the arrows at 58 to 62.6 degrees, inside the 54.9 to 66.2 gap above.
+        // 5.5 m at 1.93 m puts the arrows' centres at 51 degrees, inside the 46.6 to 56.5 gap above.
         var chrome = CarouselChrome.Stand(carousel, Panel("CarouselPanel", 1, world: true),
-            AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Kinesthetic/Shell/CarouselChrome.uxml"), widthMetres: 5.9f);
+            AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Kinesthetic/Shell/CarouselChrome.uxml"), widthMetres: 5.5f);
         chrome.gameObject.AddComponent<RemoteBoard>().id = "menu.chrome";
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
         ConfigureMacBuildScenes();

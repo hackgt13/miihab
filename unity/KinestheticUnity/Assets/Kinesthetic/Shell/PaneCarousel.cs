@@ -52,14 +52,9 @@ namespace Kinesthetic.Shell
         [Tooltip("Degrees between neighbouring slots. 90 keeps every pane a clean quarter-turn away.")]
         public float spacingDegrees = 90f;
 
-        [Tooltip("Metres from the person to the facing pane. 1.3 is the plaza's own Viewpoint→MenuBoard distance, " +
+        [Tooltip("Metres from the person to each pane. 3.5 is the plaza's own Viewpoint→MenuBoard distance, " +
                  "measured rather than chosen; Frame() resets it from whatever scene this lands in.")]
         public float radius = 3.5f;
-
-        [Tooltip("Metres to a pane a full slot or more off the facing. The facing pane stands at `radius` and the " +
-                 "rest ease out to this as they turn away, so the facing one can be large and near without its " +
-                 "neighbours standing through it. 0 keeps every pane at `radius`.")]
-        public float sideRadius;
 
         [Tooltip("Seconds for one turn. Below ~0.3 the ring snaps and the eye loses which way it went; above " +
                  "~0.6 someone who knows where they are going is waiting for the furniture.")]
@@ -195,7 +190,7 @@ namespace Kinesthetic.Shell
             if (announce && slots.Count > 0) { Changed?.Invoke(Current); Settled?.Invoke(Current); }
         }
 
-        void Snap() { ring.localRotation = Quaternion.Euler(0, -Yaw(index), 0); StandAll(); }
+        void Snap() => ring.localRotation = Quaternion.Euler(0, -Yaw(index), 0);
 
         /// A slot's angle: the one it was given, or the one its position implies.
         float Yaw(int slot)
@@ -256,28 +251,8 @@ namespace Kinesthetic.Shell
             var heading = Quaternion.Euler(0, yaw, 0);
             var pane = slots[slot].pane;
             pane.SetParent(ring, false);
+            pane.localPosition = heading * (Vector3.forward * radius);
             pane.localRotation = faceOutward ? heading : heading * Quaternion.Euler(0, 180, 0);
-            Stand(slot);
-        }
-
-        /// How far out a pane stands, from how far off the facing the ring has turned it: `radius` straight
-        /// ahead, `sideRadius` a full slot away or more, smoothstepped between. The facing pane can then be
-        /// wider than its slot. At the plaza's numbers (1.3 m, 4.2 m, 3.7 m panes, 90°) neighbours stay at
-        /// least 11° of bearing apart through a whole turn, so they never stand through each other.
-        float RadiusAt(int slot)
-        {
-            if (sideRadius <= 0) return radius;
-            float off = Mathf.Abs(Mathf.DeltaAngle(0, Yaw(slot) + ring.localEulerAngles.y));
-            float t = Mathf.Clamp01(off / Mathf.Max(1f, Mathf.Abs(spacingDegrees)));
-            return Mathf.Lerp(radius, sideRadius, t * t * (3 - 2 * t));
-        }
-
-        void Stand(int slot) => slots[slot].pane.localPosition = Quaternion.Euler(0, Yaw(slot), 0) * (Vector3.forward * RadiusAt(slot));
-
-        void StandAll()
-        {
-            if (sideRadius <= 0) return;
-            for (int i = 0; i < slots.Count; i++) if (slots[i].pane) Stand(i);
         }
 
         /// Turn to a pane by name. An unknown name is ignored rather than thrown: the caller is usually a
@@ -325,7 +300,6 @@ namespace Kinesthetic.Shell
             float t = turnSeconds <= 0 ? 1 : Mathf.Clamp01(elapsed / turnSeconds);
             float eased = 1 - Mathf.Pow(1 - t, 3);
             ring.localRotation = Quaternion.Euler(0, Mathf.LerpUnclamped(from, to, eased), 0);
-            StandAll();
 
             if (t < 1) return;
             turning = false;
