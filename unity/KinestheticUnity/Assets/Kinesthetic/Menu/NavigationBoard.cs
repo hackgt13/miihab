@@ -29,9 +29,10 @@ namespace Kinesthetic.Menu
     {
         public const string Id = "nav.shell";
 
-        /// Straight ahead, a little inside the Focus station, so it never stands in the same plane as a
-        /// venue's own modal board and its type is read at nearly the same density.
-        public static readonly Station Station = new("Navigation", 0, 0, 1.3f);
+        /// Straight ahead, inside the Focus station (1.4 m) and just inside the docks (1.2 m), so it never stands
+        /// in the same plane as a venue's own board and its type is read at nearly the same density. Nearer than
+        /// it was (1.3 m): in a headset the Menu and How to play buttons read as sitting at arm's length.
+        public static readonly Station Station = new("Navigation", 0, 0, 1.15f);
 
         /// Laid out this many times coarser than the station's density, so its type reads that many times larger
         /// at the same distance. 1, unlike the venues' standing boards: this is a popup riding in front of the

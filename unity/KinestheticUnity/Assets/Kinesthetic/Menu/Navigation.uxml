@@ -2,8 +2,10 @@
     <ui:Style src="../Palette.uss" />
     <ui:Style src="Navigation.uss" />
     <ui:VisualElement class="navigation-root" picking-mode="Ignore">
-        <ui:Button name="return-menu" text="‹  Menu" class="return-menu hidden" />
-        <ui:Button name="activity-help" text="?  How to play" class="activity-help hidden" />
+        <ui:VisualElement name="nav-bar" class="nav-bar" picking-mode="Ignore">
+            <ui:Button name="return-menu" text="‹  Menu" class="return-menu hidden" />
+            <ui:Button name="activity-help" text="?  How to play" class="activity-help hidden" />
+        </ui:VisualElement>
         <ui:VisualElement name="activity-help-panel" class="return-shade hidden">
             <ui:VisualElement class="activity-help-card">
                 <ui:Label text="A LITTLE GUIDANCE" class="help-eyebrow" />
