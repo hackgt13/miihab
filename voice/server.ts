@@ -93,7 +93,7 @@ server.listen(config.server.port, "127.0.0.1", () => {
 // and the adapter's own password; without either, Alex keeps ElevenLabs' default model and nothing here starts.
 const museKey = process.env.MUSE_API_KEY?.trim(), proxyToken = process.env.MUSE_PROXY_TOKEN?.trim();
 const museProxy = museKey && proxyToken ? createMuseProxy({ museKey, token: proxyToken }) : null;
-const MUSE_PROXY_PORT = Number(process.env.MUSE_PROXY_PORT ?? 8770);
+const MUSE_PROXY_PORT = Number(process.env.MUSE_PROXY_PORT ?? 8771);
 museProxy?.listen(MUSE_PROXY_PORT, "127.0.0.1", () => console.log(`Muse adapter for Alex: http://127.0.0.1:${MUSE_PROXY_PORT}/v1/chat/completions`));
 
 function shutdown() {

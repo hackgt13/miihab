@@ -5,7 +5,7 @@
 #   zsh scripts/start_alex_muse.sh off    switch Alex back to ElevenLabs' default model
 #
 # ElevenLabs' servers ask Alex's model what to say, so they need a public way in: a Tailscale Funnel onto the
-# adapter's port (8770) on this Mac. The adapter answers only POST .../chat/completions carrying MUSE_PROXY_TOKEN,
+# adapter's port (8771) on this Mac. The adapter answers only POST .../chat/completions carrying MUSE_PROXY_TOKEN,
 # and holds the Muse key itself; ElevenLabs holds only that token. Everything else on this Mac stays private.
 set -u
 repo="${0:A:h:h}"; cd "$repo" || exit 1
@@ -33,12 +33,12 @@ fi
 /usr/bin/grep -q '^MUSE_API_KEY=.' .env || { bad "No MUSE_API_KEY in .env"; exit 1; }
 /usr/bin/grep -q '^MUSE_PROXY_TOKEN=.' .env || { set_env MUSE_PROXY_TOKEN "$(/usr/bin/openssl rand -hex 24)"; ok "Made the adapter's password (MUSE_PROXY_TOKEN in .env)"; }
 restart_voice
-lsof -nP -iTCP:8770 -sTCP:LISTEN >/dev/null 2>&1 && ok "Muse adapter listening on 127.0.0.1:8770" || { bad "The adapter did not start; see local-data/logs/voice.log"; exit 1; }
+lsof -nP -iTCP:8771 -sTCP:LISTEN >/dev/null 2>&1 && ok "Muse adapter listening on 127.0.0.1:8771" || { bad "The adapter did not start; see local-data/logs/voice.log"; exit 1; }
 
 # Public HTTPS onto the adapter only. Funnel must be allowed for this tailnet once (the Tailscale admin console:
 # Access controls → nodeAttrs "funnel"); `tailscale funnel` exits 0 even when it is not, so the address is proven
 # from outside before Alex is pointed at it — an unreachable brain would leave the live Alex silent.
-"$ts" funnel --bg 8770 2>&1 | tee /dev/stderr | /usr/bin/grep -qi "not enabled" && { bad "Funnel is not enabled on this tailnet. Enable it at https://login.tailscale.com/admin/acls (see TWO_MAC_SETUP.md), then run this again. Alex is unchanged."; exit 1; }
+"$ts" funnel --bg 8771 2>&1 | tee /dev/stderr | /usr/bin/grep -qi "not enabled" && { bad "Funnel is not enabled on this tailnet. Enable it at https://login.tailscale.com/admin/acls (see TWO_MAC_SETUP.md), then run this again. Alex is unchanged."; exit 1; }
 host=$("$ts" status --json | python3 -c 'import sys,json;print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))')
 url="https://$host/v1"
 code=""
