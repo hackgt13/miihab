@@ -5,6 +5,8 @@
 
 /* Dock, 667 x 283 px at 1.2 m. */
 .dock-chrome { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.sensor-chips { flex-direction: row; align-items: center; }
+.sensor-chip-second { margin-left: 8px; }
 .coaching-dock { flex-direction: row; align-items: center; }
 .cue-step { align-self: center; margin-right: 20px; align-items: center; }
 .hold-ring { width: 72px; height: 72px; margin-top: 8px; }

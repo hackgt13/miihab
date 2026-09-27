@@ -21,15 +21,18 @@ Dormant only because `QuestSceneSetup` sets `game.enabled = false`; all return t
 
 ## Sensors
 
-Three sources, and only three: the patient's two AirPod pairs — **Mac 1** (the relay Mac's own) and **Mac 2** (the second Mac's, over Tailscale with the pairing token; one Mac reads one `CMHeadphoneMotionManager` stream) — and the Quest, always on the head. Both pairs are the patient's, everywhere. Which Motion app or relay path a pair arrives on is transport; the relay files it as Mac 1 (loopback) or Mac 2 (paired), and nothing downstream sees an app, a path or a mount.
+Three sources, and only three: two AirPod pairs — **Mac 1** (the relay Mac's own) and **Mac 2** (the second Mac's, over Tailscale with the pairing token; one Mac reads one `CMHeadphoneMotionManager` stream) — and the Quest, always on the head.
+
+**One or two.** Solo, both pairs are the patient's. Multiplayer (a group session) is one pair each: Mac 2 is the other person, on `/golf` as `friend`, and never reaches the patient's record; the games follow Mac 1 alone and a two-IMU movement is refused with 409. Which Motion app or relay path a pair arrives on is transport; the relay files it as Mac 1 (loopback) or Mac 2 (paired), and nothing downstream sees an app, a path or a mount.
 
 - **Games read one stream.** `/golf` and `/bowling-motion` viewers get the relay's fused `patient` stream: whichever pair is more active (`coordinator/motion-fuse.ts`), re-based at a switch so orientation never jumps. Golf: both pairs held together in the grip, the bigger swing wins. Bowling: one pair on the throwing wrist, the resting one loses. No game knows there are two.
 - **The studio reads both, raw.** The coordinator reads `/motion` (every sample tagged `mac1`/`mac2`). One-IMU movements take whatever is live. Two-IMU movements tell the pairs apart once by which one moves while the other rests (`coordinator/exercise/imu-assign.ts`), lock at calibration, and the coordinator **remembers** the answer for the next set worn the same way — one and done, never a prompt per set.
-- **No per-person pairs.** A second Mac is never a friend. `KINESTHETIC_REMOTE_MOTION=people` restores the older reading (second Mac = the other person in golf and groups, two-IMU movements refused there with 409) and exists only as a fallback; `=tagged` takes each app's picker at its word.
+- **Multiplayer is the group session, nothing else.** The relay asks the coordinator (`/api/groups/current`) once a second; an activity for two played solo is still solo. `KINESTHETIC_REMOTE_MOTION=tagged` takes each app's picker at its word instead.
 - **The headset is the head.** Head pose (`/head`) leans the torso and is the trunk-lean sensor going forward; an AirPod is never assigned to the head.
 - **Connection is one and done.** `zsh scripts/start_tunnel.sh receive --watch` on Mac 1 (Tailscale up, relay on the tailnet with the persisted token in `local-data/pair-token.txt`, Quest over its cable). Mac 2 runs the zipped connector once; its Motion app keeps the address and token and reconnects on its own from then on. Tailscale addresses are stable, so nothing is re-entered.
 - **Retired:** the `club`/`wrist` channel names in the coordinator, `KINESTHETIC_MOTION_URL`/`KINESTHETIC_WRIST_MOTION_URL` (now `KINESTHETIC_RAW_MOTION_URL`), `params.imuSource` and `SOURCE_OF`. `exercise.started` and `GET /api/sensors` carry `sensors: {mode, phase, imu, ref, live, locked, instruction}` with `imu`/`ref` as `mac1`/`mac2`; a UI shows `instruction` verbatim during `waiting` and `identify`.
 - **Pinned by tests:** `motion-fuse.test.ts`, `exercise/imu-assign.test.ts`, the server tests in `exercise/two-imu.test.ts` and `exercise/imu-session.test.ts`, the relay tests in `golf-relay.test.ts` and `bowling-relay.test.ts`. Change the rule there first, then the code.
+- **Two Macs, step by step:** `TWO_MAC_SETUP.md` — the `receive` and `send` commands, Tailscale, the Quest over USB, and what each failure looks like.
 
 ## Unity setup
 

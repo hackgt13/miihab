@@ -12,9 +12,10 @@ namespace Kinesthetic.Rehab
     /// own eyes in a headset. Added at runtime by RehabSession, so the generated scene needs no change.
     ///
     /// Reading as a mirror is the copy's whole job — a patient who takes it for a poster of someone else is not
-    /// watching themselves. That read is carried by the surface rather than by the reflection: a silvered backing
-    /// cooler than the room, a frame with some weight and a bevel at its lip, and two sheens raked across the
-    /// glass. All three are static geometry, so none of it costs a frame.
+    /// watching themselves. That read is carried by the surface rather than by the reflection: a silvered metallic
+    /// back that takes the room from the studio's reflection probes, a frame with some weight and a bevel at its
+    /// lip, and a faint haze with two sheens raked across the glass. All of it is static geometry and set up once,
+    /// so none of it costs a frame.
     public sealed class MirrorPanel : MonoBehaviour
     {
         public IRehabView view;
@@ -56,6 +57,21 @@ namespace Kinesthetic.Rehab
             var facing = viewer - centre; facing.y = 0;
             window.SetPositionAndRotation(centre, Quaternion.LookRotation(facing.sqrMagnitude > 1e-4f ? facing.normalized : -left));
 
+            // Frame: heavier than a picture frame and closed at the corners, with a bevelled liner at its lip, so the
+            // opening is set into something rather than edged with four loose sticks. The back is silvered glass —
+            // metallic and near-mirror smooth, so it takes the room from the studio's reflection probes.
+            frameMaterial = Lit(Palette.Sand00); var backMaterial = Lit(Palette.Sand00);
+            backMaterial.SetFloat("_Metallic", 1); backMaterial.SetFloat("_Smoothness", .96f);
+            const float bar = .055f, lip = .02f;
+            Border(window, "Frame", width * .5f, height * .5f, bar, -depth * .5f, .12f, frameMaterial);
+            Border(window, "Frame liner", width * .5f - lip * .5f, height * .5f - lip * .5f, lip, -.10f, .03f, Lit(Palette.Slate30));
+            Box(window, "Backing", new Vector3(0, 0, -depth), new Vector3(width, height, .02f), backMaterial);
+            // The glass in front: a faint haze and two diagonal sheen streaks, so it reads as a pane, not an opening.
+            float front = -depth * .5f + .034f;
+            Sheen(window, "Glass", new Vector3(0, 0, front), new Vector2(width, height), 0, .05f);
+            Sheen(window, "Sheen", new Vector3(-width * .18f, height * .12f, front + .001f), new Vector2(width * .16f, height * .75f), 28, .09f);
+            Sheen(window, "Sheen thin", new Vector3(width * .04f, height * .02f, front + .001f), new Vector2(width * .05f, height * .75f), 28, .07f);
+
             // The copy is made inside an inactive holder, so none of its scripts (the rig, the face) ever wake.
             var holder = new GameObject("Mirror holder"); holder.SetActive(false);
             copy = Instantiate(source.gameObject, holder.transform).transform;
@@ -83,27 +99,6 @@ namespace Kinesthetic.Rehab
             var inside = window.TransformPoint(new Vector3(0, 0, -depth * .5f));
             copy.position += new Vector3(inside.x - placed.center.x, inside.y - placed.center.y, inside.z - placed.center.z);
 
-            // Silvered backing. A mirror's ground is cooler and a shade darker than the room it stands in, and that
-            // is what puts the reflection *in* the glass rather than on a sheet of paper pinned to the wall. It was
-            // sand before, the same warm near-white as the studio's walls, which is why it read as a poster.
-            Box(window, "Backing", new Vector3(0, 0, -depth), new Vector3(width, height, .02f), Lit(Palette.Slate40, .85f));
-
-            // Frame: heavier than a picture frame and closed at the corners, with a bevelled liner at its lip so the
-            // opening is set into something. It stays shallow and sits near the front, clear of the reflection, which
-            // is a solid seated figure and reaches further forward than any frame would want to contain.
-            frameMaterial = Lit(Palette.Sand00);
-            const float bar = .055f, lip = .02f;
-            Border(window, "Frame", width * .5f, height * .5f, bar, -.075f, .11f, frameMaterial);
-            Border(window, "Frame liner", width * .5f - lip * .5f, height * .5f - lip * .5f, lip, -.035f, .03f, Lit(Palette.Slate30));
-
-            // Two sheens raked across the upper left: the cue that reads as glass at a glance and at two metres.
-            // Sprites/Default honours alpha without a custom shader, the same trick the ghost arms use. They sit in
-            // the corner the seated figure never reaches, so nothing of the patient crosses in front of the glass.
-            Pane(window, "Glass sheen", new Vector3(-.357f * width, .268f * height, -.02f),
-                new Vector3(.049f * width, .282f * height, .004f), Fade(Palette.Sand00, .22f), Rake);
-            Pane(window, "Glass sheen second", new Vector3(-.250f * width, .183f * height, -.02f),
-                new Vector3(.027f * width, .148f * height, .004f), Fade(Palette.Sand00, .14f), Rake);
-
             // Ghosts are wider than the real arm and see-through, so they read around it rather than behind it.
             targetGhost = Line(window, "Ghost arm · target", .075f);
             targetGhostForearm = Line(window, "Ghost forearm · target", .075f);
@@ -113,8 +108,7 @@ namespace Kinesthetic.Rehab
             targetHand = Orb(window, "Ghost hand · target"); ceilingHand = Orb(window, "Ghost hand · safe ceiling");
         }
 
-        // The window is its own object, not a child of this one: it goes when the mirror does (a group session
-        // puts the other person where it stood).
+        // The window is its own object, not a child of this one: it goes when the mirror does.
         void OnDestroy() { if (window) Destroy(window.gameObject); }
 
         void LateUpdate()
@@ -205,17 +199,28 @@ namespace Kinesthetic.Rehab
             orb.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return orb.transform;
         }
-        static Material Lit(Color c, float smoothness = .35f)
+        static Material Lit(Color c)
         {
-            var m = new Material(Shader.Find("Universal Render Pipeline/Lit")); m.color = c; m.SetFloat("_Smoothness", smoothness); return m;
+            var m = new Material(Shader.Find("Universal Render Pipeline/Lit")); m.color = c; m.SetFloat("_Smoothness", .35f); return m;
         }
-        static Transform Box(Transform parent, string name, Vector3 at, Vector3 size, Material material)
+        /// A see-through quad on the glass, clipped to the frame only by being sized to it.
+        static void Sheen(Transform parent, string name, Vector3 at, Vector2 size, float tiltDeg, float alpha)
+        {
+            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad); quad.name = name;
+            Destroy(quad.GetComponent<Collider>());
+            quad.transform.SetParent(parent, false);
+            quad.transform.localPosition = at; quad.transform.localRotation = Quaternion.Euler(0, 0, tiltDeg);
+            quad.transform.localScale = new Vector3(size.x, size.y, 1);
+            var r = quad.GetComponent<Renderer>();
+            r.material = new Material(Shader.Find("Sprites/Default")) { color = Fade(Palette.Sand00, alpha) };   // two-sided, honours alpha
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+        static void Box(Transform parent, string name, Vector3 at, Vector3 size, Material material)
         {
             var box = GameObject.CreatePrimitive(PrimitiveType.Cube); box.name = name;
             Destroy(box.GetComponent<Collider>());
             box.transform.SetParent(parent, false); box.transform.localPosition = at; box.transform.localScale = size;
-            if (material) box.GetComponent<Renderer>().sharedMaterial = material;
-            return box.transform;
+            box.GetComponent<Renderer>().sharedMaterial = material;
         }
 
         /// A closed rectangle of four bars. Top and bottom run the full width, so the corners meet instead of
@@ -228,19 +233,6 @@ namespace Kinesthetic.Rehab
             Box(parent, name + " right", new Vector3(halfW + bar * .5f, 0, z), new Vector3(bar, halfH * 2, thick), m);
         }
 
-        /// The angle the sheens rake across the glass, from vertical.
-        const float Rake = -28f;
-
-        /// A flat translucent card lying on the glass: unlit, so it reads as a sheen on the surface rather than as
-        /// one more lit object standing inside the frame.
-        static void Pane(Transform parent, string name, Vector3 at, Vector3 size, Color colour, float rakeDegrees)
-        {
-            var pane = Box(parent, name, at, size, null);
-            pane.localRotation = Quaternion.Euler(0, 0, rakeDegrees);
-            var renderer = pane.GetComponent<Renderer>();
-            renderer.sharedMaterial = new Material(Shader.Find("Sprites/Default")) { color = colour };
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        }
         static Bounds WorldBounds(Renderer[] renderers)
         {
             Bounds b = default; bool any = false;

@@ -570,7 +570,9 @@ namespace Kinesthetic.Menu
                     navigation?.PlaySelect();
                     Toast(next ? "Sample groups ON · fake people for the demo" : "Sample groups OFF · real people only");
                     SetRoom(JsonUtility.FromJson<RoomReply>(json)?.group);
-                    if (Visible(others)) ShowOthers();   // the list that is up changes with it
+                    // The list that is up changes with it. A closed lobby keeps `others` shown inside it, so ask for
+                    // the activity too: it is cleared when the lobby closes.
+                    if (pending != null && Visible(others)) ShowOthers();
                 },
                 _ => Toast("Could not switch sample groups. Is the bridge running?"));
         }

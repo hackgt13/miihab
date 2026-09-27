@@ -132,7 +132,7 @@ public static class RehabStudioBuilder
         var minute = Box("Clock minute hand", clock, new(.075f, .055f, -.06f), new(.012f, .21f, .008f), teal);
         minute.transform.localRotation = Quaternion.Euler(0, 0, -54);
         Ball("Clock centre", clock, new(0, 0, -.07f), Vector3.one * .035f, teal);
-        WallText("Studio sign", furniture, "movement\nstudio", new(3.6f, 2.04f, 3.63f), .044f, new Color(.27f, .50f, .48f));
+        WallText("Studio sign", furniture, "Movement\nStudio", new(3.6f, 2.04f, 3.63f), .044f, new Color(.27f, .50f, .48f));
         WallText("Studio motto", furniture, "BREATHE.  REACH.  REPEAT.", new(3.6f, 1.51f, 3.62f), .013f, new Color(.40f, .56f, .51f));
 
         AssetDatabase.SaveAssets();

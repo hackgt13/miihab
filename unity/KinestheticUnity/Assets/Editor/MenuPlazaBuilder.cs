@@ -51,11 +51,11 @@ public static class MenuPlazaBuilder
         // One building with a door per catalog venue, because an activity is entered by walking through its
         // door (PlazaApproach). The studio has the pavilion's; golf and bowling get a hut each, out at the ends
         // of the deck, turned to face the viewpoint.
-        Hut("First tee gatehouse", plaza.transform, new(13.4f, 0, -2.6f), 74, "resort-course", "first tee", cream, new Color(.42f, .34f, .27f));
-        Hut("Bowling lanes hut", plaza.transform, new(-13f, 0, -4.2f), -72, "bowling-alley", "bowling lanes", stucco, new Color(.27f, .50f, .52f));
+        Hut("First tee gatehouse", plaza.transform, new(13.4f, 0, -2.6f), 74, "resort-course", "First Tee", cream, new Color(.42f, .34f, .27f));
+        Hut("Bowling lanes hut", plaza.transform, new(-13f, 0, -4.2f), -72, "bowling-alley", "Bowling Lanes", stucco, new Color(.27f, .50f, .52f));
         // The clinic is a small one, front-left between the pavilion's corner and the overlook, so the
         // therapist is a short walk from the board and the course stays in view past it.
-        Hut("Therapist clinic hut", plaza.transform, new(-3.9f, 0, 4.4f), -16, "clinic", "your therapist", cream, new Color(.27f, .50f, .52f), w: 2.8f, d: 2.4f, h: 2.5f);
+        Hut("Therapist clinic hut", plaza.transform, new(-3.9f, 0, 4.4f), -16, "clinic", "Your Therapist", cream, new Color(.27f, .50f, .52f), w: 2.8f, d: 2.4f, h: 2.5f);
         Furnishings(Group("Plaza furnishings", plaza.transform));
         Anchors(Group("Anchors", plaza.transform));
 
@@ -229,7 +229,7 @@ public static class MenuPlazaBuilder
 
         Roof("Pavilion roof", pavilion, new(0, h + .18f, 0), w + 1.5f, d + 1.5f, 1.5f, 1.4f, terracotta);
         Box("Roof fascia", pavilion, new(0, h + .26f, -(d + 1.5f) / 2), new(w + 1.6f, .16f, .12f), trim);
-        WallText("Studio sign", pavilion, "movement studio", new(-.35f, 3.32f, -d / 2 - .16f), .052f, new Color(.27f, .50f, .52f));
+        WallText("Studio sign", pavilion, "Movement Studio", new(-.35f, 3.32f, -d / 2 - .16f), .052f, new Color(.27f, .50f, .52f));
         WallText("Studio hours", pavilion, "OPEN  ·  ALL  WELCOME", new(-.35f, 3.04f, -d / 2 - .16f), .016f, new Color(.45f, .55f, .55f));
         Plant("Door planter west", pavilion, new(-1.9f, .18f, -d / 2 - .55f), 1.05f, 9);
         Plant("Door planter east", pavilion, new(1.2f, .18f, -d / 2 - .55f), .92f, 8);
@@ -252,7 +252,7 @@ public static class MenuPlazaBuilder
             Box("Counter post " + i, shop, new(i * (w / 2 - .2f), 1.9f, -d / 2 - .1f), new(.14f, 1.2f, .14f), trim);
         Roof("Shop roof", shop, new(0, h + .18f, 0), w + 1.4f, d + 1.4f, 1.2f, 1.1f, terracotta);
         Box("Shop fascia", shop, new(0, h + .24f, -(d + 1.4f) / 2), new(w + 1.5f, .14f, .12f), trim);
-        WallText("Shop sign", shop, "pro shop", new(0, 3.04f, -d / 2 - .15f), .044f, new Color(.42f, .34f, .27f));
+        WallText("Shop sign", shop, "Pro Shop", new(0, 3.04f, -d / 2 - .15f), .044f, new Color(.42f, .34f, .27f));
         Box("Scorecard board", shop, new(-w / 2 - .16f, 1.55f, -.3f), new(.07f, 1.1f, 1.5f), trim);
     }
 

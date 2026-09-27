@@ -2174,7 +2174,7 @@ TextMesh:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 415938502668076681}
-  m_Text: pro shop
+  m_Text: Pro Shop
   m_OffsetZ: 0
   m_CharacterSize: 0.044
   m_LineSpacing: 1
@@ -9895,7 +9895,7 @@ TextMesh:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1489707731059286889}
-  m_Text: your therapist
+  m_Text: Your Therapist
   m_OffsetZ: 0
   m_CharacterSize: 0.04
   m_LineSpacing: 1
@@ -33139,7 +33139,7 @@ TextMesh:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4572946731753958699}
-  m_Text: first tee
+  m_Text: First Tee
   m_OffsetZ: 0
   m_CharacterSize: 0.04
   m_LineSpacing: 1
@@ -41258,7 +41258,7 @@ TextMesh:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5664247546273098411}
-  m_Text: bowling lanes
+  m_Text: Bowling Lanes
   m_OffsetZ: 0
   m_CharacterSize: 0.04
   m_LineSpacing: 1
@@ -54227,7 +54227,7 @@ TextMesh:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7489018129111683975}
-  m_Text: movement studio
+  m_Text: Movement Studio
   m_OffsetZ: 0
   m_CharacterSize: 0.052
   m_LineSpacing: 1

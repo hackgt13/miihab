@@ -6,7 +6,7 @@ enum MotionActivity {
 #if BOWLING
     static let bowling = true
     static let title = "Kinesthetic · Bowling Motion"
-    static let equipment = "wrist"
+    static let equipment = "IMU B"
     static let game = "bowling"
     static let path = "bowling-motion"
     static let type = "bowling"
@@ -15,7 +15,7 @@ enum MotionActivity {
 #else
     static let bowling = false
     static let title = "Kinesthetic · Club Motion"
-    static let equipment = "club"
+    static let equipment = "IMU A"
     static let game = "golf"
     static let path = "golf"
     static let type = "club"
@@ -213,7 +213,7 @@ final class ClubAppDelegate: NSObject, NSApplicationDelegate {
     var body: some Scene {
         WindowGroup(MotionActivity.title) {
             VStack(alignment:.leading,spacing:18) {
-                Text(bridge.relayConnected ? "Your \(MotionActivity.equipment). Connected." : bridge.monitoring ? "Connecting your \(MotionActivity.equipment)…" : "\(MotionActivity.game.capitalized) motion paused.").font(.largeTitle.bold())
+                Text(bridge.relayConnected ? "\(MotionActivity.equipment) connected." : bridge.monitoring ? "Connecting \(MotionActivity.equipment)…" : "\(MotionActivity.game.capitalized) motion paused.").font(.largeTitle.bold())
                 Text("AirPods motion → Unity \(MotionActivity.game)").foregroundStyle(.secondary)
                 if !MotionActivity.bowling {
                     Picker("Player",selection:$bridge.player) {

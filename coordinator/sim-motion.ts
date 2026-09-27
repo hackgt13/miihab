@@ -11,10 +11,10 @@
 //   Drive it by hand from the keyboard (arrow keys raise and lower, space swings):
 //     node sim-motion.ts hand [--channel club|wrist]
 //
-//   Be the second Mac: add --second-mac to any mode and the relay reads this stream as it would the other
-//   Mac's AirPods (golf-relay.ts `route`) — the other person in a group session or in golf, the patient's
-//   second AirPod otherwise. Needs the pairing token (KINESTHETIC_PAIR_TOKEN or local-data/pair-token.txt).
-//   A fake partner doing shoulder raises for as long as you like:
+//   Be the second Mac: add --second-mac to any mode and the relay files this stream as Mac 2, as it would the other
+//   Mac's AirPods (golf-relay.ts). For the whole demo with both pairs, use sim-demo.ts instead.
+//   Needs the pairing token (KINESTHETIC_PAIR_TOKEN or local-data/pair-token.txt). Shoulder raises on Mac 2 for as
+//   long as you like:
 //     node sim-motion.ts reps 999 --second-mac
 //
 // Why this exists: sim-rehab.ts streams synthetic *pose* into the bridge, but camera measurement is

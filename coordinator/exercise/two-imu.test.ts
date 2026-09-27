@@ -135,9 +135,11 @@ test('server: a two-AirPod movement reads both relay streams and learns which is
     // One and done: the next set worn the same way starts on the pairs already told apart, with no identify step.
     const again = await (await post('/exercise/start', { activityId: 'movement.arm-raise' })).json();
     assert.deepEqual([again.sensors.phase, again.sensors.imu, again.sensors.ref], ['ready', 'mac2', 'mac1']);
-    // Both pairs are the patient's even in a group session: a two-AirPod movement is not refused there.
+    // One or two: in a group each person has one pair, so a two-AirPod movement is refused and a one-AirPod one goes.
     assert.equal((await post('/api/groups', { activityId: 'movement.arm-raise' })).status, 201);
-    assert.equal((await post('/exercise/start', { activityId: 'movement.arm-raise' })).status, 200);
+    const refused = await post('/exercise/start', { activityId: 'movement.arm-raise' });
+    assert.equal(refused.status, 409); assert.match((await refused.json()).error, /one-AirPod movement/);
+    assert.equal((await (await post('/exercise/start', { prescriptionId: 'arm-elevation-right' })).json()).sensors.mode, 'one');
     await post('/exercise/stop'); await post('/api/groups/leave');
   } finally { await stop(child); relay.close(); }
 });

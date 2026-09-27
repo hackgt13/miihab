@@ -7565,9 +7565,9 @@ TextMesh:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3673351000395949103}
-  m_Text: 'movement
+  m_Text: 'Movement
 
-    studio'
+    Studio'
   m_OffsetZ: 0
   m_CharacterSize: 0.044
   m_LineSpacing: 1
