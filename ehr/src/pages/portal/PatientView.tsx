@@ -3,7 +3,7 @@ import { useParams } from '@tanstack/react-router'
 import { usePatientData } from '../../hooks/useLivePatient'
 import { concerning } from '../../data/coordinator'
 import { evaluateTrigger, computeNextSession } from '../../data/rules'
-import { useSessionSocket } from '../../hooks/useSessionSocket'
+import { useLiveExercise } from '../../hooks/useLiveExercise'
 import { LiveReadings } from '../../ui/LiveReadings'
 import { SessionTrendChart } from '../../ui/SessionTrendChart'
 import { VisitNotes } from '../../ui/VisitNotes'
@@ -143,7 +143,10 @@ export function PatientView() {
   // Live for the live patient, seed for the seeded ones. Every component below this line reads the same
   // PatientData shape either way - src/data/coordinator.ts is what makes the real records look like it.
   const { data, live, offline } = usePatientData(patientId)
-  const { status: wsStatus } = useSessionSocket({ url: 'ws://localhost:8766', enabled: true })
+  // The set happening right now on the headset, rep by rep (coordinator /exercise): the live patient's readings
+  // update as each rep lands, and the badge goes LIVE.
+  const liveSet = useLiveExercise()
+  const wsStatus = live && liveSet.running ? 'open' : 'closed'
   const [activeTab, setActiveTab] = useState('Summary')
   const [rightTab, setRightTab]   = useState('Overview')
 
@@ -349,7 +352,9 @@ export function PatientView() {
 
           {/* Live VR readings */}
           <SectionLabel label="Current Session" />
-          <LiveReadings session={session} wsStatus={wsStatus} baselineDeg={baselineDeg} />
+          <LiveReadings session={session} wsStatus={wsStatus} baselineDeg={baselineDeg}
+            override={live && liveSet.running ? liveSet.override : null}
+            now={live && liveSet.running ? [liveSet.angleDeg != null ? `arm ${liveSet.angleDeg}°` : null, liveSet.lastRep].filter(Boolean).join(' · ') : null} />
 
           {/* Clinical alert */}
           {trigger.fired && (
