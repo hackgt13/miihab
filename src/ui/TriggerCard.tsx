@@ -110,7 +110,7 @@ export function TriggerCard({
           <textarea
             value={reason}
             onChange={e => setReason(e.target.value)}
-            placeholder="e.g. Reviewed with patient — continuing current plan, re-evaluate in 2 sessions"
+            placeholder="e.g. Reviewed with patient - continuing current plan, re-evaluate in 2 sessions"
             rows={2}
             className="w-full bg-[#F4F6F8] border border-[#DDE2E8] text-[#1A1D23] placeholder-[#5A6472]/60 text-xs px-3 py-2 focus:outline-none focus:border-[#1666C0] rounded-sm resize-none transition-colors"
           />

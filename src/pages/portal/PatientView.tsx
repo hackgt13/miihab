@@ -47,7 +47,7 @@ const GOALS: Record<string, { short: string; shortTarget: string; long: string; 
 
 const PRECAUTIONS: Record<string, string[]> = {
   'marcus-r': [
-    'Monitor trunk deviation — stop if > 10° sustained',
+    'Monitor trunk deviation - stop if > 10° sustained',
     'No overhead lifting outside supervised sessions',
     'Skin integrity check required prior to each session',
   ],
@@ -62,7 +62,7 @@ const PRECAUTIONS: Record<string, string[]> = {
     'Report locking or giving-way immediately',
   ],
   'elena-v': [
-    'Fall precaution — balance tasks near support surface only',
+    'Fall precaution - balance tasks near support surface only',
     'Notify caregiver of session schedule',
     'Monitor medication timing relative to session start',
   ],
@@ -139,7 +139,7 @@ const RIGHT_TABS = ['Overview', 'Goals', 'RTM']
 export function PatientView() {
   const { patientId } = useParams({ from: '/portal/$patientId' })
   // Live for the live patient, seed for the seeded ones. Every component below this line reads the same
-  // PatientData shape either way — src/data/coordinator.ts is what makes the real records look like it.
+  // PatientData shape either way - src/data/coordinator.ts is what makes the real records look like it.
   const { data, live, offline } = usePatientData(patientId)
   const { status: wsStatus } = useSessionSocket({ url: 'ws://localhost:8766', enabled: true })
   const [activeTab, setActiveTab] = useState('Summary')
@@ -402,7 +402,7 @@ export function PatientView() {
           </table>
 
           {/* ROM + trunk trend chart */}
-          <SectionLabel label="ROM & Trunk Deviation — All Sessions" />
+          <SectionLabel label="ROM & Trunk Deviation - All Sessions" />
           <div className="px-3 pt-2 pb-4">
             <SessionTrendChart
               data={sessions}

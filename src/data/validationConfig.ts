@@ -16,22 +16,22 @@ export const VALIDATION: {
   repCount: ValidationEntry
 } = {
   rom: {
-    method: 'MediaPipe Pose 3.0 — bilateral landmark tracking',
-    algorithmVersion: 'kinesthetic-pose v0.4.1',
+    method: 'MediaPipe Pose 3.0 - bilateral landmark tracking',
+    algorithmVersion: 'rehabmii-pose v0.4.1',
     calibrationId: 'CAL-2025-08-12',
     goniometerDeltaDeg: 3,
     goniometerTrials: 24,
   },
   trunk: {
-    method: 'MediaPipe Pose 3.0 — torso vector angle (bilateral hip–shoulder)',
-    algorithmVersion: 'kinesthetic-pose v0.4.1',
+    method: 'MediaPipe Pose 3.0 - torso vector angle (bilateral hip–shoulder)',
+    algorithmVersion: 'rehabmii-pose v0.4.1',
     calibrationId: 'CAL-2025-08-12',
     goniometerDeltaDeg: 2,
     goniometerTrials: 18,
   },
   repCount: {
-    method: 'Peak detection on ROM signal — contiguous threshold crossing',
-    algorithmVersion: 'kinesthetic-pose v0.4.1',
+    method: 'Peak detection on ROM signal - contiguous threshold crossing',
+    algorithmVersion: 'rehabmii-pose v0.4.1',
     calibrationId: 'CAL-2025-08-12',
     // no goniometer validation for rep count
   },

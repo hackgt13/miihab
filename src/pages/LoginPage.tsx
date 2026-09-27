@@ -21,7 +21,7 @@ export function LoginPage() {
     <div className="relative w-full flex-1 bg-[#232B2F] flex flex-col items-center justify-center overflow-hidden">
       <div className="relative z-10 w-full max-w-[360px] px-6">
         <Button variant="ghost" size="sm" className="mb-10 -ml-1" onClick={() => navigate({ to: '/' })}>
-          ← Kinesthetic
+          ← RehabMii
         </Button>
 
         <p className="text-[#A3B0B6] text-[10px] tracking-[0.2em] uppercase mb-3">

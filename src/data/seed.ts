@@ -3,7 +3,7 @@ import type {
   PlanVersion, RTMRecord,
 } from './types'
 
-// ── Marcus R. — Spinal Cord Injury (C5) ──────────────────────────────────
+// ── Marcus R. - Spinal Cord Injury (C5) ──────────────────────────────────
 
 const MARCUS_SESSIONS: SessionSummary[] = [
   { session: 1,  date: '2025-08-12', medianPeakDeg: 48, trunkMeanDeg: 3,  validReps: 5, prescribedReps: 8, completed: true,  synthetic: true  },
@@ -58,8 +58,8 @@ const MARCUS_HANDOFF: SessionHandoff = {
     { t: 390.0, text: 'Slight ache at end range', severity: 3 },
   ],
   replayMoments: [
-    { t: 178.2, label: 'Trunk lean — rep 5', repIndex: 5 },
-    { t: 298.1, label: 'Trunk lean — rep 7 (peak)', repIndex: 7 },
+    { t: 178.2, label: 'Trunk lean - rep 5', repIndex: 5 },
+    { t: 298.1, label: 'Trunk lean - rep 7 (peak)', repIndex: 7 },
     { t: 341.0, label: 'Elbow drop on return', repIndex: 8 },
   ],
   uncertainty: [
@@ -83,7 +83,7 @@ const MARCUS_HANDOFF: SessionHandoff = {
     { t: 178, source: 'coach',   kind: 'cue_template', content: 'Hold. Chest forward.' },
     { t: 180, source: 'engine',  kind: 'tool_call',    content: 'set_target', tool: 'set_target', args: { angle_band: [68, 90] } },
     { t: 220, source: 'coach',   kind: 'llm_reply',    content: "You're doing the shoulder raise to rebuild rotator cuff strength and restore range after your injury. Each rep trains your brain and muscle to relearn the movement pattern." },
-    { t: 298, source: 'coach',   kind: 'cue_template', content: "Hold. Chest facing forward — you're leaning." },
+    { t: 298, source: 'coach',   kind: 'cue_template', content: "Hold. Chest facing forward - you're leaning." },
     { t: 312, source: 'patient', kind: 'report',       content: 'Patient report: Feels stiff (5/10)' },
     { t: 360, source: 'coach',   kind: 'speak',        content: 'Last two reps. Strong finish.' },
     { t: 390, source: 'patient', kind: 'report',       content: 'Patient report: Slight ache at end range (3/10)' },
@@ -125,7 +125,7 @@ const MARCUS: PatientData = {
     condition: 'Spinal Cord Injury (C5)',
     status: 'alert',
     urgency: 0,
-    flagDetail: 'Trunk compensation rising — review needed',
+    flagDetail: 'Trunk compensation rising - review needed',
     lastSession: '2 hours ago',
     sessionCount: 14,
     weeksActive: 5,
@@ -146,7 +146,7 @@ const MARCUS: PatientData = {
   rtm: MARCUS_RTM,
 }
 
-// ── James T. — Rotator Cuff Repair ───────────────────────────────────────
+// ── James T. - Rotator Cuff Repair ───────────────────────────────────────
 
 const JAMES_SESSIONS: SessionSummary[] = [
   { session: 1, date: '2025-09-02', medianPeakDeg: 55, trunkMeanDeg: 5, validReps: 5, prescribedReps: 8, completed: true,  synthetic: true  },
@@ -187,12 +187,12 @@ const JAMES_HANDOFF: SessionHandoff = {
     { t: 300.0, text: 'Fatigue in shoulder', severity: 4 },
   ],
   replayMoments: [
-    { t: 165.0, label: 'Pain event — rep 4', repIndex: 4 },
-    { t: 290.0, label: 'Trunk lean — rep 7', repIndex: 7 },
+    { t: 165.0, label: 'Pain event - rep 4', repIndex: 4 },
+    { t: 290.0, label: 'Trunk lean - rep 7', repIndex: 7 },
   ],
   uncertainty: [
     'Shoulder marker lost 8% of frames (clothing occlusion)',
-    'Patient seated off-center — hip baseline shifted',
+    'Patient seated off-center - hip baseline shifted',
   ],
   repEvents: [
     { rep: 1, peakDeg: 62, trunkDeg: 5, valid: true  },
@@ -207,9 +207,9 @@ const JAMES_HANDOFF: SessionHandoff = {
   coachLog: [
     { t: 0,   source: 'coach',   kind: 'cue_template', content: 'Raise your right arm out to the side. Stop at first discomfort.' },
     { t: 90,  source: 'coach',   kind: 'speak',        content: 'Good pace. Keep the elbow soft.' },
-    { t: 165, source: 'coach',   kind: 'cue_template', content: 'Lower slowly. Pause — did you feel discomfort?' },
+    { t: 165, source: 'coach',   kind: 'cue_template', content: 'Lower slowly. Pause - did you feel discomfort?' },
     { t: 180, source: 'patient', kind: 'report',       content: 'Patient report: Sharp pain at 60° (6/10)' },
-    { t: 200, source: 'coach',   kind: 'llm_reply',    content: "Pain above 5/10 at arc — reducing target by 5°. Continuing with modified range." },
+    { t: 200, source: 'coach',   kind: 'llm_reply',    content: "Pain above 5/10 at arc - reducing target by 5°. Continuing with modified range." },
     { t: 300, source: 'patient', kind: 'report',       content: 'Patient report: Fatigue in shoulder (4/10)' },
     { t: 340, source: 'engine',  kind: 'tool_call',    content: 'end_session', tool: 'end_session', args: {} },
   ],
@@ -269,7 +269,7 @@ const JAMES: PatientData = {
   rtm: JAMES_RTM,
 }
 
-// ── Sarah K. — ACL Reconstruction ────────────────────────────────────────
+// ── Sarah K. - ACL Reconstruction ────────────────────────────────────────
 
 const SARAH_SESSIONS: SessionSummary[] = [
   { session: 1, date: '2025-09-01', medianPeakDeg: 75,  trunkMeanDeg: 2, validReps: 8,  prescribedReps: 10, completed: true, synthetic: true  },
@@ -311,8 +311,8 @@ const SARAH_HANDOFF: SessionHandoff = {
     { t: 200.0, text: 'Mild soreness in quad', severity: 2 },
   ],
   replayMoments: [
-    { t: 120.5, label: 'Full extension — rep 4', repIndex: 4 },
-    { t: 310.0, label: 'Near-max ROM — rep 9',   repIndex: 9 },
+    { t: 120.5, label: 'Full extension - rep 4', repIndex: 4 },
+    { t: 310.0, label: 'Near-max ROM - rep 9',   repIndex: 9 },
   ],
   uncertainty: [
     'Knee marker partially obscured frames 400–450',
@@ -334,7 +334,7 @@ const SARAH_HANDOFF: SessionHandoff = {
     { t: 60,  source: 'coach',   kind: 'speak',        content: 'Great extension. Hold at the top.' },
     { t: 180, source: 'engine',  kind: 'tool_call',    content: 'set_target', tool: 'set_target', args: { angle_band: [100, 120] } },
     { t: 200, source: 'patient', kind: 'report',       content: 'Patient report: Mild soreness in quad (2/10)' },
-    { t: 300, source: 'coach',   kind: 'llm_reply',    content: "Excellent progress — you've gained 43° since your first session. This is well within expected ACL recovery trajectory." },
+    { t: 300, source: 'coach',   kind: 'llm_reply',    content: "Excellent progress - you've gained 43° since your first session. This is well within expected ACL recovery trajectory." },
     { t: 380, source: 'engine',  kind: 'tool_call',    content: 'end_session', tool: 'end_session', args: {} },
   ],
   synthetic: false,
@@ -392,7 +392,7 @@ const SARAH: PatientData = {
   rtm: SARAH_RTM,
 }
 
-// ── Elena V. — Parkinson's Disease ───────────────────────────────────────
+// ── Elena V. - Parkinson's Disease ───────────────────────────────────────
 
 const ELENA_SESSIONS: SessionSummary[] = [
   { session: 9,  date: '2025-08-05', medianPeakDeg: 62, trunkMeanDeg: 4, validReps: 9,  prescribedReps: 12, completed: true, synthetic: true  },
@@ -429,7 +429,7 @@ const ELENA_HANDOFF: SessionHandoff = {
   sessionId: 's_022',
   patientId: 'elena-v',
   planVersion: 1,
-  exercise: 'Standing balance — tandem stance',
+  exercise: 'Standing balance - tandem stance',
   reps: { valid: 11, attempted: 12, prescribed: 12 },
   medianPeakDeg: 72,
   baselineMedianPeakDeg: 62,
@@ -440,7 +440,7 @@ const ELENA_HANDOFF: SessionHandoff = {
     { t: 260.0, text: 'Feeling steady today', severity: 1 },
   ],
   replayMoments: [
-    { t: 155.0, label: 'Best balance hold — 12s', repIndex: 5  },
+    { t: 155.0, label: 'Best balance hold - 12s', repIndex: 5  },
     { t: 445.0, label: 'Near-fall recovered',      repIndex: 11 },
   ],
   uncertainty: [
@@ -475,13 +475,13 @@ const ELENA_PLANS: PlanVersion[] = [
   {
     version: 1,
     date: '2025-07-01',
-    exercise: 'Standing balance — tandem stance',
+    exercise: 'Standing balance - tandem stance',
     settings: [
       { setting: 'Hold duration target', current: '10s', proposed: '15s', unit: 's',    min: 5,  max: 30, changed: true  },
       { setting: 'Reps prescribed',       current: 12,    proposed: 12,    unit: 'reps', min: 4,  max: 20, changed: false },
       { setting: 'Sway limit',             current: 5,     proposed: 5,     unit: '°',    min: 3,  max: 10, changed: false },
     ],
-    notes: "Parkinson's gait — 12 weeks into program. Progressing to longer holds.",
+    notes: "Parkinson's gait - 12 weeks into program. Progressing to longer holds.",
     approvedBy: 'Dr. Chen',
     approvedAt: '2025-07-01T10:00:00Z',
   },

@@ -168,7 +168,7 @@ export function KeyMeasures({
         />
         <Measure
           label="Patient-reported"
-          value={worstSymptom ? `${worstSymptom.severity}/10` : '—'}
+          value={worstSymptom ? `${worstSymptom.severity}/10` : '-'}
           subtitle={
             worstSymptom
               // t is 0 for a report made at a visit rather than during the recording: it has no moment

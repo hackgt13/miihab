@@ -1,4 +1,4 @@
-// Kinesthetic session API
+// RehabMii session API
 // Receives completed session data from Unity and serves it to the physician portal.
 //
 // Run:  node server/index.js
@@ -92,7 +92,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── GET /api/sessions ──────────────────────────────────────────────────────
-  // Debug endpoint — dumps everything in the store.
+  // Debug endpoint - dumps everything in the store.
   if (req.method === 'GET' && url.pathname === '/api/sessions') {
     const all = {}
     for (const [id, list] of store) all[id] = list
@@ -103,7 +103,7 @@ const server = http.createServer(async (req, res) => {
 })
 
 server.listen(PORT, () => {
-  console.log(`\nKinesthetic session API  →  http://localhost:${PORT}`)
+  console.log(`\nRehabMii session API  →  http://localhost:${PORT}`)
   console.log('  POST /api/session          submit session from Unity')
   console.log('  GET  /api/session/:id      latest session for a patient')
   console.log('  GET  /api/sessions         all sessions (debug)\n')

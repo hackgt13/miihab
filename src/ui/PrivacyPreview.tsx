@@ -18,9 +18,9 @@ interface OptionalField {
 
 const OPTIONAL_FIELDS: OptionalField[] = [
   { id: 'patient_name',   label: 'Patient name',              note: 'Requires explicit de-identification waiver' },
-  { id: 'session_data',   label: 'Session data (ROM, reps)',   note: 'Numeric aggregate — no video or timestamps' },
+  { id: 'session_data',   label: 'Session data (ROM, reps)',   note: 'Numeric aggregate - no video or timestamps' },
   { id: 'dob',            label: 'Date of birth',              note: 'Age range included if added' },
-  { id: 'video',          label: 'Video / replay clips',       note: 'Raw video — requires written patient consent' },
+  { id: 'video',          label: 'Video / replay clips',       note: 'Raw video - requires written patient consent' },
 ]
 
 export function PrivacyPreview({
@@ -64,7 +64,7 @@ export function PrivacyPreview({
         <div className="px-5 py-4 border-b border-[#DDE2E8] flex items-start justify-between">
           <div>
             <p className="text-[9px] text-[#C67C1A] font-semibold uppercase tracking-widest mb-0.5">
-              Simulated — no data leaves this browser
+              Simulated - no data leaves this browser
             </p>
             <p className="text-[#1A1D23] text-sm font-medium">{resourceType} · Request preview</p>
           </div>

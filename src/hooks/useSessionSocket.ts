@@ -39,7 +39,7 @@ export function useSessionSocket({ url, enabled = true }: UseSessionSocketOption
         setLastMessage(msg)
         setMessages(prev => [...prev.slice(-199), msg]) // keep last 200
       } catch {
-        // non-JSON frame — ignore
+        // non-JSON frame - ignore
       }
     }
 

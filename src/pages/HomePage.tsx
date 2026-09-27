@@ -8,7 +8,7 @@ export function HomePage() {
     <div className="relative w-full flex-1 bg-[#232B2F] flex flex-col items-center justify-center overflow-hidden">
       <div className="relative z-10 flex flex-col items-center text-center px-6">
         <div className="mb-8 inline-flex items-center px-3 py-1 border border-[#3D484E] text-[#A3B0B6] text-[10px] tracking-[0.2em] uppercase">
-          Kinesthetic · Physician Portal
+          RehabMii · Physician Portal
         </div>
 
         <h1 className="text-[clamp(2.8rem,8vw,7rem)] font-bold text-[#E4E9EB] tracking-tight leading-[0.92] mb-5">

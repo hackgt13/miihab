@@ -7,7 +7,7 @@ import type { Patient, PatientData } from '../data/types'
 //
 // Polled rather than pushed. The coordinator's websocket carries a live exercise in progress (rep by rep,
 // see useSessionSocket) but says nothing when a session *ends*, which is when every number on this page
-// changes — so a session finishing on the headset would leave the portal showing the session before it
+// changes - so a session finishing on the headset would leave the portal showing the session before it
 // until someone reloaded. Ten seconds is under the time it takes a clinician to look up from the headset.
 //
 // Nothing here throws a patient away: when the coordinator is not running, `offline` goes true and the
@@ -58,7 +58,7 @@ export function usePatients(): { patients: Patient[]; offline: boolean; settled:
   }
 }
 
-/** Live for the live patient, seed for the seeded ones — the caller never has to know which it asked for. */
+/** Live for the live patient, seed for the seeded ones - the caller never has to know which it asked for. */
 export function usePatientData(patientId: string): { data: PatientData | undefined; live: boolean; offline: boolean } {
   const { data, offline } = useLivePatient()
   if (patientId === LIVE_PATIENT_ID) return { data: data ?? undefined, live: true, offline }

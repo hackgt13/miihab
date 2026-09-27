@@ -35,7 +35,7 @@ export function PlanVersioning() {
       {/* Diff */}
       <div className="p-4">
         <p className="text-[#5A6472] text-[9px] uppercase tracking-[0.18em] mb-3">
-          Draft — Plan v2
+          Draft - Plan v2
         </p>
         <div className="border border-[#DDE2E8] rounded-md overflow-hidden mb-4">
           <div className="grid grid-cols-3 bg-[#F4F6F8] px-3 py-1.5 border-b border-[#DDE2E8]">
@@ -65,12 +65,12 @@ export function PlanVersioning() {
             onClick={() => setApproved(true)}
             className="w-full py-2.5 bg-[#1666C0] text-white text-sm font-semibold rounded-sm hover:bg-[#1255A3] transition-colors"
           >
-            Approve — create Plan v2
+            Approve - create Plan v2
           </button>
         ) : (
           <div className="flex items-center gap-2 px-3 py-2.5 bg-[#2E7D32]/10 border border-[#2E7D32]/30 rounded-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D32]" />
-            <p className="text-xs text-[#2E7D32] font-medium">Plan v2 approved — next session will use updated targets</p>
+            <p className="text-xs text-[#2E7D32] font-medium">Plan v2 approved - next session will use updated targets</p>
           </div>
         )}
       </div>

@@ -41,7 +41,7 @@ export function evaluateTrigger(
   const sorted = [...sessions].sort((a, b) => a.session - b.session)
   const last4  = sorted.slice(-4)
 
-  // Condition 1 — Median peak gain ≥ PEAK_GAIN_THRESHOLD° over last 4 sessions
+  // Condition 1 - Median peak gain ≥ PEAK_GAIN_THRESHOLD° over last 4 sessions
   const firstPeak  = last4[0]?.medianPeakDeg ?? 0
   const latestPeak = last4[last4.length - 1]?.medianPeakDeg ?? 0
   const peakGain   = latestPeak - firstPeak
@@ -57,7 +57,7 @@ export function evaluateTrigger(
     met: c1Met,
   }
 
-  // Condition 2 — Trunk deviation, final reps > TRUNK_FINAL_LIMIT°
+  // Condition 2 - Trunk deviation, final reps > TRUNK_FINAL_LIMIT°
   const finalTrunk = handoff.trunkDeviation.finalRepsDeg
   const c2Met      = finalTrunk > TRUNK_FINAL_LIMIT
   const c2: EvaluatedCondition = {
@@ -70,7 +70,7 @@ export function evaluateTrigger(
     met: c2Met,
   }
 
-  // Condition 3 — Patient-reported stiffness ≥ STIFFNESS_THRESHOLD/10
+  // Condition 3 - Patient-reported stiffness ≥ STIFFNESS_THRESHOLD/10
   const stiffReport = handoff.patientReports
     .filter(r => r.text.toLowerCase().includes('stiff'))
     .sort((a, b) => b.severity - a.severity)[0]

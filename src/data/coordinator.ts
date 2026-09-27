@@ -2,8 +2,8 @@
 //
 // Everything else in src/data is seed: four invented patients with invented sessions, which is what this
 // portal was built against. This module is the one that is real. It reads the records the coordinator
-// actually holds — the plan the clinician approved, the exercise sessions the headset recorded, the
-// consistency calendar the board draws — and maps them into the same `PatientData` shape the seed
+// actually holds - the plan the clinician approved, the exercise sessions the headset recorded, the
+// consistency calendar the board draws - and maps them into the same `PatientData` shape the seed
 // produces, so every component downstream keeps working without knowing where its numbers came from.
 //
 // Requests go through the `/api` proxy in vite.config.ts. The coordinator sends no CORS headers (it only
@@ -16,9 +16,9 @@
 // it and the mapping underneath is the only thing that has to be re-read.
 //
 // What is NOT here, because the coordinator does not hold it, and must not be faked into looking real:
-//   · the coach's event log       — no endpoint records what the coach said, so `coachLog` is empty
-//   · scheduling                  — the program is a daily home program; there is no appointment book
-//   · more than one patient       — the coordinator is one machine, one patient, `patientId: null`
+//   · the coach's event log       - no endpoint records what the coach said, so `coachLog` is empty
+//   · scheduling                  - the program is a daily home program; there is no appointment book
+//   · more than one patient       - the coordinator is one machine, one patient, `patientId: null`
 import type {
   PatientData, PatientReport, PatientStatus, PlanVersion, RepEvent, ReplayMoment,
   SessionHandoff, SessionSummary, VisitReply,
@@ -29,7 +29,7 @@ export const LIVE_PATIENT_ID = 'live'
 
 // ── The coordinator's own records ─────────────────────────────────────────
 // Only the fields this portal reads. `summary` is coordinator/exercise/kind.ts, `plan` is
-// coordinator/plans.ts (schema kinesthetic.plan.v2), `dashboard` is coordinator/dashboard.ts.
+// coordinator/plans.ts (schema rehabmii.plan.v2), `dashboard` is coordinator/dashboard.ts.
 
 interface CoordinatorRep {
   rep: number
@@ -159,20 +159,20 @@ function replayMoments(summary: CoordinatorSummary): ReplayMoment[] {
 
   const moments: ReplayMoment[] = []
   const firstBad = reps.find(r => !r.valid)
-  if (firstBad) moments.push({ t: at(firstBad), label: `Rep ${firstBad.rep} rejected — ${firstBad.reason ?? 'not counted'}`, repIndex: firstBad.rep })
+  if (firstBad) moments.push({ t: at(firstBad), label: `Rep ${firstBad.rep} rejected - ${firstBad.reason ?? 'not counted'}`, repIndex: firstBad.rep })
   const best = reps.filter(r => r.valid).sort((a, b) => b.peakDeg - a.peakDeg)[0]
-  if (best) moments.push({ t: at(best), label: `Best rep — ${Math.round(best.peakDeg)}°`, repIndex: best.rep })
+  if (best) moments.push({ t: at(best), label: `Best rep - ${Math.round(best.peakDeg)}°`, repIndex: best.rep })
   return moments.sort((a, b) => a.t - b.t)
 }
 
 /**
  * The patient's own word, from the question every visit ends on ("is there anything you want me to know?").
  * It is a quick reply rather than a scale, so the severity here is this portal reading the coordinator's
- * four kinds onto its own 0–10 — hurt and too-hard are what a clinician needs to see, and the rest are
+ * four kinds onto its own 0–10 - hurt and too-hard are what a clinician needs to see, and the rest are
  * context. A free-text message sits between them: it says something, and only the words say what.
  *
  * Replies are about the program, not about one session, so the last fortnight of them ride along with the
- * latest session rather than being pinned to a moment inside it — which is why `t` is 0 and the portal
+ * latest session rather than being pinned to a moment inside it - which is why `t` is 0 and the portal
  * says "reported at the visit" instead of a timestamp inside the recording.
  */
 const SEVERITY: Record<VisitReply['kind'], number> = { hurt: 8, hard: 6, message: 5, easy: 2, fine: 0 }
@@ -188,7 +188,7 @@ function patientReports(replies: VisitReply[], now: Date): PatientReport[] {
 function uncertainty(summary: CoordinatorSummary): string[] {
   const notes: string[] = []
   const rejected = Object.entries(summary.invalidReasons ?? {})
-  for (const [reason, count] of rejected) notes.push(`${count} rep${count === 1 ? '' : 's'} rejected — ${reason.replace(/_/g, ' ')}`)
+  for (const [reason, count] of rejected) notes.push(`${count} rep${count === 1 ? '' : 's'} rejected - ${reason.replace(/_/g, ' ')}`)
   if (number(summary.trackingLossEvents) > 0) notes.push(`${summary.trackingLossEvents} tracking dropout${summary.trackingLossEvents === 1 ? '' : 's'}`)
   const usable = number(summary.validFrameRatio, 1)
   if (usable < 0.95) notes.push(`${Math.round((1 - usable) * 100)}% of frames unusable`)
@@ -253,7 +253,7 @@ export const concerning = (replies: VisitReply[] = [], now = new Date()): VisitR
  * A status for the sidebar, from what the data supports and nothing more.
  *
  * Two things a physician wants flagged, in order. Pain first: the patient said something hurt, which is the
- * only thing on this page they said in their own words and the only one that can mean stop. Then silence —
+ * only thing on this page they said in their own words and the only one that can mean stop. Then silence -
  * a week without a session is the other thing the records can honestly say.
  */
 function statusOf(sessions: SessionSummary[], daysSinceLast: number, replies: VisitReply[]): PatientStatus {
@@ -275,8 +275,8 @@ function saidWhen(days: number): string {
 
 /**
  * Everything the portal shows about the live patient, in one read. Four requests in parallel rather than
- * one endpoint, because these are four different records with four different lifetimes — the plan changes
- * at a visit, the sessions change when the headset finishes one — and the coordinator has no combined
+ * one endpoint, because these are four different records with four different lifetimes - the plan changes
+ * at a visit, the sessions change when the headset finishes one - and the coordinator has no combined
  * view that is anybody's source of truth.
  */
 export async function fetchLivePatient(): Promise<PatientData> {
@@ -346,7 +346,7 @@ export async function fetchLivePatient(): Promise<PatientData> {
   return {
     patient: {
       id: LIVE_PATIENT_ID,
-      // "You" is what friends.ts calls the patient until they set a name on the headset — a placeholder,
+      // "You" is what friends.ts calls the patient until they set a name on the headset - a placeholder,
       // not a name, and a clinician's sidebar is the wrong place to render it.
       name: (people.me?.displayName ?? '').trim().replace(/^You$/, '') || 'This headset',
       condition: dashboard.goal || plans[plans.length - 1]?.goal?.text || 'Home rehab program',

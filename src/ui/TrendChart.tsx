@@ -14,7 +14,7 @@ export function ROMChart({ data, targetLow, targetHigh }: ROMChartProps) {
   return (
     <div className="bg-white border border-[#DDE2E8] rounded-md p-4 shadow-sm">
       <p className="text-[#5A6472] text-[9px] uppercase tracking-[0.18em] mb-4">
-        Range of Motion — per session
+        Range of Motion - per session
       </p>
       <ResponsiveContainer width="100%" height={160}>
         <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
@@ -66,7 +66,7 @@ export function CompensationChart({ data, limit }: CompChartProps) {
   return (
     <div className="bg-white border border-[#DDE2E8] rounded-md p-4 shadow-sm">
       <p className="text-[#5A6472] text-[9px] uppercase tracking-[0.18em] mb-4">
-        Trunk compensation — per session
+        Trunk compensation - per session
       </p>
       <ResponsiveContainer width="100%" height={160}>
         <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>

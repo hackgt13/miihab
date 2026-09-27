@@ -43,7 +43,7 @@ export function CoachFeed({ log }: CoachFeedProps) {
   return (
     <div className="bg-white border border-[#DDE2E8] rounded-md p-4 shadow-sm">
       <p className="text-[#5A6472] text-[9px] uppercase tracking-[0.18em] mb-3">
-        Coach agent — session log
+        Coach agent - session log
       </p>
       <div className="flex flex-col gap-0.5">
         {log.map((ev, i) => (

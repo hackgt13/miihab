@@ -13,27 +13,27 @@ interface Message {
 const INITIAL: Message[] = [
   {
     role: 'agent',
-    text: "Session 14 handoff received. ROM improved 16° from baseline but trunk deviation reached 11° in the final reps — above the 8° limit. I've surfaced the replay moments. What would you like to review?",
-    replayRef: '4:58 — trunk lean, rep 7',
+    text: "Session 14 handoff received. ROM improved 16° from baseline but trunk deviation reached 11° in the final reps - above the 8° limit. I've surfaced the replay moments. What would you like to review?",
+    replayRef: '4:58 - trunk lean, rep 7',
   },
 ]
 
 const CANNED: Record<string, Message> = {
   'Is this real arm improvement or compensation?': {
     role: 'agent',
-    text: 'The ROM gain appears genuine — the trajectory is consistent across 14 sessions and not step-wise. However, trunk lateral flexion is now masking the true glenohumeral ceiling. The rep 7 replay shows the pattern most clearly.',
+    text: 'The ROM gain appears genuine - the trajectory is consistent across 14 sessions and not step-wise. However, trunk lateral flexion is now masking the true glenohumeral ceiling. The rep 7 replay shows the pattern most clearly.',
     evidence: [
-      'Ludewig et al., JOSPT 2009 — scapular substitution in impingement; similar trunk-compensation signature.',
-      'Kibler & McMullen, JAAOS 2003 — scapular dyskinesis as a proximal driver of apparent ROM gain.',
+      'Ludewig et al., JOSPT 2009 - scapular substitution in impingement; similar trunk-compensation signature.',
+      'Kibler & McMullen, JAAOS 2003 - scapular dyskinesis as a proximal driver of apparent ROM gain.',
     ],
-    replayRef: '4:58 — trunk lean, rep 7',
+    replayRef: '4:58 - trunk lean, rep 7',
     missing: ['Passive ROM not recorded this session', 'Contralateral baseline not established'],
   },
   'Should I progress the target range?': {
     role: 'agent',
     text: 'Progressing target range while trunk deviation is rising may reinforce the compensation pattern. Standard guidance suggests resolving the movement fault first. A Plan v2 with the same ROM target but a tighter trunk-deviation constraint (≤ 6°) and a cue emphasis change is drafted below.',
     evidence: ['Kibler & McMullen, JAAOS 2003'],
-    resource: { label: 'MSL Request — spasticity adjunct resources', type: 'MSL' },
+    resource: { label: 'MSL Request - spasticity adjunct resources', type: 'MSL' },
   },
 }
 
@@ -70,7 +70,7 @@ export function ExpertChat({ preloadedContext, patientId, conditionCategory }: E
   }
 
   function openResource(type: string, label: string) {
-    setPrivacy({ resourceType: `${type} — ${label}`, question: label })
+    setPrivacy({ resourceType: `${type} - ${label}`, question: label })
   }
 
   return (
@@ -133,7 +133,7 @@ export function ExpertChat({ preloadedContext, patientId, conditionCategory }: E
                       className="text-[10px] text-[#0D9488] border border-[#0D9488]/30 rounded-sm px-2 py-1 hover:bg-[#0D9488]/10 transition-colors"
                     >
                       <span className="text-[#C67C1A] mr-1">Simulated</span>
-                      {m.resource.type} — {m.resource.label}
+                      {m.resource.type} - {m.resource.label}
                     </button>
                   </div>
                 )}

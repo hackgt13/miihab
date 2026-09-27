@@ -29,7 +29,7 @@ export function Adherence({ schedule, history }: AdherenceProps) {
             key={i}
             className="w-3 h-3 rounded-sm"
             style={{ backgroundColor: s.completed ? '#2E7D32' : '#DDE2E8' }}
-            title={`${s.date} — ${s.completed ? 'completed' : 'missed'}`}
+            title={`${s.date} - ${s.completed ? 'completed' : 'missed'}`}
           />
         ))}
       </div>

@@ -4,10 +4,10 @@ interface DataQualityProps {
 }
 
 const SENSOR_LIMITS = [
-  'Spasticity — requires clinical assessment',
-  'Muscular strength — not measured',
-  'Pain — patient-reported only',
-  'Passive ROM — not captured',
+  'Spasticity - requires clinical assessment',
+  'Muscular strength - not measured',
+  'Pain - patient-reported only',
+  'Passive ROM - not captured',
 ]
 
 export function DataQuality({ uncertainty, occlusionPct = 12 }: DataQualityProps) {
@@ -38,7 +38,7 @@ export function DataQuality({ uncertainty, occlusionPct = 12 }: DataQualityProps
           <div className="flex flex-col gap-1">
             {SENSOR_LIMITS.map((l, i) => (
               <div key={i} className="px-3 py-1.5 bg-[#F4F6F8] border border-[#DDE2E8] rounded-sm">
-                <p className="text-[10px] text-[#5A6472]">— {l}</p>
+                <p className="text-[10px] text-[#5A6472]">- {l}</p>
               </div>
             ))}
           </div>

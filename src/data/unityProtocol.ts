@@ -1,9 +1,9 @@
-// ── Unity → Kinesthetic API payload ──────────────────────────────────────────
+// ── Unity → RehabMii API payload ──────────────────────────────────────────
 //
 // Unity sends this as a JSON POST body to:
 //   POST http://localhost:3001/api/session
 //
-// Keep it flat — no nesting — so Unity's JsonUtility.ToJson() works without
+// Keep it flat - no nesting - so Unity's JsonUtility.ToJson() works without
 // custom serializers. All fields except patientId are optional so Unity can
 // send partial updates if needed.
 //
