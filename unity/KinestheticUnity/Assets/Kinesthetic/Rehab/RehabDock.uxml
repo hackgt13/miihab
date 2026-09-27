@@ -6,7 +6,11 @@
          action sit in the middle, and the coach's spoken line appears beneath. -->
     <ui:VisualElement name="dock-board" class="board" picking-mode="Ignore">
         <ui:VisualElement class="dock-chrome" picking-mode="Ignore">
-            <k:KChip name="sensor-status" text="Connecting to AirPod…" state="Live" />
+            <!-- A movement that needs two AirPods shows one chip per pair, so the patient sees which is still missing. -->
+            <ui:VisualElement class="sensor-chips" picking-mode="Ignore">
+                <k:KChip name="sensor-status" text="Connecting to AirPod…" state="Live" />
+                <k:KChip name="sensor-status-2" text="Mac 2 AirPods · waiting…" state="Live" class="sensor-chip-second hidden" />
+            </ui:VisualElement>
         </ui:VisualElement>
         <k:KSurface name="coaching-dock" class="coaching-dock" density="Compact">
             <!-- The step, and under it the hold timer: a ring that fills while the arm stays in the band. -->

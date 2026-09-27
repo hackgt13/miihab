@@ -137,7 +137,7 @@ namespace Kinesthetic.Rehab
         readonly ActivityBriefing briefing = new();
         bool briefedWarning;
         KReadout repCount;
-        KChip sensorStatus; KTag cueStep;
+        KChip sensorStatus, secondSensorStatus; KTag cueStep;
         string coachingNote = "", prescriptionNote = "";
         // Rep qualities (coordinator/exercise/quality.ts): how well a counted rep is made — the hold at the top,
         // the tempo of each phase, hitches, the streak. The coordinator judges; this renders. Their configs are
@@ -230,6 +230,7 @@ namespace Kinesthetic.Rehab
             statusLabel = root.Q<Label>("status");
             summaryCard = root.Q<KSheet>("summary-card");
             sensorStatus = root.Q<KChip>("sensor-status");
+            secondSensorStatus = root.Q<KChip>("sensor-status-2");
             cueTitle = root.Q<Label>("cue-title"); cueStep = root.Q<KTag>("cue-step");
             hudCoach = root.Q("hud-coach");
             hudCoachLine = root.Q<Label>("hud-coach-line");
@@ -532,6 +533,26 @@ namespace Kinesthetic.Rehab
             hudCoach.EnableInClassList("hidden", !(voice && voice.Connected) && string.IsNullOrEmpty(said));
         }
 
+        bool mac1Live, mac2Live;
+        float nextPairPoll;
+        IEnumerator PollPairs()
+        {
+            var relay = new Uri(motionUrl);
+            using var request = UnityWebRequest.Get($"http://{relay.Host}:{relay.Port}/");
+            request.timeout = 1;
+            yield return request.SendWebRequest();
+            JObject macs = null;
+            if (request.result == UnityWebRequest.Result.Success)
+                try { macs = JObject.Parse(request.downloadHandler.text)["macs"] as JObject; } catch { }
+            static bool Live(JToken pair) => pair?["ageMs"] is JToken age && (double)age < 1500;
+            mac1Live = Live(macs?["mac1"]); mac2Live = Live(macs?["mac2"]);
+        }
+        void PairChip(KChip chip, int mac, bool connected)
+        {
+            chip.state = sessionError || running && !connected ? KChip.State.Trouble : connected ? KChip.State.Good : KChip.State.Live;
+            chip.text = connected ? $"Mac {mac} AirPods connected" : $"Mac {mac} AirPods · waiting…";
+        }
+
         void UpdateStudioUI()
         {
             // While the summary is up it is the only board: the dock's chip, cue and button and the crown's count
@@ -543,9 +564,23 @@ namespace Kinesthetic.Rehab
             bool live = running && Fresh && liveAngle.HasValue;
             bool reached = live && liveAngle.Value >= targetDeg && liveAngle.Value <= targetDeg + bandDeg;
             bool over = live && liveAngle.Value > targetDeg + bandDeg;
-            sensorStatus.state = sessionError || running && !fresh ? KChip.State.Trouble : fresh ? KChip.State.Good : KChip.State.Live;
-            sensorStatus.text = useCameraPose ? (fresh ? "Camera connected" : "Connecting camera…")
-                : fresh ? (TwoImu ? "Both AirPods connected" : "AirPod connected") : TwoImu ? "Connecting AirPods…" : "Connecting AirPod…";
+            // Two AirPods: a chip per pair, Mac 1's and Mac 2's as the relay files them (which limb each is on is
+            // decided later), each connected or still awaited. The games' paths carry one fused stream, so each
+            // pair's own state comes from the relay's status.
+            bool pairs = TwoImu && !useCameraPose;
+            secondSensorStatus?.EnableInClassList("hidden", !pairs);
+            if (pairs)
+            {
+                if (Time.unscaledTime >= nextPairPoll) { nextPairPoll = Time.unscaledTime + 1; StartCoroutine(PollPairs()); }
+                PairChip(sensorStatus, 1, mac1Live);
+                if (secondSensorStatus != null) PairChip(secondSensorStatus, 2, mac2Live);
+            }
+            else
+            {
+                sensorStatus.state = sessionError || running && !fresh ? KChip.State.Trouble : fresh ? KChip.State.Good : KChip.State.Live;
+                sensorStatus.text = useCameraPose ? (fresh ? "Camera connected" : "Connecting camera…")
+                    : fresh ? "AirPod connected" : "Connecting AirPod…";
+            }
             // The crown: the count (it punches when it goes up), the run of reps made well, and the best hold. The
             // angle itself is the band's to show, and the hold in progress and the pace are the reticle's.
             if (repCount != null)
