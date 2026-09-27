@@ -1,10 +1,14 @@
 MiiHab is an AI-powered social rehabilitation platform for patients recovering from injuries. 
-Through motion-controlled games in a shared virtual environment, patients can exercise and work 
-toward recovery goals.
+Through motion-controlled games in a shared virtual environment, patients can exercise together
+and work toward recovery goals.
 
-MiiHab strengthens human connection by allowing patients to exercise together, celebrate milestones, 
-and build friendships with others on similar recovery journeys. It transforms an often isolating recovery 
-process into a connected, supportive experience.
+MiiHab strengthens human connection by helping patients build friendships with others on similar 
+recovery journeys. Patients can exercise together, celebrate milestones, and stay connected through 
+AI-generated conversation recaps, suggested replies, and personalized check-ins. Milestone cards can 
+also be shared through Facebook or Messenger, transforming an often isolating recovery process into
+a supportive social experience.
 
-AI provides personalized movement feedback and matches patients with compatible rehabilitation buddies
-based on shared goals and progress, making rehabilitation more adaptive, engaging, and social.
+AI provides personalized movement feedback and matches patients with compatible rehabilitation buddies 
+based on shared goals and progress. Powered by Meta's Muse Spark through the Meta Model API, MiiHab
+generates personalized social interactions that help patients maintain friendships between rehabilitation 
+sessions, making recovery more adaptive, engaging, and connected.
