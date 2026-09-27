@@ -6,10 +6,10 @@ namespace Kinesthetic.Rehab
 {
     /// <summary>
     /// The biceps curl's path, standing where the mirror window stands for every other movement (ahead and to the
-    /// left, turned 30° so the path's depth reads): the ideal arc (upper arm still, wrist on a circle about the
+    /// left, a little nearer, turned 30° so the path's depth reads): the ideal arc (upper arm still, wrist on a circle about the
     /// elbow), the wrist's trail for the rep being made, the last few reps fading behind it in the colour of how well
-    /// they went, the arm as it is right now, and how good the last rep and the set were. It never counts reps: the
-    /// studio's own counter is the one count.
+    /// they went, the arm as it is right now, and how good the last rep was. It never counts reps: the studio's own
+    /// counter is the one count.
     ///
     /// The coordinator sends it ten times a second; between those, the arm and the trail's tip glide toward the
     /// newest reading every frame, so it moves at the display's rate, not the network's.
@@ -29,8 +29,8 @@ namespace Kinesthetic.Rehab
         public IRehabView view;
         [Tooltip("How big the model arm is drawn against a real one: about the mirror window's size at its distance.")]
         public float scale = 1.25f;
-        [Tooltip("Where the plate's centre stands, from the patient's hips: to their left and forward — the mirror's place (metres).")]
-        public float offsetLeft = 1.6f, offsetForward = 2.2f;
+        [Tooltip("Where the plate's centre stands, from the patient's hips: to their left and forward — a little nearer than the mirror (metres).")]
+        public float offsetLeft = 1.3f, offsetForward = 1.8f;
         [Tooltip("Degrees the plate is turned from facing the patient, so the path's depth reads.")]
         public float turnDeg = 30;
         [Tooltip("How quickly the drawn arm catches up with the newest reading (per second).")]
@@ -44,7 +44,7 @@ namespace Kinesthetic.Rehab
         LineRenderer ideal, live, upperArm, forearm;
         readonly List<LineRenderer> recent = new();
         Transform shoulderJoint, elbowJoint, wristJoint;
-        TextMesh title, repLine, detailLine, setLine;
+        TextMesh title, repLine, detailLine;
         string placedFor;   // the side it was placed for; it is placed once, not every frame
         // What the newest reading says, and what is drawn on the way to it.
         Vector3 elbowTarget, wristTarget, elbowShown, wristShown;
@@ -116,9 +116,6 @@ namespace Kinesthetic.Rehab
             string state = (string)calibration?["state"];
             if (state == "reach") { ShowReach(calibration, p["meta"] as JObject); return; }
             title.text = "YOUR CURL PATH";
-            string armNote = state == "measured"
-                ? $"Arm measured · upper arm {Cm(calibration["upperArmM"])} cm · forearm {Cm(calibration["forearmM"])} cm"
-                : state == "average" ? "Average arm · " + (string)calibration["instruction"] : "";
 
             Line(ideal, Points(p["ideal"]));
             liveTarget.Clear(); liveTarget.AddRange(Points(p["live"]));
@@ -150,15 +147,17 @@ namespace Kinesthetic.Rehab
             if (lastRep != null)
             {
                 float score = (float?)lastRep["score"] ?? 0;
-                repLine.text = $"Last rep  {score:0}  {Word(score)}";
+                repLine.text = $"Last rep: {score:0}%\n{Word(score)}";
                 repLine.color = Verdict(score);
                 detailLine.text = $"Path {(float?)lastRep["pathAccuracy"]:0}%   Smooth {(float?)lastRep["smoothness"]:0}%   Elbow drift {(float?)lastRep["elbowDriftDeg"]:0}°";
             }
-            else { repLine.text = "Curl when you're ready"; repLine.color = Palette.Sand00; detailLine.text = "Follow the dotted arc"; }
+            // Before the first rep: what the measuring swing found (or why an average arm stands in), then the curl.
+            else
+            {
+                repLine.text = "Curl when you're ready"; repLine.color = Palette.Sand00;
+                detailLine.text = Wrap((string)calibration?["instruction"] ?? "Follow the dotted arc", 52);
+            }
 
-            string setText = p["set"] is JObject set
-                ? $"Set quality {(float?)set["score"]:0}  ·  path {(float?)set["pathAccuracy"]:0}%  ·  smooth {(float?)set["smoothness"]:0}%" : "";
-            setLine.text = Wrap(armNote, 58) + (setText.Length > 0 ? "\n" + setText : "");
         }
 
         /// The measuring swing: its instruction, and the arc a straight arm sweeps from hanging to overhead.
@@ -175,10 +174,7 @@ namespace Kinesthetic.Rehab
             title.text = "MEASURE YOUR ARM";
             repLine.text = "Arm straight · up and down"; repLine.color = Palette.Cerulean40;
             detailLine.text = Wrap((string)calibration?["instruction"] ?? "", 52);
-            setLine.text = "";
         }
-
-        static string Cm(JToken metres) => Mathf.RoundToInt(((float?)metres ?? 0) * 100).ToString();
 
         /// TextMesh does not wrap: break at spaces so a line stays on the plate.
         static string Wrap(string text, int width)
@@ -210,8 +206,8 @@ namespace Kinesthetic.Rehab
             var plate = GameObject.CreatePrimitive(PrimitiveType.Quad);
             plate.name = "Plate"; Destroy(plate.GetComponent<Collider>());
             plate.transform.SetParent(root, false);
-            plate.transform.localPosition = new Vector3(.2f * scale, -.28f * scale, .02f);
-            plate.transform.localScale = new Vector3(.74f * scale, 1.12f * scale, 1);
+            plate.transform.localPosition = new Vector3(.2f * scale, -.18f * scale, .02f);
+            plate.transform.localScale = new Vector3(.74f * scale, .96f * scale, 1);
             plate.GetComponent<Renderer>().sharedMaterial = Unlit(Palette.PanelDark.At(.55f));
             plate.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
@@ -228,10 +224,9 @@ namespace Kinesthetic.Rehab
             elbowJoint.gameObject.SetActive(false); wristJoint.gameObject.SetActive(false);
             upperArm.enabled = forearm.enabled = false;
 
-            title = Text("Title", "YOUR CURL PATH", .007f, Palette.Sand30, new Vector3(-.13f, .22f, 0), 48);
-            repLine = Text("Rep", "", .011f, Palette.Sand00, new Vector3(-.13f, .15f, 0), 64);
-            detailLine = Text("Detail", "", .0065f, Palette.InkOnDark, new Vector3(-.13f, .1f, 0), 48);
-            setLine = Text("Set", "", .0065f, Palette.Sand30, new Vector3(-.13f, -.8f, 0), 48);
+            title = Text("Title", "YOUR CURL PATH", .007f, Palette.Sand30, new Vector3(-.13f, .25f, 0), 48);
+            repLine = Text("Rep", "", .011f, Palette.Sand00, new Vector3(-.13f, .1f, 0), 64);   // two lines, growing up
+            detailLine = Text("Detail", "", .0065f, Palette.InkOnDark, new Vector3(-.13f, .06f, 0), 48);
         }
 
         void Grid(Vector3 a, Vector3 b)
@@ -310,8 +305,8 @@ namespace Kinesthetic.Rehab
             var eye = hip + Vector3.up * .8f;
             var toEye = eye - centre; toEye.y = 0;
             var facing = Quaternion.LookRotation(-toEye.normalized, Vector3.up) * Quaternion.Euler(0, turnDeg, 0);
-            // The plate's centre sits at (.2, -.28) of the model's shoulder, in model units.
-            root.SetPositionAndRotation(centre - facing * new Vector3(.2f * scale, -.28f * scale, 0), facing);
+            // The plate's centre sits at (.2, -.18) of the model's shoulder, in model units.
+            root.SetPositionAndRotation(centre - facing * new Vector3(.2f * scale, -.18f * scale, 0), facing);
         }
     }
 }
