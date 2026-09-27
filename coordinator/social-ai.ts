@@ -3,6 +3,9 @@
 //   · which friend deserves the spotlight today
 //   · one plain line per friend — "returned after three days"
 //   · a recap of a thread you have not read in a while
+//   · a first draft of what you might say back, for you to change or send
+//   · the warm line on an introduction card, from the goals two people share
+//   · the words on a milestone you choose to share with your friends
 //
 // Every entry point is best-effort and returns null on any failure — no key, no
 // network, a refusal, a malformed reply. Callers keep the pre-AI behaviour as
@@ -19,7 +22,10 @@
 // tool uses, and its reply is read back through the same toolInput(), so every entry point and normaliser is
 // provider-blind.
 //
-// The model narrates; it never speaks as a person. A line here is the app
+// The model narrates; it never speaks as a person — with one exception that is
+// the patient's own choice: a draft reply or a milestone is written in their
+// voice, lands in their composer or on their card, and goes nowhere until they
+// press send. The model never messages anyone. A line here is the app
 // saying "returned after three days", never Maya saying anything. FriendsPanel
 // still quotes real messages verbatim and this never overwrites one.
 import Anthropic from '@anthropic-ai/sdk';
@@ -313,6 +319,160 @@ export async function recap(otherName: string, messages: RecapMessage[]): Promis
     return value;
   } catch (error) {
     warn('recap', error);
+    return null;
+  }
+}
+
+const SYSTEM_DRAFT =
+  'You suggest a first draft of a short message from one person recovering from injury ' +
+  'or illness to a friend who is also recovering. The sender reads it, may change it, and ' +
+  'decides whether to send it.\n\n' +
+  'Rules:\n' +
+  '- Written as the sender, first person, casual and warm. One or two short sentences, ' +
+  'under 20 words.\n' +
+  '- If the friend said something recently, answer that. Otherwise say hello using only ' +
+  'the day counts given ("good to see you back").\n' +
+  '- Never claim anything about the sender that the thread does not say: no "I did my ' +
+  'exercises", no feelings they did not express.\n' +
+  '- Never mention measurements, progress, diagnosis or anything clinical, and never give ' +
+  'advice. No emoji, no hashtags, no quotation marks.';
+
+const DRAFT_TOOL = {
+  name: 'draft',
+  description: 'Draft the message.',
+  strict: true,
+  input_schema: {
+    type: 'object',
+    properties: { draft: { type: 'string' } },
+    required: ['draft'],
+    additionalProperties: false,
+  },
+} as const;
+
+export interface DraftFacts {
+  daysSinceTheyWrote: number | null;
+  daysSinceIWrote: number | null;
+  quietDaysBeforeTheyReturned: number | null;
+}
+
+/**
+ * A first draft of what to say to one friend. It is only ever put in the
+ * sender's own composer; null on any failure, and the composer stays empty.
+ */
+export async function draft(otherName: string, messages: RecapMessage[], facts: DraftFacts): Promise<string | null> {
+  if (!available()) return null;
+  const key = 'draft:' + otherName + ':' + messages.length + ':' + (messages.at(-1)?.at ?? '') + JSON.stringify(facts);
+  const hit = cached<string>(key);
+  if (hit !== undefined) return hit;
+  try {
+    const recent = messages.slice(-8).map(m => ({
+      who: m.fromMe ? 'you' : otherName, said: m.kind ?? m.text, sentPhoto: m.photo === true, at: m.at,
+    }));
+    const response = await call(SYSTEM_DRAFT, DRAFT_TOOL, { to: otherName, ...facts, messages: recent }, 400);
+    const input = toolInput(response, 'draft');
+    if (!input || typeof input.draft !== 'string') return null;
+    const value = input.draft.trim().replace(/^["“]|["”]$/g, '').slice(0, 240);
+    if (!value) return null;
+    cache.set(key, { at: Date.now(), value });
+    return value;
+  } catch (error) {
+    warn('draft', error);
+    return null;
+  }
+}
+
+const SYSTEM_INTRO =
+  'A rehabilitation app is offering to introduce two patients who have never met. Neither ' +
+  'knows who the other is yet. Write the one line under the heading of the card, telling ' +
+  'the reader why this stranger might be worth meeting.\n\n' +
+  'Rules:\n' +
+  '- Use only what they share: their goals, the movements they both practise, and how far ' +
+  'into a programme the other is. Nothing else is known.\n' +
+  '- Address the reader as "you" and the other person as "they". One sentence, under 22 ' +
+  'words, warm and plain.\n' +
+  '- No name, no age, no diagnosis, no measurements, no promises about recovery.\n' +
+  '- Do not repeat the heading, which the reader already sees.';
+
+const INTRO_TOOL = {
+  name: 'introduction',
+  description: 'Write the line for the introduction card.',
+  strict: true,
+  input_schema: {
+    type: 'object',
+    properties: { line: { type: 'string' } },
+    required: ['line'],
+    additionalProperties: false,
+  },
+} as const;
+
+export interface IntroFacts {
+  kind: 'peer' | 'mentor';
+  heading: string;                // matching.ts reason(), shown above this line
+  sharedGoals: string[];
+  sharedMovements: string[];
+  theirProgramWeek: number;
+  yourProgramWeek: number;
+}
+
+/** The warm line under an introduction's reason. Nothing identifying goes in, so nothing can come out. */
+export async function introLine(facts: IntroFacts): Promise<string | null> {
+  if (!available()) return null;
+  const key = 'intro:' + JSON.stringify(facts);
+  const hit = cached<string>(key);
+  if (hit !== undefined) return hit;
+  try {
+    const response = await call(SYSTEM_INTRO, INTRO_TOOL, facts, 300);
+    const input = toolInput(response, 'introduction');
+    if (!input || typeof input.line !== 'string') return null;
+    const value = input.line.trim().slice(0, 180);
+    if (!value) return null;
+    cache.set(key, { at: Date.now(), value });
+    return value;
+  } catch (error) {
+    warn('introduction', error);
+    return null;
+  }
+}
+
+const SYSTEM_MILESTONE =
+  'A patient in a rehabilitation programme reached a milestone of turning up, and may ' +
+  'choose to share it with their friends in the app, who are also recovering. Write the ' +
+  'words of the share, as the patient.\n\n' +
+  'Rules:\n' +
+  '- First person, one or two short sentences, under 22 words. Proud but not boastful.\n' +
+  '- State the milestone as given. You may tie it to their goal, in their own words, if ' +
+  'one is given.\n' +
+  '- Never mention measurements, degrees, pain, diagnosis or anything clinical. Never ' +
+  'invent history ("first time ever") the facts do not state. No emoji, no hashtags.';
+
+const MILESTONE_TOOL = {
+  name: 'milestone',
+  description: 'Write the share.',
+  strict: true,
+  input_schema: {
+    type: 'object',
+    properties: { line: { type: 'string' } },
+    required: ['line'],
+    additionalProperties: false,
+  },
+} as const;
+
+/** The words on a milestone card, in the patient's voice. Only sent if they press share. */
+export async function milestoneLine(facts: { milestone: string; goal: string | null; programDay: number }): Promise<string | null> {
+  if (!available()) return null;
+  const key = 'milestone:' + JSON.stringify(facts);
+  const hit = cached<string>(key);
+  if (hit !== undefined) return hit;
+  try {
+    const response = await call(SYSTEM_MILESTONE, MILESTONE_TOOL, facts, 300);
+    const input = toolInput(response, 'milestone');
+    if (!input || typeof input.line !== 'string') return null;
+    const value = input.line.trim().replace(/^["“]|["”]$/g, '').slice(0, 200);
+    if (!value) return null;
+    cache.set(key, { at: Date.now(), value });
+    return value;
+  } catch (error) {
+    warn('milestone', error);
     return null;
   }
 }

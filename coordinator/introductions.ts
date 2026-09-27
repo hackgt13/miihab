@@ -50,6 +50,10 @@ export class LocalDirectory implements Directory {
     mkdirSync(dir, { recursive: true });
     this.file = resolve(dir, 'profiles.json');
   }
+  /// A first run has nobody to meet, so the Meet page would never show its one card. The server seeds a few
+  /// labelled strangers, the way friends.ts seeds sample friends: shape for the UI, never a real person. Only
+  /// when there is no directory at all, so a declined one stays declined.
+  seedSamples(): void { if (!existsSync(this.file)) this.write(SAMPLE_PROFILES); }
   async profiles(): Promise<Profile[]> {
     if (!existsSync(this.file)) return [];
     try { return JSON.parse(readFileSync(this.file, 'utf8')) as Profile[]; } catch { return []; }
@@ -59,6 +63,12 @@ export class LocalDirectory implements Directory {
     writeFileSync(this.file, JSON.stringify(profiles, null, 2));
   }
 }
+
+const SAMPLE_PROFILES: Profile[] = [
+  { personId: 'sample-jo', displayName: 'Jo', goalComponents: ['shoulder elevation', 'grip'], exerciseKinds: ['arm-elevation.v1'], ageBand: null, programWeek: 3 },
+  { personId: 'sample-dev', displayName: 'Dev', goalComponents: ['shoulder elevation', 'elbow flexion'], exerciseKinds: ['arm-elevation.v1'], ageBand: null, programWeek: 9 },
+  { personId: 'sample-rosa', displayName: 'Rosa', goalComponents: ['grip'], exerciseKinds: [], ageBand: null, programWeek: 1 },
+];
 
 const pairKey = (a: string, b: string) => [a, b].sort().join('--');
 

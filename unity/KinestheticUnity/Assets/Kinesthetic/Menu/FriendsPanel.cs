@@ -45,6 +45,7 @@ namespace Kinesthetic.Menu
         /// falls back to what the panel did before.
         [Serializable] class SpotlightInfo { public string choose; public ActivityLine[] activity; }
         [Serializable] class Recap { public string recap; }
+        [Serializable] class Draft { public string draft; }
 #pragma warning restore 0649
 
         static VisualElement Face(int variant, string cssClass)
@@ -67,8 +68,12 @@ namespace Kinesthetic.Menu
         string selectedId;
         string pendingPhotoId;
         string spotlightId;
+        /// A first draft of what to say to the spotlit friend, written by Muse while the menu is up so the press
+        /// that opens the thread already has it. It only ever lands in this person's own composer.
+        string draftFor, draftText;
         SpotlightInfo insight;
         IntroductionsCard introductions;
+        MilestoneCard milestone;
         VisualElement pageMessages, pageMeet, profileCard, profileFace, profileStats, profileDays, threadHead;
         Button tabMessages, tabMeet;
 
@@ -123,7 +128,7 @@ namespace Kinesthetic.Menu
             sendButton.clicked += () => StartCoroutine(Send(null));
             photoButton.clicked += () => StartCoroutine(AttachPhoto());
             if (spotlightReply != null)
-                spotlightReply.clicked += () => { Open(); if (spotlightId != null) SelectPerson(spotlightId); };
+                spotlightReply.clicked += () => { Open(); if (spotlightId != null) { SelectPerson(spotlightId); StartCoroutine(OfferDraft(spotlightId)); } };
             composer.RegisterCallback<KeyDownEvent>(e =>
             { if (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) { StartCoroutine(Send(null)); e.StopPropagation(); } });
             if (overlay != null)
@@ -139,6 +144,9 @@ namespace Kinesthetic.Menu
             var introMount = root.Q("introductions");
             if (introMount != null)
                 introductions = new IntroductionsCard(this, introMount, () => StartCoroutine(LoadRoster()), ShowMeetEmpty);
+            var milestoneMount = root.Q("milestone");
+            if (milestoneMount != null)
+                milestone = new MilestoneCard(this, milestoneMount, () => StartCoroutine(LoadRoster()));
             StartCoroutine(LoadRoster());
         }
 
@@ -314,6 +322,7 @@ namespace Kinesthetic.Menu
             StartCoroutine(LoadInsight());
             // After the roster, so anyone already a friend is excluded from it.
             introductions?.Refresh();
+            milestone?.Refresh();
         }
 
         /// Asks the coordinator who deserves the spotlight and what each person has
@@ -567,8 +576,33 @@ namespace Kinesthetic.Menu
             StartCoroutine(FillSpotlightLine(chosen));
         }
 
+        IEnumerator FetchDraft(string id)
+        {
+            using var request = UnityWebRequest.Get(Bridge + "/api/friends/draft?id=" + UnityWebRequest.EscapeURL(id));
+            request.timeout = 15;
+            yield return request.SendWebRequest();
+            if (request.result != UnityWebRequest.Result.Success) yield break;
+            var body = JsonUtility.FromJson<Draft>(request.downloadHandler.text);
+            if (body == null || string.IsNullOrEmpty(body.draft)) yield break;
+            draftFor = id; draftText = body.draft;
+        }
+
+        /// Puts the draft in the composer, selected, so one press sends it and any key replaces it. Never over
+        /// something the person already started typing, and never sent from here.
+        IEnumerator OfferDraft(string id)
+        {
+            if (draftFor != id) yield return FetchDraft(id);
+            if (draftFor != id || selectedId != id || composer == null) yield break;
+            if (!string.IsNullOrWhiteSpace(composer.value)) yield break;
+            composer.value = draftText;
+            composer.Focus();
+            composer.SelectAll();
+        }
+
         IEnumerator FillSpotlightLine(Person person)
         {
+            // Asked each time the spotlight paints; the coordinator caches on the thread's tail, so it is new only when the thread is.
+            StartCoroutine(FetchDraft(person.id));
             // Narration, not speech: "returned after three days" is the app talking.
             // A message they actually sent replaces it verbatim below.
             var activity = ActivityFor(person.id);

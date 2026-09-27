@@ -499,6 +499,17 @@ Button.activity-card.gallery-card.row-middle { margin-left: 2%; margin-right: 2%
 .introduction-actions { flex-direction: row; justify-content: flex-end; margin-top: 12px; }
 .introduction-actions > Button { margin-left: 8px; }
 .introduction-card.hidden { display: none; }
+.introduction-warm { margin-top: 6px; }
+
+/* ---- Milestone, above the friends list -----------------------------------
+   Layout only, like the introduction card: the look is the components'. */
+.milestone { flex-shrink: 0; }
+.milestone-card { margin-bottom: 12px; }
+.milestone-card.hidden { display: none; }
+.milestone-head { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.milestone-actions { flex-direction: row; justify-content: flex-end; margin-top: 10px; }
+.milestone-actions > Button { margin-left: 8px; }
+.introduction-warm.hidden { display: none; }
 
 /* ---- Friends, two pages ---------------------------------------------------
    Layout only: the tabs are KButtons and carry their own look through a tone,

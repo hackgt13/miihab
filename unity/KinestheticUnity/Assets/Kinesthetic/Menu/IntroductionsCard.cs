@@ -30,7 +30,7 @@ namespace Kinesthetic.Menu
         const string Bridge = "http://127.0.0.1:8766";
 
 #pragma warning disable 0649
-        [Serializable] class Introduction { public string id, kind, reason; public bool waitingOnThem; }
+        [Serializable] class Introduction { public string id, kind, reason, warm; public bool waitingOnThem; }
         [Serializable] class Feed { public Introduction[] introductions; }
         [Serializable] class Answered { public bool joined; }
 #pragma warning restore 0649
@@ -44,7 +44,7 @@ namespace Kinesthetic.Menu
 
         KSurface card;
         KTag kind;
-        KText reason;
+        KText reason, warm;
         KButton yes, no;
         Introduction showing;
 
@@ -68,6 +68,11 @@ namespace Kinesthetic.Menu
             kind = new KTag { tone = KTag.Tone.Info };
             reason = new KText { size = KText.Size.Heading, tone = KText.Tone.Ink };
             reason.style.whiteSpace = WhiteSpace.Normal;
+            // Why this stranger might be worth meeting, in a sentence Muse writes from the goals the two share and
+            // nothing else. Absent when no model answered, and the reason above still stands on its own.
+            warm = new KText { size = KText.Size.Body, tone = KText.Tone.Soft };
+            warm.style.whiteSpace = WhiteSpace.Normal;
+            warm.AddToClassList("introduction-warm");
 
             var eyebrow = new KEyebrow { text = "SOMEONE LIKE YOU" };
 
@@ -81,7 +86,7 @@ namespace Kinesthetic.Menu
             head.AddToClassList("introduction-head");
             head.Add(eyebrow); head.Add(kind);
 
-            card.Add(head); card.Add(reason); card.Add(actions);
+            card.Add(head); card.Add(reason); card.Add(warm); card.Add(actions);
             mount.Add(card);
         }
 
@@ -126,6 +131,8 @@ namespace Kinesthetic.Menu
             kind.text = next.kind == "mentor" ? "Further along" : "Same stage";
             kind.tone = next.kind == "mentor" ? KTag.Tone.Good : KTag.Tone.Info;
             reason.text = next.reason;
+            warm.text = next.warm ?? "";
+            warm.EnableInClassList("hidden", string.IsNullOrEmpty(next.warm));
             card.RemoveFromClassList("hidden");
         }
 

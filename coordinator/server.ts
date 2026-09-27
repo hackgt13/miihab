@@ -9,8 +9,9 @@ import { writeFile, readdir, readFile } from 'node:fs/promises';
 import { PlanStore, prescriptionForActivity } from './plans.ts';
 import { FriendStore } from './friends.ts';
 import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
-import { spotlight, recap, daysSince } from './social-ai.ts';
-import { weeksSince, type Profile, type FriendActivity } from './matching.ts';
+import { spotlight, recap, draft, introLine, milestoneLine, daysSince } from './social-ai.ts';
+import { MilestoneStore, milestoneFrom } from './milestones.ts';
+import { weeksSince, readable, type Profile, type FriendActivity } from './matching.ts';
 import { IntroductionStore, LocalDirectory } from './introductions.ts';
 import { GroupStore } from './groups.ts';
 import { hostMonotonicMs } from './hostclock.ts';
@@ -56,7 +57,9 @@ const therapist = therapistFromEnv();
 const introductions = new IntroductionStore(socialDir);
 // Local today. When a shared backend exists this is the only line that changes.
 const directory = new LocalDirectory(socialDir);
+directory.seedSamples();
 const groups = new GroupStore(socialDir);
+const milestones = new MilestoneStore(socialDir);
 
 /// This patient, as the matcher sees them: what they are working toward and
 /// what they practise. Never a measurement — see the note at the top of
@@ -215,6 +218,37 @@ async function readJson(request: import('node:http').IncomingMessage) {
   let body = ''; for await (const chunk of request) { body += chunk; if (body.length > 16384) throw Error('Body too large'); }
   return body ? JSON.parse(body) : {};
 }
+async function dashboard() {
+  const envelopes = await Promise.all((await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f))
+    .map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
+  return buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes});
+}
+
+/// A model line is a nicety on top of a card that already works, so it gets a budget rather than the card waiting on it.
+const within = <T,>(ms: number, work: Promise<T>) =>
+  Promise.race([work, new Promise<null>(done => setTimeout(() => done(null), ms).unref())]);
+
+/// Open introductions as the Meet card shows them. The warm line under the reason is written from what the two
+/// share and nothing else, the same facts reason() used, so the model has nothing identifying to leak. A line
+/// still being written past the budget lands in social-ai's cache for the next look; startup warms it first.
+async function introductionCards(kind: 'peer' | 'mentor', budgetMs: number) {
+  const me = friends.me().id, mine = myProfile();
+  await introductions.suggest(mine, directory, new Set(friends.list().map(p => p.id)), kind);
+  const profiles = await directory.profiles();
+  return Promise.all(introductions.open(me, kind).map(async i => {
+    const them = profiles.find(p => p.personId === (i.pair[0] === me ? i.pair[1] : i.pair[0]));
+    const heading = i.reasons[me] ?? '';
+    const warm = them && heading ? await within(budgetMs, introLine({
+      kind: i.kind, heading,
+      sharedGoals: mine.goalComponents.filter(g => them.goalComponents.includes(g)),
+      sharedMovements: mine.exerciseKinds.filter(k => them.exerciseKinds.includes(k)).map(readable),
+      theirProgramWeek: them.programWeek, yourProgramWeek: mine.programWeek,
+    })) : null;
+    // Deliberately no id, name or Mii for the other side.
+    return {id: i.id, kind: i.kind, reason: heading, warm: warm ?? '', waitingOnThem: i.answers[me] === 'yes'};
+  }));
+}
+
 async function readSummaries() {
   const files = (await readdir(recordings)).filter(f => /^exercise-.*\.summary\.json$/.test(f));
   return Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
@@ -374,10 +408,8 @@ const server = createServer(async (request, response) => {
       if (request.method === 'GET' && url.pathname === '/api/sensors') return json(200, sensorState() ?? {phase: 'idle'});
       if (request.method === 'GET' && url.pathname === '/api/golf-unlock') return json(200, golfUnlock(plans.active()));
       if (request.method === 'GET' && url.pathname === '/api/dashboard') {
-        const envelopes = await Promise.all((await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f))
-          .map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
         // With a plan change the patient has not seen yet, so the menu can say so before anything else.
-        return json(200, {...buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes}),
+        return json(200, {...await dashboard(),
           planUpdate: planUpdate({plans: plans.list(), notes: visit.list(), seen: visit.seen})});
       }
       // The therapist visit (Unity: Kinesthetic/Visit, coordinator/visit.ts): the whiteboard's program updates
@@ -470,16 +502,8 @@ const server = createServer(async (request, response) => {
         // nothing that identifies anyone; only a mutual yes exchanges names, and
         // from there it is the ordinary invite path.
         if (request.method === 'GET' && url.pathname === '/api/friends/introductions') {
-          const already = new Set(friends.list().map(p => p.id));
           const kind = url.searchParams.get('kind') === 'mentor' ? 'mentor' : 'peer';
-          await introductions.suggest(myProfile(), directory, already, kind);
-          return json(200, {
-            introductions: introductions.open(me, kind).map(i => ({
-              id: i.id, kind: i.kind, reason: i.reasons[me] ?? '',
-              // Deliberately no id, name or Mii for the other side.
-              waitingOnThem: i.answers[me] === 'yes',
-            })),
-          });
+          return json(200, {introductions: await introductionCards(kind, 3000)});
         }
         if (request.method === 'POST' && url.pathname === '/api/friends/introductions/answer') {
           const body = await readJson(request) as {id?: string; yes?: boolean};
@@ -572,6 +596,38 @@ const server = createServer(async (request, response) => {
               at: m.at,
             })));
           return json(200, {recap: line ?? ''});
+        }
+        // A first draft of a reply, for the patient's own composer. It is never sent from here.
+        if (request.method === 'GET' && url.pathname === '/api/friends/draft') {
+          const other = url.searchParams.get('id') ?? '';
+          if (!friends.has(other)) return json(404, {error:'Unknown person'});
+          const thread = messages.thread(me, other);
+          const fromThem = thread.filter(m => m.from === other);
+          const [previous, theirs] = [fromThem.at(-2), fromThem.at(-1)];
+          const line = await draft(friends.person(other)?.displayName ?? 'them',
+            thread.map(m => ({fromMe: m.from === me, kind: m.kind ? ENCOURAGEMENTS[m.kind] : null, text: m.text, photo: m.photoId != null, at: m.at})),
+            {daysSinceTheyWrote: daysSince(theirs?.at), daysSinceIWrote: daysSince([...thread].reverse().find(m => m.from === me)?.at),
+              quietDaysBeforeTheyReturned: theirs && previous ? Math.floor((Date.parse(theirs.at) - Date.parse(previous.at)) / 86400000) : null});
+          return json(200, {draft: line ?? ''});
+        }
+        // A milestone of turning up (milestones.ts), worded by the model in the patient's voice. It reaches
+        // friends only through answer with share: true, which is the patient pressing Share.
+        if (request.method === 'GET' && url.pathname === '/api/friends/milestone') {
+          const d = await dashboard(), found = milestoneFrom(d);
+          if (!found || milestones.answered(found.id) || friends.list().length === 0) return json(200, {id: '', fact: '', line: ''});
+          const line = await within(8000, milestoneLine({milestone: found.fact, goal: plans.active()?.goal?.text ?? null, programDay: d.programDay}));
+          const fact = found.fact[0].toUpperCase() + found.fact.slice(1);
+          return json(200, {id: found.id, fact, line: line || `${fact}.`});
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/milestone/answer') {
+          const body = await readJson(request) as {id?: string; share?: boolean; text?: string};
+          const found = milestoneFrom(await dashboard());
+          if (!found || found.id !== body.id) return json(409, {error:'That milestone is no longer current'});
+          if (milestones.answered(found.id)) return json(200, {sharedWith: 0});
+          let sharedWith = 0;
+          if (body.share) for (const p of friends.list()) { messages.send(me, p.id, {text: String(body.text ?? found.fact)}); sharedWith++; }
+          milestones.answer(found.id, body.share ? 'shared' : 'dismissed');
+          return json(200, {sharedWith});
         }
         return json(404, {error:'Not found'});
       }
@@ -796,6 +852,8 @@ sockets.on('connection', (ws, _request, role) => {
   ws.on('error', () => ws.close());
 });
 server.listen(port, '127.0.0.1', () => console.log(`Kinesthetic local pose bridge: http://localhost:${port}`));
+// Write the Meet card's lines before anyone opens it, so the first look is not the one that waits.
+for (const kind of ['peer', 'mentor'] as const) introductionCards(kind, Infinity).catch(() => {});
 // Shutdown must actually terminate (see golf-relay.ts): a peer that vanished without a closing handshake,
 // or the outgoing motion-relay socket, would otherwise keep the process alive.
 function shutdown() {

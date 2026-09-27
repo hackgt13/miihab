@@ -21,6 +21,7 @@
             <!-- Page one: who you know, and what you are saying to them. -->
             <ui:VisualElement name="page-messages" class="friends-body">
                 <ui:VisualElement class="friends-list-pane">
+                    <ui:VisualElement name="milestone" class="milestone" />
                     <ui:ScrollView name="friends-list" class="friends-list" />
                 </ui:VisualElement>
                 <ui:VisualElement class="thread-pane">
