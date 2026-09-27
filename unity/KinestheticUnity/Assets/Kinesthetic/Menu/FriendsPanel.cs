@@ -55,9 +55,11 @@ namespace Kinesthetic.Menu
             return face;
         }
 
-        VisualElement root, overlay, facesRow, list, threadView, threadFace;
+        VisualElement root, overlay, facesRow, list, threadView;
+        // Faces are KMiiFace elements rather than painted into plain ones, so the headset's replica draws them too.
+        KMiiFace threadFace, spotlightFace, profileFace;
         ScrollView threadScroll;
-        VisualElement spotlight, spotlightFace;
+        VisualElement spotlight;
         Label badge, threadName, threadHint, inviteCode, notice, spotlightName, spotlightLine;
         Button spotlightReply;
         Button openButton, closeButton, inviteButton, acceptButton, sendButton, photoButton;
@@ -74,7 +76,7 @@ namespace Kinesthetic.Menu
         SpotlightInfo insight;
         IntroductionsCard introductions;
         MilestoneCard milestone;
-        VisualElement pageMessages, pageMeet, profileCard, profileFace, profileStats, threadHead;
+        VisualElement pageMessages, pageMeet, profileCard, profileStats, threadHead;
         KDays profileDays;   // four weeks of turning up; a component, so the headset's replica draws it too
         Button tabMessages, tabMeet;
 
@@ -89,7 +91,7 @@ namespace Kinesthetic.Menu
             list = root.Q<ScrollView>("friends-list")?.contentContainer;
             threadScroll = root.Q<ScrollView>("thread");
             threadView = threadScroll?.contentContainer;
-            threadFace = root.Q("thread-face");
+            threadFace = root.Q<KMiiFace>("thread-face");
             threadName = root.Q<Label>("thread-name");
             inviteButton = root.Q<Button>("friends-invite");
             inviteCode = root.Q<Label>("invite-code");
@@ -98,7 +100,7 @@ namespace Kinesthetic.Menu
             notice = root.Q<Label>("friends-notice");
             threadHint = root.Q<Label>("thread-hint");
             spotlight = root.Q("friend-spotlight");
-            spotlightFace = root.Q("spotlight-face");
+            spotlightFace = root.Q<KMiiFace>("spotlight-face");
             spotlightName = root.Q<Label>("spotlight-name");
             spotlightLine = root.Q<Label>("spotlight-line");
             spotlightReply = root.Q<Button>("spotlight-reply");
@@ -108,7 +110,7 @@ namespace Kinesthetic.Menu
             tabMeet = root.Q<Button>("tab-meet");
             profileCard = root.Q("friend-profile");
             threadHead = root.Q(className: "thread-head");
-            profileFace = root.Q("profile-face");
+            profileFace = root.Q<KMiiFace>("profile-face");
             profileStats = root.Q("profile-stats");
             profileDays = root.Q<KDays>("profile-days");
             composer = root.Q<TextField>("composer-text");
@@ -199,7 +201,7 @@ namespace Kinesthetic.Menu
                 ? "Working toward " + string.Join(" and ", view.goalComponents)
                 : "";
 
-            KMiiFace.Paint(profileFace, view.person.mii, 40f);
+            if (profileFace != null) profileFace.variant = view.person.mii;
 
             profileStats.Clear();
             var note = root.Q<Label>("profile-note");
@@ -554,7 +556,7 @@ namespace Kinesthetic.Menu
             }
             spotlightId = chosen.id;
 
-            KMiiFace.Paint(spotlightFace, chosen.mii, 40f);
+            if (spotlightFace != null) spotlightFace.variant = chosen.mii;
 
             spotlightName.text = chosen.displayName + (chosen.sample ? " · sample friend" : "");
             spotlight.RemoveFromClassList("hidden");
@@ -637,7 +639,7 @@ namespace Kinesthetic.Menu
         void PaintThread(Thread thread)
         {
             threadName.text = thread.person.displayName;
-            KMiiFace.Paint(threadFace, thread.person.mii, 30f);
+            if (threadFace != null) threadFace.variant = thread.person.mii;
             threadView.Clear();
 
             if (threadHint != null)

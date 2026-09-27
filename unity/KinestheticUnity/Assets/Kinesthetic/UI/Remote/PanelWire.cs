@@ -260,6 +260,77 @@ namespace Kinesthetic.UI.Remote
                     if (F(a, "pitch", out float pitch)) l.pitch = pitch;
                     if (F(a, "fraction", out float fraction)) l.fraction = fraction;
                 }),
+            // The rest of the library. A type missing here falls back to its base type, and the fallback loses
+            // more than attributes: the replica's constructor is the base's, so the component's own sheet is
+            // never attached on the headset (KSheet as KSurface had no "gone" rule, and every briefing stayed up).
+            new Entry("KMiiFace", typeof(KMiiFace), () => new KMiiFace(), Children.None,
+                new[] { "variant" },
+                (e, a) => a["variant"] = ((KMiiFace)e).variant,
+                (e, a) => { if (I(a, "variant", out int variant)) ((KMiiFace)e).variant = variant; }),
+            new Entry("KMiiTag", typeof(KMiiTag), () => new KMiiTag(), Children.None,
+                new[] { "variant", "text" },
+                (e, a) => { var t = (KMiiTag)e; a["variant"] = t.variant; a["text"] = t.text ?? ""; },
+                (e, a) =>
+                {
+                    var t = (KMiiTag)e;
+                    if (I(a, "variant", out int variant)) t.variant = variant;
+                    if (S(a, "text", out var text)) t.text = text;
+                }),
+            // A pressable row the screen fills, like a Button full of labels.
+            new Entry("KOption", typeof(KOption), () => new KOption(), Children.ButtonContent,
+                new[] { "tone" },
+                (e, a) => a["tone"] = ((KOption)e).tone.ToString(),
+                (e, a) => { if (E(a, "tone", out KOption.Tone tone)) ((KOption)e).tone = tone; }),
+            // Presented or not is carried by its classes, which the wire already mirrors; the replica only
+            // has to be a KSheet so Sheet.uss is attached and those classes mean something.
+            new Entry("KSheet", typeof(KSheet), () => new KSheet(), Children.All,
+                new[] { "tone", "density", "entrance", "exit" },
+                (e, a) =>
+                {
+                    var s = (KSheet)e;
+                    a["tone"] = s.tone.ToString(); a["density"] = s.density.ToString();
+                    a["entrance"] = s.entrance.ToString(); a["exit"] = s.exit.ToString();
+                },
+                (e, a) =>
+                {
+                    var s = (KSheet)e;
+                    if (E(a, "tone", out KSurface.Tone tone)) s.tone = tone;
+                    if (E(a, "density", out KSurface.Density density)) s.density = density;
+                    if (E(a, "entrance", out KSheet.Entrance entrance)) s.entrance = entrance;
+                    if (E(a, "exit", out KSheet.Exit exit)) s.exit = exit;
+                }),
+            // Its content is its attributes; `Attachments` (a photo) is internal and does not cross.
+            new Entry("KMessage", typeof(KMessage), () => new KMessage(), Children.None,
+                new[] { "side", "author", "said", "text", "time" },
+                (e, a) =>
+                {
+                    var m = (KMessage)e;
+                    a["side"] = m.side.ToString(); a["author"] = m.author ?? ""; a["said"] = m.said ?? "";
+                    a["text"] = m.text ?? ""; a["time"] = m.time ?? "";
+                },
+                (e, a) =>
+                {
+                    var m = (KMessage)e;
+                    if (E(a, "side", out KMessage.Side side)) m.side = side;
+                    if (S(a, "author", out var author)) m.author = author;
+                    if (S(a, "said", out var said)) m.said = said;
+                    if (S(a, "text", out var text)) m.text = text;
+                    if (S(a, "time", out var time)) m.time = time;
+                }),
+            new Entry("KBubble", typeof(KBubble), () => new KBubble(), Children.All,
+                new[] { "tail" },
+                (e, a) => a["tail"] = ((KBubble)e).tail.ToString(),
+                (e, a) => { if (E(a, "tail", out KBubble.Tail tail)) ((KBubble)e).tail = tail; }),
+            // A TextField is not a TextElement, so its text is an attribute here. Typing stays on the Mac.
+            new Entry("KField", typeof(KField), () => new KField(), Children.None,
+                new[] { "placeholder", "value" },
+                (e, a) => { var f = (KField)e; a["placeholder"] = f.placeholder ?? ""; a["value"] = f.value ?? ""; },
+                (e, a) =>
+                {
+                    var f = (KField)e;
+                    if (S(a, "placeholder", out var placeholder)) f.placeholder = placeholder;
+                    if (S(a, "value", out var value)) f.SetValueWithoutNotify(value);
+                }),
             new Entry("KActivityIcon", typeof(KActivityIcon), () => new KActivityIcon(), Children.None,
                 new[] { "activity", "tag" },
                 (e, a) => { var i = (KActivityIcon)e; a["activity"] = i.activity ?? ""; a["tag"] = i.tag ?? ""; },

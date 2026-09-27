@@ -26,7 +26,7 @@
                 </ui:VisualElement>
                 <ui:VisualElement class="thread-pane">
                     <ui:VisualElement class="thread-head">
-                        <ui:VisualElement name="thread-face" class="thread-face" picking-mode="Ignore" />
+                        <k:KMiiFace name="thread-face" class="thread-face" />
                         <ui:Label name="thread-name" text="Pick someone to cheer on" class="thread-name" />
                         <ui:Label name="thread-hint" text="" class="thread-hint" />
                     </ui:VisualElement>
@@ -35,7 +35,7 @@
                          look at, then go back from. -->
                     <ui:VisualElement name="friend-profile" class="friend-profile hidden">
                         <ui:VisualElement class="profile-head">
-                            <ui:VisualElement name="profile-face" class="spotlight-face profile-face" picking-mode="Ignore" />
+                            <k:KMiiFace name="profile-face" class="spotlight-face profile-face" />
                             <ui:VisualElement class="profile-titles">
                                 <k:KText name="profile-name" text="" size="Heading" tone="Ink" />
                                 <k:KText name="profile-goal" text="" size="Caption" tone="Soft" />

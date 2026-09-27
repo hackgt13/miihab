@@ -41,14 +41,19 @@ with `clickable.SimulateSingleClick`, which runs the same `Clickable.Invoke` a p
 
 ## Not on the wire
 
+**A type outside the table.** Every `K*` component is in the vocabulary, and must stay there: a type that is
+not falls back to its base type, whose constructor never attaches the component's own sheet, so on the
+headset its classes mean nothing (`KSheet` as `KSurface` had no "gone" rule and every briefing stayed up).
+`KMessage.Attachments` is internal and does not cross.
+
 Pseudo-states (`:hover`, `:active`, `:focus`) — the headset draws its own hover from its own pick.
 `KSteps.activity`: it is a data source, and the `KStep` rows it produced are what crosses. Any style
 outside the inline subset; anything a stylesheet says is carried by the sheet's id instead.
 
 **Painters.** A `generateVisualContent` delegate a screen attaches to a plain element draws on the Mac
 and nothing crosses: the replica gets an empty box. Anything painted goes through a component whose
-readings are attributes — `KArc`, `KMeter`, `KReach`, `KDays`, `KLadder`, `KActivityIcon`, `KMiiFace` —
-and the replica paints it from those. The menu's charts were the first casualty: the reach fan, the
+readings are attributes — `KArc`, `KMeter`, `KReach`, `KDays`, `KLadder`, `KActivityIcon`, `KMiiFace`,
+`KBubble` — and the replica paints it from those. The menu's charts were the first casualty: the reach fan, the
 consistency grid and the program ring showed their numbers beside blank space on the headset.
 
 ## Unverified

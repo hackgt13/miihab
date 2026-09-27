@@ -35,6 +35,10 @@ public static class RemoteUiVerification
         "Assets/Kinesthetic/Menu/Coaching.uxml",
         "Assets/Kinesthetic/Menu/Gallery.uxml",
         "Assets/Kinesthetic/Menu/Friends.uxml",
+        "Assets/Kinesthetic/Menu/Resources/Menu/Group.uxml",
+        "Assets/Kinesthetic/Visit/VisitDock.uxml",
+        "Assets/Kinesthetic/Visit/VisitSpeech.uxml",
+        "Assets/Kinesthetic/Visit/VisitWhiteboard.uxml",
     };
 
     /// Stands in for the golf minimap: a live texture the registry cannot name, filled locally by name.
@@ -199,6 +203,13 @@ public static class RemoteUiVerification
         var days = root.Q<KDays>(); if (days != null) { days.levels = "0120400-"; days.today = 6; days.seed = 7; n++; }
         var ladder = root.Q<KLadder>(); if (ladder != null) { ladder.rungs = 11; ladder.pitch = .1f; ladder.fraction = .3f; n++; }
         var icon = root.Q<KActivityIcon>(); if (icon != null) { icon.activity = "rehab.studio"; icon.tag = "WRIST"; n++; }
+        var face = root.Q<KMiiFace>(); if (face != null) { face.variant = 4; n++; }
+        var miiTag = root.Q<KMiiTag>(); if (miiTag != null) { miiTag.variant = 2; miiTag.text = "June"; n++; }
+        var option = root.Q<KOption>(); if (option != null) { option.tone = KOption.Tone.Highlight; n++; }
+        var sheet = root.Q<KSheet>(); if (sheet != null) { sheet.entrance = KSheet.Entrance.Left; sheet.exit = KSheet.Exit.Below; sheet.RemoveFromClassList("k-sheet--gone"); n++; }
+        var message = root.Q<KMessage>(); if (message != null) { message.side = KMessage.Side.Theirs; message.said = "Nice one"; message.time = "9:41"; n++; }
+        var bubble = root.Q<KBubble>(); if (bubble != null) { bubble.tail = KBubble.Tail.Right; n++; }
+        var field = root.Q<KField>(); if (field != null) { field.placeholder = "Your name"; field.SetValueWithoutNotify("June"); n++; }
         var scroll = root.Q<ScrollView>(); if (scroll != null) { scroll.mode = ScrollViewMode.Horizontal; scroll.verticalScrollerVisibility = ScrollerVisibility.Hidden; n++; }
         var image = root.Q<Image>(); if (image != null) { image.image = Driver(); image.scaleMode = ScaleMode.ScaleToFit; n++; }
 
@@ -239,6 +250,12 @@ public static class RemoteUiVerification
         container.Add(new Image { name = "live-map", image = live, scaleMode = ScaleMode.StretchToFill, pickingMode = PickingMode.Ignore });
         // A gallery card's glyph and a program grid with its END label inside, as the menu builds them.
         container.Add(new KActivityIcon { name = "verify-icon", activity = "arm-elevation.v2", tag = "UPPER ARM · WRIST" });
+        var note = new KMessage { name = "verify-message", side = KMessage.Side.Mine, author = "Me", text = "See you at the lanes" };
+        note.Attachments.Add(new VisualElement { name = "verify-photo" });   // internal: must not cross, must not break the path
+        container.Add(note);
+        var card = new KSheet { name = "verify-sheet", entrance = KSheet.Entrance.Below };
+        card.Add(new KMiiTag { name = "verify-tag", variant = 1, text = "Ken" });
+        container.Add(card);
         var program = new KDays { name = "verify-program", form = KDays.Form.Program, levels = new string('2', 84), today = 20, seed = 3 };
         program.Add(new Label("END") { name = "verify-end" });
         container.Add(program);
@@ -271,6 +288,8 @@ public static class RemoteUiVerification
         root.Q("live-map").RemoveFromHierarchy();
         root.Q("verify-icon").RemoveFromHierarchy();
         root.Q<KDays>("verify-program").Q("verify-end").RemoveFromHierarchy();
+        root.Q("verify-message").RemoveFromHierarchy();
+        root.Q<KSheet>("verify-sheet").Q("verify-tag").RemoveFromHierarchy();
     }
 
     static VisualElement Container(VisualElement root)
