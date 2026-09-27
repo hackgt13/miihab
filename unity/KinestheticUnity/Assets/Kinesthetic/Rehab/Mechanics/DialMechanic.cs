@@ -11,7 +11,7 @@ namespace Kinesthetic.Rehab.Mechanics
     {
         // Nearer and larger than the reticle: at 0.8 m a 0.2 m needle is about three times the size the reticle's
         // elements are to the eye, with its pivot just off the centre line on the limb's side so the arc sweeps outward.
-        const float Distance = .8f, Below = -.02f, Aside = .12f;   // pivot a touch above the eyeline: the arc sweeps down from it and must clear the dock
+        const float Distance = .8f, Below = -.1f, Aside = .12f;    // pivot a touch above the eyeline: the arc sweeps down from it and must clear the dock
         const float Radius = .2f;
 
         Transform pivotDot, tip; LineRenderer needle, track, band, ceilingTick;
