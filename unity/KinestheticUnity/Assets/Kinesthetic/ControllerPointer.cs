@@ -7,17 +7,13 @@ using UnityEngine.UIElements;
 
 namespace Kinesthetic
 {
-    /// The Quest's Touch controllers, as pointers for GazeDwell.
+    /// The Quest's Touch controllers, the headset's only way to press a board. Point one and pull the trigger
+    /// (or A/X): whatever the beam is on is pressed. GazeDwell resolves the beam to a button on its board and
+    /// reports one name through Committed, and PressGate still turns it into one action.
     ///
-    /// A dwell alone asks a lot of a head: hold still on a small target for a second, and never rest your eyes
-    /// on something you did not mean. So a controller adds two roads to the same press. Point it and pull the
-    /// trigger, and whatever the beam is on is pressed at once. Or leave it in your lap, look at a button and
-    /// pull — the gaze target is pressed without waiting out the ring. Either way GazeDwell still reports one
-    /// name through Committed, and PressGate still turns it into one action.
-    ///
-    /// One instance per scene, made by the first GazeDwell that wants it, so every board reads the same rays
-    /// and there is one beam per hand however many boards are standing. It runs before GazeDwell so a board
-    /// always sees this frame's rays.
+    /// One instance, made by the first board that wants it and kept across scene loads, so every board reads
+    /// the same rays and there is one beam per hand however many boards are standing. It runs before
+    /// GazeDwell so a board always sees this frame's rays.
     ///
     /// Controls are found by name rather than through the OpenXR profile's types, so any controller that
     /// exposes an aim pose and a trigger works, and the Mac — which has no XRController at all — is untouched.
@@ -75,28 +71,6 @@ namespace Kinesthetic
                 return button;
             }
             return null;
-        }
-
-        /// Some tracked controller's beam is on a pane. The head then stops dwelling anywhere, so looking at
-        /// one board while pointing at another never presses the one you are only looking at.
-        public static bool Pointing
-        {
-            get
-            {
-                foreach (var p in Pointers) if (p.tracked && p.onPane) return true;
-                return false;
-            }
-        }
-
-        /// A trigger went down on a controller that is not pointing at any pane: the head chooses, the hand
-        /// confirms. An untracked controller counts too — someone holding it still in their lap.
-        public static bool PulledAtNothing
-        {
-            get
-            {
-                foreach (var p in Pointers) if (p.pulled && (!p.tracked || !p.onPane)) return true;
-                return false;
-            }
         }
 
         void LateUpdate()
