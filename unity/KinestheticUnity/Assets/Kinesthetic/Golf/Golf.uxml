@@ -55,15 +55,15 @@
                     <ui:Label text="Aim. Swing gently. Take turns." class="sheet-copy" />
                     <ui:VisualElement name="setup-camera" class="setup-step">
                         <ui:Label text="1" class="step-badge" />
-                        <ui:VisualElement class="step-copy"><ui:Label text="Get in view" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
+                        <ui:VisualElement class="step-copy"><ui:Label text="Pick up your club" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="setup-motion" class="setup-step">
                         <ui:Label text="2" class="step-badge" />
-                        <ui:VisualElement class="step-copy"><ui:Label text="Pick up your club" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
+                        <ui:VisualElement class="step-copy"><ui:Label text="Hold still" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="setup-calibration" class="setup-step">
                         <ui:Label text="3" class="step-badge" />
-                        <ui:VisualElement class="step-copy"><ui:Label text="Hold still" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
+                        <ui:VisualElement class="step-copy"><ui:Label text="Swing through the ball" class="step-heading" /><ui:Label text="" class="step-state" /></ui:VisualElement>
                     </ui:VisualElement>
                     <ui:Label name="setup-status" text="Connecting…" class="setup-status" />
                     <ui:VisualElement class="sheet-actions"><ui:Button name="setup-retry" text="Try again" class="hidden" /><ui:Button name="setup-close" text="Got it" class="hidden" /></ui:VisualElement>

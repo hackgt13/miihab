@@ -43,8 +43,9 @@ namespace Kinesthetic.Golf
         bool roundReported;
         int poseReconnectsAtRoundStart;
         int PoseLossEvents => (SensorHub.Instance?.PoseReconnects ?? 0) - poseReconnectsAtRoundStart;
-        public bool PoseReady => LivePoseClient.Fresh(poseTicks) &&
-            (rigs[activePlayer].RightArmTracked || rigs[activePlayer].LeftArmTracked);
+        // The camera is not part of golf any more: the club is the AirPod, held from the hip, and a swing that goes
+        // through the ball hits it. A live camera still animates the arms when there is one; nothing waits on it.
+        public bool PoseReady => true;
         public Vector3 HudAim => AimDirection();
         public Vector3 GetLie(int index) => lies[index];
         public float HudPower => Phase=="Address" ? (IMUReady && swing.Calibrated ? SwingPower(new Vector3(latest.rotationRate[0],latest.rotationRate[1],latest.rotationRate[2]).magnitude)*PowerCap : 0) : lastShotPower;
@@ -69,10 +70,11 @@ namespace Kinesthetic.Golf
         }
         float lastShotPower;
         static double Now=>System.Diagnostics.Stopwatch.GetTimestamp()/(double)System.Diagnostics.Stopwatch.Frequency;
-        // Recorded AirPod swings peak around 10-16 rad/s, so the old 7 rad/s ceiling made nearly every swing full power.
-        // A full driver (25 m/s) stops about 5 m from the cup on this hole; 26 m/s and faster left the course (measured with developer shots).
-        const float MinSwingRadPerSec=2f, FullSwingRadPerSec=16f;
-        public static float SwingPower(float radPerSec)=>Mathf.InverseLerp(MinSwingRadPerSec,FullSwingRadPerSec,radPerSec);
+        // Forgiving on purpose: a gentle rehab swing (4-6 rad/s) already sends the ball a good way, a firm one (9 rad/s)
+        // is a full drive, and any swing that goes through the ball moves it at least a little. A full driver (25 m/s)
+        // stops about 5 m from the cup on this hole.
+        const float MinSwingRadPerSec=1f, FullSwingRadPerSec=9f, PowerFloor=.3f;
+        public static float SwingPower(float radPerSec)=>Mathf.Lerp(PowerFloor,1,Mathf.InverseLerp(MinSwingRadPerSec,FullSwingRadPerSec,radPerSec));
         GolfHud hud;
         GolfScreens screens;
         public bool CaptureRequested => captureRequested;
@@ -86,7 +88,7 @@ namespace Kinesthetic.Golf
         readonly VirtualClubStrike strikeZone = new();
         bool pendingSpatial;
         float pendingSpeed;
-        public bool StrikePoseReady=>PoseReady && rigs[activePlayer].LeftArmTracked && rigs[activePlayer].RightArmTracked;
+        public bool StrikePoseReady=>true;
         Vector3 Grip(int player)=>rigs[player].GolfGripCenter; // same point the rendered club attaches to
         AudioSource hitAudio;
         AudioClip hitClip;
@@ -112,9 +114,23 @@ namespace Kinesthetic.Golf
         bool captureRequested, startingCapture;
         float readySince=-1, advanceAt=-1;
         string captureStatus="Connecting…";
-        [Serializable] class CaptureHealth { public string captureStatus; public bool sourceConnected; public float frameAgeMs; }
 
         string logPath;
+
+        // Solo, the friend has no AirPods of their own (AGENTS.md: a second person's pair only exists in a group), so
+        // they take their own shot after a moment instead of leaving the round waiting on a turn nobody can play.
+        const float CompanionWaitSeconds=2.5f, GimmeMetres=2.2f;
+        float turnStartedAt, friendMotionAt=-99;
+        bool friendLive => Time.unscaledTime-friendMotionAt<2;
+        void CompanionTurn()
+        {
+            if(activePlayer!=1 || Phase!="Address" || friendLive || InterfaceOpen) return;
+            if(Time.unscaledTime-turnStartedAt<CompanionWaitSeconds) return;
+            float distance=Vector3.ProjectOnPlane(cup.position-ball.position,Vector3.up).magnitude;
+            // Roughly the stroke a steady friend would pick: most of the way there, a little short or long.
+            float power=Mathf.Clamp01(clubIndex==2?distance/12f:distance/110f)*UnityEngine.Random.Range(.85f,1.1f);
+            Launch(Mathf.Max(.15f,power),"companion",0);
+        }
 
         void Start()
         {
@@ -183,18 +199,17 @@ namespace Kinesthetic.Golf
         public void Calibrate()
         {
             if(Phase!="Address")return;
-            if(!StrikePoseReady) {Message="Keep both wrists and elbows visible, then hold the club at the mat.";return;}
-            if(!IMUReady) {Message="Pair your AirPods to this Mac and mount the reporting AirPod on the club.";return;}
-            if(stationarySince<0 || Time.unscaledTime-stationarySince<.6f) {Message="Hold the club still at the mat for a moment.";return;}
+            if(!IMUReady) {Message="Put your AirPods on the club.";return;}
+            if(stationarySince<0 || Time.unscaledTime-stationarySince<.4f) {Message="Hold the club still for a moment.";return;}
             ResetSwing();
-            rigs[activePlayer].CalibrateCamera(poseFrame);
-            rigs[activePlayer].Apply(poseFrame);rigs[activePlayer].ApplyGolfIdle();
+            if(poseFrame!=null && LivePoseClient.Fresh(poseTicks)) rigs[activePlayer].CalibrateCamera(poseFrame);
+            rigs[activePlayer].Apply(LivePoseClient.Fresh(poseTicks)?poseFrame:null);rigs[activePlayer].ApplyGolfIdle();
             clubPresentation[activePlayer].FitAtAddress(ball.position-AimDirection()*.09f);
             var rotation=clubPresentation[activePlayer].AddressRotation;
             strikeZone.Calibrate(ball.position,rotation,lastAttitude,clubPresentation[activePlayer].ScaledShaft,.12f);
             strikeZone.Sample(Grip(activePlayer),lastAttitude,imuTicks/(double)System.Diagnostics.Stopwatch.Frequency);
             swing.Calibrate(lastAttitude,latest.sourceId,latest.sensorTime);
-            Message="Calibrated. Make a controlled backswing, then return through address.";
+            Message="Ready. Swing back, then through the ball.";
         }
         public void BeginTurn(int index)
         {
@@ -219,7 +234,8 @@ namespace Kinesthetic.Golf
                 var clubTarget=i==index?ball.position:FloorPoint(players[i].position-players[i].forward*.7f)+Vector3.up*.055f;
                 clubPresentation[i]?.FitAtAddress(clubTarget-direction*.09f);
             }
-            Message=names[index]+"'s turn. Camera and AirPod connect automatically; hold the club still at the mat to calibrate.";
+            Message=names[index]+"'s turn. Hold the club still, then swing through the ball.";
+            turnStartedAt=Time.unscaledTime;
         }
         public void NextTurn()
         {
@@ -274,39 +290,28 @@ namespace Kinesthetic.Golf
             if(!BindUI())return;
             if(captureRequested) ReadPose();
             ReadMotion();
-            if(!PoseReady || !IMUReady)
-            {
-                if(swing.Calibrated) {ResetSwing();Message="Tracking paused. Return to address and recalibrate.";}
-            }
+            if(!IMUReady && swing.Calibrated && activePlayer==0) {ResetSwing();Message="AirPods paused. Hold the club still to pick up again.";}
             if(!LivePoseClient.Fresh(poseTicks))rigs[activePlayer].Apply(null);
-            if(!StrikePoseReady)
+            // The club went back and came through the ball: that is a hit. No camera, no mat, no virtual path to miss.
+            if(pendingSpatial && Phase=="Address" && !InterfaceOpen)
             {
-                strikeZone.BreakTrace();
-                if(pendingSpatial){ResetSwing();Message="Tracking interrupted. Return to address and recalibrate.";}
+                pendingSpatial=false;
+                Launch(SwingPower(pendingSpeed)*PowerCap,"airpod",pendingSpeed);
             }
-            if(InterfaceOpen) pendingSpatial=false;
-            // A qualified swing whose clubhead path crosses the virtual ball launches it; a path that misses does not.
-            if(pendingSpatial && Phase=="Address")
-            {
-                if(StrikePoseReady && IMUReady && strikeZone.CrossedNear(motionContactAt))
-                {
-                    pendingSpatial=false;
-                    Launch(SwingPower(pendingSpeed)*PowerCap,"airpod",pendingSpeed);
-                }
-                else if(Now-motionContactAt>.12)
-                {
-                    Log("virtual-miss","pose+airpod",pendingSpeed);Misses[activePlayer]++;
-                    ResetSwing();Message="Missed the virtual ball. Return to address and recalibrate.";
-                }
-            }
+            else pendingSpatial=false;
+            CompanionTurn();
             if(Phase=="Flight")
             {
                 if(ball.position.y<tee.position.y-45 || Time.time-shotAt>25)
                 {Strokes[activePlayer]++;ball.position=lastSafeLie;Settle("Ball returned to the last lie · one penalty stroke.");}
-                else if(Vector3.Distance(ball.position,cup.position)<.35f && ball.linearVelocity.magnitude<3f)
+                else if(Vector3.Distance(ball.position,cup.position)<.9f && ball.linearVelocity.magnitude<6f)
                 {ball.isKinematic=true;ball.position=cup.position;Finished[activePlayer]=true;Phase="Holed";Message="Holed out! "+Strokes[activePlayer]+" strokes.";foreach(var r in rigs)r.GetComponent<MiiIdleLife>()?.Surprise(2f);Log("holed");}
                 else if(Grounded() && ball.linearVelocity.magnitude<.18f)
-                {if(stillSince<0)stillSince=Time.time;if(Time.time-stillSince>.8f)Settle("Shot complete. Continue to the next player.");}
+                {if(stillSince<0)stillSince=Time.time;if(Time.time-stillSince>.8f){
+                    // A ball resting near the cup is a gimme: counted in with one more stroke, as friends play it.
+                    if(Vector3.ProjectOnPlane(cup.position-ball.position,Vector3.up).magnitude<GimmeMetres)
+                    {Strokes[activePlayer]++;ball.isKinematic=true;ball.position=cup.position;Finished[activePlayer]=true;Phase="Holed";Message="Close enough — that's in! "+Strokes[activePlayer]+" strokes.";foreach(var r in rigs)r.GetComponent<MiiIdleLife>()?.Surprise(2f);Log("holed");}
+                    else Settle("Shot complete. Continue to the next player.");}}
                 else stillSince=-1;
             }
             UpdateAutomaticSetup();
@@ -339,6 +344,7 @@ namespace Kinesthetic.Golf
                 try
                 {
                     var p=PoseJson.Read<ClubMotionPacket>(text);
+                    if(p?.playerId=="friend")friendMotionAt=Time.unscaledTime;
                     if(p?.playerId!=playerIds[activePlayer])continue;
                     if(p.type!="club.motion") {imuTicks=0;latest=null;ResetSwing();continue;}
                     if(!LivePoseClient.Fresh(ticks) || !Valid(p.quaternion,4) || !Valid(p.rotationRate,3) ||
@@ -353,9 +359,7 @@ namespace Kinesthetic.Golf
                     latest=p;imuSequence=p.sequence;imuTicks=ticks;lastAttitude=q.normalized;
                     // Strike samples and the rendered club use the same corrected grip.
                     if(strikeZone.Calibrated)clubPresentation[activePlayer].Present(strikeZone.Rotation(lastAttitude));
-                    if(Phase=="Address" && StrikePoseReady && strikeZone.Calibrated)
-                        strikeZone.Sample(Grip(activePlayer),lastAttitude,ticks/(double)System.Diagnostics.Stopwatch.Frequency);
-                    if(Phase=="Address" && PoseReady && swing.Sample(lastAttitude,rate,p.sourceId,p.sensorTime,out var speed))
+                    if(Phase=="Address" && swing.Sample(lastAttitude,rate,p.sourceId,p.sensorTime,out var speed))
                     {
                         motionContactAt=ticks/(double)System.Diagnostics.Stopwatch.Frequency;
                         pendingSpatial=true;pendingSpeed=speed;
@@ -448,10 +452,8 @@ namespace Kinesthetic.Golf
             score.text=$"YOU {Strokes[0]} — {Strokes[1]} FRIEND";
             distance.text=$"{Vector3.ProjectOnPlane(cup.position-ball.position,Vector3.up).magnitude*1.0936133f:0} yards to go";
             bool framesFresh=LivePoseClient.Fresh(poseTicks);
-            guidance.text=!captureRequested?"Connecting…":Phase!="Address"?Message:
-                !framesFresh?captureStatus:!StrikePoseReady?"Keep both hands in view.":
-                !IMUReady?"Waiting for AirPods…":swing.Calibrated?"Swing gently.":
-                readySince<0?"Hold the club still.":$"Hold still · calibrating {Mathf.Max(1,Mathf.CeilToInt(2-(Time.unscaledTime-readySince)))}";
+            guidance.text=Phase!="Address"?Message:activePlayer==1 && !friendLive?"Your friend is lining up…":
+                !IMUReady?"Waiting for AirPods…":swing.Calibrated?"Swing back, then through the ball.":"Hold the club still.";
             hud?.Update();
             screens?.Update();
         }
@@ -475,59 +477,15 @@ namespace Kinesthetic.Golf
             if(startingCapture)return;
             if(Phase=="Round complete")RestartRound();
             captureRequested=true; readySince=-1; ResetSwing();
-            captureStatus="Connecting camera and AirPods…";
-            StartCoroutine(StartCaptureServices());
-        }
-        IEnumerator StartCaptureServices()
-        {
-            startingCapture=true;
-#if UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
-            var script=Path.GetFullPath(Path.Combine(Application.dataPath,"../../../scripts/start_camera_session.sh"));
-            if(File.Exists(script)) {
-                System.Diagnostics.Process process=null;
-                try {process=System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
-                    FileName="/bin/zsh", Arguments="\""+script+"\"", UseShellExecute=false, CreateNoWindow=true
-                });} catch(Exception e){captureStatus="Could not connect. Try again."; Debug.LogWarning(e.Message);}
-                if(process!=null) {
-                    while(!process.HasExited)yield return null;
-                    if(process.ExitCode!=0)captureStatus="Could not connect. Try again.";
-                    process.Dispose();
-                }
-            } else captureStatus="Open camera capture on your Mac.";
-#else
-            yield return null;   // capture services are launched only on the Mac host
-#endif
-            startingCapture=false;
-            if(healthRoutine==null)healthRoutine=StartCoroutine(PollCaptureHealth());
-        }
-        Coroutine healthRoutine;
-        IEnumerator PollCaptureHealth()
-        {
-            while(captureRequested) {
-                using(var request=UnityWebRequest.Get("http://127.0.0.1:8766/health")) {
-                    request.timeout=3;
-                    yield return request.SendWebRequest();
-                    if(request.result==UnityWebRequest.Result.Success) {
-                        var state=JsonUtility.FromJson<CaptureHealth>(request.downloadHandler.text);
-                        captureStatus=!state.sourceConnected?"Allow camera access in the capture window.":
-                            state.captureStatus=="Camera streaming"?"Keep the camera window open.":state.captureStatus;
-                    } else captureStatus="Could not connect. Try again.";
-                }
-                yield return new WaitForSecondsRealtime(1);
-            }
-            healthRoutine=null;
+            captureStatus="Connecting AirPods…";   // the camera is not used in golf
         }
         void UpdateAutomaticSetup()
         {
-            if(!captureRequested || Phase!="Address" || swing.Calibrated || !StrikePoseReady || !IMUReady ||
-                stationarySince<0 || Time.unscaledTime-stationarySince<.6f) {readySince=-1;return;}
-            // Both hands must be together and below shoulders before fitting the club.
-            var points=poseFrame?.imageLandmarks;
-            if(points==null || points.Length<33 ||
-                points[15].y<points[11].y || points[16].y<points[12].y ||
-                Mathf.Abs(points[15].x-points[16].x)>.25f) {readySince=-1;return;}
+            // The club held still for a moment is the whole setup: it becomes "address" wherever it is.
+            if(!captureRequested || Phase!="Address" || swing.Calibrated || !IMUReady ||
+                stationarySince<0 || Time.unscaledTime-stationarySince<.4f) {readySince=-1;return;}
             if(readySince<0)readySince=Time.unscaledTime;
-            if(Time.unscaledTime-readySince>=2) {Calibrate();readySince=-1;}
+            if(Time.unscaledTime-readySince>=.6f) {Calibrate();readySince=-1;}
         }
     }
 }

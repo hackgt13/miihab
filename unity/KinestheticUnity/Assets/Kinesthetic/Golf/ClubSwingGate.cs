@@ -37,14 +37,14 @@ namespace Kinesthetic.Golf
             if (angle > 180) { angle = 360-angle; direction = -direction; }
             if (!backed)
             {
-                if (angle >= 22 && angle <= 130)
+                if (angle >= 12 && angle <= 150)   // a short backswing counts: this is rehab, not a tour swing
                 { backed = true; axis = direction; previous = angle; peakSpeed = rate.magnitude; Stage = "Swing back through address"; }
                 return false;
             }
             float signed = angle * Vector3.Dot(direction, axis);
             peakSpeed = Mathf.Max(peakSpeed, rate.magnitude);
-            if (signed > 160 || signed < -55) { Reset(); return false; }
-            bool crossing = previous > 9 && signed <= 9 && signed >= -25 && rate.magnitude >= .65f;
+            if (signed > 170 || signed < -70) { Reset(); return false; }
+            bool crossing = previous > 6 && signed <= 6 && signed >= -40 && rate.magnitude >= .4f;
             previous = signed;
             if (!crossing) return false;
             speed = peakSpeed; fired = true; Stage = "Checking virtual contact";

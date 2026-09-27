@@ -51,18 +51,18 @@ namespace Kinesthetic.Golf
         }
         public void Update()
         {
-            bool ready=game.StrikePoseReady && game.MotionReady && game.ClubCalibrated;
-            Step("setup-camera",game.StrikePoseReady,"Keep both hands in view.","Camera ready.");
-            Step("setup-motion",game.MotionReady,"Mount your paired AirPod on the club.","AirPod ready.");
-            Step("setup-calibration",ready,"Rest the club at the mat.","Ready. Swing gently.");
+            bool ready=game.MotionReady && game.ClubCalibrated;
+            Step("setup-camera",game.MotionReady,"Hold your AirPods together on the club.","AirPods ready.");
+            Step("setup-motion",game.ClubCalibrated,"Hold the club still at your hip.","Club ready.");
+            Step("setup-calibration",ready,"Swing back, then through the ball.","Ready. Swing through the ball.");
             bool counting=ready && ActivityNavigation.Instance?.OverlayOpen!=true;
             if(!counting)readyAt=-1;
             else if(readyAt<0)readyAt=Time.unscaledTime;
             float countdown=readyAt<0?3:Mathf.Max(0,3-(Time.unscaledTime-readyAt));
-            bool retryNeeded=!ready && !game.StartingCapture && Time.unscaledTime-openedAt>12;
+            bool retryNeeded=false;   // nothing to retry: the AirPods connect on their own
             retry.EnableInClassList("hidden",!retryNeeded);
-            root.Q<Label>("setup-status").text=automaticStart && counting?$"Starting in {Mathf.Max(1,Mathf.CeilToInt(countdown))}…":ready?"You're ready.":game.StartingCapture?"Connecting…":!game.StrikePoseReady?game.CaptureStatus:!game.MotionReady?"Waiting for AirPods…":"Hold still…";
-            root.Q<Label>("device-status").text=ready?"Ready":!game.StrikePoseReady?"Camera connecting…":!game.MotionReady?"AirPods connecting…":"Hold still…";
+            root.Q<Label>("setup-status").text=automaticStart && counting?$"Starting in {Mathf.Max(1,Mathf.CeilToInt(countdown))}…":ready?"You're ready.":!game.MotionReady?"Waiting for AirPods…":"Hold still…";
+            root.Q<Label>("device-status").text=ready?"Ready":!game.MotionReady?"AirPods connecting…":"Hold still…";
             if(SetupVisible && automaticStart && counting && countdown<=0)CloseSetup();
             root.Q("device-chip").EnableInClassList("connected",ready);
             setupButton.SetEnabled(game.Phase=="Address");
