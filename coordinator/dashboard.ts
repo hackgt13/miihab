@@ -5,6 +5,7 @@
 // the board then shows the plan (prescription, program day) and empty progress.
 import type { ActivityPrescription, Plan } from './plans.ts';
 import { LIBRARY } from './exercises.ts';
+import { buildVisit, type TherapistNote } from './visit.ts';
 
 export const PROGRAM_DAYS = 84;        // a 12-week block
 export const WEEK_SESSIONS_GOAL = 5;
@@ -110,4 +111,24 @@ export function golfUnlock(plan: Plan) {
   const swingPowerCap = Math.round((GOLF_POWER_FLOOR + (1 - GOLF_POWER_FLOOR) * fraction) * 100) / 100;
   return { swingPowerCap, level, levels, targetDeg: target,
     message: swingPowerCap >= 1 ? 'Full drive unlocked' : `Rehab level ${level} of ${levels} · ${Math.round(swingPowerCap * 100)}% of a full drive` };
+}
+
+/**
+ * A plan change the patient has not seen yet: the active version is newer than the last one they saw (a finished
+ * therapist visit marks it seen). What changed comes from the visit's own board, in its words and with its why,
+ * so the menu's notice and the visit that explains it can never disagree. Null when there is nothing new.
+ */
+export function planUpdate(args: { plans: Plan[]; notes: TherapistNote[]; seen: { planVersion: number; at: string } | null }) {
+  const active = args.plans[args.plans.length - 1];
+  if (!active || (args.seen && args.seen.planVersion >= active.version)) return null;
+  const visit = buildVisit({ plans: args.plans, notes: args.notes, seen: args.seen });
+  const changes = visit.board.updates.filter(u => u.kind === 'added' || u.kind === 'changed' || u.kind === 'removed')
+    .map(u => ({ kind: u.kind, heading: u.heading, detail: u.detail, why: u.why ?? null }));
+  if (!changes.length) return null;
+  return {
+    planVersion: active.version, fromVersion: visit.since?.planVersion ?? null,
+    origin: active.origin, approvedBy: active.approvedBy, approvedAt: active.approvedAt,
+    headline: changes.length === 1 ? 'Your plan changed' : `${changes.length} changes to your plan`,
+    changes: changes.slice(0, 3),
+  };
 }

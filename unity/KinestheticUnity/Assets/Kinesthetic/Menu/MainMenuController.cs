@@ -322,6 +322,7 @@ namespace Kinesthetic.Menu
         /// and its Today list can never disagree about what comes next.
         void StartFirst()
         {
+            if (model != null && model.PlanUpdated) { VisitTherapist(); return; }   // the plan changed: hear why first
             var next = model.FirstOutstanding();
             if (next is not { } task) { carousel.Show("gallery"); cards[selected]?.Focus(); return; }
             Launch(task.activityId);
