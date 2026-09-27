@@ -73,7 +73,7 @@ pairs() {
   get http://127.0.0.1:8767/ | python3 -c '
 import sys,json
 d=json.load(sys.stdin)
-for role,key in (("club","samples"),("wrist","bowlingSamples")):
+for role,key in (("IMU A","samples"),("IMU B","bowlingSamples")):
     for who,s in d.get(key,{}).items():
         print(role, s["sourceId"], "%dms"%s["ageMs"], "live" if s["ageMs"]<1500 else "stale")' 2>/dev/null
 }
@@ -99,13 +99,13 @@ echo "Tunnel up as \$("\$ts" ip -4 | head -1). Waiting for ${host} at \$ip …"
 for i in {1..600}; do curl -fsS --max-time 2 "http://\$ip:8767/?token=\$token" >/dev/null 2>&1 && break; sleep 1; done
 curl -fsS --max-time 2 "http://\$ip:8767/?token=\$token" >/dev/null 2>&1 || { echo "Cannot reach ${host}'s relay. Is its tunnel up (zsh scripts/start_tunnel.sh receive)?"; exit 1; }
 echo "Relay reachable. Pointing Bowling Motion at it."
-defaults write org.kinesthetic.bowlingmotion relayHost -string "\$ip"
-defaults write org.kinesthetic.bowlingmotion pairToken -string "\$token"
+for d in org.kinesthetic.bowlingmotion org.kinesthetic.clubmotion; do defaults write \$d relayHost -string "\$ip"; defaults write \$d pairToken -string "\$token"; done
 pkill -x ClubMotionBridge 2>/dev/null
-open -a "\$here/Kinesthetic Bowling Motion.app" || open -a "Kinesthetic Bowling Motion"
+# Either motion app works (the relay sorts a second Mac's stream onto the free channel); prefer the one beside this file.
+open -a "\$here/Kinesthetic Bowling Motion.app" 2>/dev/null || open -a "\$here/Kinesthetic Club Motion.app" 2>/dev/null || open -a "Kinesthetic Bowling Motion" 2>/dev/null || open -a "Kinesthetic Club Motion"
 echo "Pair this Mac's AirPods (Bluetooth), allow Motion access when asked. Waiting for motion to reach ${host} …"
 for i in {1..300}; do
-  if curl -fsS --max-time 2 "http://\$ip:8767/?token=\$token" 2>/dev/null | python3 -c 'import sys,json;d=json.load(sys.stdin);sys.exit(0 if any(s["ageMs"]<1500 for s in d.get("bowlingSamples",{}).values()) else 1)' 2>/dev/null; then
+  if curl -fsS --max-time 2 "http://\$ip:8767/?token=\$token" 2>/dev/null | python3 -c 'import sys,json;d=json.load(sys.stdin);n=sum(1 for k in ("samples","bowlingSamples") for s in d.get(k,{}).values() if s["ageMs"]<1500);sys.exit(0 if n>=2 else 1)' 2>/dev/null; then
     echo "Streaming. Leave this window open or close it; the app keeps going."; exit 0; fi
   sleep 1
 done
@@ -138,10 +138,10 @@ receive() {
     [[ $(state) == Running ]] || { warn "tunnel dropped, bringing it back"; tunnel_up; }
     [[ -n $adb ]] && { local dev=$("$adb" devices 2>/dev/null | awk 'NR>1 && $2=="device"{print $1}' | head -1)
       [[ -n $dev ]] && ! "$adb" -s "$dev" reverse --list 2>/dev/null | grep -q "tcp:8767 tcp:8767" && quest_wire; }
-    now="$(pairs | awk '{print $1, $4}' | sort | tr '\n' ' ')"
+    now="$(pairs | awk '{print $2, $5}' | sort | tr '\n' ' ')"
     [[ $now == $last ]] && continue
     last=$now
-    print -P "  $(date +%H:%M:%S)  club: $( [[ $now == *'club live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')   wrist: $( [[ $now == *'wrist live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')"
+    print -P "  $(date +%H:%M:%S)  IMU A: $( [[ $now == *'A live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')   IMU B: $( [[ $now == *'B live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')"
   done
 }
 

@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Two AirPod pairs need two Apple hosts: one Mac reads one CMHeadphoneMotionManager stream.
 # This Mac (the receiver) runs Unity, the coordinator and the golf relay, and streams its own pair on the relay's
-# club channel. The other Mac streams its pair to this relay on the wrist channel. The channel names are transport
+# IMU A channel. The other Mac streams its pair to this relay on the IMU B channel. The channel names are transport
 # only: which pair measures the limb is settled at the start of each set (AGENTS.md, Sensors).
 #
 #   zsh scripts/start_two_airpods.sh receive            this Mac: relay on the network, Club Motion, print what to type
@@ -17,12 +17,12 @@ token_file=local-data/pair-token.txt
 bowling_app="native/build/Kinesthetic Bowling Motion.app"
 bowling_zip="native/build/Kinesthetic Bowling Motion.zip"
 
-# The relay's health JSON, one line per live pair: "club Left 12ms" / "wrist Right 40ms".
+# The relay's health JSON, one line per live pair: "IMU A Left 12ms live" / "IMU B Right 40ms stale".
 pairs() {
   python3 -c '
 import sys,json
 d=json.load(sys.stdin)
-for role,key in (("club","samples"),("wrist","bowlingSamples")):
+for role,key in (("IMU A","samples"),("IMU B","bowlingSamples")):
     for who,s in d.get(key,{}).items():
         print(role, s["sourceId"], "%dms"%s["ageMs"], "live" if s["ageMs"]<1500 else "stale")'
 }
@@ -74,17 +74,17 @@ receive() {
 
   print "\nPairs"
   if [[ " $* " == *" --wait "* ]]; then
-    print "  waiting for a live pair on each channel: club (this Mac) and wrist (the other Mac); Ctrl-C to stop"
+    print "  waiting for a live pair on each channel: IMU A (this Mac) and IMU B (the other Mac); Ctrl-C to stop"
     while true; do
       live=$(get http://127.0.0.1:8767/ | pairs)
-      if [[ $live == *"club "*live* && $live == *"wrist "*live* ]]; then break; fi
+      if [[ $live == *"IMU A "*live* && $live == *"IMU B "*live* ]]; then break; fi
       sleep 1
     done
   fi
   live=$(get http://127.0.0.1:8767/ | pairs)
   [[ -n $live ]] && print -r -- "$live" | while read -r l; do [[ $l == *live ]] && ok "$l" || warn "$l (last sample long ago)"; done
-  [[ $live == *"club "*live* ]]  || warn "No live club pair — pair AirPods to this Mac; Club Motion shows the reporting bud"
-  [[ $live == *"wrist "*live* ]] || warn "No live wrist pair yet — waiting on the other Mac"
+  [[ $live == *"IMU A "*live* ]]  || warn "No live IMU A — pair AirPods to this Mac; Club Motion shows the reporting bud"
+  [[ $live == *"IMU B "*live* ]] || warn "No live IMU B yet — waiting on the other Mac"
 }
 
 send() {
@@ -94,22 +94,31 @@ send() {
     bad "No relay at $ip:8767 with that token — same Wi-Fi as the receiver? did it run 'receive'?"; exit 1
   fi
   ok "Relay at $ip accepts the token"
-  if [[ ! -d $bowling_app ]]; then
-    if zsh native/build.sh bowling >/dev/null; then ok "Built $bowling_app"; else bad "Bowling Motion build failed (needs Xcode or Command Line Tools)"; exit 1; fi
+  # Either motion app will do: the relay registers a second Mac's stream apart from the receiver's own and routes it
+  # onto whichever channel the receiver is not using (golf-relay.ts route()). Use what is here; build only if nothing is.
+  local club_app="native/build/Kinesthetic Club Motion.app" app=""
+  for candidate in "$bowling_app" "$club_app" "/Applications/Kinesthetic Bowling Motion.app" "/Applications/Kinesthetic Club Motion.app"; do
+    [[ -d $candidate ]] && { app=$candidate; break; }
+  done
+  if [[ -z $app ]]; then
+    if zsh native/build.sh bowling >/dev/null; then app=$bowling_app; ok "Built $app"; else bad "Motion app build failed (needs Xcode or Command Line Tools)"; exit 1; fi
   fi
-  # The app reads these from its own defaults domain, so it opens already pointed at the receiver.
+  # Both apps read these from their own defaults domain, so whichever opens is already pointed at the receiver.
   pkill -x ClubMotionBridge 2>/dev/null
-  defaults write org.kinesthetic.bowlingmotion relayHost -string "$ip"
-  defaults write org.kinesthetic.bowlingmotion pairToken -string "$token"
-  /usr/bin/open -a "$bowling_app"
-  ok "Bowling Motion opened, pointed at $ip. Pair this Mac's AirPods and allow Motion access when asked."
+  for domain in org.kinesthetic.bowlingmotion org.kinesthetic.clubmotion; do
+    defaults write $domain relayHost -string "$ip"; defaults write $domain pairToken -string "$token"
+  done
+  /usr/bin/open -a "$app"
+  ok "${app:t:r} opened, pointed at $ip. Pair this Mac's AirPods and allow Motion access when asked."
   print "  waiting for this pair to reach the receiver; Ctrl-C to stop"
+  # The receiver's own pair was live before we started; one more live pair on either channel is this Mac's.
+  local before=$(get "http://$ip:8767/?token=$token" | pairs | grep -c live)
   for i in {1..120}; do
     live=$(get "http://$ip:8767/?token=$token" | pairs)
-    if [[ $live == *"wrist "*live* ]]; then ok "${${(f)live}[(r)wrist *]} — streaming"; return 0; fi
+    if (( $(print -r -- "$live" | grep -c live) > before )); then ok "streaming — the relay sees: $(print -r -- "$live" | grep live | tr '\n' ';')"; return 0; fi
     sleep 1
   done
-  warn "No wrist samples after two minutes. Check the app's status line: it names the reporting bud once motion arrives."
+  warn "No samples from this Mac after two minutes. Check the app's status line: it names the reporting bud once motion arrives."
   return 1
 }
 
