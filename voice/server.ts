@@ -15,6 +15,7 @@ import { AnalyticsService } from "./backend/services/analyticsService.ts";
 import { CoordinatorService } from "./backend/services/coordinatorService.ts";
 import { createSessionController } from "./backend/controllers/sessionController.ts";
 import { handleHealth } from "./backend/controllers/healthController.ts";
+import { listeners } from "./backend/listeners.ts";
 
 if (!config.elevenlabs.agentId) {
   console.warn(
@@ -56,14 +57,27 @@ const wss = new WebSocketServer({ noServer: true });
 
 server.on("upgrade", (req, socket, head) => {
   const url = new URL(req.url ?? "/", `http://localhost:${config.server.port}`);
-  if (url.pathname !== "/voice") {
+  // Unity and the headset never send an Origin; a browser always does. Without this any web page open on this Mac
+  // could start a session, spend ElevenLabs credit and put words in the coach feed.
+  if (url.pathname !== "/voice" || req.headers.origin) {
     socket.destroy();
+    return;
+  }
+  // A headset that only listens: it hears Alex and never starts a conversation of its own (backend/listeners.ts).
+  if (url.searchParams.get("role") === "listen") {
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      ws.on("error", () => ws.close());
+      listeners.addListener(ws);
+    });
     return;
   }
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws));
 });
 
-wss.on("connection", onConnection);
+wss.on("connection", (ws) => {
+  listeners.addSession(ws);
+  return onConnection(ws);
+});
 
 // ── Start ──────────────────────────────────────────────────────────────────────
 
