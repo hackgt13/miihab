@@ -25,7 +25,7 @@ namespace Kinesthetic.Menu
         const string Bridge = "http://127.0.0.1:8766";
 
 #pragma warning disable 0649
-        [Serializable] class Milestone { public string id, fact, line; }
+        [Serializable] class Milestone { public string id, fact, line, facebook; }
         [Serializable] class Shared { public int sharedWith; }
 #pragma warning restore 0649
 
@@ -36,7 +36,7 @@ namespace Kinesthetic.Menu
         KSurface card;
         KTag fact;
         KText line;
-        KButton share, later;
+        KButton share, later, facebook;
         Milestone showing;
 
         public MilestoneCard(MonoBehaviour owner, VisualElement mount, Action shared)
@@ -64,7 +64,10 @@ namespace Kinesthetic.Menu
             actions.AddToClassList("milestone-actions");
             later = new KButton(() => Answer(false)) { text = "Not now", tone = KButton.Tone.Quiet, size = KButton.Size.Small };
             share = new KButton(() => Answer(true)) { text = "Share with friends", tone = KButton.Tone.Primary, size = KButton.Size.Small };
-            actions.Add(later); actions.Add(share);
+            // Beyond the app: Facebook's own share window, on the Mac, where the patient picks Facebook or Messenger
+            // and who sees it (coordinator/share.ts). Only there when a Meta app is configured.
+            facebook = new KButton(OpenFacebook) { text = "Facebook", tone = KButton.Tone.Secondary, size = KButton.Size.Small };
+            actions.Add(later); actions.Add(facebook); actions.Add(share);
 
             card.Add(head); card.Add(line); card.Add(actions);
             mount.Add(card);
@@ -86,7 +89,14 @@ namespace Kinesthetic.Menu
             showing = next;
             fact.text = next.fact;
             line.text = next.line;
+            facebook.EnableInClassList("hidden", string.IsNullOrEmpty(next.facebook));
             card.RemoveFromClassList("hidden");
+        }
+
+        void OpenFacebook()
+        {
+            if (showing == null || string.IsNullOrEmpty(showing.facebook)) return;
+            Application.OpenURL(showing.facebook);   // on the Mac; a press on the headset arrives here too
         }
 
         void Answer(bool yes)

@@ -11,6 +11,7 @@ import { FriendStore } from './friends.ts';
 import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
 import { spotlight, recap, draft, introLine, milestoneLine, daysSince } from './social-ai.ts';
 import { MilestoneStore, milestoneFrom } from './milestones.ts';
+import { shareConfig, facebookShareUrl } from './share.ts';
 import { weeksSince, readable, type Profile, type FriendActivity } from './matching.ts';
 import { IntroductionStore, LocalDirectory } from './introductions.ts';
 import { GroupStore, PEER_ID } from './groups.ts';
@@ -673,8 +674,9 @@ const server = createServer(async (request, response) => {
           const d = await dashboard(), found = milestoneFrom(d);
           if (!found || milestones.answered(found.id) || friends.list().length === 0) return json(200, {id: '', fact: '', line: ''});
           const line = await within(8000, milestoneLine({milestone: found.fact, goal: plans.active()?.goal?.text ?? null, programDay: d.programDay}));
-          const fact = found.fact[0].toUpperCase() + found.fact.slice(1);
-          return json(200, {id: found.id, fact, line: line || `${fact}.`});
+          const fact = found.fact[0].toUpperCase() + found.fact.slice(1), words = line || `${fact}.`;
+          // Facebook's share window for the same card (share.ts); '' when no Meta app is configured.
+          return json(200, {id: found.id, fact, line: words, facebook: facebookShareUrl(shareConfig(), words, fact)});
         }
         if (request.method === 'POST' && url.pathname === '/api/friends/milestone/answer') {
           const body = await readJson(request) as {id?: string; share?: boolean; text?: string};

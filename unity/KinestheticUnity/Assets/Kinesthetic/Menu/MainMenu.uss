@@ -509,6 +509,7 @@ Button.activity-card.gallery-card.row-middle { margin-left: 2%; margin-right: 2%
 .milestone-head { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .milestone-actions { flex-direction: row; justify-content: flex-end; margin-top: 10px; }
 .milestone-actions > Button { margin-left: 8px; }
+.milestone-actions > .hidden { display: none; }
 .introduction-warm.hidden { display: none; }
 
 /* ---- Friends, two pages ---------------------------------------------------
