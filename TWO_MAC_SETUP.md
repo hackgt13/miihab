@@ -1,7 +1,7 @@
 # Two Macs, two AirPod pairs
 
-One Mac can read one AirPods motion stream, so a two-AirPod movement (arm raise, biceps curl, squat) needs a
-second Mac streaming its pair to the first Mac's relay. Venue Wi-Fi blocks laptops from talking to each other, so
+One Mac can read one AirPods motion stream, so a two-AirPod movement (biceps curl, squat) needs a second Mac
+streaming its pair to the first Mac's relay. The arm raise is the one-AirPod movement and needs only Mac 1. Venue Wi-Fi blocks laptops from talking to each other, so
 the two Macs meet over a Tailscale tunnel, and the Quest reaches the first Mac over its USB cable. No venue network
 is in the path.
 

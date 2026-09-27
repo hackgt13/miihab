@@ -6,8 +6,8 @@
 // Mac arrives over Tailscale — so the relay, the games and the studio see the demo's own wiring, just with synthetic
 // motion. The headset is real: wear it and look around; its head pose is its own. Each key is one moment of the demo:
 //
-//   w   studio, first set: wiggle the wrist pair while the chest pair rests (how the pairs are told apart, once)
-//   r   studio: one arm raise on the wrist pair (Mac 2), the chest pair (Mac 1) still — up, hold, down
+//   w   studio, first two-AirPod set (curl, squat): wiggle the wrist pair while the other rests (how the pairs are told apart, once)
+//   r   studio: one arm raise, the one-AirPod movement, on Mac 1's pair (the first live pair is the one it reads), Mac 2 still — up, hold, down
 //   g   golf: one swing with both pairs held together in the grip (Mac 2 a little stronger, so it leads)
 //   b   bowling: one throw on the wrist pair (Mac 2), the other pair resting
 //   a   auto: repeat the last one every few seconds, hands free, until any key
@@ -73,8 +73,8 @@ const swing = (gain: number): Track => t => t < 900 ? -70 * gain * smooth(t / 90
 const throwArm: Track = t => t < 700 ? -45 * smooth(t / 700) : t < 1050 ? -45 + 125 * smooth((t - 700) / 350) : 80 * (1 - smooth((t - 1050) / 900));
 
 const MOMENTS: Record<string, { label: string; ms: number; mac1: Track; mac2: Track }> = {
-  w: { label: 'studio: wiggle the wrist pair (Mac 2), chest pair (Mac 1) still', ms: 2200, mac1: rest, mac2: wiggle },
-  r: { label: 'studio: arm raise to 90° on the wrist pair (Mac 2)', ms: 7600, mac1: rest, mac2: raise(90) },
+  w: { label: 'studio: wiggle the wrist pair (Mac 2), the other pair (Mac 1) still', ms: 2200, mac1: rest, mac2: wiggle },
+  r: { label: 'studio: arm raise to 90° on Mac 1\'s pair (one AirPod)', ms: 7600, mac1: raise(90), mac2: rest },
   g: { label: 'golf: swing, both pairs together in the grip', ms: 2800, mac1: swing(.9), mac2: swing(1) },
   b: { label: 'bowling: throw on the wrist pair (Mac 2)', ms: 2200, mac1: rest, mac2: throwArm },
 };

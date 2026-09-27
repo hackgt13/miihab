@@ -387,8 +387,10 @@ const server = createServer(async (request, response) => {
         // worn the same way as one already told apart starts on that answer.
         const mode: Mode = kind.requires.includes('ref') ? 'two' : 'one', entry = LIBRARY[kind.id];
         const wear = {imu: entry?.sensor ?? 'AirPod on the wrist', ref: entry?.reference};
+        // In a group Mac 2 is the other person, so a one-IMU set follows Mac 1 alone, as the games do (AGENTS.md).
         const pinned = body.imuChannel === 'mac1' || body.imuChannel === 'mac2' ? {imu: body.imuChannel as Channel}
-          : mode === 'two' ? rememberedPairs.get(wearKey(wear)) : undefined;
+          : mode === 'two' ? rememberedPairs.get(wearKey(wear))
+          : groups.current(friends.me().id) ? {imu: 'mac1' as Channel} : undefined;
         assigner = new ImuAssigner({mode, wear, pinned}); assignerWear = wear;
         watchMotion();
         assignerTicker = setInterval(() => { if (assigner?.tick(motionNow())) sensorsChanged(); }, 500); assignerTicker.unref();

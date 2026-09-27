@@ -206,61 +206,6 @@
       }
     },
     {
-      "id": "movement.arm-raise",
-      "displayName": "Arm raise",
-      "tagline": "Elbow straight; the chest AirPod checks you stay upright.",
-      "card": {
-        "tag": "AIRPODS ON WRIST AND CHEST",
-        "caption": "Strap one AirPod to the back of this wrist and the other flat on your breastbone."
-      },
-      "wear": "Strap one AirPod to the back of this wrist and the other flat on your breastbone.",
-      "body": {
-        "segment": "arm",
-        "rest": [
-          0,
-          -1,
-          0
-        ],
-        "toward": [
-          0,
-          0,
-          1
-        ]
-      },
-      "category": "therapy",
-      "scene": "Rehab",
-      "questScene": "QuestRehab",
-      "venue": "studio",
-      "exerciseKinds": [
-        "arm-raise.v1"
-      ],
-      "requires": [
-        "imu",
-        "ref"
-      ],
-      "subjects": 1,
-      "prescribable": false,
-      "group": "movement",
-      "loadingMessage": "Opening the studio\u2026",
-      "help": {
-        "title": "Today we will practice: arm raise.",
-        "steps": [
-          {
-            "step": "Get set",
-            "copy": "Strap one AirPod to the back of this wrist and the other flat on your breastbone. Elbow straight; the chest AirPod checks you stay upright. Hold still until Ready."
-          },
-          {
-            "step": "Move",
-            "copy": "Stand or sit tall. Lift your straight arm in front of you to the line, pause, and lower slowly. Keep your chest still."
-          },
-          {
-            "step": "Rest",
-            "copy": "Return to rest between reps. Finish set stops early."
-          }
-        ]
-      }
-    },
-    {
       "id": "movement.biceps-curl",
       "displayName": "Biceps curl",
       "tagline": "Elbow pinned to your side; the upper-arm AirPod checks it stays there.",
@@ -369,6 +314,60 @@
           {
             "step": "Move",
             "copy": "Hold on for balance. Sit your hips back and bend your knees to the line, pause, and stand back up tall."
+          },
+          {
+            "step": "Rest",
+            "copy": "Return to rest between reps. Finish set stops early."
+          }
+        ]
+      }
+    },
+    {
+      "id": "movement.arm-raise",
+      "displayName": "Arm raise",
+      "tagline": "Elbow straight.",
+      "card": {
+        "tag": "AIRPOD ON THE WRIST",
+        "caption": "Strap the AirPod to the back of this wrist."
+      },
+      "wear": "Strap the AirPod to the back of this wrist.",
+      "body": {
+        "segment": "arm",
+        "rest": [
+          0,
+          -1,
+          0
+        ],
+        "toward": [
+          0,
+          0,
+          1
+        ]
+      },
+      "category": "therapy",
+      "scene": "Rehab",
+      "questScene": "QuestRehab",
+      "venue": "studio",
+      "exerciseKinds": [
+        "arm-raise.v1"
+      ],
+      "requires": [
+        "imu"
+      ],
+      "subjects": 1,
+      "prescribable": false,
+      "group": "movement",
+      "loadingMessage": "Opening the studio\u2026",
+      "help": {
+        "title": "Today we will practice: arm raise.",
+        "steps": [
+          {
+            "step": "Get set",
+            "copy": "Strap the AirPod to the back of this wrist. Elbow straight. Hold still until Ready."
+          },
+          {
+            "step": "Move",
+            "copy": "Stand or sit tall. Lift your straight arm in front of you to the line, pause, and lower slowly."
           },
           {
             "step": "Rest",

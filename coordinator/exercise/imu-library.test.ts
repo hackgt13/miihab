@@ -2,7 +2,7 @@
 // tell direction apart where the unsigned tilt cannot.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { IMU_LIBRARY, armHold, neckExtension, neckFlexion, neckLateralFlexion, trunkLateralFlexion } from './imu-library.ts';
+import { IMU_LIBRARY, armHold, armRaise, neckExtension, neckFlexion, neckLateralFlexion, trunkLateralFlexion } from './imu-library.ts';
 import { RepSession, type ExerciseKind, type ImuSample, type RepParams } from './kind.ts';
 import { LIBRARY } from '../exercises.ts';
 
@@ -95,4 +95,15 @@ test('raise-and-hold only counts a rep once the hold completes', () => {
   const summary = drive(armHold, { side: 'right', targetDeg: 45, holdMs: 3000 }, X, [60, 60], { holdS: 1 });
   assert.equal(summary.valid, 0); assert.deepEqual(summary.invalidReasons, { did_not_reach_target: 2 });
   assert.equal(drive(armHold, { side: 'right', targetDeg: 45, holdMs: 3000 }, X, [60], { holdS: 3.4 }).valid, 1);
+});
+
+test('the arm raise is the one-AirPod movement: one pair on the wrist calibrates it and counts it, nothing else is asked for', () => {
+  assert.deepEqual(armRaise.requires, ['imu']);
+  assert.equal(LIBRARY['arm-raise.v1'].reference, undefined, 'no second AirPod in the catalog either');
+  assert.equal(LIBRARY['arm-elevation.v1'].supersededBy, 'arm-raise.v1', 'the gallery has one arm raise, and it is this one');
+  const s = drive(armRaise, { side: 'right', targetDeg: 60 }, X, [75, 45]);
+  assert.equal(s.calibrated, true);
+  assert.deepEqual(s.reps.map((r: any) => r.valid), [true, false]);
+  assert.ok(Math.abs(s.reps[0].peakDeg - 75) < .5, `peak ${s.reps[0].peakDeg}`);
+  assert.equal(s.invalidReasons.did_not_reach_target, 1);
 });

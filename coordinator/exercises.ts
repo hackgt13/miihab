@@ -81,6 +81,7 @@ export const LIBRARY: Record<string, LibraryExercise> = {
   'arm-elevation.v1': {
     // Worn on the wrist strap (the same AirPod as bowling), so the club AirPod stays in the dumbbell for curls.
     kind: 'arm-elevation.v1', movement: 'shoulder_raise', label: 'Seated shoulder raise', sensor: 'AirPod on the wrist',
+    // The gallery has one arm raise, arm-raise.v1 (the one-AirPod movement): this prescription is measured with it there.
     familiar: 1, supersededBy: 'arm-raise.v1', posture: 'Elbow straight.', body: { segment: 'arm', rest: DOWN, toward: SCAPULAR },
     components: ['shoulder elevation', 'scapular control'],
     cue: 'Sit tall, straight arm, lift your arm and pause at the top. Stop at the line.',
@@ -101,6 +102,14 @@ export const LIBRARY: Record<string, LibraryExercise> = {
     qualities: ['tempo', 'control', 'consistency'],
   },
   ...entries([
+    // THE one-AirPod movement (AGENTS.md, "Sensors"): the arm raise everyone knows, from the wrist alone, so it is the
+    // one that plays in a group session where each person has one pair. It leads the one-AirPod tiles.
+    { kind: 'arm-raise.v1', movement: 'shoulder_raise', label: 'Arm raise', sensor: 'AirPod on the wrist',
+      familiar: 1, posture: 'Elbow straight.', body: { segment: 'arm', rest: DOWN, toward: FORWARD },
+      components: ['shoulder elevation', 'scapular control'],
+      cue: 'Stand or sit tall. Lift your straight arm in front of you to the line, pause, and lower slowly.',
+      defaults: { targetDeg: 60, ceilingMarginDeg: 20, prescribedReps: 8, holdMs: 400 },
+      qualities: ['hold', 'tempo', 'control', 'consistency'] },
     // In-ear: put the AirPods in, that is the setup.
     { kind: 'neck-flexion.v1', movement: 'neck_flexion', label: 'Chin to chest', sensor: 'AirPods in your ears',
       familiar: 2, posture: 'Sit tall; only the head moves.', body: { segment: 'head', rest: UP, toward: FORWARD }, components: ['cervical flexion'],
@@ -168,14 +177,7 @@ export const LIBRARY: Record<string, LibraryExercise> = {
       defaults: { targetDeg: 15, ceilingMarginDeg: 15, prescribedReps: 20, holdMs: 0 },
       // A quick rhythm by design: no hold, and "slower on the way down" would coach against it.
       qualities: ['control', 'consistency'] },
-    // Two AirPods (exercise/two-imu.ts): the movements everyone knows, measured properly.
-    { kind: 'arm-raise.v1', movement: 'shoulder_raise', label: 'Arm raise', sensor: 'AirPod on the wrist', reference: 'AirPod on the chest',
-      wear: 'Strap one AirPod to the back of this wrist and the other flat on your breastbone.',
-      familiar: 1, posture: 'Elbow straight; the chest AirPod checks you stay upright.', body: { segment: 'arm', rest: DOWN, toward: FORWARD },
-      components: ['shoulder elevation', 'scapular control'],
-      cue: 'Stand or sit tall. Lift your straight arm in front of you to the line, pause, and lower slowly. Keep your chest still.',
-      defaults: { targetDeg: 60, ceilingMarginDeg: 20, prescribedReps: 8, holdMs: 400 },
-      qualities: ['hold', 'tempo', 'control', 'consistency'] },
+    // Two AirPods (exercise/two-imu.ts): the movements everyone knows, measured properly. Solo only.
     { kind: 'biceps-curl.v1', movement: 'biceps_curl', label: 'Biceps curl', sensor: 'AirPod on the wrist', reference: 'AirPod on the upper arm',
       wear: 'Strap one AirPod to the back of this wrist and the other to the outside of the same upper arm, just above the elbow.',
       familiar: 1, posture: 'Elbow pinned to your side; the upper-arm AirPod checks it stays there.',

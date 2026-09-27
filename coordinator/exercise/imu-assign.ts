@@ -1,7 +1,8 @@
 // Which AirPod is which. The rule (AGENTS.md, "Sensors"): the patient's two pairs are Mac 1's and Mac 2's, read raw
 // from the relay's /motion, and which one measures what is decided here, from what is live and what moves.
 //
-//   one IMU     the exercise takes whichever patient stream is live. Two live: the most recent one.
+//   one IMU     the exercise takes whichever patient stream is live. Two live: the most recent one. Pinned (a group
+//               session, where Mac 2 is someone else): that stream and no other, live or not.
 //   two IMUs    both patient streams must be live; the patient is told where each AirPod goes and asked to move
 //               the one on the measured limb. The stream that moves while the other stays still is `imu`, the other
 //               is `ref`. Nothing is assumed from which app or which Mac a pair came through.
@@ -42,7 +43,8 @@ export interface AssignOptions {
   /** How much recent motion decides "moving" and "still". */
   windowMs?: number;
   minSamples?: number;
-  /** Skip identification: a development override, or a replay that knows its streams. */
+  /** Skip identification: a group session (one IMU: Mac 1), a development override, or a replay that knows its
+   *  streams. A pinned stream is never handed over, even while it is not live. */
   pinned?: { imu: Channel; ref?: Channel };
 }
 
@@ -66,6 +68,7 @@ export class ImuAssigner {
   private readonly speeds: Record<Channel, { t: number; v: number }[]> = { mac1: [], mac2: [] };
   private imu: Channel | null = null;
   private ref: Channel | null = null;
+  private readonly pinned: boolean;
   private locked = false;
   private now = -Infinity;
   private snapshot = '';
@@ -74,6 +77,7 @@ export class ImuAssigner {
     this.mode = o.mode; this.wear = o.wear;
     this.freshMs = o.freshMs ?? 1500; this.moveRadS = o.moveRadS ?? 1.0; this.stillRadS = o.stillRadS ?? 0.35;
     this.windowMs = o.windowMs ?? 600; this.minSamples = o.minSamples ?? 5;
+    this.pinned = !!o.pinned;
     if (o.pinned) { this.imu = o.pinned.imu; if (o.mode === 'two') this.ref = o.pinned.ref ?? (o.pinned.imu === 'mac1' ? 'mac2' : 'mac1'); }
     this.snapshot = JSON.stringify(this.state);
   }
@@ -118,7 +122,7 @@ export class ImuAssigner {
   private changed(): boolean { const s = JSON.stringify(this.state); if (s === this.snapshot) return false; this.snapshot = s; return true; }
 
   private assign() {
-    if (this.locked) return;
+    if (this.locked || this.pinned) return;
     const live = this.live;
     if (this.mode === 'one') {
       // Take whatever is live. Until calibration locks it, a stream that dies hands over to one that is alive.

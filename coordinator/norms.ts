@@ -98,8 +98,8 @@ export const EXERCISE_MOVEMENT: Readonly<Record<string, string | null>> = {
   'straight-leg-raise.v1': null,
   'hip-abduction.v1': null,
   'seated-march.v1': null,
-  // The one raise fit to compare: the chest AirPod certifies the trunk stayed upright, so the peak is shoulder
-  // elevation rather than shoulder plus lean. Forward is the flexion table.
+  // The one-AirPod arm raise: the same wrist tilt as arm-elevation.v1, forward, so the flexion table. Since v2 nothing
+  // certifies the trunk, so as there the peak is shoulder plus whatever lean the headset did not catch.
   'arm-raise.v1': 'shoulder_flexion',
   'biceps-curl.v1': null,
   'squat.v1': null,

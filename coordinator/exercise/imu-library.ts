@@ -53,6 +53,15 @@ export const neckLateralFlexion = imuTilt({
 // 40, not arm-elevation's 35: the default rest band (30) plus hysteresis (5) must stay below the lowest target.
 const ELEVATION = { targetDeg: [40, 160], targetMaxDeg: [40, 170], prescribedReps: REPS, holdMs: [0, 3000], maxCompensationDeg: COMPENSATION } as const;
 
+// THE one-AirPod movement (AGENTS.md, "Sensors"): the arm raise everyone knows, from the wrist alone, so it is the
+// movement that plays in a group session where each person has one pair. v1 certified the trunk with a second AirPod
+// on the breastbone; v2 drops it, and the headset is the trunk-lean sensor. Same id, so the tile and every recorded
+// set keep their name.
+export const armRaise = imuTilt({
+  id: 'arm-raise.v1', algorithmVersion: 'arm-raise.v2', defaults: {}, limits: ELEVATION,
+  measurementNote: 'Straight-arm raise from one AirPod on the wrist: arm tilt from the calibrated rest against gravity. Plane-blind: forward and sideways raises read the same. Valid only while the elbow stays straight; a trunk lean is not seen by this AirPod.',
+});
+
 export const shoulderAbduction = imuTilt({
   id: 'shoulder-abduction.v1', algorithmVersion: 'shoulder-abduction.v1', defaults: {}, limits: ELEVATION,
   measurementNote: 'Straight-arm shoulder abduction (out to the side) from an IMU on the wrist: tilt from the calibrated rest against gravity. Plane-blind: raising the arm forward reads the same. Valid only while the elbow stays straight.',
@@ -128,6 +137,7 @@ export const seatedMarch = imuTilt({
 });
 
 export const IMU_LIBRARY = [
+  armRaise,
   neckFlexion, neckExtension, neckLateralFlexion,
   shoulderAbduction, scaption, armHold, forearmRotation, shoulderExternalRotation,
   trunkFlexion, trunkLateralFlexion, trunkExtension,
