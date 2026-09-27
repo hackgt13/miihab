@@ -1,5 +1,5 @@
-// Which AirPod is which. The rule (AGENTS.md, "Sensors"): the relay's two motion channels are transport, not
-// meaning — an AirPod pair is a stream, and what it measures is decided here, at the start of every set.
+// Which AirPod is which. The rule (AGENTS.md, "Sensors"): the patient's two pairs are Mac 1's and Mac 2's, read raw
+// from the relay's /motion, and which one measures what is decided here, from what is live and what moves.
 //
 //   one IMU     the exercise takes whichever patient stream is live. Two live: the most recent one.
 //   two IMUs    both patient streams must be live; the patient is told where each AirPod goes and asked to move
@@ -7,11 +7,12 @@
 //               is `ref`. Nothing is assumed from which app or which Mac a pair came through.
 //
 // The assignment locks at calibration (the engine's rest reference is per stream); after that a stream that goes
-// quiet is the engine's tracking loss, never a reassignment. Multiplayer is the relay's business: with two people
-// the second Mac's pair is the other person and never reaches this as `patient`, so a two-IMU set cannot start
-// there (server.ts refuses it).
+// quiet is the engine's tracking loss, never a reassignment. Once a two-AirPod set has told the pairs apart, the
+// coordinator remembers it for the next set worn the same way (`pinned`), so the patient is asked once, not per set.
 
-export type Channel = 'club' | 'wrist';
+import type { Mac } from '../motion-fuse.ts';
+
+export type Channel = Mac;
 export type Mode = 'one' | 'two';
 export type Phase = 'waiting' | 'identify' | 'ready';
 
@@ -45,7 +46,7 @@ export interface AssignOptions {
   pinned?: { imu: Channel; ref?: Channel };
 }
 
-const CHANNELS: readonly Channel[] = ['club', 'wrist'];
+const CHANNELS: readonly Channel[] = ['mac1', 'mac2'];
 
 /** 'AirPod on the wrist' → 'wrist'; 'AirPods in your ears' → 'ears'. */
 export const placeOf = (wear: string) => {
@@ -62,7 +63,7 @@ export class ImuAssigner {
   private readonly windowMs: number;
   private readonly minSamples: number;
   private readonly last: Partial<Record<Channel, number>> = {};
-  private readonly speeds: Record<Channel, { t: number; v: number }[]> = { club: [], wrist: [] };
+  private readonly speeds: Record<Channel, { t: number; v: number }[]> = { mac1: [], mac2: [] };
   private imu: Channel | null = null;
   private ref: Channel | null = null;
   private locked = false;
@@ -73,7 +74,7 @@ export class ImuAssigner {
     this.mode = o.mode; this.wear = o.wear;
     this.freshMs = o.freshMs ?? 1500; this.moveRadS = o.moveRadS ?? 1.0; this.stillRadS = o.stillRadS ?? 0.35;
     this.windowMs = o.windowMs ?? 600; this.minSamples = o.minSamples ?? 5;
-    if (o.pinned) { this.imu = o.pinned.imu; if (o.mode === 'two') this.ref = o.pinned.ref ?? (o.pinned.imu === 'club' ? 'wrist' : 'club'); }
+    if (o.pinned) { this.imu = o.pinned.imu; if (o.mode === 'two') this.ref = o.pinned.ref ?? (o.pinned.imu === 'mac1' ? 'mac2' : 'mac1'); }
     this.snapshot = JSON.stringify(this.state);
   }
 

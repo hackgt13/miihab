@@ -1,8 +1,8 @@
 #!/bin/zsh
 # Two AirPod pairs need two Apple hosts: one Mac reads one CMHeadphoneMotionManager stream.
-# This Mac (the receiver) runs Unity, the coordinator and the golf relay, and streams its own pair on the relay's
-# IMU A channel. The other Mac streams its pair to this relay on the IMU B channel. The channel names are transport
-# only: which pair measures the limb is settled at the start of each set (AGENTS.md, Sensors).
+# This Mac (the receiver) runs Unity, the coordinator and the golf relay, and streams its own pair: Mac 1. The other
+# Mac streams its pair to this relay: Mac 2. Either Motion app works on either Mac; the games follow whichever pair is
+# moving, and the studio tells them apart once (AGENTS.md, Sensors).
 #
 #   zsh scripts/start_two_airpods.sh receive            this Mac: relay on the network, Club Motion, print what to type
 #   zsh scripts/start_two_airpods.sh receive --wait     ...and wait until both pairs are streaming
@@ -54,14 +54,13 @@ ats_complain() {
      own relay connection and report nothing. Rebuild it from this checkout: zsh native/build.sh"
 }
 
-# The relay's health JSON, one line per live pair: "IMU A Left 12ms live" / "IMU B Right 40ms stale".
+# The relay's health JSON, one line per pair: "Mac 1 Left 12ms live" / "Mac 2 Right 40ms stale".
 pairs() {
   python3 -c '
 import sys,json
 d=json.load(sys.stdin)
-for role,key in (("IMU A","samples"),("IMU B","bowlingSamples")):
-    for who,s in d.get(key,{}).items():
-        print(role, s["sourceId"], "%dms"%s["ageMs"], "live" if s["ageMs"]<1500 else "stale")'
+for mac,s in sorted(d.get("macs",{}).items()):
+    if "ageMs" in s: print("Mac", mac[-1], s["sourceId"], "%dms"%s["ageMs"], "live" if s["ageMs"]<1500 else "stale")'
 }
 
 receive() {
@@ -111,17 +110,17 @@ receive() {
 
   print "\nPairs"
   if [[ " $* " == *" --wait "* ]]; then
-    print "  waiting for a live pair on each channel: IMU A (this Mac) and IMU B (the other Mac); Ctrl-C to stop"
+    print "  waiting for both pairs: Mac 1 (this Mac) and Mac 2 (the other Mac); Ctrl-C to stop"
     while true; do
       live=$(get http://127.0.0.1:8767/ | pairs)
-      if [[ $live == *"IMU A "*live* && $live == *"IMU B "*live* ]]; then break; fi
+      if [[ $live == *"Mac 1 "*live* && $live == *"Mac 2 "*live* ]]; then break; fi
       sleep 1
     done
   fi
   live=$(get http://127.0.0.1:8767/ | pairs)
   [[ -n $live ]] && print -r -- "$live" | while read -r l; do [[ $l == *live ]] && ok "$l" || warn "$l (last sample long ago)"; done
-  [[ $live == *"IMU A "*live* ]]  || warn "No live IMU A — pair AirPods to this Mac; Club Motion shows the reporting bud"
-  [[ $live == *"IMU B "*live* ]] || warn "No live IMU B yet — waiting on the other Mac"
+  [[ $live == *"Mac 1 "*live* ]] || warn "No live Mac 1 — pair AirPods to this Mac; its Motion app shows the reporting bud"
+  [[ $live == *"Mac 2 "*live* ]] || warn "No live Mac 2 yet — waiting on the other Mac"
 }
 
 send() {

@@ -37,7 +37,7 @@ import { WebSocket } from 'ws';
 
 type Channel = 'club' | 'wrist';
 const CHANNELS: Record<Channel, { path: string; type: string }> = {
-  // Two transport channels; the coordinator takes whichever is live (exercise/imu-assign.ts). Golf reads 'club'; bowling 'wrist'.
+  // Two local producers stand in for Mac 1 and Mac 2 (the relay files them by arrival); the games read the fused stream.
   club: { path: '/golf', type: 'club.motion' },
   wrist: { path: '/bowling-motion', type: 'bowling.motion' },
 };

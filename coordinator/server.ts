@@ -9,8 +9,9 @@ import { writeFile, readdir, readFile } from 'node:fs/promises';
 import { PlanStore, prescriptionForActivity } from './plans.ts';
 import { FriendStore } from './friends.ts';
 import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
-import { spotlight, recap, daysSince } from './social-ai.ts';
-import { weeksSince, type Profile, type FriendActivity } from './matching.ts';
+import { spotlight, recap, draft, introLine, milestoneLine, daysSince } from './social-ai.ts';
+import { MilestoneStore, milestoneFrom } from './milestones.ts';
+import { weeksSince, readable, type Profile, type FriendActivity } from './matching.ts';
 import { IntroductionStore, LocalDirectory } from './introductions.ts';
 import { GroupStore } from './groups.ts';
 import { hostMonotonicMs } from './hostclock.ts';
@@ -56,7 +57,9 @@ const therapist = therapistFromEnv();
 const introductions = new IntroductionStore(socialDir);
 // Local today. When a shared backend exists this is the only line that changes.
 const directory = new LocalDirectory(socialDir);
+directory.seedSamples();
 const groups = new GroupStore(socialDir);
+const milestones = new MilestoneStore(socialDir);
 
 /// This patient, as the matcher sees them: what they are working toward and
 /// what they practise. Never a measurement — see the note at the top of
@@ -152,17 +155,17 @@ function feed(events: RepEvent[], sourceSessionId: string | null) {
     if (event.type === 'calibration.complete' && assigner?.lock()) sensorsChanged();
   }
 }
-// The motion relay's two channels are transport, not meaning (AGENTS.md, "Sensors"): the Club Motion app sends on
-// /golf and the Bowling Motion app on /bowling-motion, but which pair is the measured limb — and, with two, which is
-// the neighbouring segment — is decided per set by exercise/imu-assign.ts from what is live and what moves. The
-// coordinator reads both channels for as long as an exercise runs, filtered to the patient: the relay has already
-// put a second person's pair on `friend`, so it never arrives here.
-const MOTION_CHANNELS: Record<Channel, {url: string; type: string}> = {
-  club: {url: process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767/golf?role=viewer', type: 'club.motion'},
-  wrist: {url: process.env.KINESTHETIC_WRIST_MOTION_URL ?? 'ws://127.0.0.1:8767/bowling-motion?role=viewer', type: 'bowling.motion'},
-};
-const motionPlayer = process.env.KINESTHETIC_MOTION_PLAYER ?? 'patient';
-const motion: Record<Channel, WebSocket | null> = {club: null, wrist: null};
+// The patient's two AirPod pairs (AGENTS.md, "Sensors"), raw from the relay's /motion: every sample tagged Mac 1
+// (this Mac's pair) or Mac 2 (the second Mac's, over the tailnet). The games read the relay's one fused stream; the
+// studio measures from both, and which pair is the measured limb — and, with two, which is the neighbouring
+// segment — is decided by exercise/imu-assign.ts from what is live and what moves, then remembered.
+const MOTION_URL = process.env.KINESTHETIC_RAW_MOTION_URL ?? 'ws://127.0.0.1:8767/motion?role=viewer';
+let motion: WebSocket | null = null;
+/// The last two-AirPod assignment, by how the pairs were worn. The next set worn the same way starts on it: the
+/// patient tells the pairs apart once, not every set. Cleared only by a restart.
+const rememberedPairs = new Map<string, {imu: Channel; ref: Channel}>();
+const wearKey = (wear: {imu: string; ref?: string}) => `${wear.imu}|${wear.ref ?? ''}`;
+let assignerWear: {imu: string; ref?: string} | null = null;
 let assigner: ImuAssigner | null = null;
 let assignerTicker: NodeJS.Timeout | null = null;
 let lastRef: {sample: ImuSample; hostMs: number} | null = null;
@@ -176,16 +179,19 @@ const peopleInSession = (activityId: string) => Math.max(requireActivity(activit
 class SensorRuleError extends Error {}
 /** The set is over: no more assignment. The relay sockets stay up for the next set. */
 function releaseSensors() {
+  const s = assigner?.state;
+  if (s?.mode === 'two' && s.locked && s.imu && s.ref && assignerWear) rememberedPairs.set(wearKey(assignerWear), {imu: s.imu, ref: s.ref});
   if (assignerTicker) { clearInterval(assignerTicker); assignerTicker = null; }
   assigner = null; lastRef = null; lastMotionAt = null;
 }
-function watchMotion(channel: Channel) {
-  if (motion[channel]) return;
-  const ws = new WebSocket(MOTION_CHANNELS[channel].url); motion[channel] = ws;
+function watchMotion() {
+  if (motion) return;
+  const ws = new WebSocket(MOTION_URL); motion = ws;
   ws.on('message', data => {
-    if (!exercise || !assigner || motion[channel] !== ws) return;
+    if (!exercise || !assigner || motion !== ws) return;
     let p: any; try { p = JSON.parse(String(data)); } catch { return; }
-    if (p.type !== MOTION_CHANNELS[channel].type || p.playerId !== motionPlayer) return;
+    if (p.type !== 'motion.sample' || (p.mac !== 'mac1' && p.mac !== 'mac2')) return;
+    const channel: Channel = p.mac;
     // Both relays stamp the shared host clock (hostclock.ts); older relays did not, so fall back to local time.
     const t = Number.isFinite(p.hostMonotonicMs) ? Number(p.hostMonotonicMs) : hostMonotonicMs();
     if (!lastMotionAt || t > lastMotionAt.host) lastMotionAt = {host: t, wall: Date.now()};
@@ -208,13 +214,44 @@ function watchMotion(channel: Channel) {
     feed(exercise.pushFused({tMs: t, imu: sample, pose, ref}), p.sessionId);
   });
   // Reconnected while an exercise reads it; between sets the next start reconnects.
-  ws.on('close', () => { if (motion[channel] !== ws) return; motion[channel] = null; if (exercise && assigner) setTimeout(() => watchMotion(channel), 1000); });
+  ws.on('close', () => { if (motion !== ws) return; motion = null; if (exercise && assigner) setTimeout(watchMotion, 1000); });
   ws.on('error', () => {});
 }
 async function readJson(request: import('node:http').IncomingMessage) {
   let body = ''; for await (const chunk of request) { body += chunk; if (body.length > 16384) throw Error('Body too large'); }
   return body ? JSON.parse(body) : {};
 }
+async function dashboard() {
+  const envelopes = await Promise.all((await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f))
+    .map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
+  return buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes});
+}
+
+/// A model line is a nicety on top of a card that already works, so it gets a budget rather than the card waiting on it.
+const within = <T,>(ms: number, work: Promise<T>) =>
+  Promise.race([work, new Promise<null>(done => setTimeout(() => done(null), ms).unref())]);
+
+/// Open introductions as the Meet card shows them. The warm line under the reason is written from what the two
+/// share and nothing else, the same facts reason() used, so the model has nothing identifying to leak. A line
+/// still being written past the budget lands in social-ai's cache for the next look; startup warms it first.
+async function introductionCards(kind: 'peer' | 'mentor', budgetMs: number) {
+  const me = friends.me().id, mine = myProfile();
+  await introductions.suggest(mine, directory, new Set(friends.list().map(p => p.id)), kind);
+  const profiles = await directory.profiles();
+  return Promise.all(introductions.open(me, kind).map(async i => {
+    const them = profiles.find(p => p.personId === (i.pair[0] === me ? i.pair[1] : i.pair[0]));
+    const heading = i.reasons[me] ?? '';
+    const warm = them && heading ? await within(budgetMs, introLine({
+      kind: i.kind, heading,
+      sharedGoals: mine.goalComponents.filter(g => them.goalComponents.includes(g)),
+      sharedMovements: mine.exerciseKinds.filter(k => them.exerciseKinds.includes(k)).map(readable),
+      theirProgramWeek: them.programWeek, yourProgramWeek: mine.programWeek,
+    })) : null;
+    // Deliberately no id, name or Mii for the other side.
+    return {id: i.id, kind: i.kind, reason: heading, warm: warm ?? '', waitingOnThem: i.answers[me] === 'yes'};
+  }));
+}
+
 async function readSummaries() {
   const files = (await readdir(recordings)).filter(f => /^exercise-.*\.summary\.json$/.test(f));
   return Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
@@ -289,9 +326,10 @@ const server = createServer(async (request, response) => {
       const kind = exerciseKind(body.exercise ?? launched?.measureWith ?? x.exerciseKind);
       if (kind.requires.includes('pose') && !cameraMeasurement)
         throw Error(`Camera (MediaPipe) measurement is off; measure "${x.id}" with the AirPod (change "Measured with" in the portal).`);
-      // Sensors (AGENTS.md): with two people in the session every pair but one is another person's, so a two-IMU
-      // movement cannot be measured there. Refused before anything is torn down.
-      if (kind.requires.includes('ref') && peopleInSession(x.activityId) >= 2)
+      // Sensors (AGENTS.md): both pairs are the patient's. Only the older relay reading that makes the second Mac
+      // another person (KINESTHETIC_REMOTE_MOTION=people) leaves one pair per person, and a two-IMU movement then
+      // cannot be measured with someone else in the session. Refused before anything is torn down.
+      if (process.env.KINESTHETIC_REMOTE_MOTION === 'people' && kind.requires.includes('ref') && peopleInSession(x.activityId) >= 2)
         throw new SensorRuleError(`"${LIBRARY[kind.id]?.label ?? kind.id}" needs two AirPods on one person. In a session with someone else each person has one AirPod: pick a one-AirPod movement.`);
       await finishExercise();
       const p = x.params, target = Number(body.targetDeg ?? p.targetDeg);
@@ -309,12 +347,14 @@ const server = createServer(async (request, response) => {
       headLean = kind.requires.includes('imu') ? new HeadLean() : null;
       if (headLean) watchHead();
       if (kind.requires.includes('imu')) {
-        // One IMU takes whatever is live; two are told apart by which one moves (exercise/imu-assign.ts). Both relay
-        // channels are read: which app or Mac a pair came through says nothing about what it measures.
+        // One IMU takes whatever is live; two are told apart by which one moves (exercise/imu-assign.ts), once: a set
+        // worn the same way as one already told apart starts on that answer.
         const mode: Mode = kind.requires.includes('ref') ? 'two' : 'one', entry = LIBRARY[kind.id];
-        const pinned = body.imuChannel === 'club' || body.imuChannel === 'wrist' ? {imu: body.imuChannel} : undefined;
-        assigner = new ImuAssigner({mode, wear: {imu: entry?.sensor ?? 'AirPod on the wrist', ref: entry?.reference}, pinned});
-        watchMotion('club'); watchMotion('wrist');
+        const wear = {imu: entry?.sensor ?? 'AirPod on the wrist', ref: entry?.reference};
+        const pinned = body.imuChannel === 'mac1' || body.imuChannel === 'mac2' ? {imu: body.imuChannel as Channel}
+          : mode === 'two' ? rememberedPairs.get(wearKey(wear)) : undefined;
+        assigner = new ImuAssigner({mode, wear, pinned}); assignerWear = wear;
+        watchMotion();
         assignerTicker = setInterval(() => { if (assigner?.tick(motionNow())) sensorsChanged(); }, 500); assignerTicker.unref();
       }
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
@@ -374,10 +414,8 @@ const server = createServer(async (request, response) => {
       if (request.method === 'GET' && url.pathname === '/api/sensors') return json(200, sensorState() ?? {phase: 'idle'});
       if (request.method === 'GET' && url.pathname === '/api/golf-unlock') return json(200, golfUnlock(plans.active()));
       if (request.method === 'GET' && url.pathname === '/api/dashboard') {
-        const envelopes = await Promise.all((await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f))
-          .map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
         // With a plan change the patient has not seen yet, so the menu can say so before anything else.
-        return json(200, {...buildDashboard({plans: plans.list(), summaries: await readSummaries(), envelopes}),
+        return json(200, {...await dashboard(),
           planUpdate: planUpdate({plans: plans.list(), notes: visit.list(), seen: visit.seen})});
       }
       // The therapist visit (Unity: Kinesthetic/Visit, coordinator/visit.ts): the whiteboard's program updates
@@ -470,16 +508,8 @@ const server = createServer(async (request, response) => {
         // nothing that identifies anyone; only a mutual yes exchanges names, and
         // from there it is the ordinary invite path.
         if (request.method === 'GET' && url.pathname === '/api/friends/introductions') {
-          const already = new Set(friends.list().map(p => p.id));
           const kind = url.searchParams.get('kind') === 'mentor' ? 'mentor' : 'peer';
-          await introductions.suggest(myProfile(), directory, already, kind);
-          return json(200, {
-            introductions: introductions.open(me, kind).map(i => ({
-              id: i.id, kind: i.kind, reason: i.reasons[me] ?? '',
-              // Deliberately no id, name or Mii for the other side.
-              waitingOnThem: i.answers[me] === 'yes',
-            })),
-          });
+          return json(200, {introductions: await introductionCards(kind, 3000)});
         }
         if (request.method === 'POST' && url.pathname === '/api/friends/introductions/answer') {
           const body = await readJson(request) as {id?: string; yes?: boolean};
@@ -572,6 +602,38 @@ const server = createServer(async (request, response) => {
               at: m.at,
             })));
           return json(200, {recap: line ?? ''});
+        }
+        // A first draft of a reply, for the patient's own composer. It is never sent from here.
+        if (request.method === 'GET' && url.pathname === '/api/friends/draft') {
+          const other = url.searchParams.get('id') ?? '';
+          if (!friends.has(other)) return json(404, {error:'Unknown person'});
+          const thread = messages.thread(me, other);
+          const fromThem = thread.filter(m => m.from === other);
+          const [previous, theirs] = [fromThem.at(-2), fromThem.at(-1)];
+          const line = await draft(friends.person(other)?.displayName ?? 'them',
+            thread.map(m => ({fromMe: m.from === me, kind: m.kind ? ENCOURAGEMENTS[m.kind] : null, text: m.text, photo: m.photoId != null, at: m.at})),
+            {daysSinceTheyWrote: daysSince(theirs?.at), daysSinceIWrote: daysSince([...thread].reverse().find(m => m.from === me)?.at),
+              quietDaysBeforeTheyReturned: theirs && previous ? Math.floor((Date.parse(theirs.at) - Date.parse(previous.at)) / 86400000) : null});
+          return json(200, {draft: line ?? ''});
+        }
+        // A milestone of turning up (milestones.ts), worded by the model in the patient's voice. It reaches
+        // friends only through answer with share: true, which is the patient pressing Share.
+        if (request.method === 'GET' && url.pathname === '/api/friends/milestone') {
+          const d = await dashboard(), found = milestoneFrom(d);
+          if (!found || milestones.answered(found.id) || friends.list().length === 0) return json(200, {id: '', fact: '', line: ''});
+          const line = await within(8000, milestoneLine({milestone: found.fact, goal: plans.active()?.goal?.text ?? null, programDay: d.programDay}));
+          const fact = found.fact[0].toUpperCase() + found.fact.slice(1);
+          return json(200, {id: found.id, fact, line: line || `${fact}.`});
+        }
+        if (request.method === 'POST' && url.pathname === '/api/friends/milestone/answer') {
+          const body = await readJson(request) as {id?: string; share?: boolean; text?: string};
+          const found = milestoneFrom(await dashboard());
+          if (!found || found.id !== body.id) return json(409, {error:'That milestone is no longer current'});
+          if (milestones.answered(found.id)) return json(200, {sharedWith: 0});
+          let sharedWith = 0;
+          if (body.share) for (const p of friends.list()) { messages.send(me, p.id, {text: String(body.text ?? found.fact)}); sharedWith++; }
+          milestones.answer(found.id, body.share ? 'shared' : 'dismissed');
+          return json(200, {sharedWith});
         }
         return json(404, {error:'Not found'});
       }
@@ -796,6 +858,8 @@ sockets.on('connection', (ws, _request, role) => {
   ws.on('error', () => ws.close());
 });
 server.listen(port, '127.0.0.1', () => console.log(`Kinesthetic local pose bridge: http://localhost:${port}`));
+// Write the Meet card's lines before anyone opens it, so the first look is not the one that waits.
+for (const kind of ['peer', 'mentor'] as const) introductionCards(kind, Infinity).catch(() => {});
 // Shutdown must actually terminate (see golf-relay.ts): a peer that vanished without a closing handshake,
 // or the outgoing motion-relay socket, would otherwise keep the process alive.
 function shutdown() {

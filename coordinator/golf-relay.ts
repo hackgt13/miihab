@@ -6,6 +6,7 @@ import { mkdirSync, createWriteStream, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
 import { hostMonotonicMs } from './hostclock.ts';
+import { DominantMotion, type Mac } from './motion-fuse.ts';
 
 // Separate from the already-running pose proof. Native hosts connect here.
 const port=Number(process.env.KINESTHETIC_GOLF_PORT ?? 8767);
@@ -38,13 +39,17 @@ const subjects:Record<string,number>=(()=>{
 })();
 const runningFor=()=>{for(const [path,ch] of channels)if(ch.host?.readyState===WebSocket.OPEN)return (subjects[channelActivity[path]]??1);return 1;};
 
-// A motion app on the second Mac (the one that carries the pairing token) is read by what is running, not by the
-// player its picker says. With another person in the picture — an activity for two (golf), or the patient in a
-// group session — it is that person, on /golf as `friend`: every reader of the patient's motion filters to
-// `patient`, so the friend's arm can never land in the patient's record. Otherwise it is the patient's second
-// AirPod, on whichever path this Mac is not using — the second sensor the two-AirPod movements and bowling read.
-// A demo convenience: the second Mac needs no setting at all. KINESTHETIC_REMOTE_MOTION=tagged restores the
-// picker's word.
+// Two AirPod pairs, both the patient's, everywhere (AGENTS.md, Sensors): Mac 1 is this Mac's pair, Mac 2 the pair on
+// the second Mac, which reaches this relay over the tailnet with the pairing token. Which app or path either arrives
+// on is transport and nothing else — both apps and both paths feed the same two slots.
+//
+//   /motion                    raw: every sample of both pairs, tagged mac1/mac2 (the coordinator measures from it)
+//   /golf, /bowling-motion     the games: one stream as `patient`, the more active pair, re-based so it never jumps
+//                              (motion-fuse.ts). Golf holds both pairs in the grip; bowling wears one on the wrist.
+//
+// So the second Mac needs no setting at all and no game knows there are two. A local app whose picker says `friend`
+// is still a friend on its own path. KINESTHETIC_REMOTE_MOTION=people restores the older reading of the second Mac
+// as the other person in golf and group sessions; =tagged takes each app's picker at its word.
 const remoteMotion=process.env.KINESTHETIC_REMOTE_MOTION??'auto';
 const remoteProducers=new WeakSet<WebSocket>();
 // The second Mac is registered apart from this one, so both may run the same app with the same picker; the status
@@ -62,11 +67,14 @@ const askGroup=async()=>{
   try{const r=await fetch(coordinator+'/api/groups/current',{signal:AbortSignal.timeout(800)});
     inGroup=r.ok&&!!(await r.json())?.group?.id;}catch{inGroup=false;}
 };
-if(remoteMotion!=='tagged'){askGroup();setInterval(askGroup,1000).unref();}
+if(remoteMotion==='people'){askGroup();setInterval(askGroup,1000).unref();}
 function route(path:string,player:string,remote:boolean):{path:string,player:string}{
   if(!remote||remoteMotion==='tagged')return {path,player};
-  if(runningFor()>=2||inGroup)return {path:'/golf',player:'friend'};
-  return {path:localPatientOn('/bowling-motion')?'/golf':'/bowling-motion',player:'patient'};
+  if(remoteMotion==='people'){
+    if(runningFor()>=2||inGroup)return {path:'/golf',player:'friend'};
+    return {path:localPatientOn('/bowling-motion')?'/golf':'/bowling-motion',player:'patient'};
+  }
+  return {path,player:'patient'};
 }
 // A motion app on another Mac (a second AirPod pair, e.g. on a wrist strap) may send motion here, and read this
 // status to confirm it, when it carries the pairing token. Viewing motion stays on this Mac.
@@ -78,6 +86,9 @@ const server=createServer((req,res)=>{
     ready:true,head:headLast?{connected:true,ageMs:Date.now()-headLast.at,seq:headLast.seq}:{connected:!!headProducer},players:[...golfMotion.producers.keys()].map(named),viewers:golfMotion.viewers.size,stateHost:!!golfState.host,stateClients:golfState.clients.size,
     bowlingPlayers:[...bowlingMotion.producers.keys()].map(named),bowlingViewers:bowlingMotion.viewers.size,
     bowlingHost:!!channels.get('/bowling-state')!.host,uiHost:!!ui.host,uiClients:ui.clients.size,
+    macs:Object.fromEntries([...macSlots].map(([mac,slot])=>[mac,{remote:slot.remote,via:motions.get(slot.path)!.type,
+      ...(slot.last?{ageMs:Date.now()-slot.last.at,sequence:slot.last.sequence,sourceId:slot.last.sourceId}:{})}])),
+    following:fuse.picked,
     samples:Object.fromEntries([...golfMotion.received].map(([id,s])=>[named(id),{ageMs:Date.now()-s.at,sequence:s.sequence,sourceId:s.sourceId}])),
     bowlingSamples:Object.fromEntries([...bowlingMotion.received].map(([id,s])=>[named(id),{ageMs:Date.now()-s.at,sequence:s.sequence,sourceId:s.sourceId}]))}));
 });
@@ -170,6 +181,11 @@ server.on('upgrade',(req,socket,head)=>{
     if(!ok){socket.destroy();return;}
     headSockets.handleUpgrade(req,socket,head,ws=>headSockets.emit('connection',ws,role));return;
   }
+  if(u.pathname==='/motion'){
+    const ok=role==='viewer' && loopback(req.socket.remoteAddress) && (!req.headers.origin || viewerOrigins.has(req.headers.origin));
+    if(!ok){socket.destroy();return;}
+    sockets.handleUpgrade(req,socket,head,ws=>{rawViewers.add(ws);ws.on('close',()=>rawViewers.delete(ws));ws.on('error',()=>ws.close());});return;
+  }
   if(!loopback(req.socket.remoteAddress) && !(role==='producer' && paired(req))){socket.destroy();return;}
   // Browsers always send Origin. Only the local capture page may watch motion, read-only, from the Mac itself.
   const browserViewer=role==='viewer' && loopback(req.socket.remoteAddress) && viewerOrigins.has(req.headers.origin??'');
@@ -210,6 +226,30 @@ headSockets.on('connection',(ws,role)=>{
   ws.on('error',()=>ws.close());
 });
 
+// The two pairs. A slot is held by one producer socket for as long as it is open; this Mac's app prefers Mac 1 and
+// the paired one Mac 2, and either takes the other slot when its own is taken (a simulator, a test, one Mac running
+// both apps). A third pair is refused: there are two.
+const macSlots=new Map<Mac,{ws:WebSocket,remote:boolean,path:string,last:{at:number,sequence:number,sourceId:string}|null}>();
+const rawViewers=new Set<WebSocket>();
+const fuse=new DominantMotion();
+let fusedSession=`fused-${Date.now()}`;
+function claimMac(ws:WebSocket,remote:boolean,path:string):Mac|null{
+  for(const [mac,slot] of macSlots)if(slot.ws===ws)return mac;
+  const order:Mac[]=remote?['mac2','mac1']:['mac1','mac2'];
+  const free=order.find(mac=>!macSlots.has(mac));
+  if(!free)return null;
+  macSlots.set(free,{ws,remote,path,last:null});return free;
+}
+function releaseMac(ws:WebSocket){
+  for(const [mac,slot] of macSlots)if(slot.ws===ws){
+    macSlots.delete(mac);fuse.drop(mac);broadcast(rawViewers,{type:'motion.disconnected',mac});
+    // The games keep going on the other pair; only when neither is left has their stream ended.
+    if(macSlots.size===0){
+      for(const ch of motions.values())broadcast(ch.viewers,{type:ch.type+'.disconnected',playerId:'patient'});
+      fusedSession=`fused-${Date.now()}`;
+    }
+  }
+}
 function broadcast(viewers:Set<WebSocket>,p:unknown){const text=JSON.stringify(p);for(const ws of viewers)if(ws.readyState===WebSocket.OPEN && ws.bufferedAmount<16384)ws.send(text);}
 const finiteArray=(x:unknown,n:number):x is number[]=>Array.isArray(x)&&x.length===n&&x.every(Number.isFinite);
 sockets.on('connection',(ws,role,player,path,remote)=>{
@@ -235,17 +275,33 @@ sockets.on('connection',(ws,role,player,path,remote)=>{
       sequence=p.sequence;time=p.sensorTime;received.set(key,{at:Date.now(),sequence,sourceId:p.sourceId});
       // Routed per sample, not per connection: the second Mac keeps streaming across a walk from golf to the studio.
       const to=route(path,player,remote),target=motions.get(to.path)!;
-      if(routedTo&&(routedTo.path!==to.path||routedTo.player!==to.player))
-        broadcast(motions.get(routedTo.path)!.viewers,{type:motions.get(routedTo.path)!.type+'.disconnected',playerId:routedTo.player});
+      // A reading that changed (only KINESTHETIC_REMOTE_MOTION=people does that) says goodbye where it was.
+      if(routedTo&&(routedTo.path!==to.path||routedTo.player!==to.player)){
+        if(routedTo.player==='patient')releaseMac(ws);
+        else broadcast(motions.get(routedTo.path)!.viewers,{type:motions.get(routedTo.path)!.type+'.disconnected',playerId:routedTo.player});
+      }
       routedTo=to;
+      if(to.player==='patient'){
+        const mac=claimMac(ws,remote,path);
+        if(!mac){ws.close(1008,'Two AirPod pairs are already streaming');return;}
+        const t=hostMonotonicMs(),slot=macSlots.get(mac)!;slot.last={at:Date.now(),sequence,sourceId:p.sourceId};
+        const raw={type:'motion.sample',mac,via:type,sourceId:p.sourceId,sessionId:session,sequence,sensorTime:time,
+          quaternion:p.quaternion,rotationRate:p.rotationRate,hostMonotonicMs:t};
+        broadcast(rawViewers,raw);log.write(JSON.stringify({...raw,receivedAs:{path,player},receivedAt:Date.now()})+'\n');
+        const out=fuse.push(mac,{quaternion:p.quaternion,rotationRate:p.rotationRate,sourceId:p.sourceId},Date.now());
+        if(out)for(const ch of motions.values())broadcast(ch.viewers,{type:ch.type+'.motion',playerId:'patient',mac,
+          sourceId:out.sourceId,sessionId:fusedSession,sequence:out.sequence,sensorTime:t/1000,
+          quaternion:out.quaternion,rotationRate:out.rotationRate,hostMonotonicMs:t});
+        return;
+      }
       const sample={type:target.type+'.motion',playerId:to.player,sourceId:p.sourceId,sessionId:session,
         sequence,sensorTime:time,quaternion:p.quaternion,rotationRate:p.rotationRate,
         hostMonotonicMs:hostMonotonicMs()};
       broadcast(target.viewers,sample);log.write(JSON.stringify({...sample,receivedAs:{path,player},receivedAt:Date.now()})+'\n');
     }catch{ws.close(1008,'Invalid motion');}
   });
-  ws.on('close',()=>{if(producers.get(key)===ws){producers.delete(key);received.delete(key);
-    const last=routedTo??{path,player};broadcast(motions.get(last.path)!.viewers,{type:motions.get(last.path)!.type+'.disconnected',playerId:last.player});}log.end();});
+  ws.on('close',()=>{if(producers.get(key)===ws){producers.delete(key);received.delete(key);releaseMac(ws);
+    const last=routedTo??{path,player};if(last.player!=='patient')broadcast(motions.get(last.path)!.viewers,{type:motions.get(last.path)!.type+'.disconnected',playerId:last.player});}log.end();});
   ws.on('error',()=>ws.close());
 });
 // LAN game-state channels require a pairing token; sensor streams stay loopback-only.

@@ -5,7 +5,7 @@
 // configured, every entry point must return null rather than throw.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normaliseSpotlight, daysSince, available, spotlight, recap } from './social-ai.ts';
+import { normaliseSpotlight, daysSince, available, spotlight, recap, draft, introLine, milestoneLine } from './social-ai.ts';
 
 const people = [
   { id: 'maya', displayName: 'Maya', daysSinceActive: 3, daysSinceTheyWrote: 3, daysSinceIWrote: 9, unread: 1, sample: false },
@@ -56,9 +56,10 @@ test('days are whole, clamped at zero, and null when never', () => {
 });
 
 test('with no key configured every entry point declines instead of throwing', async () => {
-  const saved = [process.env.ANTHROPIC_API_KEY, process.env.ANTHROPIC_AUTH_TOKEN];
+  const saved = [process.env.ANTHROPIC_API_KEY, process.env.ANTHROPIC_AUTH_TOKEN, process.env.MUSE_API_KEY];
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.ANTHROPIC_AUTH_TOKEN;
+  delete process.env.MUSE_API_KEY;
   try {
     assert.equal(available(), false);
     assert.equal(await spotlight(people), null);
@@ -67,8 +68,13 @@ test('with no key configured every entry point declines instead of throwing', as
       { fromMe: true, kind: null, text: 'thank you', at: new Date().toISOString() },
       { fromMe: false, kind: 'With you', text: '', at: new Date().toISOString() },
     ]), null);
+    assert.equal(await draft('Maya', [], { daysSinceTheyWrote: 1, daysSinceIWrote: null, quietDaysBeforeTheyReturned: null }), null);
+    assert.equal(await introLine({ kind: 'peer', heading: 'Also working toward golf', sharedGoals: ['golf'],
+      sharedMovements: [], theirProgramWeek: 3, yourProgramWeek: 2 }), null);
+    assert.equal(await milestoneLine({ milestone: '7 days in a row', goal: null, programDay: 9 }), null);
   } finally {
     if (saved[0]) process.env.ANTHROPIC_API_KEY = saved[0];
     if (saved[1]) process.env.ANTHROPIC_AUTH_TOKEN = saved[1];
+    if (saved[2]) process.env.MUSE_API_KEY = saved[2];
   }
 });

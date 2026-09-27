@@ -83,7 +83,7 @@ test('server: a two-AirPod movement reads both relay streams and learns which is
   const child = spawn(process.execPath, ['server.ts'], { cwd: join(import.meta.dirname, '..'), stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, KINESTHETIC_PORT: String(port), KINESTHETIC_RECORDINGS_DIRECTORY: join(dir, 'rec'), KINESTHETIC_PLANS_DIRECTORY: join(dir, 'plans'),
       KINESTHETIC_PROPOSALS_DIRECTORY: join(dir, 'prop'), KINESTHETIC_SOCIAL_DIRECTORY: join(dir, 'social'),
-      KINESTHETIC_MOTION_URL: 'ws://127.0.0.1:18830/golf?role=viewer', KINESTHETIC_WRIST_MOTION_URL: 'ws://127.0.0.1:18830/bowling-motion?role=viewer' } });
+      KINESTHETIC_RAW_MOTION_URL: 'ws://127.0.0.1:18830/motion?role=viewer' } });
   const post = (path: string, body?: unknown) => fetch(base + path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
   const sensors = async () => (await fetch(base + '/api/sensors')).json();
   try {
@@ -95,28 +95,28 @@ test('server: a two-AirPod movement reads both relay streams and learns which is
     assert.match(started.sensors.instruction, /one AirPod on your wrist and one on your chest/);
     // The plan prescribes a one-AirPod shoulder raise; the gallery's arm raise measures that same prescription.
     assert.equal(started.prescriptionId, 'arm-elevation-right'); assert.equal(started.practice, false);
-    while (viewers.size < 2) await new Promise(r => setTimeout(r, 20));
+    while (viewers.size < 1) await new Promise(r => setTimeout(r, 20));
     let t = 5e6, seq = 0;
     // Paced, as the AirPods are (~25 Hz): two sockets drain in whatever order they like, so a burst would hand the
     // server one pair's whole stream before the other's.
     const send = async (limb: number, ref: number, moving: boolean, refMoving = moving) => {
       await new Promise(r => setTimeout(r, 3));
       t += 40; seq++;
-      const packet = (type: string, sample: ImuSample) => JSON.stringify({ type, playerId: 'patient', sourceId: 'Left', sessionId: 's', sequence: seq,
+      const packet = (mac: string, sample: ImuSample) => JSON.stringify({ type: 'motion.sample', mac, sourceId: 'Left', sessionId: 's', sequence: seq,
         quaternion: sample.quaternion, rotationRate: sample.rotationRate, hostMonotonicMs: t });
       // The neighbouring segment's sample lands first, so it rides with the limb's step.
-      for (const ws of viewers) ws.send(packet('club.motion', at(REF_HEADING, ref, t, refMoving)));
-      for (const ws of viewers) ws.send(packet('bowling.motion', at(LIMB_HEADING, limb, t, moving)));
+      for (const ws of viewers) ws.send(packet('mac1', at(REF_HEADING, ref, t, refMoving)));
+      for (const ws of viewers) ws.send(packet('mac2', at(LIMB_HEADING, limb, t, moving)));
     };
     // Both live and still: the studio is asked to move the limb's AirPod.
     for (let i = 0; i < 10; i++) await send(0, 0, false);
     let s = await sensors();
     assert.equal(s.phase, 'identify'); assert.match(s.instruction, /Move the AirPod on your wrist/);
     // The wrist pair is wiggled while the chest pair rests: it is the limb. (Had the chest pair been the one wiggled,
-    // the roles would be the other way round — the channels' names never decide.)
+    // the roles would be the other way round — which Mac never decides.)
     for (let i = 0; i < 20; i++) await send(3 * Math.sin(i), 0, true, false);
     s = await sensors();
-    assert.deepEqual([s.phase, s.imu, s.ref, s.locked], ['ready', 'wrist', 'club', false]);
+    assert.deepEqual([s.phase, s.imu, s.ref, s.locked], ['ready', 'mac2', 'mac1', false]);
     for (let i = 0; i < 30; i++) await send(0, 0, false);
     assert.equal((await sensors()).locked, true, 'calibrated against these streams: fixed for the set');
     for (const [limb, ref] of [[70, 2], [70, 18]]) {
@@ -130,15 +130,14 @@ test('server: a two-AirPod movement reads both relay streams and learns which is
     assert.equal(summary.attempted, 2, JSON.stringify({frames: summary.frames, ratio: summary.validFrameRatio, calibrated: summary.calibrated, lost: summary.trackingLossEvents}));
     assert.deepEqual(summary.reps.map((r: any) => r.reason), [null, 'trunk_lean']);
     assert.equal(summary.exerciseKind, 'arm-raise.v1');
-    assert.deepEqual(summary.sensors, { imu: 'wrist', ref: 'club' });
+    assert.deepEqual(summary.sensors, { imu: 'mac2', ref: 'mac1' });
 
-    // With someone else in the session, every pair but one is theirs: a two-AirPod movement is refused, a
-    // one-AirPod movement goes ahead.
+    // One and done: the next set worn the same way starts on the pairs already told apart, with no identify step.
+    const again = await (await post('/exercise/start', { activityId: 'movement.arm-raise' })).json();
+    assert.deepEqual([again.sensors.phase, again.sensors.imu, again.sensors.ref], ['ready', 'mac2', 'mac1']);
+    // Both pairs are the patient's even in a group session: a two-AirPod movement is not refused there.
     assert.equal((await post('/api/groups', { activityId: 'movement.arm-raise' })).status, 201);
-    const refused = await post('/exercise/start', { activityId: 'movement.arm-raise' });
-    assert.equal(refused.status, 409); assert.match((await refused.json()).error, /one-AirPod movement/);
-    const one = await (await post('/exercise/start', { prescriptionId: 'arm-elevation-right' })).json();
-    assert.equal(one.sensors.mode, 'one');
+    assert.equal((await post('/exercise/start', { activityId: 'movement.arm-raise' })).status, 200);
     await post('/exercise/stop'); await post('/api/groups/leave');
   } finally { await stop(child); relay.close(); }
 });

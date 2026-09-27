@@ -38,7 +38,7 @@ test('bowling has an isolated state channel, late join, host exclusivity and dis
   } finally { for(const ws of clients)ws.terminate();await stop(proc);rmSync(dir,{recursive:true,force:true}); }
 });
 
-test('wrist motion and club motion cannot cross activity channels', {timeout:40000}, async()=>{
+test('both apps feed the patient\'s two pairs, and golf and bowling both read the one moving stream', {timeout:40000}, async()=>{
   const dir=mkdtempSync(join(tmpdir(),'bowling-motion-test-'));
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
     env:{...process.env,KINESTHETIC_GOLF_PORT:'18773',KINESTHETIC_GOLF_RECORDINGS:dir}});
@@ -51,19 +51,23 @@ test('wrist motion and club motion cannot cross activity channels', {timeout:400
     }
     const golf=await open('golf','viewer'),bowling=await open('bowling-motion','viewer');
     const club=await open('golf','producer'),wrist=await open('bowling-motion','producer');
-    const packet=(type:string,sequence=1)=>({type,playerId:'patient',sourceId:'Right',sessionId:'activity-separation-fixture',
+    const packet=(type:string,sequence=1)=>({type,playerId:'patient',sourceId:'Right',sessionId:'activity-fixture',
       sequence,sensorTime:sequence*.04,quaternion:[0,0,0,1],rotationRate:[1,0,0]});
-    const clubReceived=once(golf.ws,'message');club.ws.send(JSON.stringify(packet('club.motion')));await clubReceived;
-    const wristReceived=once(bowling.ws,'message');wrist.ws.send(JSON.stringify(packet('bowling.motion')));await wristReceived;
-    wrist.ws.send(JSON.stringify(packet('bowling.motion'))); // stale duplicate is ignored
-    const next=once(bowling.ws,'message');wrist.ws.send(JSON.stringify(packet('bowling.motion',2)));await next;
-    assert.deepEqual(golf.messages.map(p=>p.type),['club.motion']);
-    assert.deepEqual(bowling.messages.map(p=>p.type),['bowling.motion','bowling.motion']);
+    const both=()=>Promise.all([once(golf.ws,'message'),once(bowling.ws,'message')]);
+    let got=both();club.ws.send(JSON.stringify(packet('club.motion')));await got;
+    wrist.ws.send(JSON.stringify(packet('bowling.motion')));        // the other pair, no more active: not followed
+    wrist.ws.send(JSON.stringify(packet('bowling.motion')));        // a stale duplicate is ignored either way
+    got=both();club.ws.send(JSON.stringify(packet('club.motion',2)));await got;
+    assert.deepEqual(golf.messages.map(p=>[p.type,p.mac]),[['club.motion','mac1'],['club.motion','mac1']]);
+    assert.deepEqual(bowling.messages.map(p=>[p.type,p.mac]),[['bowling.motion','mac1'],['bowling.motion','mac1']]);
     const health=await (await fetch('http://127.0.0.1:18773/')).json();
     assert.deepEqual(health.players,['patient']);assert.deepEqual(health.bowlingPlayers,['patient']);
-    const invalid=once(wrist.ws,'close'),disconnected=once(bowling.ws,'message');
+    assert.deepEqual(Object.keys(health.macs).sort(),['mac1','mac2']);
+    // A malformed packet closes its sender; the games carry on with the other pair.
+    const invalid=once(wrist.ws,'close');
     wrist.ws.send(JSON.stringify(packet('club.motion',3)));
-    assert.equal((await invalid)[0],1008);assert.equal(JSON.parse((await disconnected)[0].toString()).type,'bowling.disconnected');
-    assert.equal(golf.messages.length,1,'bowling disconnect must not stop golf');
+    assert.equal((await invalid)[0],1008);
+    await new Promise(r=>setTimeout(r,100));
+    assert.ok(!bowling.messages.some(p=>p.type==='bowling.disconnected'),'one pair leaving does not end the stream');
   } finally {for(const ws of clients)ws.terminate();await stop(proc);rmSync(dir,{recursive:true,force:true});}
 });
