@@ -15,9 +15,10 @@ const sensorOf = a => state.library[a.exerciseKind]?.sensor ?? 'Camera';
 const sessionFor = (s, a) => s.prescriptionId ? s.prescriptionId === a.id : a.exerciseKind === 'shoulder-raise.v1' || s.exercise === 'seated_shoulder_raise' && a.id.startsWith('shoulder-raise');
 
 async function load() {
-  const [plans, active, sessions, proposals, library, games] = await Promise.all([get('/api/plans'), get('/api/plans/active'),
-    get('/api/sessions'), get('/api/proposals'), get('/api/exercises'), get('/api/game-movement').catch(() => [])]);
-  state = { plans, active, sessions: sessions.filter(s => s.calibrated && s.attempted > 0), proposals, library, games };
+  const [plans, active, sessions, proposals, library, games, replies] = await Promise.all([get('/api/plans'), get('/api/plans/active'),
+    get('/api/sessions'), get('/api/proposals'), get('/api/exercises'), get('/api/game-movement').catch(() => []),
+    get('/api/visit/replies').catch(() => [])]);
+  state = { plans, active, sessions: sessions.filter(s => s.calibrated && s.attempted > 0), proposals, library, games, replies };
   render();
 }
 
@@ -44,7 +45,20 @@ function headLeanCell(h) {
     `<div class="muted small">max ${h.maxCm} cm · ≈${maxDeg}°</div>`;
 }
 
+// What the patient said to the care team: visit replies, and Alex's plan-review requests (filed the same way).
+const REPLY_KIND = { hurt: ['It hurt', 'reply-warn'], hard: ['Too hard', 'reply-warn'], easy: ['Too easy', ''], fine: ['Felt fine', 'reply-good'], message: ['Message', ''] };
+function renderReplies() {
+  const list = [...(state.replies ?? [])].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 6);
+  $('#replies').innerHTML = list.length ? list.map(r => {
+    const [label, tone] = REPLY_KIND[r.kind] ?? [r.kind, ''];
+    const when = new Date(r.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    return `<li><span class="reply-kind ${tone}">${esc(label)}</span> ${esc(r.text)}
+      <div class="muted small">${esc(when)}${r.planVersion != null ? ` · plan v${r.planVersion}` : ''}</div></li>`;
+  }).join('') : '<li class="muted">Nothing yet.</li>';
+}
+
 function render() {
+  renderReplies();
   const { active } = state, all = rows();
   $('#patient-goal').textContent = active.goal?.text ?? '—';
   const baseline = all[0], latest = all.at(-1);

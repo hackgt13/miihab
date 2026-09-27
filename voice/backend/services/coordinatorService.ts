@@ -36,6 +36,16 @@ export class CoordinatorService {
       valid: state.summary?.valid, prescribed: state.summary?.prescribed };
   }
 
+  /** Put something in front of the care team in the clinician portal ("From the patient"): the same record a
+   * patient's reply at the end of a therapist visit makes. */
+  async tellCareTeam(kind: 'hurt' | 'hard' | 'easy' | 'message', text: string, planVersion: number | null): Promise<void> {
+    const resp = await fetch(this.baseUrl + '/api/visit/replies', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(2000),
+      body: JSON.stringify({ kind, text: text.slice(0, 280), planVersion }),
+    });
+    if (!resp.ok) throw new Error(`Coordinator /api/visit/replies returned ${resp.status}`);
+  }
+
   private async get<T>(path: string): Promise<T> {
     const resp = await fetch(this.baseUrl + path, { signal: AbortSignal.timeout(2000) });
     if (!resp.ok) throw new Error(`Coordinator ${path} returned ${resp.status}`);
