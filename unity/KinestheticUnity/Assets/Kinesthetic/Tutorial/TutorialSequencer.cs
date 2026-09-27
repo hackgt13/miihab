@@ -91,7 +91,11 @@ namespace Kinesthetic.Tutorial
         {
             if (IsComplete || Application.platform == RuntimePlatform.Android) return;
             if (SceneManager.GetActiveScene().name != "MainMenu") return;
-            if (Application.CanStreamedLevelBeLoaded("Tutorial")) SceneManager.LoadScene("Tutorial");
+            if (!Application.CanStreamedLevelBeLoaded("Tutorial")) return;
+            // Marked on launch, not on finish: quitting halfway must not replay it on every open.
+            PlayerPrefs.SetInt(CompletePref, 1);
+            PlayerPrefs.Save();
+            SceneManager.LoadScene("Tutorial");
         }
 
         void Start()
