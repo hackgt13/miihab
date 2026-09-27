@@ -16,7 +16,13 @@ again without touching records that came from a sensor.
 
     python3 scripts/seed_demo_history.py                 # 15 days, five sessions a week
     python3 scripts/seed_demo_history.py --days 30
+    python3 scripts/seed_demo_history.py --every-day     # no rest days: every past day gets a session
+    python3 scripts/seed_demo_history.py --back calendar # ...and back to the first day the board's grid shows
     python3 scripts/seed_demo_history.py --clean         # remove what this wrote, restore approvedAt
+
+`--back` seeds further than the program: a number of days, or `calendar` for the board's whole
+consistency grid (coordinator/dashboard.ts: CALENDAR_WEEKS weeks, starting on a Sunday). Sessions
+before the first plan carry planVersion 1 like the rest; nothing reads a plan for them.
 
 Run it with the coordinator up or down; both read the directory on each request.
 """
@@ -33,6 +39,7 @@ TARGET_DEG, CEILING_DEG, PRESCRIBED = 45.0, 60.0, 8
 REACH_FROM, REACH_TO = 31.0, 47.0
 VALID_FROM, VALID_TO = 4, 8
 REST_WEEKDAYS = {2, 6}          # Wednesday and Sunday off, so the grid has gaps a person recognises
+CALENDAR_WEEKS = 16             # coordinator/dashboard.ts — the board's consistency grid
 
 
 def iso(when: datetime) -> str:
@@ -69,6 +76,9 @@ def main() -> None:
     parser.add_argument("--dir", default=str(ROOT / "local-data"), help="the coordinator's data directory")
     parser.add_argument("--clean", action="store_true", help="remove seeded records and restore approvedAt")
     parser.add_argument("--seed", type=int, default=13, help="jitter seed, so a rerun writes the same fortnight")
+    parser.add_argument("--every-day", action="store_true", help="no rest days: a session on every past day")
+    parser.add_argument("--back", default=None,
+                        help="seed this many past days instead of the program so far, or 'calendar' for the board's grid")
     args = parser.parse_args()
 
     data = Path(args.dir)
@@ -91,15 +101,26 @@ def main() -> None:
         record["approvedAt"] = iso(start.replace(hour=9, minute=12))
         plan.write_text(json.dumps(record, indent=2) + "\n")
 
+    # How far back the sessions go: the program so far, or further when asked.
+    if args.back == "calendar":
+        first = today - timedelta(days=CALENDAR_WEEKS * 7 - 1)
+        first -= timedelta(days=(first.weekday() + 1) % 7)        # back to the Sunday the grid starts on
+        back = (today - first).days
+    elif args.back is not None:
+        back = int(args.back)
+    else:
+        back = args.days - 1
+    seed_start = today - timedelta(days=back)
+
     rng = random.Random(args.seed)
     written = 0
     # Today is left alone: the board's "today" list, the streak and the day's own square should say what
     # the person has actually done since they woke up, not what a script decided for them.
-    for offset in range(args.days - 1):
-        day = start + timedelta(days=offset)
-        if day.weekday() in REST_WEEKDAYS:
+    for offset in range(back):
+        day = seed_start + timedelta(days=offset)
+        if not args.every_day and day.weekday() in REST_WEEKDAYS:
             continue
-        progress = offset / max(1, args.days - 2)
+        progress = offset / max(1, back - 1)
         ended = day.replace(hour=rng.choice((9, 10, 16, 17)), minute=rng.randrange(0, 58))
         reach = round(REACH_FROM + (REACH_TO - REACH_FROM) * progress + rng.uniform(-1.6, 1.6), 1)
         valid = max(1, min(PRESCRIBED, round(VALID_FROM + (VALID_TO - VALID_FROM) * progress + rng.uniform(-.8, .8))))
@@ -142,7 +163,7 @@ def main() -> None:
         written += 1
 
     finish = start + timedelta(days=83)
-    print(f"seeded {written} session(s) from {start:%d %b} to {today - timedelta(days=1):%d %b}")
+    print(f"seeded {written} session(s) from {seed_start:%d %b} to {today - timedelta(days=1):%d %b}")
     print(f"today is day {args.days} of 84 · program ends {finish:%d %b %Y}")
     print("today itself is left empty, so the streak and today's square reflect real work")
 
