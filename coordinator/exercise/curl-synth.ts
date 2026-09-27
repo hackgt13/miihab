@@ -108,6 +108,24 @@ export const DEMO_SET: RepPlan[] = [
   { peak: 96 }, { peak: 88, raiseS: .9, lowerS: 1.1 },
 ];
 
+// Write the studio's live payload as it would be partway up the rep after the swung one, for the Unity preview
+// (Kinesthetic → Rehab → Show a simulated curl path). Simulated, like everything this file makes.
+if (import.meta.url === `file://${process.argv[1]}` && process.argv.includes('--payload')) {
+  const { CurlTrace } = await import('./curl-trace.ts');
+  const all = synthCurl({ reps: DEMO_SET, seed: 11 });
+  let payload = null;
+  for (let ms = 23800; ms < 40000 && !payload; ms += 200) {
+    const trace = new CurlTrace(110);
+    for (const x of all.filter(x => x.tMs < ms)) trace.push(x.role, x.tMs, { quaternion: [...x.quaternion], rotationRate: [...(x.rotationRate ?? [])] });
+    const p = trace.next();
+    if (p && p.reps.length === 4 && p.arm && p.arm.elbowDeg > 75) payload = p;
+  }
+  const out = resolve(import.meta.dirname, '../../unity/KinestheticUnity/Temp/curl-payload.json');
+  mkdirSync(resolve(out, '..'), { recursive: true });
+  writeFileSync(out, JSON.stringify({ ...payload, simulated: true }));
+  console.log(`Wrote a simulated mid-set curl path to ${out}`);
+}
+
 // Write a labelled demo recording into the session store, where the trajectory view finds it.
 if (import.meta.url === `file://${process.argv[1]}` && process.argv.includes('--write')) {
   // Its own folder, never the real session store: the dashboard, the portal and progression read that one, and a
