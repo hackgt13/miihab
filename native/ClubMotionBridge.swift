@@ -148,9 +148,7 @@ enum MotionActivity {
                 if let error { Task { @MainActor in self?.status=error.localizedDescription } }
                 return
             }
-            // userAcceleration is the device's own acceleration in g, gravity removed, from the same sample as the
-            // attitude: the coordinator's arm-length calibration reads it (coordinator/exercise/curl-trace.ts).
-            let q=motion.attitude.quaternion,r=motion.rotationRate,a=motion.userAcceleration
+            let q=motion.attitude.quaternion,r=motion.rotationRate
             let sensorSource: String
             switch motion.sensorLocation {
             case .headphoneLeft:sensorSource="Left"
@@ -168,10 +166,9 @@ enum MotionActivity {
                 self.lastSampleReceived=ProcessInfo.processInfo.systemUptime
                 self.speed=sqrt(r.x*r.x+r.y*r.y+r.z*r.z)
                 guard !self.sending else {return}
-                var p:[String:Any]=["type":"\(MotionActivity.type).motion","playerId":self.player,
+                let p:[String:Any]=["type":"\(MotionActivity.type).motion","playerId":self.player,
                     "sourceId":sensorSource,"sessionId":self.session,"sequence":self.samples,
                     "sensorTime":time,"quaternion":[q.x,q.y,q.z,q.w],"rotationRate":[r.x,r.y,r.z]]
-                if [a.x,a.y,a.z].allSatisfy({$0.isFinite}) {p["userAcceleration"]=[a.x,a.y,a.z]}
                 guard let data=try? JSONSerialization.data(withJSONObject:p),let text=String(data:data,encoding:.utf8) else{return}
                 self.samples+=1;self.sending=true
                 do {try await task.send(.string(text))}

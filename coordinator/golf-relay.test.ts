@@ -225,31 +225,3 @@ test('the headset sends its head pose; this Mac reads it; nothing else may send 
     const closed=once(headset,'close'); headset.send(JSON.stringify({type:'head.pose',seq:2,p:[99,0,0],q:[0,0,0,1]})); await closed;
   } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
 });
-
-test('an AirPod\'s acceleration rides the raw /motion stream for calibration, and never reaches a game', {timeout:40000}, async()=>{
-  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
-    env:{...process.env,KINESTHETIC_GOLF_PORT:'18793',KINESTHETIC_COORDINATOR_URL:'http://127.0.0.1:9',
-      KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-accel-'))}});
-  const clients:WebSocket[]=[];
-  const connect=async(path:string)=>{const ws=new WebSocket('ws://127.0.0.1:18793'+path);clients.push(ws);await once(ws,'open');return ws;};
-  try {
-    await ready(proc);
-    const raw:any[]=[],club:any[]=[];
-    (await connect('/motion?role=viewer')).on('message',b=>raw.push(JSON.parse(b.toString())));
-    (await connect('/golf?role=viewer')).on('message',b=>club.push(JSON.parse(b.toString())));
-    const pair=await connect('/golf?role=producer&player=patient');
-    const sample=(sequence:number,extra:object)=>JSON.stringify({type:'club.motion',playerId:'patient',sourceId:'Left',
-      sessionId:'accel-fixture',sequence,sensorTime:sequence*.04,quaternion:[0,0,0,1],rotationRate:[0,0,0],...extra});
-    pair.send(sample(1,{userAcceleration:[.1,-.2,.05]}));
-    pair.send(sample(2,{}));                                  // older apps send none: still a sample
-    pair.send(sample(3,{userAcceleration:[0,'x',0]}));        // malformed: the sample stands, the field does not
-    await new Promise(r=>setTimeout(r,120));
-    const got=raw.filter(p=>p.type==='motion.sample');
-    assert.equal(got.length,3);
-    assert.deepEqual(got[0].userAcceleration,[.1,-.2,.05]);
-    assert.equal(got[1].userAcceleration,undefined);
-    assert.equal(got[2].userAcceleration,undefined);
-    assert.equal(pair.readyState,WebSocket.OPEN);
-    assert.ok(club.filter(p=>p.type==='club.motion').every(p=>!('userAcceleration' in p)),'games never see it');
-  } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
-});

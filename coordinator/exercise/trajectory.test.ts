@@ -84,7 +84,7 @@ test('one stream alone gives no trajectory', () => {
 
 test('live trace: the rep being made, the last few finished ones, the arm now, and only when something changed', async () => {
   const { CurlTrace } = await import('./curl-trace.ts');
-  const trace = new CurlTrace(110, false);   // no arm measurement here: that has its own tests
+  const trace = new CurlTrace(110);
   assert.equal(trace.next(), null, 'nothing yet');
   for (const s of synthCurl({ reps: DEMO_SET, seed: 11 })) trace.push(s.role, s.tMs, { quaternion: [...s.quaternion], rotationRate: [...(s.rotationRate ?? [])] });
   const p = trace.next()!;
@@ -99,48 +99,9 @@ test('live trace: the rep being made, the last few finished ones, the arm now, a
   assert.ok(trace.next(true), 'unless asked for the final picture');
 });
 
-test('arm length from one straight-arm swing: each AirPod\'s distance from the shoulder, then the two segments', async () => {
-  const { radiusFromSwing, armFromRadii, HAND_M } = await import('./arm-length.ts');
-  const { synthReach } = await import('./curl-synth.ts');
-  // Upper arm 31 cm and forearm 27 cm, each AirPod a hand-width above its joint.
-  const upperDist = 0.31 - HAND_M, foreDist = 0.31 + 0.27 - HAND_M;
-  const swing = synthReach({ upperDistM: upperDist, foreDistM: foreDist, seed: 9 });
-  const of = (role: string) => swing.filter(s => s.role === role).map(s => ({ t: s.sensorTime, rate: s.rotationRate as any, accel: s.userAcceleration as any }));
-  const upper = radiusFromSwing(of('ref'))!, fore = radiusFromSwing(of('imu'))!;
-  assert.ok(Math.abs(upper.radiusM - upperDist) < 0.015, `upper ${upper.radiusM}`);
-  assert.ok(Math.abs(fore.radiusM - foreDist) < 0.015, `fore ${fore.radiusM}`);
-  assert.ok(upper.fit > 0.8 && fore.fit > 0.8);
-  const arm = armFromRadii(upper.radiusM, fore.radiusM)!;
-  assert.ok(Math.abs(arm.upperArmM - 0.31) < 0.02 && Math.abs(arm.forearmM - 0.27) < 0.02, JSON.stringify(arm));
-  assert.equal(armFromRadii(0.6, 0.7), null, 'not an arm');
-  assert.equal(radiusFromSwing(of('ref').map(s => ({ ...s, rate: [0, 0, 0] as any }))), null, 'no swing, no answer');
-});
-
-test('the reach step: measured before the first rep, then the curl is drawn with that arm', async () => {
-  const { synthReach } = await import('./curl-synth.ts');
-  const trace = new (await import('./curl-trace.ts')).CurlTrace(110);
-  assert.equal(trace.calibrating, false, 'nothing held back before any acceleration arrives');
-  const reach = synthReach({ upperDistM: 0.24, foreDistM: 0.5, seed: 4 });
-  const first = reach[0];
-  trace.push(first.role, first.tMs, { quaternion: [...first.quaternion], rotationRate: first.rotationRate, userAcceleration: first.userAcceleration, sensorTime: first.sensorTime });
-  assert.equal(trace.calibrating, true, 'acceleration arriving: the swing is held back from the engine');
-  for (const s of reach.slice(1)) trace.push(s.role, s.tMs, { quaternion: [...s.quaternion], rotationRate: s.rotationRate, userAcceleration: s.userAcceleration, sensorTime: s.sensorTime });
-  assert.equal(trace.calibrating, false, 'up and back down ends it');
-  const measured = trace.next(true)!.calibration;
-  assert.equal(measured.state, 'measured');
-  assert.ok(Math.abs(measured.upperArmM - 0.32) < 0.02 && Math.abs(measured.forearmM - 0.26) < 0.02, JSON.stringify(measured));
-  const end = reach[reach.length - 1].tMs + 40;
-  for (const s of synthCurl({ reps: clean(2), seed: 3, startMs: end })) trace.push(s.role, s.tMs, { quaternion: [...s.quaternion], rotationRate: [...(s.rotationRate ?? [])] });
-  const drawn = trace.next()!;
-  assert.equal(drawn.reps.length, 2, 'the swing was not a rep');
-  assert.equal(drawn.meta.upperArmM, measured.upperArmM);
-});
-
-test('an app that sends no acceleration falls back to an average arm at once, and keeps what it sent', async () => {
-  const trace = new (await import('./curl-trace.ts')).CurlTrace(110);
-  for (const s of synthCurl({ reps: clean(2), seed: 3 })) trace.push(s.role, s.tMs, { quaternion: [...s.quaternion], rotationRate: [...(s.rotationRate ?? [])] });
-  const p = trace.next()!;
-  assert.equal(p.calibration.state, 'average');
-  assert.match(p.calibration.instruction, /does not send acceleration/);
-  assert.equal(p.reps.length, 2, 'the curls that arrived during the reach step are kept');
+test('path accuracy does not depend on how big the arm is drawn', () => {
+  const samples = synthCurl({ reps: [{ peak: 120 }, { peak: 120, swing: 20 }], seed: 3 });
+  const small = analyseCurl(samples, { targetDeg: 110, upperArmM: 0.26, forearmM: 0.22 });
+  const large = analyseCurl(samples, { targetDeg: 110, upperArmM: 0.34, forearmM: 0.30 });
+  small.reps.forEach((r, i) => assert.ok(Math.abs(r.pathAccuracy - large.reps[i].pathAccuracy) < 3, `${r.pathAccuracy} vs ${large.reps[i].pathAccuracy}`));
 });

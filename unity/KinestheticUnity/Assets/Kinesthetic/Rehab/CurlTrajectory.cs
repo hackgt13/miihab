@@ -110,12 +110,6 @@ namespace Kinesthetic.Rehab
             root.gameObject.SetActive(p != null);
             if (p == null) return;
 
-            // First the arm is measured (curl-trace.ts): one straight swing up to the ceiling and back down. Until
-            // then the plate shows only that, with the whole swing as its guide.
-            var calibration = p["calibration"] as JObject;
-            string state = (string)calibration?["state"];
-            if (state == "reach") { ShowReach(calibration, p["meta"] as JObject); return; }
-            title.text = "YOUR CURL PATH";
 
             Line(ideal, Points(p["ideal"]));
             liveTarget.Clear(); liveTarget.AddRange(Points(p["live"]));
@@ -151,43 +145,8 @@ namespace Kinesthetic.Rehab
                 repLine.color = Verdict(score);
                 detailLine.text = $"Path {(float?)lastRep["pathAccuracy"]:0}%   Smooth {(float?)lastRep["smoothness"]:0}%   Elbow drift {(float?)lastRep["elbowDriftDeg"]:0}°";
             }
-            // Before the first rep: what the measuring swing found (or why an average arm stands in), then the curl.
-            else
-            {
-                repLine.text = "Curl when you're ready"; repLine.color = Palette.Sand00;
-                detailLine.text = Wrap((string)calibration?["instruction"] ?? "Follow the dotted arc", 52);
-            }
+            else { repLine.text = "Curl when you're ready"; repLine.color = Palette.Sand00; detailLine.text = "Follow the dotted arc"; }
 
-        }
-
-        /// The measuring swing: its instruction, and the arc a straight arm sweeps from hanging to overhead.
-        void ShowReach(JObject calibration, JObject meta)
-        {
-            float reach = ((float?)meta?["upperArmM"] ?? .29f) + ((float?)meta?["forearmM"] ?? .26f);
-            var arc = new List<Vector3>();
-            for (int i = 0; i <= 36; i++) { float a = Mathf.PI * i / 36; arc.Add(new Vector3(Mathf.Sin(a) * reach, -Mathf.Cos(a) * reach, 0)); }
-            Line(ideal, arc);
-            live.enabled = upperArm.enabled = forearm.enabled = false;
-            armLive = false; liveTarget.Clear();
-            foreach (var line in recent) line.enabled = false;
-            elbowJoint.gameObject.SetActive(false); wristJoint.gameObject.SetActive(false);
-            title.text = "MEASURE YOUR ARM";
-            repLine.text = "Arm straight · up and down"; repLine.color = Palette.Cerulean40;
-            detailLine.text = Wrap((string)calibration?["instruction"] ?? "", 52);
-        }
-
-        /// TextMesh does not wrap: break at spaces so a line stays on the plate.
-        static string Wrap(string text, int width)
-        {
-            if (string.IsNullOrEmpty(text) || text.Length <= width) return text ?? "";
-            var sb = new System.Text.StringBuilder(); int line = 0;
-            foreach (var word in text.Split(' '))
-            {
-                if (line > 0 && line + 1 + word.Length > width) { sb.Append('\n'); line = 0; }
-                else if (line > 0) { sb.Append(' '); line++; }
-                sb.Append(word); line += word.Length;
-            }
-            return sb.ToString();
         }
 
         static string Word(float score) => score >= 85 ? "Strong" : score >= 70 ? "Fair" : "Needs work";

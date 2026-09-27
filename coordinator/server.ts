@@ -215,9 +215,6 @@ function watchMotion() {
     if (!role) return;   // not yet told which AirPod is which: nothing is measured
     exerciseLog?.write(JSON.stringify({type:'motion.sample', exerciseId, role, channel, payload:p})+'\n');
     curlTrace?.push(role, t, p);
-    // The curl's arm-measuring swing (curl-trace.ts) is not a rep: the engine never sees it. The games' streams come
-    // from the relay, not from here, so they are untouched either way.
-    if (curlTrace?.calibrating) return;
     const sample: ImuSample = {quaternion: p.quaternion, rotationRate: p.rotationRate, hostMonotonicMs: t};
     if (role === 'ref') { lastRef = {sample, hostMs: t}; return; }
     exerciseSource ??= `airpod:${channel}:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only

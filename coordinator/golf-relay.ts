@@ -274,12 +274,8 @@ sockets.on('connection',(ws,role,player,path,remote)=>{
         const mac=claimMac(ws,remote,path);
         if(!mac){ws.close(1008,'Two AirPod pairs are already streaming');return;}
         const t=hostMonotonicMs(),slot=macSlots.get(mac)!;slot.last={at:Date.now(),sequence,sourceId:p.sourceId};
-        // The AirPod's own acceleration (g, gravity removed), when the app sends it: the coordinator's arm-length
-        // calibration needs it (exercise/curl-trace.ts). Optional, so older apps still stream; malformed, it is
-        // dropped rather than the sample. The raw stream only: no game reads acceleration.
-        const accel=finiteArray(p.userAcceleration,3)&&p.userAcceleration.every((v:number)=>Math.abs(v)<50)?p.userAcceleration:undefined;
         const raw={type:'motion.sample',mac,via:type,sourceId:p.sourceId,sessionId:session,sequence,sensorTime:time,
-          quaternion:p.quaternion,rotationRate:p.rotationRate,...(accel?{userAcceleration:accel}:{}),hostMonotonicMs:t};
+          quaternion:p.quaternion,rotationRate:p.rotationRate,hostMonotonicMs:t};
         broadcast(rawViewers,raw);log.write(JSON.stringify({...raw,receivedAs:{path,player},receivedAt:Date.now()})+'\n');
         const out=fuse.push(mac,{quaternion:p.quaternion,rotationRate:p.rotationRate,sourceId:p.sourceId},Date.now());
         if(out)for(const ch of motions.values())broadcast(ch.viewers,{type:ch.type+'.motion',playerId:'patient',mac,

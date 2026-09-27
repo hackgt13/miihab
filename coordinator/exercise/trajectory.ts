@@ -13,12 +13,13 @@
 // sideways by φ at in-plane angle θ moves its vertical by asin(cos θ · sin φ), all of it hanging and none of it
 // horizontal, where sideways is the same as a turn of heading and no AirPod can tell. `lateral` is that
 // observable part, never a guess at the rest, and it is measured against the set's own plane: a curl done
-// consistently a little across the body defines the plane, so what shows is a rep that left the usual one. Segment lengths are assumptions (an adult arm, stated
-// in `meta`), so positions are in metres of a model arm, and every score below is a ratio that does not depend
+// consistently a little across the body defines the plane, so what shows is a rep that left the usual one. Segment lengths are a fixed average adult arm
+// (stated in `meta`), so positions are in metres of a model arm, and every score below is a ratio that does not depend
 // on them being exact.
 //
 // The ideal curl: the upper arm hangs still and the wrist sweeps a circle about the elbow, in the plane. Scores:
-//   path accuracy   how close the wrist stays to that circle, frame by frame (Gaussian, sigma 4 cm)
+//   path accuracy   how close the wrist stays to that circle, frame by frame, as a fraction of the forearm's length
+//                   (Gaussian, sigma 15% of the forearm: 4 cm on the model arm), so it does not depend on arm size
 //   range           peak elbow angle against the plan's target
 //   smoothness      how well each lift and each lower fits a minimum-jerk curve (R²) — the classic model of a
 //                   smooth, practised human movement (Flash & Hogan 1985); hitches and jerks lower it
@@ -78,7 +79,7 @@ export interface Trajectory {
   meta: { upperArmM: number; forearmM: number; targetDeg: number; frames: number; hz: number; sigmaCm: number };
 }
 
-const SIGMA_M = 0.04;
+const SIGMA_FOREARM = 0.154;   // of the forearm's length: 4 cm on a 26 cm forearm
 const REP_START_DEG = 25, REP_END_DEG = 15, MIN_REP_S = 0.8;
 const PAIR_MS = 150, MAX_POINTS = 1500;
 
@@ -154,7 +155,7 @@ export function analyseCurl(samples: MotionSample[], options: TrajectoryOptions 
   const Lu = options.upperArmM ?? 0.29, Lf = options.forearmM ?? 0.26, target = options.targetDeg ?? 110;
   const pairs = pair(samples);
   const empty: Trajectory = { points: [], ideal: [], reps: [], set: null,
-    meta: { upperArmM: Lu, forearmM: Lf, targetDeg: target, frames: 0, hz: 0, sigmaCm: SIGMA_M * 100 } };
+    meta: { upperArmM: Lu, forearmM: Lf, targetDeg: target, frames: 0, hz: 0, sigmaCm: round(SIGMA_FOREARM * Lf * 100) } };
   if (pairs.length < 10) return empty;
 
   const times = pairs.map(p => p.t);
@@ -200,7 +201,7 @@ export function analyseCurl(samples: MotionSample[], options: TrajectoryOptions 
     const slice = frames.slice(s, e + 1);
     let peak = s; for (let i = s; i <= e; i++) if (frames[i].elbow > frames[peak].elbow) peak = i;
     const devs = slice.map(f => f.deviation);
-    const pathAccuracy = 100 * mean(devs.map(d => Math.exp(-((d / SIGMA_M) ** 2))));
+    const pathAccuracy = 100 * mean(devs.map(d => Math.exp(-((d / (SIGMA_FOREARM * Lf)) ** 2))));
     const peakElbow = frames[peak].elbow;
     const range = clamp(100 * peakElbow / target);
     function peakElbowAt(i: number) { return frames[i].elbow; }
@@ -255,5 +256,5 @@ export function analyseCurl(samples: MotionSample[], options: TrajectoryOptions 
 
   const hz = pairs.length > 1 ? (pairs.length - 1) / ((times[times.length - 1] - t0) / 1000) : 0;
   return { points, ideal, reps, set,
-    meta: { upperArmM: Lu, forearmM: Lf, targetDeg: target, frames: pairs.length, hz: round(hz), sigmaCm: SIGMA_M * 100 } };
+    meta: { upperArmM: Lu, forearmM: Lf, targetDeg: target, frames: pairs.length, hz: round(hz), sigmaCm: round(SIGMA_FOREARM * Lf * 100) } };
 }
