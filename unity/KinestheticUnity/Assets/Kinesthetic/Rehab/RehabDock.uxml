@@ -2,12 +2,11 @@
     <Style src="../Palette.uss" />
     <Style src="../UI/Base.uss" />
     <Style src="Rehab.uss" />
-    <!-- Dock station: what to do now. The connection chip and the Mac's view toggle ride the top edge, the
-         cue, status and primary action sit in the middle, and the coach's spoken line appears beneath. -->
+    <!-- Dock station: what to do now. The connection chip rides the top edge, the cue, status and primary
+         action sit in the middle, and the coach's spoken line appears beneath. -->
     <ui:VisualElement name="dock-board" class="board" picking-mode="Ignore">
         <ui:VisualElement class="dock-chrome" picking-mode="Ignore">
             <k:KChip name="sensor-status" text="Connecting to AirPod…" state="Live" />
-            <k:KButton name="view-toggle" text="Seated view" tone="Ghost" size="Small" class="view-toggle" />
         </ui:VisualElement>
         <k:KSurface name="coaching-dock" class="coaching-dock" density="Compact">
             <!-- The step, and under it the hold timer: a ring that fills while the arm stays in the band. -->
