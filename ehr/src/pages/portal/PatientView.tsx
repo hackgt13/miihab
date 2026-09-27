@@ -9,6 +9,7 @@ import { SessionTrendChart } from '../../ui/SessionTrendChart'
 import { VisitNotes } from '../../ui/VisitNotes'
 import { ProgramUpdate } from '../../ui/ProgramUpdate'
 import { CoachFeed } from '../../ui/CoachFeed'
+import { ProgramTimelapse } from '../../ui/ProgramTimelapse'
 import { PatientRelay } from '../../ui/PatientRelay'
 import type { PatientStatus } from '../../data/types'
 
@@ -355,6 +356,12 @@ export function PatientView() {
           <LiveReadings session={session} wsStatus={wsStatus} baselineDeg={baselineDeg}
             override={live && liveSet.running ? liveSet.override : null}
             now={live && liveSet.running ? [liveSet.angleDeg != null ? `arm ${liveSet.angleDeg}°` : null, liveSet.lastRep].filter(Boolean).join(' · ') : null} />
+
+          {/* The program so far, replayed: reach per session, the target at each plan version, what the patient said. */}
+          <SectionLabel label="Program Timelapse" />
+          <div className="px-3 py-3">
+            <ProgramTimelapse sessions={sessions} plans={plans} replies={data.replies} />
+          </div>
 
           {/* Clinical alert */}
           {trigger.fired && (
