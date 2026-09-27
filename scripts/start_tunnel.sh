@@ -81,7 +81,9 @@ for role,key in (("club","samples"),("wrist","bowlingSamples")):
 # A double-clickable connector for a Mac without the repo: Tailscale up, wait for this Mac, aim the app, open it.
 write_connector() {
   local ip=$1 token=$2 host=$(scutil --get ComputerName 2>/dev/null || hostname -s)
-  local file="native/build/Connect to ${host//\//-}.command"
+  # Plain ASCII in the filename: a curly apostrophe from the computer name comes out garbled on the other Mac's unzip.
+  local safe=$(print -r -- "$host" | LC_ALL=C tr -c 'A-Za-z0-9 ()._-' '_' | tr -s '_' | sed 's/^_//; s/_$//')
+  local file="native/build/Connect to ${safe:-this Mac}.command"
   cat > "$file" <<EOF
 #!/bin/zsh
 # Connect this Mac's AirPods to ${host}'s relay over Tailscale. Needs Tailscale signed in to the same account.
