@@ -5,10 +5,11 @@ interface LiveReadingsProps {
   session: SessionHandoff        // seed / last-session fallback
   wsStatus: string
   baselineDeg: number
-  override?: SessionOverride | null  // data from Unity REST API when available
+  override?: SessionOverride | null  // the set in progress (useLiveExercise), when there is one
+  now?: string | null                // what is happening this second: "arm 42° · Rep 3 counted · 54°"
 }
 
-export function LiveReadings({ session, wsStatus, baselineDeg, override }: LiveReadingsProps) {
+export function LiveReadings({ session, wsStatus, baselineDeg, override, now }: LiveReadingsProps) {
   const isLive = wsStatus === 'open'
 
   // Prefer Unity-submitted data; fall back to seed when nothing has been received yet
@@ -62,7 +63,8 @@ export function LiveReadings({ session, wsStatus, baselineDeg, override }: LiveR
       >
         <div>
           <p className="text-white text-[9px] font-bold uppercase tracking-wider leading-none">VR Headset</p>
-          <p className="text-white/60 text-[9px] leading-none mt-0.5">{isLive ? 'Live stream' : 'Replay mode'}</p>
+          <p className="text-white/60 text-[9px] leading-none mt-0.5">{isLive ? 'Live · set in progress' : 'Last session'}</p>
+          {isLive && now && <p className="text-white text-[10px] leading-tight mt-1 font-mono max-w-[140px]">{now}</p>}
         </div>
       </div>
 
