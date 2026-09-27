@@ -64,13 +64,16 @@ public static class RehabBoardsVerification
                   $"'{document.name}' is not a world-space panel");
         Check(documents.Length == RehabSceneSetup.Boards.Length, $"{documents.Length} documents for {RehabSceneSetup.Boards.Length} boards");
 
-        // The mirror's right edge, as the seat sees it: nothing may reach past it. MirrorPanel is added at
-        // runtime with its defaults, so its defaults are read off a throwaway component.
+        // The mirror, as the seat sees it: its right edge, and its foot and head. MirrorPanel is added at
+        // runtime with its defaults, so its defaults are read off a throwaway component. It stands on the
+        // floor (its centre is half its height and 6 cm up), so its pitch span is from the seat's eye height.
         var probe = new GameObject("Mirror probe") { hideFlags = HideFlags.HideAndDontSave };
         var mirror = probe.AddComponent<MirrorPanel>();
         float mirrorYaw = -Mathf.Atan2(mirror.offsetLeft, mirror.offsetForward) * Mathf.Rad2Deg;
         float mirrorDistance = new Vector2(mirror.offsetLeft, mirror.offsetForward).magnitude;
         float mirrorEdge = mirrorYaw + Mathf.Atan2(mirror.width * .5f, mirrorDistance) * Mathf.Rad2Deg;
+        float mirrorFoot = Mathf.Atan2(.06f - seat.eyeHeight, mirrorDistance) * Mathf.Rad2Deg;
+        float mirrorHead = Mathf.Atan2(.06f + mirror.height - seat.eyeHeight, mirrorDistance) * Mathf.Rad2Deg;
         UnityEngine.Object.DestroyImmediate(probe);
 
         var placements = seat.Placements;
@@ -93,12 +96,24 @@ public static class RehabBoardsVerification
             Check(Mathf.Abs(yaw) <= Station.MaxYawDegrees, $"'{expected.id}' stands at {yaw:0}°, beyond ±{Station.MaxYawDegrees}° of the facing");
 
             var size = BoardBuilder.SizeMetres(document);
-            float halfWidth = Mathf.Atan2(size.x * .5f, distance) * Mathf.Rad2Deg;
             Check(yaw >= -.01f, $"'{expected.id}' stands left of centre at {yaw:0}°, the mirror's side");
-            Check(yaw - halfWidth > mirrorEdge, $"'{expected.id}' reaches {yaw - halfWidth:0.0}° left, past the mirror's edge at {mirrorEdge:0.0}°");
+            // The board's four corners as the seat sees them. A board may reach left past the mirror's edge if
+            // it passes under its foot or over its head; what it may not do is stand in front of it. The Focus
+            // board is exempt: it holds modals only, the summary among them, which is the only board while it
+            // is up and is meant to cover the room.
+            float left = float.MaxValue, bottom = float.MaxValue, top = float.MinValue;
+            foreach (var corner in new[] { new Vector2(-1, -1), new Vector2(-1, 1), new Vector2(1, -1), new Vector2(1, 1) })
+            {
+                var world = board.transform.position + board.transform.rotation * new Vector3(corner.x * size.x * .5f, corner.y * size.y * .5f, 0);
+                seat.Bearing(world, out float cornerYaw, out float cornerPitch, out _);
+                left = Mathf.Min(left, cornerYaw); bottom = Mathf.Min(bottom, cornerPitch); top = Mathf.Max(top, cornerPitch);
+            }
+            bool coversMirror = left < mirrorEdge && top > mirrorFoot && bottom < mirrorHead;
+            Check(expected.station.name == Stations.Focus.name || !coversMirror,
+                  $"'{expected.id}' reaches {left:0.0}° left between {bottom:0.0}° and {top:0.0}°, over the mirror (right edge {mirrorEdge:0.0}°, {mirrorFoot:0.0}° to {mirrorHead:0.0}°)");
 
-            float wantedDensity = expected.station.PixelsPerMetre, density = BoardBuilder.PixelsPerMetre(document);
-            Check(Mathf.Abs(density - wantedDensity) < .01f, $"'{expected.id}' lays out at {density:0.0} px/m, not {wantedDensity:0.0} (1000 / {distance:0.0} m)");
+            float wantedDensity = expected.station.PixelsPerMetre / expected.magnify, density = BoardBuilder.PixelsPerMetre(document);
+            Check(Mathf.Abs(density - wantedDensity) < .01f, $"'{expected.id}' lays out at {density:0.0} px/m, not {wantedDensity:0.0} (1000 / {distance:0.0} m / {expected.magnify:0.#})");
             Check((size - expected.size).magnitude < .001f, $"'{expected.id}' comes out {size.x:0.00} x {size.y:0.00} m, not {expected.size.x:0.00} x {expected.size.y:0.00}");
             Check(document.worldSpaceSizeMode == WorldSpaceSizeMode.Fixed, $"'{expected.id}' does not lay out at a fixed size");
             Check(board.GetComponent<Kinesthetic.Panes.Pane>() && board.GetComponent<Kinesthetic.GazeDwell>() && board.GetComponent<Kinesthetic.Shell.PanePointerInput>(),
@@ -123,7 +138,7 @@ public static class RehabBoardsVerification
         Check(duplicated.Count == 0, "names on more than one board: " + string.Join(", ", duplicated));
 
         return $"Rehab: {documents.Length} world-space boards at their stations (yaw 0…{RehabSceneSetup.Boards.Max(b => b.station.yawDegrees):0}°, right of the mirror's edge at {mirrorEdge:0}°), " +
-               $"density 1000/distance, {names.Count} queried names resolve through the BoardSet";
+               $"density 1000/distance/magnify, {names.Count} queried names resolve through the BoardSet";
     }
 
     static string QuestScene()

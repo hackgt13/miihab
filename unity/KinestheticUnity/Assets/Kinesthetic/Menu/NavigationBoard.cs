@@ -34,12 +34,12 @@ namespace Kinesthetic.Menu
         public static readonly Station Station = new("Navigation", 0, 0, 1.3f);
 
         /// Laid out this many times coarser than the station's density, so its type reads that many times larger
-        /// at the same distance — the same figure as RehabSceneSetup.Magnify, after the headset showed every
-        /// board tuned against the Mac's camera at half the size it needed.
-        public const float Magnify = 2;
+        /// at the same distance. 1, unlike the venues' standing boards: this is a popup riding in front of the
+        /// view, and at 2 the headset showed the lobby's card far too big.
+        public const float Magnify = 1;
 
-        /// Wide enough for the room card (880 px, laid out at the magnified density) with the shade around it:
-        /// about 90 by 66 degrees of the view, the width of the plaza's facing pane.
+        /// The shade's reach: about 90 by 66 degrees of the view. The room card (880 px) sits in the middle of
+        /// it at about 1.1 m wide.
         public static readonly Vector2 SizeMetres = new(2.6f, 1.7f);
 
         /// Make `go` the board: laid out at the station's density and scaled to `SizeMetres` (the same arithmetic
