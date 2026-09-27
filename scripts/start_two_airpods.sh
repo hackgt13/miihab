@@ -55,12 +55,20 @@ ats_complain() {
 }
 
 # The relay's health JSON, one line per pair: "Mac 1 Left 12ms live" / "Mac 2 Right 40ms stale".
+#
+# Read from whichever shape the answering relay uses. `send` asks the *other* Mac's relay, and that Mac is the one
+# running Unity, so it is routinely a step ahead of this checkout: a reader tied to one key reports "no samples"
+# at a relay that is streaming happily, which is a failure that looks exactly like the real thing.
 pairs() {
   python3 -c '
 import sys,json
 d=json.load(sys.stdin)
-for mac,s in sorted(d.get("macs",{}).items()):
-    if "ageMs" in s: print("Mac", mac[-1], s["sourceId"], "%dms"%s["ageMs"], "live" if s["ageMs"]<1500 else "stale")'
+rows=[("Mac "+mac[-1],s) for mac,s in sorted(d.get("macs",{}).items()) if "ageMs" in s]
+if not rows:
+    for name,key in (("Mac 1","samples"),("Mac 2","bowlingSamples")):
+        rows += [(name,s) for s in d.get(key,{}).values() if "ageMs" in s]
+for name,s in rows:
+    print(name, s["sourceId"], "%dms"%s["ageMs"], "live" if s["ageMs"]<1500 else "stale")'
 }
 
 receive() {
