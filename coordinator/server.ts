@@ -155,17 +155,17 @@ function feed(events: RepEvent[], sourceSessionId: string | null) {
     if (event.type === 'calibration.complete' && assigner?.lock()) sensorsChanged();
   }
 }
-// The motion relay's two channels are transport, not meaning (AGENTS.md, "Sensors"): the Club Motion app sends on
-// /golf and the Bowling Motion app on /bowling-motion, but which pair is the measured limb — and, with two, which is
-// the neighbouring segment — is decided per set by exercise/imu-assign.ts from what is live and what moves. The
-// coordinator reads both channels for as long as an exercise runs, filtered to the patient: the relay has already
-// put a second person's pair on `friend`, so it never arrives here.
-const MOTION_CHANNELS: Record<Channel, {url: string; type: string}> = {
-  club: {url: process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767/golf?role=viewer', type: 'club.motion'},
-  wrist: {url: process.env.KINESTHETIC_WRIST_MOTION_URL ?? 'ws://127.0.0.1:8767/bowling-motion?role=viewer', type: 'bowling.motion'},
-};
-const motionPlayer = process.env.KINESTHETIC_MOTION_PLAYER ?? 'patient';
-const motion: Record<Channel, WebSocket | null> = {club: null, wrist: null};
+// The patient's two AirPod pairs (AGENTS.md, "Sensors"), raw from the relay's /motion: every sample tagged Mac 1
+// (this Mac's pair) or Mac 2 (the second Mac's, over the tailnet). The games read the relay's one fused stream; the
+// studio measures from both, and which pair is the measured limb — and, with two, which is the neighbouring
+// segment — is decided by exercise/imu-assign.ts from what is live and what moves, then remembered.
+const MOTION_URL = process.env.KINESTHETIC_RAW_MOTION_URL ?? 'ws://127.0.0.1:8767/motion?role=viewer';
+let motion: WebSocket | null = null;
+/// The last two-AirPod assignment, by how the pairs were worn. The next set worn the same way starts on it: the
+/// patient tells the pairs apart once, not every set. Cleared only by a restart.
+const rememberedPairs = new Map<string, {imu: Channel; ref: Channel}>();
+const wearKey = (wear: {imu: string; ref?: string}) => `${wear.imu}|${wear.ref ?? ''}`;
+let assignerWear: {imu: string; ref?: string} | null = null;
 let assigner: ImuAssigner | null = null;
 let assignerTicker: NodeJS.Timeout | null = null;
 let lastRef: {sample: ImuSample; hostMs: number} | null = null;
@@ -179,16 +179,19 @@ const peopleInSession = (activityId: string) => Math.max(requireActivity(activit
 class SensorRuleError extends Error {}
 /** The set is over: no more assignment. The relay sockets stay up for the next set. */
 function releaseSensors() {
+  const s = assigner?.state;
+  if (s?.mode === 'two' && s.locked && s.imu && s.ref && assignerWear) rememberedPairs.set(wearKey(assignerWear), {imu: s.imu, ref: s.ref});
   if (assignerTicker) { clearInterval(assignerTicker); assignerTicker = null; }
   assigner = null; lastRef = null; lastMotionAt = null;
 }
-function watchMotion(channel: Channel) {
-  if (motion[channel]) return;
-  const ws = new WebSocket(MOTION_CHANNELS[channel].url); motion[channel] = ws;
+function watchMotion() {
+  if (motion) return;
+  const ws = new WebSocket(MOTION_URL); motion = ws;
   ws.on('message', data => {
-    if (!exercise || !assigner || motion[channel] !== ws) return;
+    if (!exercise || !assigner || motion !== ws) return;
     let p: any; try { p = JSON.parse(String(data)); } catch { return; }
-    if (p.type !== MOTION_CHANNELS[channel].type || p.playerId !== motionPlayer) return;
+    if (p.type !== 'motion.sample' || (p.mac !== 'mac1' && p.mac !== 'mac2')) return;
+    const channel: Channel = p.mac;
     // Both relays stamp the shared host clock (hostclock.ts); older relays did not, so fall back to local time.
     const t = Number.isFinite(p.hostMonotonicMs) ? Number(p.hostMonotonicMs) : hostMonotonicMs();
     if (!lastMotionAt || t > lastMotionAt.host) lastMotionAt = {host: t, wall: Date.now()};
@@ -211,7 +214,7 @@ function watchMotion(channel: Channel) {
     feed(exercise.pushFused({tMs: t, imu: sample, pose, ref}), p.sessionId);
   });
   // Reconnected while an exercise reads it; between sets the next start reconnects.
-  ws.on('close', () => { if (motion[channel] !== ws) return; motion[channel] = null; if (exercise && assigner) setTimeout(() => watchMotion(channel), 1000); });
+  ws.on('close', () => { if (motion !== ws) return; motion = null; if (exercise && assigner) setTimeout(watchMotion, 1000); });
   ws.on('error', () => {});
 }
 async function readJson(request: import('node:http').IncomingMessage) {
@@ -323,9 +326,10 @@ const server = createServer(async (request, response) => {
       const kind = exerciseKind(body.exercise ?? launched?.measureWith ?? x.exerciseKind);
       if (kind.requires.includes('pose') && !cameraMeasurement)
         throw Error(`Camera (MediaPipe) measurement is off; measure "${x.id}" with the AirPod (change "Measured with" in the portal).`);
-      // Sensors (AGENTS.md): with two people in the session every pair but one is another person's, so a two-IMU
-      // movement cannot be measured there. Refused before anything is torn down.
-      if (kind.requires.includes('ref') && peopleInSession(x.activityId) >= 2)
+      // Sensors (AGENTS.md): both pairs are the patient's. Only the older relay reading that makes the second Mac
+      // another person (KINESTHETIC_REMOTE_MOTION=people) leaves one pair per person, and a two-IMU movement then
+      // cannot be measured with someone else in the session. Refused before anything is torn down.
+      if (process.env.KINESTHETIC_REMOTE_MOTION === 'people' && kind.requires.includes('ref') && peopleInSession(x.activityId) >= 2)
         throw new SensorRuleError(`"${LIBRARY[kind.id]?.label ?? kind.id}" needs two AirPods on one person. In a session with someone else each person has one AirPod: pick a one-AirPod movement.`);
       await finishExercise();
       const p = x.params, target = Number(body.targetDeg ?? p.targetDeg);
@@ -343,12 +347,14 @@ const server = createServer(async (request, response) => {
       headLean = kind.requires.includes('imu') ? new HeadLean() : null;
       if (headLean) watchHead();
       if (kind.requires.includes('imu')) {
-        // One IMU takes whatever is live; two are told apart by which one moves (exercise/imu-assign.ts). Both relay
-        // channels are read: which app or Mac a pair came through says nothing about what it measures.
+        // One IMU takes whatever is live; two are told apart by which one moves (exercise/imu-assign.ts), once: a set
+        // worn the same way as one already told apart starts on that answer.
         const mode: Mode = kind.requires.includes('ref') ? 'two' : 'one', entry = LIBRARY[kind.id];
-        const pinned = body.imuChannel === 'club' || body.imuChannel === 'wrist' ? {imu: body.imuChannel} : undefined;
-        assigner = new ImuAssigner({mode, wear: {imu: entry?.sensor ?? 'AirPod on the wrist', ref: entry?.reference}, pinned});
-        watchMotion('club'); watchMotion('wrist');
+        const wear = {imu: entry?.sensor ?? 'AirPod on the wrist', ref: entry?.reference};
+        const pinned = body.imuChannel === 'mac1' || body.imuChannel === 'mac2' ? {imu: body.imuChannel as Channel}
+          : mode === 'two' ? rememberedPairs.get(wearKey(wear)) : undefined;
+        assigner = new ImuAssigner({mode, wear, pinned}); assignerWear = wear;
+        watchMotion();
         assignerTicker = setInterval(() => { if (assigner?.tick(motionNow())) sensorsChanged(); }, 500); assignerTicker.unref();
       }
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
