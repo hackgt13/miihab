@@ -17,6 +17,7 @@ MonoBehaviour:
   - Kinesthetic/Golf/Golf
   - Kinesthetic/Menu/MainMenu
   - Kinesthetic/Menu/Navigation
+  - Kinesthetic/Menu/Resources/Menu/Group
   - Kinesthetic/Palette
   - Kinesthetic/Rehab/Rehab
   - Kinesthetic/Replay
@@ -24,19 +25,27 @@ MonoBehaviour:
   - Kinesthetic/UI/Base
   - Kinesthetic/UI/Boards/Boards
   - Kinesthetic/UI/Panes/Panes
+  - Kinesthetic/UI/Resources/KinestheticUI/Briefing
+  - Kinesthetic/UI/Resources/KinestheticUI/Bubble
   - Kinesthetic/UI/Resources/KinestheticUI/Button
   - Kinesthetic/UI/Resources/KinestheticUI/Chip
   - Kinesthetic/UI/Resources/KinestheticUI/Content
+  - Kinesthetic/UI/Resources/KinestheticUI/Field
   - Kinesthetic/UI/Resources/KinestheticUI/Measures
+  - Kinesthetic/UI/Resources/KinestheticUI/Message
+  - Kinesthetic/UI/Resources/KinestheticUI/Option
   - Kinesthetic/UI/Resources/KinestheticUI/Readout
+  - Kinesthetic/UI/Resources/KinestheticUI/Sheet
   - Kinesthetic/UI/Resources/KinestheticUI/Steps
   - Kinesthetic/UI/Resources/KinestheticUI/Text
   - Kinesthetic/UI/Specimen
+  - Kinesthetic/Visit/Visit
   sheets:
   - {fileID: 7433441132597879392, guid: 401c04b07877145ccb3beebd0e0f9372, type: 3}
   - {fileID: 7433441132597879392, guid: 507b3708197e84ae4a04eabdbdd5d941, type: 3}
   - {fileID: 7433441132597879392, guid: 2cc5498d8d8c740688d932c2860ce428, type: 3}
   - {fileID: 7433441132597879392, guid: 9643a04c77019473480e704a583ea6e2, type: 3}
+  - {fileID: 7433441132597879392, guid: 329739ead77a0466c886aafdcec3fb9c, type: 3}
   - {fileID: 7433441132597879392, guid: 6b54ceec5ded64367a2fc07574b78b40, type: 3}
   - {fileID: 7433441132597879392, guid: 001c49666c04041779e3f06b1e0dc9a8, type: 3}
   - {fileID: 7433441132597879392, guid: 726a0eb67deae4b7ba272ae7ea251d83, type: 3}
@@ -44,11 +53,18 @@ MonoBehaviour:
   - {fileID: 7433441132597879392, guid: 4971d76e667348eca8656c4c41cacaf6, type: 3}
   - {fileID: 7433441132597879392, guid: 122afd27df44403782fdbfb1e15f025c, type: 3}
   - {fileID: 7433441132597879392, guid: c25193b6f0c404534ac02ee274df6fe4, type: 3}
+  - {fileID: 7433441132597879392, guid: 40de6d33cb061486d8a893fa860c176c, type: 3}
+  - {fileID: 7433441132597879392, guid: cf319d2af910849c5bbba2ec896dec2d, type: 3}
   - {fileID: 7433441132597879392, guid: 31aa05108a2f42af819fe947423dd50b, type: 3}
   - {fileID: 7433441132597879392, guid: 2e65ca4973c9476a8aea8fe3a1d51d1c, type: 3}
   - {fileID: 7433441132597879392, guid: 3913ea6dd7b9e469f885c82c9a967d28, type: 3}
+  - {fileID: 7433441132597879392, guid: 7487612a0e9224492becbdf95fc13c1d, type: 3}
   - {fileID: 7433441132597879392, guid: 7a5c49c899e54afbab8f1640df526147, type: 3}
+  - {fileID: 7433441132597879392, guid: 13a0135ef10274a499ac21592e0500d6, type: 3}
+  - {fileID: 7433441132597879392, guid: a8796723033144e6a8033a9fd312302e, type: 3}
   - {fileID: 7433441132597879392, guid: 140508dbf54c4a47a8de8eb42d987c2c, type: 3}
+  - {fileID: 7433441132597879392, guid: 92e934cf11b5f4a1185bfde400bf09c7, type: 3}
   - {fileID: 7433441132597879392, guid: a96b2cfacf984661bc13becb2f06d3ad, type: 3}
   - {fileID: 7433441132597879392, guid: 9dab0cb0cba946939a87b5e95f34b759, type: 3}
   - {fileID: 7433441132597879392, guid: 5cfb363d0cda485bb76bad261c3b8177, type: 3}
+  - {fileID: 7433441132597879392, guid: d549c6c9e3fef4d7284e019ae29a4deb, type: 3}

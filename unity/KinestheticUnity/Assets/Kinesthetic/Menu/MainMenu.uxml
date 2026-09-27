@@ -1,4 +1,4 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements">
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:k="Kinesthetic.UI">
     <ui:Style src="../Palette.uss" />
     <ui:Style src="MainMenu.uss" />
     <ui:VisualElement name="menu-screen" class="menu-screen">
@@ -121,7 +121,7 @@
         <ui:VisualElement name="name-overlay" class="modal-shade hidden">
             <ui:VisualElement class="sheet name-sheet">
                 <ui:Label text="What should we call you?" class="sheet-title" />
-                <ui:TextField name="name-field" class="name-field" max-length="24" />
+                <k:KField name="name-field" placeholder="Your name" class="name-field" max-length="24" />
                 <ui:Label text="Just for the greeting. It stays on this machine." class="help-copy" />
                 <ui:VisualElement class="sheet-actions">
                     <ui:Button name="name-cancel" text="Cancel" class="sheet-close" />
