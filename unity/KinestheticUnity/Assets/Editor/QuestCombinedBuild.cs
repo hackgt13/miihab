@@ -38,6 +38,7 @@ public static class QuestCombinedBuild
         QuestMenuSetup.Create();             // QuestMenu: the plaza, its doorways, and the menu's boards as replicas
         QuestSceneSetup.WriteHostConfig();
         QuestSceneSetup.ConfigureAndroidXR();
+        RemoteUiRegistries.Refresh();        // every stylesheet and image a board can name, or the headset resolves none added since the last manual refresh
         var scenes = Scenes;
         VerifyCoverage(scenes);              // nothing the menu can reach is left off the headset
         var output = Path.GetFullPath(Output);
