@@ -109,7 +109,8 @@ namespace Kinesthetic.Rehab
         float? liveAngle; string phase = "idle";
         float lastSampleAt = -99, shownAngle; string exerciseKind = "arm-elevation.v1";
         Kinesthetic.Coach.CoachDemonstrator coach;
-        bool voiceOn; string currentExerciseId;
+        bool voiceOn; string currentExerciseId; Label hudCoachState;
+        static Kinesthetic.Coach.CoachVoice Voice => Kinesthetic.Coach.CoachVoice.Instance;
         VisualElement hudCoach; Label hudCoachLine; Button viewToggle, summaryClose, summaryMenu;
         int boundGeneration = -1;
         // Held, so a rebind after one board rebuilds can take them off the boards that did not (-= then +=):
@@ -232,6 +233,7 @@ namespace Kinesthetic.Rehab
             cueTitle = root.Q<Label>("cue-title"); cueStep = root.Q<KTag>("cue-step");
             hudCoach = root.Q("hud-coach");
             hudCoachLine = root.Q<Label>("hud-coach-line");
+            hudCoachState = root.Q<Label>("hud-coach-state");
             holdRing = root.Q<KArc>("hold-ring"); holdReadout = root.Q<KReadout>("hold-readout");
             streakTag = root.Q<KTag>("streak-tag"); bestHoldReadout = root.Q<KReadout>("best-hold");
             // The summary's two ways on: another set straight away (what the dock's Practice again does), or done
@@ -519,12 +521,15 @@ namespace Kinesthetic.Rehab
 
         void UpdatePlayHud()
         {
-            var voice = Kinesthetic.Coach.CoachVoice.Instance;
-            if (voice && running && calibrated && !voiceOn) { voice.Begin(PatientId); voiceOn = true; }
-            else if (voice && !running && voiceOn) { voice.End(); voiceOn = false; }
-            var said = running && voice ? voice.Line : "";
+            var voice = Voice;
+            // One conversation per visit to the studio, not per set: Alex greets, coaches each set, recaps and says
+            // goodbye. It opens once the studio knows its prescription and closes when the patient leaves.
+            if (voice && !voiceOn && !string.IsNullOrEmpty(exerciseKind) && Time.timeSinceLevelLoad > 1.5f) { voice.Begin(PatientId); voiceOn = true; }
+            var said = voice ? voice.Line : "";
             hudCoachLine.text = said;
-            hudCoach.EnableInClassList("hidden", string.IsNullOrEmpty(said));
+            if (hudCoachState != null)
+                hudCoachState.text = voice && voice.Speaking ? "ALEX · SPEAKING" : voice && voice.Listening ? "ALEX · LISTENING" : "ALEX · YOUR COACH";
+            hudCoach.EnableInClassList("hidden", !(voice && voice.Connected) && string.IsNullOrEmpty(said));
         }
 
         void UpdateStudioUI()
@@ -646,6 +651,7 @@ namespace Kinesthetic.Rehab
                         exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0;
                         if (p["sensors"] is JObject sensors) { sensorPhase = (string)sensors["phase"]; sensorInstruction = (string)sensors["instruction"]; }
                         UprightCount++;   // the patient is sitting still and upright: the headset zeroes its head here
+                        Voice?.Context($"[set] Starting {movementLabel ?? exerciseKind}: {prescribedReps} reps, target {targetDeg:0}°, {side} side.");
                         // Which qualities this set is judged on, so a mechanic with nothing to answer to can hide.
                         if (p["qualities"] is JArray qualities)
                             qualityIds = new System.Collections.Generic.HashSet<string>(qualities.OfType<JObject>().Select(q => (string)q["id"]).Where(id => id != null));
@@ -702,6 +708,9 @@ namespace Kinesthetic.Rehab
                             _ => "That one didn't count" };
                         Flash(Bad);
                     }
+                    // Alex answers a rep that did not count, the first good one and the last; the rest he only knows about.
+                    bool counted = e["valid"]?.Value<bool>() == true;
+                    Voice?.Context(RepReport(e), speak: !counted || valid == 1 || valid >= prescribedReps);
                     if (valid >= prescribedReps && running) StartCoroutine(Stop());
                     break;
             }
@@ -723,6 +732,8 @@ namespace Kinesthetic.Rehab
         {
             if (summaryReceived) return;
             summaryReceived = true; sessionError = false;
+            Voice?.Context($"[set] Set finished: {(int?)s["valid"] ?? valid} of {(int?)s["attempted"] ?? attempted} reps counted" +
+                (Num(s["medianValidPeakDeg"]) is float medianPeak ? $", median peak {medianPeak:0}° against a target of {targetDeg:0}°." : "."), speak: true);
             // The server decided this set was over and recorded it; tell whoever is driving us.
             Completed?.Invoke((string)s["exerciseId"] ?? "");
             running = false; autoArmed = false; start.text = "Practice again";
@@ -746,6 +757,19 @@ namespace Kinesthetic.Rehab
 
         // The progression rules' verdict on this session (coordinator/progression.ts), in the patient's words.
         // Arrives just after the summary; a level change inside the clinician's envelope has already applied.
+        /// A rep, as Alex is told about it: the facts the studio shows, in a sentence he can quote.
+        string RepReport(JObject e)
+        {
+            bool counted = e["valid"]?.Value<bool>() == true;
+            var reason = ((string)e["reason"] ?? "").Replace('_', ' ');
+            var peak = Num(e["peakDeg"]);
+            var line = $"[rep] Rep {attempted} ({valid} of {prescribedReps} counted): " + (counted ? "counted" : $"did not count ({reason})");
+            if (peak is float deg) line += $", peak {deg:0}° against a target of {targetDeg:0}°";
+            if (counted) line += ". Studio cue: " + status;
+            if (streak > 1) line += $". Streak {streak}.";
+            return line;
+        }
+
         void ShowProgression(JObject p)
         {
             var label = boards.Q<Label>("summary-progress");
@@ -767,6 +791,7 @@ namespace Kinesthetic.Rehab
                 _ => ("", ""),
             };
             label.text = text;
+            if (text.Length > 0) Voice?.Context("[plan] " + text, speak: true);
             label.EnableInClassList("hidden", text.Length == 0);
             label.EnableInClassList("up", tone == "up");
             label.EnableInClassList("easy", tone == "easy");
@@ -844,6 +869,7 @@ namespace Kinesthetic.Rehab
 
         void OnDestroy()
         {
+            if (voiceOn) Voice?.End();   // leaving the studio ends the conversation, recap and all
             exercise?.Dispose();   // the hub owns the pose channel
             var groups = Kinesthetic.Menu.GroupPanel.Instance;
             if (groups) groups.RoomChanged -= ArrangeCompany;
