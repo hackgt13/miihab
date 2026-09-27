@@ -9,18 +9,20 @@ namespace Kinesthetic.Shell
     /// of chrome that has to exist on the headset: it is what hides the cut between two scenes.
     ///
     /// One per process, and it outlives scenes: it is at full cover at the moment a scene is swapped, and it
-    /// has to still be there, in front of the new scene's camera, to fade back up. So it is never a child of
-    /// a camera — a child dies with its parent when the old scene unloads, and the new scene would simply
-    /// appear. It stays a root object and follows Camera.main every frame, again just before render so a
-    /// tracked head never sees it lag, and sizes the quad from the camera's field of view so the same tunnel
-    /// setting reads the same on a Mac window and in a headset eye.
+    /// has to still be there, in front of the new scene's camera, to fade back up. It rides as a child of
+    /// the live camera — the only way it stays exactly head-locked on a headset, where the pose is written
+    /// again right before render, after any script that tried to follow it — so whoever swaps a scene calls
+    /// Detach() first: a child dies with its parent when the old scene unloads. It re-parents itself to
+    /// Camera.main whenever that changes.
     public sealed class HeadFade : MonoBehaviour
     {
         const string ShaderPath = "Shell/HeadFade";
-        // A metre ahead and twelve metres across: wider than any view — 80 degrees to each side — so cover
-        // never depends on knowing the camera's field of view or aspect, which a camera that has not rendered
-        // yet reports wrongly. The tunnel is scaled to the view through _Extent instead.
-        const float Distance = 1f, HalfSide = 6f;
+        // Ten metres ahead and 120 across: wider than any view — 80 degrees to each side — so cover never
+        // depends on knowing the camera's field of view or aspect, which a camera that has not rendered yet
+        // reports wrongly; the tunnel is scaled to the view through _Extent instead. Far rather than close
+        // because the sheet is centred between the eyes: a metre out, the two eyes see its soft tunnel edge
+        // nearly two degrees apart and the edge shimmers; ten metres out the difference is nothing.
+        const float Distance = 10f, HalfSide = 60f;
         static readonly int CoverId = Shader.PropertyToID("_Cover"), TunnelId = Shader.PropertyToID("_Tunnel"), ColorId = Shader.PropertyToID("_Color"), ExtentId = Shader.PropertyToID("_Extent");
 
         static HeadFade instance;
@@ -32,7 +34,7 @@ namespace Kinesthetic.Shell
         Material material;
         MeshRenderer render;
         Camera attached;
-        float fov, aspect, cover, tunnel;
+        float cover, tunnel;
 
         public float Cover { get => cover; set { cover = Mathf.Clamp01(value); Push(); } }
         public float Tunnel { get => tunnel; set { tunnel = Mathf.Clamp01(value); Push(); } }
@@ -70,6 +72,14 @@ namespace Kinesthetic.Shell
             render.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
             render.enabled = false;
             transform.localScale = new Vector3(HalfSide * 2, HalfSide * 2, 1);
+            StartCoroutine(Warm());
+        }
+
+        // Draw once, invisibly, so the shader is compiled before the first walk rather than in its first frame.
+        IEnumerator Warm()
+        {
+            yield return null;
+            if (cover == 0 && tunnel == 0) { Cover = .004f; yield return null; yield return null; if (Mathf.Approximately(cover, .004f)) Cover = 0; }
         }
 
         // A unit quad in the camera's XY plane. Cull is off in the shader, so which way it faces is moot.
@@ -81,39 +91,37 @@ namespace Kinesthetic.Shell
             triangles = new[] { 0, 2, 1, 0, 3, 2 },
         };
 
-        void OnEnable() { Application.onBeforeRender += Follow; }
-        void OnDisable() { Application.onBeforeRender -= Follow; }
-
         void LateUpdate()
         {
             var cam = Camera.main;
-            if (cam != attached || (cam && (cam.fieldOfView != fov || cam.aspect != aspect))) Attach(cam);
-            Follow();
-        }
-
-        void Follow()
-        {
-            // Right after a scene swap the camera it followed is gone and the new one may only appear at
-            // render time; take it here, before this frame renders, or the new scene shows through uncovered.
-            if (!attached)
-            {
-                var cam = Camera.main;
-                if (!cam) return;
-                Attach(cam);
-            }
-            var eye = attached.transform;
-            transform.SetPositionAndRotation(eye.position + eye.rotation * new Vector3(0, 0, Distance), eye.rotation);
+            if (cam != attached || (cam && transform.parent != cam.transform)) Attach(cam);
+            if (!attached) return;
             // How far across the quad the edge of the view reaches, re-read every frame: a camera's aspect is
             // only right once it has rendered, and a wrong value here only mis-scales the tunnel for a frame.
             float reach = Mathf.Tan(attached.fieldOfView * .5f * Mathf.Deg2Rad) * Distance * Mathf.Max(attached.aspect, 1f);
             if (material) material.SetFloat(ExtentId, reach / HalfSide);
         }
 
+        /// Off the camera and back to a root object, keeping its place in the world. Called by whoever is
+        /// about to swap scenes, so the sheet survives the camera it was riding; it takes the next camera in
+        /// LateUpdate. Still drawn meanwhile: whatever renders next is covered.
+        public void Detach()
+        {
+            if (transform.parent) transform.SetParent(null, true);
+            // Parenting moved it into the camera's scene; back at the root it would still unload with that
+            // scene unless it is made persistent again.
+            DontDestroyOnLoad(gameObject);
+            attached = null;
+        }
+
         void Attach(Camera cam)
         {
             attached = cam;
-            if (!cam) return;   // stays where it was, still drawn: whatever renders next is covered
-            fov = cam.fieldOfView; aspect = cam.aspect;
+            if (!cam) { Detach(); return; }
+            transform.SetParent(cam.transform, false);
+            transform.localPosition = new Vector3(0, 0, Distance);
+            transform.localRotation = Quaternion.identity;
+            transform.localScale = new Vector3(HalfSide * 2, HalfSide * 2, 1);
             Push();
         }
 

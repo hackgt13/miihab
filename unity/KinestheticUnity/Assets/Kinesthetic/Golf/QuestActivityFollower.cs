@@ -35,6 +35,10 @@ namespace Kinesthetic.Golf
         float[] liveAt;
         AsyncOperation loading;
         bool transitioning;
+        float lastCueAt = float.NegativeInfinity;
+        /// How long after a cue the host streams are ignored. The Mac's activity keeps publishing for a
+        /// moment after it has said it is leaving, and the fallback would drag the headset straight back.
+        public const float CueGraceSeconds = 5f;
 
         /// A walk or a fade is in progress; the verification watches this.
         public bool Transitioning => transitioning;
@@ -66,6 +70,7 @@ namespace Kinesthetic.Golf
             if (Instance && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            HeadFade.Ensure();   // exists, and has drawn once, before the first walk asks for it
         }
 
         void OnEnable() { UiCue.Received += Cue; }
@@ -84,6 +89,7 @@ namespace Kinesthetic.Golf
         void Cue(JObject message)
         {
             if ((string)message["kind"] != UiCue.Scene) return;
+            lastCueAt = Time.unscaledTime;
             string scene = HeadsetSceneFor((string)message["scene"]);
             string phase = (string)message["phase"], venue = (string)message["venue"];
             if (scene == null || !Application.CanStreamedLevelBeLoaded(scene))
@@ -105,6 +111,8 @@ namespace Kinesthetic.Golf
         {
             transitioning = true;
             var fade = HeadFade.Ensure();
+            var priority = Application.backgroundLoadingPriority;
+            Application.backgroundLoadingPriority = ThreadPriority.High;   // load while nothing moves
             var load = SceneManager.LoadSceneAsync(scene);
             load.allowSceneActivation = false;   // loads now, switches in on the covered frame
             loading = load;
@@ -116,12 +124,14 @@ namespace Kinesthetic.Golf
                 // A tracked camera is moved by its rig's root — the seat anchor — never by its own transform.
                 var mover = cam.GetComponent<TrackedPoseDriver>() ? cam.transform.root : cam.transform;
                 var carousel = FindAnyObjectByType<PaneCarousel>();
-                yield return PlazaApproach.Enter(portal, mover, fade, turnToward: false, carousel ? carousel.gameObject : null);
+                yield return PlazaApproach.Enter(portal, mover, fade, turnToward: false, () => load.progress >= .9f, carousel ? carousel.gameObject : null);
             }
             else yield return fade.CoverTo(1, PlazaApproach.ClearSeconds);
 
+            fade.Detach();   // off the camera that is about to go with the scene
             load.allowSceneActivation = true;
             while (!load.isDone) yield return null;
+            Application.backgroundLoadingPriority = priority;
             yield return null;   // the new scene's camera exists; HeadFade has moved onto it
             yield return PlazaApproach.Arrive(fade);
             transitioning = false;
@@ -139,6 +149,7 @@ namespace Kinesthetic.Golf
                 if (now - liveAt[i] < 2 && (newest < 0 || liveAt[i] > liveAt[newest])) newest = i;
             }
             if (newest < 0 || transitioning || loading is { isDone: false } || SceneManager.GetActiveScene().name == Activities[newest].scene) return;
+            if (now - lastCueAt < CueGraceSeconds) return;   // the cue said where to go; a stream still winding down does not
             if (!Application.CanStreamedLevelBeLoaded(Activities[newest].scene)) return;
             StartCoroutine(Transition(Activities[newest].scene, null));
         }

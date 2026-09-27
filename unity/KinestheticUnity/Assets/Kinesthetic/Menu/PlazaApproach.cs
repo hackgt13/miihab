@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Kinesthetic.Shell;
 using UnityEngine;
@@ -26,44 +27,78 @@ namespace Kinesthetic.Menu
         /// The turn on a flat view runs at one angular speed, so its length is its angle: half a second per
         /// quarter turn, and a turn too small to see still takes a beat rather than snapping.
         public const float TurnSecondsPerQuarter = .5f, MinTurnSeconds = .2f;
+        /// The longest the beat stretches waiting for the next scene to finish loading, and the longest
+        /// frame the walk's clock will believe: a hitch mid-walk becomes a slightly longer walk, not a skip.
+        public const float MaxReadyWaitSeconds = 3f, MaxFrameSeconds = 1f / 30;
+
+        static float Dt() => Mathf.Min(Time.unscaledDeltaTime, MaxFrameSeconds);
+
+        /// A headset never turns smoothly, but a person pressing from a pane off to one side would otherwise
+        /// be carried sideways toward a door they cannot see. So past this angle the rig snaps to face the
+        /// door under a blink: dark, turned, back, with no motion in between for the inner ear to object to.
+        public const float SnapThresholdDegrees = 15f, BlinkSeconds = .12f, BlinkClearSeconds = .25f;
 
         /// Carries `mover` through `portal` and leaves the view covered. `hide` is what should vanish as
         /// the walk starts — the ring of panes, which would otherwise sweep through the person's head.
         ///
-        /// On a flat view (`turnToward`) the camera first turns to face the door, while the door swings,
-        /// and only then walks — turning and sliding at once reads as a lurch from any angle but head-on.
+        /// On a flat view (`turnToward`) the camera turns to face the door once it stands open, and only
+        /// then walks — turning and sliding at once reads as a lurch from any angle but head-on.
         /// The look controller is switched off for the walk: it composes its drag on top of whatever is
         /// written to the camera, so with a dragged view the camera would never actually face the door.
-        public static IEnumerator Enter(Portal portal, Transform mover, HeadFade fade, bool turnToward, params GameObject[] hide)
+        ///
+        /// `ready` says whether the next scene has finished loading. The beat lasts until it has, so the
+        /// loading's main-thread work lands while nothing moves and the walk itself runs on quiet frames.
+        public static IEnumerator Enter(Portal portal, Transform mover, HeadFade fade, bool turnToward, Func<bool> ready, params GameObject[] hide)
         {
             foreach (var go in hide) if (go) go.SetActive(false);
             var look = turnToward ? mover.GetComponent<DevFreeLook>() : null;
             if (look) look.enabled = false;
-            portal.Open();
+            // The frame that kicked all this off — the load, the fade's first draw — is a long one; it is
+            // not on the clock. Nothing moves in it.
+            yield return null;
 
+            var eye = Camera.main ? Camera.main.transform : mover;
+            if (!turnToward) yield return Snap(mover, eye, fade, portal.Stop);
+            portal.Open();   // after the snap, so the whole swing is seen
+
+            // The walk carries the rig so that the *eyes* end up over the stop: a tracked head may stand off
+            // its rig's origin by half a metre, and it is the head that must end inside the vestibule.
             Vector3 from = mover.position, to = portal.Stop;
+            var offset = mover.position - eye.position; offset.y = 0;
+            to += offset;
             to.y = from.y;   // the floor stays where the rig's floor is; a camera keeps its eye height
             var fromRotation = mover.rotation;
             var flat = to - from; flat.y = 0;
             var toRotation = flat.sqrMagnitude > .0001f ? Quaternion.LookRotation(flat.normalized, Vector3.up) : fromRotation;
-            float turnSeconds = turnToward
-                ? Mathf.Max(MinTurnSeconds, Quaternion.Angle(fromRotation, toRotation) / 90f * TurnSecondsPerQuarter)
-                : 0;
-            float beat = Mathf.Max(BeatSeconds, turnSeconds + .15f);
 
+            // 1. The beat: the door swings while the next scene loads. Nothing moves, so the loading's long
+            //    frames land where they cannot be seen as motion.
             float t = 0;
-            while (t < beat)
+            while (t < BeatSeconds || (ready != null && !ready() && t < BeatSeconds + MaxReadyWaitSeconds))
             {
-                t += Time.unscaledDeltaTime;
-                if (turnToward) mover.rotation = Quaternion.Slerp(fromRotation, toRotation, Mathf.SmoothStep(0, 1, Mathf.Clamp01(t / turnSeconds)));
+                t += Dt();
                 yield return null;
             }
-            if (turnToward) mover.rotation = toRotation;
 
+            // 2. The turn, on a flat view only, at one angular speed, on quiet frames.
+            if (turnToward)
+            {
+                float turnSeconds = Mathf.Max(MinTurnSeconds, Quaternion.Angle(fromRotation, toRotation) / 90f * TurnSecondsPerQuarter);
+                t = 0;
+                while (t < turnSeconds)
+                {
+                    t += Dt();
+                    mover.rotation = Quaternion.Slerp(fromRotation, toRotation, Mathf.SmoothStep(0, 1, Mathf.Clamp01(t / turnSeconds)));
+                    yield return null;
+                }
+                mover.rotation = toRotation;
+            }
+
+            // 3. The walk.
             t = 0;
             while (t < DashSeconds)
             {
-                t += Time.unscaledDeltaTime;
+                t += Dt();
                 float u = Mathf.SmoothStep(0, 1, Mathf.Clamp01(t / DashSeconds));
                 mover.position = Vector3.Lerp(from, to, u);
                 fade.Tunnel = TunnelDepth * u;
@@ -75,6 +110,21 @@ namespace Kinesthetic.Menu
             fade.Tunnel = 0;
 
             yield return Hold();
+        }
+
+        /// Blink, turn the rig about the head so the head faces `target`, blink back. Nothing for a turn too
+        /// small to matter.
+        static IEnumerator Snap(Transform mover, Transform eye, HeadFade fade, Vector3 target)
+        {
+            var facing = Vector3.ProjectOnPlane(eye.forward, Vector3.up);
+            var toTarget = target - eye.position; toTarget.y = 0;
+            if (facing.sqrMagnitude < .0001f || toTarget.sqrMagnitude < .0001f) yield break;
+            float delta = Vector3.SignedAngle(facing, toTarget, Vector3.up);
+            if (Mathf.Abs(delta) < SnapThresholdDegrees) yield break;
+            yield return fade.CoverTo(1, BlinkSeconds);
+            mover.RotateAround(eye.position, Vector3.up, delta);   // the head stays where it is; the world turns under it
+            yield return null;
+            yield return fade.CoverTo(0, BlinkClearSeconds);
         }
 
         /// A beat at full cover before the swap on the way into a venue, so the dark reads as a place rather

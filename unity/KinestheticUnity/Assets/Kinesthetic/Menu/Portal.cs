@@ -46,7 +46,8 @@ namespace Kinesthetic.Menu
         {
             if (!hinge || Mathf.Approximately(angle, target)) return;
             float rate = Mathf.Abs(openDegrees) / Mathf.Max(.01f, openSeconds);
-            angle = Mathf.MoveTowards(angle, target, Time.unscaledDeltaTime * rate);
+            // The swing overlaps the next scene's loading, whose long frames would otherwise make it lurch.
+            angle = Mathf.MoveTowards(angle, target, Mathf.Min(Time.unscaledDeltaTime, 1f / 30) * rate);
             hinge.localRotation = Quaternion.Euler(0, angle, 0);
         }
     }

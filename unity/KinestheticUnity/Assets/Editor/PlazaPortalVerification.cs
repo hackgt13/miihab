@@ -76,7 +76,7 @@ public static class PlazaPortalVerification
         // Wall-clock, not a sum of frame deltas: this routine is stepped from EditorApplication.update, which
         // can tick more than once per player frame, so summing Time.unscaledDeltaTime here overcounts.
         bool finished = false; float maxTunnel = 0; float began = Time.realtimeSinceStartup;
-        fade.StartCoroutine(Wrap(PlazaApproach.Enter(portal, walker, fade, turnToward: true), () => finished = true));
+        fade.StartCoroutine(Wrap(PlazaApproach.Enter(portal, walker, fade, turnToward: true, null), () => finished = true));
         while (!finished)
         {
             maxTunnel = Mathf.Max(maxTunnel, fade.Tunnel);

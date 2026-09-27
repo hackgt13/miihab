@@ -17,7 +17,7 @@ namespace Kinesthetic.Menu
         /// The intro is not a catalog activity (the coordinator neither prescribes nor records it), but it
         /// gets the same Menu button and Esc as one, so no one is stuck inside it.
         public const string TutorialScene = "Tutorial";
-        const string MusicPreference = "RehabMii.MenuMusic";
+        const string MusicPreference = "MiiHab.MenuMusic", OldMusicPreference = "RehabMii.MenuMusic";   // the old key is read once, as a fallback
         public AudioClip menuMusic, hoverSound, selectSound, backSound;
         public static ActivityNavigation Instance { get; private set; }
         public bool MusicEnabled { get; private set; }
@@ -65,7 +65,7 @@ namespace Kinesthetic.Menu
         {
             if (Instance && Instance != this) { Destroy(gameObject); return; }
             Instance = this; DontDestroyOnLoad(gameObject);
-            MusicEnabled = PlayerPrefs.GetInt(MusicPreference, 1) != 0;
+            MusicEnabled = PlayerPrefs.GetInt(MusicPreference, PlayerPrefs.GetInt(OldMusicPreference, 1)) != 0;
             musicSource = gameObject.AddComponent<AudioSource>(); musicSource.playOnAwake = false;
             musicSource.spatialBlend = 0; musicSource.loop = true; musicSource.clip = menuMusic; musicSource.volume = 0;
             effects = gameObject.AddComponent<AudioSource>(); effects.playOnAwake = false; effects.spatialBlend = 0; effects.volume = .55f;
@@ -239,6 +239,9 @@ namespace Kinesthetic.Menu
             dialog.AddToClassList("hidden");
             UiCue.SendScene(scene, venue, UiCue.Leave);
             var fade = HeadFade.Ensure();
+            // Load hard now, while the door swings and nothing moves, so the walk runs on quiet frames.
+            var priority = Application.backgroundLoadingPriority;
+            Application.backgroundLoadingPriority = ThreadPriority.High;
             var load = SceneManager.LoadSceneAsync(scene);
             load.allowSceneActivation = false;
             var portal = Portal.Find(venue);
@@ -246,11 +249,13 @@ namespace Kinesthetic.Menu
             if (portal != null && cam != null)
             {
                 var carousel = FindAnyObjectByType<PaneCarousel>();
-                yield return PlazaApproach.Enter(portal, cam.transform, fade, turnToward: true, carousel ? carousel.gameObject : null);
+                yield return PlazaApproach.Enter(portal, cam.transform, fade, turnToward: true, () => load.progress >= .9f, carousel ? carousel.gameObject : null);
             }
             else yield return fade.CoverTo(1, PlazaApproach.ClearSeconds);
+            fade.Detach();   // off the camera that is about to go with the scene
             load.allowSceneActivation = true;
             while (!load.isDone) yield return null;
+            Application.backgroundLoadingPriority = priority;
             UiCue.SendScene(scene, venue, UiCue.Arrive);
             yield return PlazaApproach.Arrive(fade);
             Busy = false; confirm.SetEnabled(true); cancel.SetEnabled(true);
