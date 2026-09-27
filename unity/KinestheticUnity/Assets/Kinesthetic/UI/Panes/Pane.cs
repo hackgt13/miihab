@@ -29,7 +29,9 @@ namespace Kinesthetic.Panes
     public sealed class Pane : MonoBehaviour
     {
         const float PixelsPerMetre = 1000f;
-        const float PanelPixelsPerUnit = 100f;
+        /// Panel pixels per world unit, measured from the collider UIDocument maintains. BoardBuilder and
+        /// NavigationBoard scale by the same figure.
+        public const float PanelPixelsPerUnit = 100f;
 
         UIDocument document;
         PanelSettings ownedSettings, originalSettings;

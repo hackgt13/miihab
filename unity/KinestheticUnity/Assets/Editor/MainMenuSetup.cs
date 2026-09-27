@@ -47,14 +47,7 @@ public static class MainMenuSetup
             importer.SaveAndReimport();
         }
         var panel = Panel("MenuPanel", 0, world: true);
-        var navigationPanel = Panel("NavigationPanel", 200);
-        var navigation = new GameObject("Activity navigation", typeof(UIDocument), typeof(ActivityNavigation));
-        var doc = navigation.GetComponent<UIDocument>(); doc.panelSettings = navigationPanel;
-        doc.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(Root + "/Navigation.uxml");
-        var router = navigation.GetComponent<ActivityNavigation>();
-        router.menuMusic = Audio("MorningPlay"); router.hoverSound = Audio("Hover"); router.selectSound = Audio("Select"); router.backSound = Audio("Back");
-        PrefabUtility.SaveAsPrefabAsset(navigation, Root + "/Resources/Menu/ActivityNavigation.prefab");
-        UnityEngine.Object.DestroyImmediate(navigation);
+        NavigationPrefab();
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var plaza = MenuPlazaBuilder.Build();
         Transform Anchor(string name) => plaza.GetComponentsInChildren<Transform>().First(t => t.name == name);
@@ -132,18 +125,39 @@ public static class MainMenuSetup
         carousel.Frame(eye.position, board.position);
         carousel.Adopt(
             new PaneCarousel.Slot("home", "Today", menu.transform, 0),
-            new PaneCarousel.Slot("coaching", "Coaching", coaching.transform, -62),
-            new PaneCarousel.Slot("gallery", "Activities", gallery.transform, -124),
-            new PaneCarousel.Slot("friends", "Friends", friendsPane.transform, 62));
+            new PaneCarousel.Slot("coaching", "Coaching", coaching.transform, -90),
+            new PaneCarousel.Slot("gallery", "Activities", gallery.transform, 180),
+            new PaneCarousel.Slot("friends", "Friends", friendsPane.transform, 90));
 
         // The arrows ride their own panel, wider than the panes and a little further out, so the facing pane
         // answers the gaze everywhere in front of it and the arrows answer only past its edge.
+        // 5.5 m at 1.93 m puts the arrows' centres at 51 degrees, inside the 46.6 to 56.5 gap above.
         var chrome = CarouselChrome.Stand(carousel, Panel("CarouselPanel", 1, world: true),
-            AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Kinesthetic/Shell/CarouselChrome.uxml"));
+            AssetDatabase.LoadAssetAtPath<VisualTreeAsset>("Assets/Kinesthetic/Shell/CarouselChrome.uxml"), widthMetres: 5.5f);
         chrome.gameObject.AddComponent<RemoteBoard>().id = "menu.chrome";
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
         ConfigureMacBuildScenes();
         return "Main menu created. Golf, Movement Studio and Bowling are included; menu is the default launch scene.";
+    }
+
+    /// The object that outlives every scene: the router, its music, the group session, and the navigation layer
+    /// as a board riding in front of the view (NavigationBoard) — the return dialog, the help card and the
+    /// group lobby, mirrored to the headset as "nav.shell" like any other board. Standing on its own so the
+    /// prefab can be rebuilt without regenerating the plaza.
+    [MenuItem("Kinesthetic/Menu/Rebuild navigation prefab")]
+    public static string NavigationPrefab()
+    {
+        if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play mode first.");
+        var navigation = new GameObject("Activity navigation", typeof(UIDocument), typeof(ActivityNavigation));
+        var doc = NavigationBoard.Dress(navigation, BoardBuilder.Panel());
+        doc.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(Root + "/Navigation.uxml");
+        var router = navigation.GetComponent<ActivityNavigation>();
+        router.menuMusic = Audio("MorningPlay"); router.hoverSound = Audio("Hover"); router.selectSound = Audio("Select"); router.backSound = Audio("Back");
+        const string path = Root + "/Resources/Menu/ActivityNavigation.prefab";
+        PrefabUtility.SaveAsPrefabAsset(navigation, path);
+        UnityEngine.Object.DestroyImmediate(navigation);
+        AssetDatabase.SaveAssets();
+        return "Rebuilt " + path + " as the " + NavigationBoard.Id + " board.";
     }
 
     [MenuItem("Kinesthetic/Menu/Configure Mac build scenes")]

@@ -22,8 +22,9 @@ namespace Kinesthetic.Menu
     /// Like the friends pane, nothing here shows anyone's measurements. A room shares presence and
     /// encouragement, never reps or degrees.
     ///
-    /// Screen-space for now, like the rest of the navigation layer it mounts into: it draws on the Mac and
-    /// not yet on the headset, and it answers the pointer and the keyboard, not the gaze.
+    /// It mounts into the navigation layer, which is a board riding in front of the view (NavigationBoard):
+    /// the Mac hosts it and the headset shows the replica and sends its presses back, so the lobby opens
+    /// on both machines from either one's press.
     /// </summary>
     public sealed class GroupPanel : MonoBehaviour
     {

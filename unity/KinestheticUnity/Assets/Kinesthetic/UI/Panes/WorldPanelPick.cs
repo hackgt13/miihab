@@ -12,8 +12,15 @@ namespace Kinesthetic.Panes
     ///
     /// Pane projects through the UIDocument and its root transform, including their scale and
     /// rotation. Picking follows paint order so a modal shade blocks controls underneath it.
+    ///
+    /// The nearest collider answers, with one exception: a pane whose root ignores picking is a layer,
+    /// not a surface — the navigation board that rides in front of the view, empty until a dialog is up —
+    /// and where nothing on it is picked the ray carries on to the next collider. A shade or a card on it
+    /// is picked, and blocks, as a modal should.
     public static class WorldPanelPick
     {
+        static readonly RaycastHit[] hits = new RaycastHit[8];
+
         /// The element of type T under `ray` within `maxDistance`, or null. `panelPoint` is in
         /// panel coordinates; `normalised` is 0..1 from the bottom-left, which is what a Camera
         /// viewport and a RenderTexture both already expect.
@@ -22,14 +29,28 @@ namespace Kinesthetic.Panes
             where T : VisualElement
         {
             pane = null; panelPoint = default; normalised = default;
-            if (!Physics.Raycast(ray, out var hit, maxDistance, layerMask)) return null;
-
-            pane = hit.collider.GetComponentInParent<Pane>();
-            if (!pane || !pane.TryProject(hit.point, out panelPoint, out normalised)) return null;
-            var picked = Pick(pane.ContentRoot, panelPoint);
-            for (var element = picked; element != null; element = element.parent)
-                if (element is T target) return target.enabledInHierarchy ? target : null;
+            int count = Physics.RaycastNonAlloc(ray, hits, maxDistance, layerMask);
+            System.Array.Sort(hits, 0, count, ByDistance.Instance);
+            for (int i = 0; i < count; i++)
+            {
+                var hit = hits[i];
+                pane = hit.collider.GetComponentInParent<Pane>();
+                if (!pane || !pane.TryProject(hit.point, out panelPoint, out normalised)) return null;
+                var root = pane.ContentRoot;
+                var picked = Pick(root, panelPoint);
+                if (picked == null && root.pickingMode == PickingMode.Ignore) continue;   // a layer, empty here
+                for (var element = picked; element != null; element = element.parent)
+                    if (element is T target) return target.enabledInHierarchy ? target : null;
+                return null;
+            }
+            pane = null; panelPoint = default; normalised = default;
             return null;
+        }
+
+        sealed class ByDistance : System.Collections.Generic.IComparer<RaycastHit>
+        {
+            public static readonly ByDistance Instance = new();
+            public int Compare(RaycastHit a, RaycastHit b) => a.distance.CompareTo(b.distance);
         }
 
         /// The enabled, named Button under `ray` on `owner`'s own pane, or null. Every menu input —
