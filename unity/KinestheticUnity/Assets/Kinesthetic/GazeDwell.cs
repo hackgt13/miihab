@@ -46,6 +46,10 @@ namespace Kinesthetic
 
         UIDocument document;
         GazeReticle reticle;
+        // The ring is made in whichever scene is active, so a board that outlives a scene load (the navigation
+        // board) loses it with that scene. Remade on demand; a dead one threw in every LateUpdate, before a
+        // controller's press could commit.
+        GazeReticle Reticle => reticle ? reticle : reticle = GazeReticle.Create();
         string hot;
         Button hotButton;   // the element behind `hot`, for a replica board that sends the press away
         float held, lost;
@@ -54,13 +58,12 @@ namespace Kinesthetic
         {
             document = GetComponent<UIDocument>();
             Panes.WorldPanelPick.MakePickable(gameObject);
-            reticle = GazeReticle.Create();
         }
 
         void LateUpdate()
         {
             var cam = Camera.main;
-            if (!cam || !document) { reticle.Hide(); return; }
+            if (!cam || !document) { Reticle.Hide(); return; }
 
             // A controller pointing at this board outranks the head: the beam picks, the trigger presses, and
             // there is no dwell to wait out.
@@ -70,7 +73,7 @@ namespace Kinesthetic
                 lost = 0;
                 if (pointed.name != hot) { hot = pointed.name; held = 0; Entered?.Invoke(hot); }
                 hotButton = pointed;
-                reticle.Hide();
+                Reticle.Hide();
                 if (pulled) Commit();
                 return;
             }
@@ -79,7 +82,7 @@ namespace Kinesthetic
             if (under == null)
             {
                 lost += Time.unscaledDeltaTime;
-                if (lost < releaseSeconds && hot != null) { reticle.Show(cam, held / dwellSeconds); return; }
+                if (lost < releaseSeconds && hot != null) { Reticle.Show(cam, held / dwellSeconds); return; }
                 Leave(); return;
             }
 
@@ -88,7 +91,7 @@ namespace Kinesthetic
             held += Time.unscaledDeltaTime;
             // Look and pull: a trigger on a controller that points at nothing confirms what the head is on.
             if (ControllerPointer.PulledAtNothing) held = dwellSeconds;
-            reticle.Show(cam, held / dwellSeconds);
+            Reticle.Show(cam, held / dwellSeconds);
 
             if (held < dwellSeconds) return;
             Commit();
@@ -100,7 +103,7 @@ namespace Kinesthetic
             string fired = hot;
             var button = hotButton;
             hot = null;
-            reticle.Hide();
+            Reticle.Hide();
             // A replica board (UI/Remote) has no handlers of its own: its press crosses to the Mac instead.
             if (Kinesthetic.UI.Remote.RemoteBoard.Intercepts(gameObject, button)) return;
             Committed?.Invoke(fired);
@@ -111,7 +114,7 @@ namespace Kinesthetic
         {
             bool had = hot != null;
             hot = null; hotButton = null; held = 0;
-            reticle.Hide();
+            Reticle.Hide();
             if (had) Entered?.Invoke(null);
         }
 

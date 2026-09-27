@@ -46,7 +46,12 @@ namespace Kinesthetic
         /// A GazeDwell is listening. With none listening the beams are hidden, so a game scene shows no laser.
         public static void Acquire()
         {
-            if (!instance) instance = new GameObject("Controller pointer").AddComponent<ControllerPointer>();
+            if (!instance)
+            {
+                // Outlives scene loads, like the navigation board that is one of its users.
+                instance = new GameObject("Controller pointer").AddComponent<ControllerPointer>();
+                DontDestroyOnLoad(instance.gameObject);
+            }
             users++;
         }
 
