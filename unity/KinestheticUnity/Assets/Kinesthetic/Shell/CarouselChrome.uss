@@ -1,8 +1,8 @@
 /* The arrows either side of the ring, and the dots that say where in it you are.
 
    Chrome has to be legible against a plaza, a studio and a golf course without ever competing with the
-   window it frames, so it is sand at low opacity with prussian lettering rather than a solid button: present
-   enough to be found, quiet enough that the eye goes to the board first. It firms up on hover and focus,
+   window it frames, so it is translucent sand with prussian lettering rather than a solid button: opaque
+   enough to find at a glance, still lighter than the board so the eye goes there first. It firms up on hover and focus,
    which is also the dwell's "you are on it" state.
 
    Sizes are large because this is read at roughly two metres off a 1.85 m panel — the same reasoning as the
@@ -23,8 +23,8 @@
     height: 132px;
     border-radius: 66px;
     border-width: 2px;
-    border-color: var(--sand-00-a40);
-    background-color: var(--sand-00-a24);
+    border-color: var(--sand-00-a90);
+    background-color: var(--sand-00-a70);
     color: var(--prussian-70);
     font-size: 78px;
     padding: 0;
@@ -38,7 +38,7 @@
 /* Hover and focus are the same state on purpose: the pointer and the gaze dwell arrive at one look, so a
    person driving this with their head sees exactly what a person with a mouse sees. */
 .arrow:hover, .arrow:focus {
-    background-color: var(--sand-00-a88);
+    background-color: var(--sand-00-a97);
     border-color: var(--cerulean-40);
     scale: 1.04;
 }
