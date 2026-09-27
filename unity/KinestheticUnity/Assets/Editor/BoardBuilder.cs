@@ -43,9 +43,7 @@ public static class BoardBuilder
     }
 
     /// One board standing at `station`, `sizeMetres` in the room, showing `uxmlPath`, mirrored as `id`.
-    /// `magnify` lays it out that many times coarser than the station's density, so its type reads that many
-    /// times larger at the same distance: a board twice the size in the room with the same pixels.
-    public static UIDocument Build(SeatRig seat, string label, string id, string uxmlPath, Station station, Vector2 sizeMetres, float magnify = 1)
+    public static UIDocument Build(SeatRig seat, string label, string id, string uxmlPath, Station station, Vector2 sizeMetres)
     {
         var panel = Panel();
         var uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(uxmlPath);
@@ -56,7 +54,7 @@ public static class BoardBuilder
         document.panelSettings = panel;
         document.visualTreeAsset = uxml;
         document.worldSpaceSizeMode = WorldSpaceSizeMode.Fixed;
-        float pixelsPerMetre = station.PixelsPerMetre / Mathf.Max(.01f, magnify);
+        float pixelsPerMetre = station.PixelsPerMetre;
         document.worldSpaceSize = sizeMetres * pixelsPerMetre;                       // panel pixels, not metres
         go.transform.localScale = Vector3.one * (PanelPixelsPerUnit / pixelsPerMetre);
         go.GetComponent<RemoteBoard>().id = id;

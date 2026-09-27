@@ -19,31 +19,20 @@ public static class RehabSceneSetup
     /// The studio's boards and where they stand. The mirror has the front-left (MirrorPanel, 36° left), so
     /// nothing stands left of centre: the exercise card takes the Score station's mirror image, above the
     /// live figures at Measure, and the coach sits past both (CoachDemonstrator.SeatPose, 40° right).
-    /// Sizes are metres in the room; BoardBuilder turns them into pixels at the station's density, divided by
-    /// `magnify`.
+    /// Sizes are metres in the room; BoardBuilder turns them into pixels at the station's density.
     public readonly struct Board
     {
         public readonly string label, id, uxml;
         public readonly Station station;
         public readonly Vector2 size;
-        public readonly float magnify;
-        public Board(string label, string id, string uxml, Station station, Vector2 size, float magnify = 1) { this.label = label; this.id = id; this.uxml = uxml; this.station = station; this.size = size; this.magnify = magnify; }
+        public Board(string label, string id, string uxml, Station station, Vector2 size) { this.label = label; this.id = id; this.uxml = uxml; this.station = station; this.size = size; }
     }
-
-    /// How much larger than the station's density the studio's standing boards read. Tried in the headset: at
-    /// 1 the dock and crown were too small, so each is twice its size in the room over the same pixels. The
-    /// popups — the Focus modal and the briefing sheet — stay at 1: magnified, they filled the view.
-    public const float Magnify = 2;
-
-    /// The dock, 5° under the shared station: at twice the size its top-left corner would otherwise stand
-    /// over the foot of the mirror (RehabBoardsVerification checks the two rectangles as the seat sees them).
-    public static readonly Station Dock = new("Dock", Stations.Dock.yawDegrees, -43, Stations.Dock.distanceMetres);
 
     public static readonly Board[] Boards =
     {
-        new("Dock board",    "rehab.dock",    Root + "/RehabDock.uxml",    Dock,                    new Vector2(.80f, .34f) * Magnify,   Magnify),
+        new("Dock board",    "rehab.dock",    Root + "/RehabDock.uxml",    Stations.Dock,           new Vector2(.80f, .34f)),
         new("Focus board",   "rehab.focus",   Root + "/RehabFocus.uxml",   Stations.Focus,          new Vector2(1.2f, .8f)),
-        new("Crown board",   "rehab.crown",   Root + "/RehabCrown.uxml",   Stations.Crown,          new Vector2(.30f, .13f) * Magnify,   Magnify),
+        new("Crown board",   "rehab.crown",   Root + "/RehabCrown.uxml",   Stations.Crown,          new Vector2(.30f, .13f)),
         new("Brief board",   "rehab.brief",   Root + "/RehabBrief.uxml",   Stations.Reading,        new Vector2(.216f, .279f)),
     };
 
@@ -143,7 +132,7 @@ public static class RehabSceneSetup
         var boards = seatGo.GetComponent<BoardSet>();
         foreach (var board in Boards)
         {
-            var built = BoardBuilder.Build(seat, board.label, board.id, board.uxml, board.station, board.size, board.magnify);
+            var built = BoardBuilder.Build(seat, board.label, board.id, board.uxml, board.station, board.size);
             // The crown rides with the view rather than standing at its station (ViewFollow keeps the station's density).
             if (board.id == "rehab.crown") built.gameObject.AddComponent<ViewFollow>().station = board.station;
             boards.Adopt(built);
