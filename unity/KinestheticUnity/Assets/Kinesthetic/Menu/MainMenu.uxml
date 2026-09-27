@@ -47,7 +47,7 @@
                                 <ui:Label name="reach-now" text="—" class="stat-number" />
                                 <ui:Label name="reach-best" text="" class="reach-best" />
                             </ui:VisualElement>
-                            <ui:VisualElement name="range-fan" class="range-fan" picking-mode="Ignore" />
+                            <k:KReach name="range-fan" class="range-fan" />
                         </ui:VisualElement>
                     </ui:VisualElement>
 
@@ -55,7 +55,7 @@
                         <ui:VisualElement class="progress-split" picking-mode="Ignore">
                             <ui:VisualElement class="progress-cell" picking-mode="Ignore">
                                 <ui:VisualElement class="ring-wrap" picking-mode="Ignore">
-                                    <ui:VisualElement name="program-ring" class="program-ring" picking-mode="Ignore" />
+                                    <k:KArc name="program-ring" form="Continuous" class="program-ring" picking-mode="Ignore" />
                                     <ui:VisualElement class="ring-centre" picking-mode="Ignore">
                                         <ui:Label name="ring-number" text="0" class="ring-number" />
                                         <ui:Label name="ring-caption" text="" class="ring-caption" />
@@ -99,7 +99,7 @@
                             <ui:Label text="F" class="day-letter" /><ui:Label text="S" class="day-letter" />
                             <ui:Label text="S" class="day-letter" />
                         </ui:VisualElement>
-                        <ui:VisualElement name="calendar-grid" class="calendar-grid" picking-mode="Ignore" />
+                        <k:KDays name="calendar-grid" form="Calendar" class="calendar-grid" />
                     </ui:VisualElement>
 
                     <ui:VisualElement class="tile tile-today">

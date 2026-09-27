@@ -61,7 +61,7 @@
                             <ui:VisualElement name="program-days" class="program-days" picking-mode="Ignore" />
                             <ui:VisualElement class="program-plot" picking-mode="Ignore">
                                 <ui:VisualElement name="program-weeks" class="program-weeks" picking-mode="Ignore" />
-                                <ui:VisualElement name="program-grid" class="program-grid" picking-mode="Ignore" />
+                                <k:KDays name="program-grid" form="Program" class="program-grid" />
                             </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:VisualElement>
@@ -80,7 +80,7 @@
                                 <ui:Label name="focus-target" text="—" class="focus-target" />
                                 <ui:Label name="focus-caption" text="" class="task-detail focus-caption" />
                             </ui:VisualElement>
-                            <ui:VisualElement name="envelope-ladder" class="envelope-ladder" picking-mode="Ignore" />
+                            <k:KLadder name="envelope-ladder" class="envelope-ladder" />
                             <ui:Label name="focus-step" text="" class="task-detail focus-step" picking-mode="Ignore" />
                         </ui:VisualElement>
 

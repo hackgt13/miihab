@@ -74,7 +74,8 @@ namespace Kinesthetic.Menu
         SpotlightInfo insight;
         IntroductionsCard introductions;
         MilestoneCard milestone;
-        VisualElement pageMessages, pageMeet, profileCard, profileFace, profileStats, profileDays, threadHead;
+        VisualElement pageMessages, pageMeet, profileCard, profileFace, profileStats, threadHead;
+        KDays profileDays;   // four weeks of turning up; a component, so the headset's replica draws it too
         Button tabMessages, tabMeet;
 
         public void Attach(VisualElement tree, ActivityNavigation nav)
@@ -109,7 +110,7 @@ namespace Kinesthetic.Menu
             threadHead = root.Q(className: "thread-head");
             profileFace = root.Q("profile-face");
             profileStats = root.Q("profile-stats");
-            profileDays = root.Q("profile-days");
+            profileDays = root.Q<KDays>("profile-days");
             composer = root.Q<TextField>("composer-text");
             sendButton = root.Q<Button>("composer-send");
             photoButton = root.Q<Button>("composer-photo");
@@ -208,8 +209,7 @@ namespace Kinesthetic.Menu
                 // drawing zeroes, which would read as "they have done nothing".
                 note.text = view.lastActiveDays == 0 ? "Here today. Nothing else to show yet."
                     : "Nothing to show yet. Last here " + Days(view.lastActiveDays) + ".";
-                profileDays.generateVisualContent = null;
-                profileDays.MarkDirtyRepaint();
+                if (profileDays != null) profileDays.levels = "";
                 ShowProfile(true);
                 return;
             }
@@ -224,9 +224,7 @@ namespace Kinesthetic.Menu
             // Four weeks of turning up, one square a day. No numbers on it: this is
             // a rhythm, not a score.
             var active = new HashSet<string>(a.daysActive ?? new string[0]);
-            profileDays.generateVisualContent = null;
-            profileDays.generateVisualContent += ctx => DrawDays(ctx, active, profileDays.contentRect);
-            profileDays.MarkDirtyRepaint();
+            if (profileDays != null) profileDays.levels = Days28(active);
             ShowProfile(true);
         }
 
@@ -252,28 +250,15 @@ namespace Kinesthetic.Menu
             profileStats.Add(tile);
         }
 
-        /// Four weeks back, oldest first, a filled square for a day they moved.
-        static void DrawDays(MeshGenerationContext ctx, HashSet<string> active, Rect box)
+        /// Four weeks back, oldest first, a '1' for a day they moved — what KDays draws as a strip.
+        static string Days28(HashSet<string> active)
         {
-            if (box.width <= 1) return;
-            var p = ctx.painter2D;
-            const int Days28 = 28;
-            float gap = 3f, cell = Mathf.Max(4f, (box.width - gap * (Days28 - 1)) / Days28);
+            const int Days = 28;
+            var text = new System.Text.StringBuilder(Days);
             var today = DateTime.Now.Date;
-            for (int i = 0; i < Days28; i++)
-            {
-                var day = today.AddDays(-(Days28 - 1 - i));
-                bool moved = active.Contains(day.ToString("yyyy-MM-dd"));
-                p.fillColor = moved ? Palette.Jungle40 : Palette.Slate30;
-                float x = i * (cell + gap);
-                p.BeginPath();
-                p.MoveTo(new Vector2(x, 0));
-                p.LineTo(new Vector2(x + cell, 0));
-                p.LineTo(new Vector2(x + cell, cell));
-                p.LineTo(new Vector2(x, cell));
-                p.ClosePath();
-                p.Fill();
-            }
+            for (int i = 0; i < Days; i++)
+                text.Append(active.Contains(today.AddDays(-(Days - 1 - i)).ToString("yyyy-MM-dd")) ? '1' : '0');
+            return text.ToString();
         }
 
         void CloseProfile()

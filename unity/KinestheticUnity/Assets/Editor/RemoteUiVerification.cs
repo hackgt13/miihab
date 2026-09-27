@@ -32,6 +32,7 @@ public static class RemoteUiVerification
         "Assets/Kinesthetic/Menu/Navigation.uxml",
         "Assets/Kinesthetic/Bowling/Bowling.uxml",
         "Assets/Kinesthetic/Menu/MainMenu.uxml",
+        "Assets/Kinesthetic/Menu/Coaching.uxml",
         "Assets/Kinesthetic/Menu/Gallery.uxml",
         "Assets/Kinesthetic/Menu/Friends.uxml",
     };
@@ -193,6 +194,11 @@ public static class RemoteUiVerification
         var tag = root.Q<KTag>(); if (tag != null) { tag.tone = KTag.Tone.Trouble; n++; }
         var eyebrow = root.Q<KEyebrow>(); if (eyebrow != null) { eyebrow.backdrop = KEyebrow.Backdrop.Dark; n++; }
         var surface = root.Q<KSurface>(); if (surface != null) { surface.tone = KSurface.Tone.Glass; surface.density = KSurface.Density.Flush; n++; }
+        // The painted readings: their whole content is these attributes, so a replica that gets them draws the chart.
+        var reach = root.Q<KReach>(); if (reach != null) { reach.measured = true; reach.now = 63; reach.start = 41; reach.target = 85; n++; }
+        var days = root.Q<KDays>(); if (days != null) { days.levels = "0120400-"; days.today = 6; days.seed = 7; n++; }
+        var ladder = root.Q<KLadder>(); if (ladder != null) { ladder.rungs = 11; ladder.pitch = .1f; ladder.fraction = .3f; n++; }
+        var icon = root.Q<KActivityIcon>(); if (icon != null) { icon.activity = "rehab.studio"; icon.tag = "WRIST"; n++; }
         var scroll = root.Q<ScrollView>(); if (scroll != null) { scroll.mode = ScrollViewMode.Horizontal; scroll.verticalScrollerVisibility = ScrollerVisibility.Hidden; n++; }
         var image = root.Q<Image>(); if (image != null) { image.image = Driver(); image.scaleMode = ScaleMode.ScaleToFit; n++; }
 
@@ -231,6 +237,11 @@ public static class RemoteUiVerification
         container.Add(steps);
         if (root.Q<Image>() == null) container.Add(new Image { name = "verify-image", image = Driver(), scaleMode = ScaleMode.ScaleToFit });
         container.Add(new Image { name = "live-map", image = live, scaleMode = ScaleMode.StretchToFill, pickingMode = PickingMode.Ignore });
+        // A gallery card's glyph and a program grid with its END label inside, as the menu builds them.
+        container.Add(new KActivityIcon { name = "verify-icon", activity = "arm-elevation.v2", tag = "UPPER ARM · WRIST" });
+        var program = new KDays { name = "verify-program", form = KDays.Form.Program, levels = new string('2', 84), today = 20, seed = 3 };
+        program.Add(new Label("END") { name = "verify-end" });
+        container.Add(program);
     }
 
     static void RevertFields(VisualElement root)
@@ -246,6 +257,8 @@ public static class RemoteUiVerification
         steps.Step(0).Done = false;
         steps.numbering = KSteps.Numbering.Number;
         var image = root.Q<Image>(); if (image != null && image.name != "live-map") image.image = null;
+        var program = root.Q<KDays>("verify-program"); program.levels = new string('0', 84); program.today = -1;
+        root.Q<KActivityIcon>("verify-icon").tag = "";
         container.style.backgroundImage = StyleKeyword.Null;
         container.pickingMode = PickingMode.Position;
         container.styleSheets.Remove(MenuSheet());
@@ -256,6 +269,8 @@ public static class RemoteUiVerification
         root.Q("verify-frame-1").RemoveFromHierarchy();
         root.Q<KSteps>("verify-steps").Step(1).RemoveFromHierarchy();
         root.Q("live-map").RemoveFromHierarchy();
+        root.Q("verify-icon").RemoveFromHierarchy();
+        root.Q<KDays>("verify-program").Q("verify-end").RemoveFromHierarchy();
     }
 
     static VisualElement Container(VisualElement root)

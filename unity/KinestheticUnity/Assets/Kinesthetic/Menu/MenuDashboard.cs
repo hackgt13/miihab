@@ -1,7 +1,8 @@
 using System;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.CompilerServices;
+using System.Text;
+using Kinesthetic.UI;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -135,24 +136,13 @@ namespace Kinesthetic.Menu
         };
     }
 
-    /// Fills the bento tiles from a model and paints the charts. Static because it owns no state:
-    /// the panel is the state, and this writes into it.
+    /// Fills the bento tiles from a model and hands the charts their readings. Static because it owns no
+    /// state: the panel is the state, and this writes into it. The charts are components (UI/KReach,
+    /// KDays, KArc) rather than painters attached here, so the headset's replica draws them too.
     public static class MenuDashboard
     {
         /// The top of the dial. Functional shoulder elevation, not the anatomical 180.
         const float Ceiling = 120;
-
-        // Taken from Palette.cs by role, not by hex, so retuning the system moves these with it.
-        // The calendar ramp is the jungle scale because its role is exactly what a done day is —
-        // Good, "counted, done, reached" — and depth of green then reads as how much was done.
-        static readonly Color Ink = Palette.Ink;
-        static readonly Color Progress = Palette.Progress;     // a measured value
-        static readonly Color Reference = Palette.Reference;   // the plan it is drawn against
-        static readonly Color Target = Palette.Target;         // what is being reached for
-        static readonly Color Panel = Palette.Panel;
-        static readonly Color Empty = Palette.Line.At(.45f);
-        static readonly Color[] Levels = { Palette.Jungle10, Palette.Jungle20, Palette.Jungle30, Palette.Jungle40 };
-        static readonly Color Accent = Palette.Progress;
 
         // Rotates on the hour of day rather than at random, so the board is not a different greeting
         // every time someone glances at it.
@@ -218,24 +208,38 @@ namespace Kinesthetic.Menu
                 : $"target {target}° · {gap}° to go");
             Text(root, "data-note", model.measured ? "Median peak · measured" : "No sessions measured yet");
 
-            Paint(root, "range-fan", (ctx, r) => DrawRangeFan(ctx, r, model));
-            Paint(root, "calendar-grid", (ctx, r) => DrawCalendar(ctx, r, model.RecentDays(28)));
-            Paint(root, "program-ring", (ctx, r) => DrawRing(ctx, r, model.ProgramFraction));
+            // The charts are components that carry their readings as attributes (UI/KReach, KDays, KArc). A
+            // painter this class attached to a plain element drew on the Mac and never crossed the /ui wire,
+            // so the headset's replica showed the numbers beside an empty box.
+            var fan = root.Q<KReach>("range-fan");
+            if (fan != null)
+            {
+                fan.measured = model.history.Length > 0;
+                fan.now = reach; fan.start = first; fan.target = model.targetDeg; fan.ceiling = Ceiling;
+            }
+            var grid = root.Q<KDays>("calendar-grid");
+            if (grid != null)
+            {
+                var (levels, today) = Days(model.RecentDays(28));
+                grid.form = KDays.Form.Calendar; grid.levels = levels; grid.today = today;
+            }
+            var ring = root.Q<KArc>("program-ring");
+            if (ring != null) { ring.form = KArc.Form.Continuous; ring.fraction = model.ProgramFraction; }
         }
 
-        // One painter per element: Populate runs again when fresh data arrives, and a second handler
-        // would draw the old model underneath the new one.
-        static readonly ConditionalWeakTable<VisualElement, Action<MeshGenerationContext>> painters = new();
-
-        static void Paint(VisualElement root, string name, Action<MeshGenerationContext, Rect> draw)
+        /// A run of days as KDays reads them: a digit per day, '-' for a day not here yet, and which one is today.
+        public static (string levels, int today) Days(MenuDashboardModel.DayCell[] cells)
         {
-            var element = root.Q(name);
-            if (element == null) return;
-            if (painters.TryGetValue(element, out var previous)) { element.generateVisualContent -= previous; painters.Remove(element); }
-            Action<MeshGenerationContext> paint = ctx => draw(ctx, element.contentRect);
-            element.generateVisualContent += paint;
-            painters.Add(element, paint);
-            element.MarkDirtyRepaint();
+            var text = new StringBuilder(cells.Length);
+            int today = -1;
+            var now = DateTime.Today;
+            for (int i = 0; i < cells.Length; i++)
+            {
+                if (cells[i].date > now) { text.Append('-'); continue; }
+                text.Append((char)('0' + Mathf.Clamp(cells[i].level, 0, 4)));
+                if (cells[i].date == now) today = i;
+            }
+            return (text.ToString(), today);
         }
 
         static void Text(VisualElement root, string name, string value)
@@ -264,179 +268,6 @@ namespace Kinesthetic.Menu
             if (task.done) status.AddToClassList("done");
             row.Add(status);
             return row;
-        }
-
-        // ------------------------------------------------------------------ hero
-
-        /// The reach, drawn as the movement instead of as a chart.
-        ///
-        /// A line graph of shoulder degrees is generic — it could be plotting anything, and "93°"
-        /// does not feel like a distance until you see the arm sweep it. So this is an arc pivoting
-        /// at the shoulder, read like a dial: a faint track for the range a shoulder has, a quiet
-        /// band for where week one stopped, and a solid band for everything gained since.
-        ///
-        /// Three bands and two marks, and nothing else. The earlier version drew guide spokes, a
-        /// filled pie, an arm, a hand and a separate edge line on top of each other, which is why it
-        /// read as clutter rather than as a diagram.
-        static void DrawRangeFan(MeshGenerationContext ctx, Rect r, MenuDashboardModel model)
-        {
-            if (r.width < 24 || r.height < 24 || model.history.Length == 0) return;
-            var p = ctx.painter2D;
-            float now = Mathf.Clamp(model.history[^1].medianPeakDeg, 0, Ceiling);
-            float start = Mathf.Clamp(model.history[0].medianPeakDeg, 0, Ceiling);
-            float target = Mathf.Clamp(model.targetDeg, 0, Ceiling);
-
-            // Arm at the side points down; raising it sweeps towards horizontal and past it. Painter2D
-            // measures from +X clockwise, so straight down is 90 and an elevation of E sits at 90 - E.
-            // Drawing 0..Ceiling covers a box `radius` wide and `radius * (1 + sin(Ceiling - 90))` tall.
-            float Ang(float e) => 90 - e;
-            float tall = 1 + Mathf.Sin((Ceiling - 90) * Mathf.Deg2Rad);
-            float radius = Mathf.Min(r.width, r.height / tall) * .96f;
-            var pivot = new Vector2((r.width - radius) * .5f,
-                                    (r.height - radius * tall) * .5f + radius * (tall - 1));
-
-            float thickness = radius * .17f;
-            float mid = radius - thickness * .5f;
-
-            void Band(float from, float to, Color colour)
-            {
-                if (to <= from) return;
-                p.strokeColor = colour;
-                p.lineWidth = thickness;
-                p.lineCap = LineCap.Butt;
-                p.BeginPath();
-                p.Arc(pivot, mid, Angle.Degrees(Ang(to)), Angle.Degrees(Ang(from)));
-                p.Stroke();
-            }
-
-            Band(0, Ceiling, Palette.Line.At(.20f));    // the range a shoulder has
-            Band(0, start, Reference.At(.55f));         // where week one stopped
-            Band(start, now, Progress);                 // everything gained since
-
-            // The target, as a notch cut across the band rather than a line laid over it.
-            float ta = Ang(target) * Mathf.Deg2Rad;
-            var tdir = new Vector2(Mathf.Cos(ta), Mathf.Sin(ta));
-            p.strokeColor = Target; p.lineWidth = 4; p.lineCap = LineCap.Round;
-            p.BeginPath();
-            p.MoveTo(pivot + tdir * (mid - thickness * .62f));
-            p.LineTo(pivot + tdir * (mid + thickness * .62f));
-            p.Stroke();
-
-            // The arm. Without it the arc floats and the shoulder dot reads as a stray speck —
-            // this is the line that makes the whole figure a reach rather than a gauge.
-            float na = Ang(now) * Mathf.Deg2Rad;
-            var ndir = new Vector2(Mathf.Cos(na), Mathf.Sin(na));
-            p.strokeColor = Ink; p.lineWidth = 6; p.lineCap = LineCap.Round;
-            p.BeginPath();
-            p.MoveTo(pivot);
-            p.LineTo(pivot + ndir * (mid - thickness * .5f));
-            p.Stroke();
-
-            p.fillColor = Ink;
-            p.BeginPath(); p.Arc(pivot, 9, Angle.Degrees(0), Angle.Degrees(360)); p.Fill();
-
-            // The hand, sitting on the band at today's reach.
-            p.fillColor = Panel;
-            p.strokeColor = Progress; p.lineWidth = 5;
-            p.BeginPath(); p.Arc(pivot + ndir * mid, thickness * .58f, Angle.Degrees(0), Angle.Degrees(360));
-            p.Fill(); p.Stroke();
-        }
-
-        // ------------------------------------------------------------------ consistency
-
-        /// Four weeks of days, as a calendar rather than a contribution wall. The wall version was both
-        /// a straight lift of a graph everyone recognises and illegible here: 112 cells across a 1.85 m
-        /// board is about three millimetres each. Twenty-eight cells are large enough to actually read,
-        /// and a month is the span a person can hold in their head anyway.
-        static void DrawCalendar(MeshGenerationContext ctx, Rect r, MenuDashboardModel.DayCell[] cells)
-        {
-            if (r.width < 8 || r.height < 8 || cells.Length == 0) return;
-            var p = ctx.painter2D;
-            int rows = Mathf.CeilToInt(cells.Length / 7f);
-            float gap = 8;
-            float cell = Mathf.Min((r.width - gap * 6) / 7f, (r.height - gap * (rows - 1)) / rows);
-            float gridW = cell * 7 + gap * 6, gridH = cell * rows + gap * (rows - 1);
-            float ox = (r.width - gridW) * .5f, oy = (r.height - gridH) * .5f;
-            float radius = cell * .3f;
-            var today = DateTime.Today;
-
-            for (int i = 0; i < cells.Length; i++)
-            {
-                int row = i / 7, col = i % 7;
-                float x = ox + col * (cell + gap), y = oy + row * (cell + gap);
-                if (cells[i].date > today) continue;
-                p.fillColor = cells[i].level <= 0 ? Empty : Levels[Mathf.Clamp(cells[i].level - 1, 0, Levels.Length - 1)];
-                RoundedSquare(p, x, y, cell, radius);
-
-                // Today is outlined rather than filled differently, so "where am I" and "did I
-                // train" stay two separate readings. An outline on the square itself sits in the
-                // grid; a circle over it looked like a separate mark that had landed there.
-                if (cells[i].date != today) continue;
-                p.strokeColor = Target;
-                p.lineWidth = 3;
-                RoundedRect(p, x - 2.5f, y - 2.5f, cell + 5, radius + 2, cell + 5, stroke: true);
-            }
-        }
-
-        static void RoundedSquare(Painter2D p, float x, float y, float size, float radius, float height = -1)
-            => RoundedRect(p, x, y, size, radius, height);
-
-        static void RoundedRect(Painter2D p, float x, float y, float size, float radius, float height = -1, bool stroke = false)
-        {
-            float w = size, hgt = height > 0 ? height : size;
-            float rr = Mathf.Min(radius, Mathf.Min(w, hgt) * .5f);
-            p.BeginPath();
-            p.MoveTo(new(x + rr, y));
-            p.LineTo(new(x + w - rr, y));
-            p.Arc(new(x + w - rr, y + rr), rr, Angle.Degrees(-90), Angle.Degrees(0));
-            p.LineTo(new(x + w, y + hgt - rr));
-            p.Arc(new(x + w - rr, y + hgt - rr), rr, Angle.Degrees(0), Angle.Degrees(90));
-            p.LineTo(new(x + rr, y + hgt));
-            p.Arc(new(x + rr, y + hgt - rr), rr, Angle.Degrees(90), Angle.Degrees(180));
-            p.LineTo(new(x, y + rr));
-            p.Arc(new(x + rr, y + rr), rr, Angle.Degrees(180), Angle.Degrees(270));
-            p.ClosePath();
-            if (stroke) p.Stroke(); else p.Fill();
-        }
-
-        // ------------------------------------------------------------------ ring
-
-        /// How much of the prescribed program is behind them. An arc rather than a bar because the
-        /// number in the middle is the point — the ring is the context, not the reading.
-        static void DrawRing(MeshGenerationContext ctx, Rect r, float fraction)
-        {
-            float size = Mathf.Min(r.width, r.height);
-            if (size < 16) return;
-            var p = ctx.painter2D;
-            var centre = new Vector2(r.width * .5f, r.height * .5f);
-            float radius = size * .5f - 10;
-            float thickness = Mathf.Max(10, size * .11f);
-
-            p.lineWidth = thickness;
-            p.lineCap = LineCap.Butt;
-            p.strokeColor = Reference.At(.28f);
-            p.BeginPath(); p.Arc(centre, radius, Angle.Degrees(0), Angle.Degrees(360)); p.Stroke();
-
-            if (fraction <= 0) return;
-            p.lineCap = LineCap.Round;
-            p.strokeColor = Accent;
-            p.BeginPath();
-            p.Arc(centre, radius, Angle.Degrees(-90), Angle.Degrees(-90 + 360 * Mathf.Clamp01(fraction)));
-            p.Stroke();
-        }
-
-        // Sessions this week as pips. Discrete on purpose — "4 of 5" is a count a person can check,
-        // where a continuous bar invites reading a precision that is not there.
-        static void DrawMeter(MeshGenerationContext ctx, Rect r, int done, int goal)
-        {
-            if (r.width < 4 || r.height < 2 || goal <= 0) return;
-            var p = ctx.painter2D;
-            float gap = 7, cell = (r.width - gap * (goal - 1)) / goal, h = Mathf.Min(r.height, 15);
-            for (int i = 0; i < goal; i++)
-            {
-                p.fillColor = i < done ? Accent : Empty;
-                RoundedSquare(p, i * (cell + gap), 0, cell, h * .5f, h);
-            }
         }
     }
 }

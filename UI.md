@@ -140,6 +140,36 @@ A straight measure. `Pips` (default) for a count a person can check — "4 of 5"
 for a continuous value at 8px. The screen sets the width. Same track and tones as `KArc`, so a ring and a
 bar on one panel read as one system.
 
+### `KReach` — `measured`, `now`, `start`, `target`, `ceiling`
+
+The reach drawn as the movement: an arc pivoting at the shoulder, a faint track for the range a shoulder
+has (`ceiling`, 120° by default), a quiet band to where week one stopped (`start`), a solid band for
+everything gained since (`now`), a notch at the `target` and the arm at today. Nothing is drawn until
+`measured` is true, because a fan at zero reads as a measurement.
+
+### `KDays` — `form`, `levels`, `today`, `seed`
+
+Days, one square each, oldest first. `levels` is one character per day, `'0'` to `'4'` for how much was
+done and anything else for a day not drawn yet; `today` is that day's index, or -1. `Calendar` (default) is
+rows of seven in the jungle ramp with today outlined — the board's consistency tile. `Strip` is one row of
+plain squares — a friend's four weeks. `Program` is a column per week, past days crossed off by hand
+(`seed` keys the wobble so a day is crossed the same way everywhere), today ringed and the last day washed
+coral; a label placed inside is laid out by the screen against `KDays.ProgramGrid()`.
+
+### `KLadder` — `rungs`, `pitch`, `fraction`
+
+Where a target stands inside the envelope a clinician approved: a track with one rung per level (`pitch`
+apart, as a fraction of the track) and a marker at `fraction`. Zero rungs draws nothing.
+
+### `KActivityIcon` — `activity`, `tag`
+
+An activity's glyph on its gallery card: golf, the studio and bowling keep their drawings, and a movement is
+a figure with a dot for each AirPod the `tag` names. The screen sizes it and paints the disc behind it.
+
+These four, like `KArc` and `KMeter`, exist because painting is content: a `generateVisualContent` delegate
+a screen attaches never crosses the remote UI wire (`UI/Remote/README.md`), so the headset drew nothing
+where the Mac drew a chart. A reading goes in an attribute, and both sides paint it.
+
 ### `KText` — `size`, `tone`
 
 Readable headings and instructions. Sizes: `Title` (36px), `Heading` (26px), `Body` (19px),

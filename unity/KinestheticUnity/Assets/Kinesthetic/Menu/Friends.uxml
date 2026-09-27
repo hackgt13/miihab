@@ -43,7 +43,7 @@
                             <k:KButton name="profile-close" text="Back" tone="Quiet" size="Small" />
                         </ui:VisualElement>
                         <ui:VisualElement name="profile-stats" class="profile-stats" />
-                        <ui:VisualElement name="profile-days" class="profile-days" picking-mode="Ignore" />
+                        <k:KDays name="profile-days" form="Strip" class="profile-days" />
                         <k:KText name="profile-note" text="" size="Caption" tone="Soft" />
                     </ui:VisualElement>
                     <ui:VisualElement class="composer">

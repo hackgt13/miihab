@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Kinesthetic.UI;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -182,12 +183,6 @@ namespace Kinesthetic.Menu
     /// charts. Static for the same reason MenuDashboard is: it owns no state — the panel is the state.
     public static class CoachingPanel
     {
-        static readonly Color Progress = Palette.Progress;     // a measured value
-        static readonly Color Reference = Palette.Reference;    // the plan it is drawn against
-        static readonly Color Target = Palette.Target;         // what is being reached for
-        static readonly Color Panel = Palette.Panel;
-        static readonly Color Pen = Palette.Coral50;           // the hand crossing a day off
-
         /// Fills the three answers. Every label on this pane is a handful of words: it is read from two metres,
         /// and the figures it used to carry — a reach delta, a reps-in-band percentage, a level, a week count —
         /// were five measurements of the same two sessions where a patient wanted a date, a movement and a list.
@@ -270,9 +265,30 @@ namespace Kinesthetic.Menu
             var levels = new Dictionary<DateTime, int>();
             foreach (var cell in dashboard.calendar) levels[cell.date.Date] = cell.level;
 
-            Paint(root, "program-grid", (ctx, r) => DrawProgram(ctx, r, start, columns, finish, levels));
+            // Both charts are components that carry their readings as attributes (UI/KDays, KLadder), so the
+            // headset's replica draws them too; a painter attached here never crossed the /ui wire.
+            var grid = root.Q<KDays>("program-grid");
+            if (grid != null)
+            {
+                grid.form = KDays.Form.Program;
+                grid.levels = ProgramDays(start, totalDays, levels);
+                grid.today = day - 1;
+                grid.seed = start.DayOfYear * 31 + start.Year;
+            }
             PlaceEndFlag(root, columns, totalDays);
-            Paint(root, "envelope-ladder", (ctx, r) => DrawEnvelope(ctx, r, primary));
+
+            var ladder = root.Q<KLadder>("envelope-ladder");
+            if (ladder != null)
+            {
+                if (primary is { } p && p.envelope is { } e)
+                {
+                    float lo = e.minTargetDeg, hi = Mathf.Max(e.maxTargetDeg, lo + 1);
+                    ladder.rungs = e.Levels;
+                    ladder.pitch = e.stepDeg / (hi - lo);
+                    ladder.fraction = (p.targetDeg - lo) / (hi - lo);
+                }
+                else ladder.rungs = 0;   // no envelope, no ladder
+            }
         }
 
         /// One prescribed thing, built as the board builds a thing to do: the movement with where it is done
@@ -352,63 +368,9 @@ namespace Kinesthetic.Menu
         /// it is pressed a little harder, and that is the whole of the difference. Today is never crossed: it is
         /// where the person is, not something they have finished.
         ///
-        /// The rect is divided into columns x 7 with no aspect cap, so the day letters and week numbers beside
-        /// it — laid out by flex on the same rect — land on the same rows and columns without either side
-        /// knowing the other's cell size.
-        static void DrawProgram(MeshGenerationContext ctx, Rect r, DateTime start, int columns,
-                                DateTime finish, Dictionary<DateTime, int> levels)
-        {
-            if (r.width < 40 || r.height < 40 || columns < 1) return;
-            var p = ctx.painter2D;
-            var today = DateTime.Today;
-
-            var (cw, ch, gap) = Grid(r, columns);
-            float radius = Mathf.Min(cw, ch) * .28f;
-
-            for (int column = 0; column < columns; column++)
-            for (int row = 0; row < 7; row++)
-            {
-                var date = start.AddDays(column * 7 + row);
-                if (date > finish) continue;                      // the tail of the last week, if it has one
-                var cell = new Rect(column * (cw + gap), row * (ch + gap), cw, ch);
-                levels.TryGetValue(date.Date, out int level);
-                bool now = date == today;
-
-                // The paper the day is written on. A crossed-off day keeps the plain square a past day has —
-                // the pen is the mark, and tinting the paper under it as well would say the same thing twice.
-                // The last day of the program is the one square filled for what it is rather than for what
-                // happened on it: it is a coral wash rather than a ring, because a ring would read as another
-                // kind of today next to the one four squares away.
-                p.fillColor = now ? Progress.At(.20f)
-                            : date == finish ? Target.At(.26f)
-                            : date < today ? Reference.At(.20f)
-                            : Reference.At(.11f);
-                Cell(p, cell.x, cell.y, cell.width, cell.height, radius);
-
-                // Today is ringed as well as washed, so "where am I" and "did I train" stay two separate
-                // readings: the ring is the date, the pen is the work, and a day can carry both.
-                if (now)
-                {
-                    p.strokeColor = Progress; p.lineWidth = 4;
-                    Cell(p, cell.x - 3, cell.y - 3, cell.width + 6, cell.height + 6, radius + 2, stroke: true);
-                }
-
-                if (date < today) CrossOff(p, cell, date.DayOfYear * 31 + date.Year, level);
-            }
-        }
-
-        /// How the grid divides its rect: columns across, seven down, with a gap that comes off the cell size so
-        /// a twelve-week block and a thirty-week one are spaced the same way. Shared, so anything that has to
-        /// land on a particular day lands where the pen does.
-        static (float cw, float ch, float gap) Grid(Rect r, int columns)
-        {
-            float gap = Mathf.Clamp(Mathf.Min(r.width / columns, r.height / 7f) * .14f, 3, 9);
-            return ((r.width - gap * (columns - 1)) / columns, (r.height - gap * 6) / 7f, gap);
-        }
-
         /// "END" written on the last day of the program, because a coral square at the end of the block says
         /// something is there without saying what. Painter2D draws no text, so this is a label placed on the
-        /// cell — positioned from the same Grid() the painter uses, and put back whenever the grid is resized.
+        /// cell — positioned from the same KDays.ProgramGrid() the component paints with, and put back whenever the grid is resized.
         static void PlaceEndFlag(VisualElement root, int columns, int totalDays)
         {
             var grid = root.Q("program-grid");
@@ -427,7 +389,7 @@ namespace Kinesthetic.Menu
             {
                 var r = grid.contentRect;
                 if (r.width < 40 || r.height < 40) return;
-                var (cw, ch, gap) = Grid(r, columns);
+                var (cw, ch, gap) = KDays.ProgramGrid(r, columns);
                 flag.style.left = column * (cw + gap);
                 flag.style.top = row * (ch + gap);
                 flag.style.width = cw;
@@ -446,154 +408,16 @@ namespace Kinesthetic.Menu
 
         static readonly ConditionalWeakTable<VisualElement, EventCallback<GeometryChangedEvent>> placers = new();
 
-        /// Two bowed strokes through a day, drawn as a hand would: each end wanders, each stroke overshoots the
-        /// square by a little and bows off true, one is heavier than the other, and the second starts slightly
-        /// after the first crosses it. `seed` is the date, so the same day is crossed off the same way every
-        /// repaint; `level` is how much work landed, and a fuller day presses harder.
-        static void CrossOff(Painter2D p, Rect cell, int seed, int level)
+        /// Every day of the program as KDays reads it: a digit per day for how much work landed on it.
+        static string ProgramDays(DateTime start, int totalDays, Dictionary<DateTime, int> levels)
         {
-            float size = Mathf.Min(cell.width, cell.height);
-            if (size < 10) return;
-
-            // The stroke aims at a point inside the square, not at its corner. Aiming at the corner and then
-            // overshooting put every X across its neighbours, and fourteen of them made a mesh rather than
-            // fourteen crossed-off days — on a grid this tight the hand has to stay inside the box.
-            float inset = size * .15f;           // where the stroke starts, in from the corner
-            float wander = size * .07f;          // how far its end misses that
-            float weight = Mathf.Clamp(size * .062f, 1.8f, 3.6f) + level * .2f;
-
-            float Jitter(int salt) => (Noise(seed, salt) - .5f) * 2f * wander;
-            Vector2 Corner(bool right, bool low, int salt) => new(
-                (right ? cell.xMax - inset : cell.x + inset) + Jitter(salt),
-                (low ? cell.yMax - inset : cell.y + inset) + Jitter(salt + 7));
-
-            p.lineCap = LineCap.Round;
-            p.strokeColor = Pen;
-
-            // Top-left to bottom-right, then top-right to bottom-left. The bow is perpendicular to the stroke
-            // and its side comes off the seed, so some X's bulge out and some in.
-            void Stroke(Vector2 from, Vector2 to, float bow, float width)
+            var text = new System.Text.StringBuilder(totalDays);
+            for (int i = 0; i < totalDays; i++)
             {
-                var mid = (from + to) * .5f;
-                var away = new Vector2(-(to - from).y, (to - from).x).normalized;
-                p.lineWidth = width;
-                p.BeginPath();
-                p.MoveTo(from);
-                p.QuadraticCurveTo(mid + away * bow, to);
-                p.Stroke();
+                levels.TryGetValue(start.AddDays(i).Date, out int level);
+                text.Append((char)('0' + Mathf.Clamp(level, 0, 4)));
             }
-
-            float bowAmount = size * .055f;
-            Stroke(Corner(false, false, 1), Corner(true, true, 2),
-                   (Noise(seed, 3) - .5f) * 2f * bowAmount, weight);
-            Stroke(Corner(true, false, 4), Corner(false, true, 5),
-                   (Noise(seed, 6) - .5f) * 2f * bowAmount, weight * .86f);
-        }
-
-        /// A stable 0..1 from a seed and a salt. Two integers in, one hash out: no Random, because a painter
-        /// runs again on every repaint and a day that redrew itself differently each time would shimmer.
-        static float Noise(int seed, int salt)
-        {
-            unchecked
-            {
-                uint h = (uint)(seed * 374761393 + salt * 668265263);
-                h = (h ^ (h >> 13)) * 1274126177u;
-                return ((h ^ (h >> 16)) & 0xFFFFu) / 65535f;
-            }
-        }
-
-        /// A rounded cell. Corners rather than a plain rect because a grid of 84 squares with sharp corners
-        /// reads as a table, and this is a run of days.
-        static void Cell(Painter2D p, float x, float y, float w, float h, float radius, bool stroke = false)
-        {
-            float rr = Mathf.Max(0, Mathf.Min(radius, Mathf.Min(w, h) * .5f));
-            p.BeginPath();
-            p.MoveTo(new(x + rr, y));
-            p.LineTo(new(x + w - rr, y));
-            p.Arc(new(x + w - rr, y + rr), rr, Angle.Degrees(-90), Angle.Degrees(0));
-            p.LineTo(new(x + w, y + h - rr));
-            p.Arc(new(x + w - rr, y + h - rr), rr, Angle.Degrees(0), Angle.Degrees(90));
-            p.LineTo(new(x + rr, y + h));
-            p.Arc(new(x + rr, y + h - rr), rr, Angle.Degrees(90), Angle.Degrees(180));
-            p.LineTo(new(x, y + rr));
-            p.Arc(new(x + rr, y + rr), rr, Angle.Degrees(180), Angle.Degrees(270));
-            p.ClosePath();
-            if (stroke) p.Stroke(); else p.Fill();
-        }
-
-        // ------------------------------------------------------------------ the envelope
-
-        /// Where the target stands inside the limits the clinician approved, as a ladder with one rung per
-        /// level. A bar would say "62% of the way", which is a number nobody was given; the rungs say "level
-        /// 2 of 11", which is the number on the plan, and the gap to the ceiling says how much room is left
-        /// before the clinician has to decide again.
-        static void DrawEnvelope(MeshGenerationContext ctx, Rect r, CoachingPlanModel.Prescription? primary)
-        {
-            if (r.width < 40 || r.height < 12 || primary == null) return;
-            var p = primary.Value;
-            if (p.envelope == null) return;
-            var envelope = p.envelope.Value;
-            var painter = ctx.painter2D;
-
-            float pad = 8, left = pad, right = r.width - pad;
-            float mid = r.height * .5f, thickness = Mathf.Min(18, r.height * .5f);
-            float lo = envelope.minTargetDeg, hi = Mathf.Max(envelope.maxTargetDeg, lo + 1);
-            float At(float deg) => left + Mathf.Clamp01((deg - lo) / (hi - lo)) * (right - left);
-            float here = At(p.targetDeg);
-
-            void Track(float from, float to, Color colour)
-            {
-                if (to <= from) return;
-                painter.strokeColor = colour; painter.lineWidth = thickness; painter.lineCap = LineCap.Round;
-                painter.BeginPath(); painter.MoveTo(new(from, mid)); painter.LineTo(new(to, mid)); painter.Stroke();
-            }
-
-            Track(left, right, Reference.At(.24f));    // everything the envelope allows
-            Track(left, here, Progress);               // everything already asked for
-
-            // One rung per level, so the steps are countable rather than implied.
-            int levels = envelope.Levels;
-            for (int i = 0; i < levels; i++)
-            {
-                float x = At(lo + i * envelope.stepDeg);
-                bool reached = lo + i * envelope.stepDeg <= p.targetDeg + .01f;
-                painter.strokeColor = reached ? Panel.At(.75f) : Reference.At(.45f);
-                painter.lineWidth = 2; painter.lineCap = LineCap.Butt;
-                painter.BeginPath();
-                painter.MoveTo(new(x, mid - thickness * .32f));
-                painter.LineTo(new(x, mid + thickness * .32f));
-                painter.Stroke();
-            }
-
-            // Today's target, as a marker sitting on the track, and the ceiling as a stop past the end of it.
-            painter.strokeColor = Target; painter.lineWidth = 4; painter.lineCap = LineCap.Round;
-            painter.BeginPath();
-            painter.MoveTo(new(here, mid - thickness * .95f));
-            painter.LineTo(new(here, mid + thickness * .95f));
-            painter.Stroke();
-
-            painter.fillColor = Panel;
-            painter.strokeColor = Target; painter.lineWidth = 4;
-            painter.BeginPath(); painter.Arc(new(here, mid), thickness * .5f, Angle.Degrees(0), Angle.Degrees(360));
-            painter.Fill(); painter.Stroke();
-        }
-
-        // ------------------------------------------------------------------ plumbing
-
-        // One painter per element, for the same reason MenuDashboard keeps one: Populate runs again when the
-        // plan arrives from the bridge, and a second handler would draw the old plan underneath the new one.
-        static readonly ConditionalWeakTable<VisualElement, Action<MeshGenerationContext>> painters = new();
-
-        static void Paint(VisualElement root, string name, Action<MeshGenerationContext, Rect> draw)
-        {
-            var element = root.Q(name);
-            if (element == null) return;
-            if (painters.TryGetValue(element, out var previous))
-            { element.generateVisualContent -= previous; painters.Remove(element); }
-            Action<MeshGenerationContext> paint = ctx => draw(ctx, element.contentRect);
-            element.generateVisualContent += paint;
-            painters.Add(element, paint);
-            element.MarkDirtyRepaint();
+            return text.ToString();
         }
 
         static void Text(VisualElement root, string name, string value)

@@ -218,6 +218,57 @@ namespace Kinesthetic.UI.Remote
                     if (E(a, "tone", out KSurface.Tone tone)) s.tone = tone;
                     if (E(a, "density", out KSurface.Density density)) s.density = density;
                 }),
+            // The painted readings. A painter2D delegate a screen attaches never crosses the wire — the
+            // replica got an empty box where the Mac drew a chart — so each of these carries its numbers as
+            // attributes and draws itself on both sides.
+            new Entry("KReach", typeof(KReach), () => new KReach(), Children.None,
+                new[] { "measured", "now", "start", "target", "ceiling" },
+                (e, a) =>
+                {
+                    var f = (KReach)e;
+                    a["measured"] = f.measured; a["now"] = Round(f.now); a["start"] = Round(f.start);
+                    a["target"] = Round(f.target); a["ceiling"] = Round(f.ceiling);
+                },
+                (e, a) =>
+                {
+                    var f = (KReach)e;
+                    if (B(a, "measured", out bool measured)) f.measured = measured;
+                    if (F(a, "now", out float now)) f.now = now;
+                    if (F(a, "start", out float start)) f.start = start;
+                    if (F(a, "target", out float target)) f.target = target;
+                    if (F(a, "ceiling", out float ceiling)) f.ceiling = ceiling;
+                }),
+            // Screen children (the program grid's "END" label) are mirrored; the days themselves are the string.
+            new Entry("KDays", typeof(KDays), () => new KDays(), Children.All,
+                new[] { "form", "levels", "today", "seed" },
+                (e, a) => { var d = (KDays)e; a["form"] = d.form.ToString(); a["levels"] = d.levels ?? ""; a["today"] = d.today; a["seed"] = d.seed; },
+                (e, a) =>
+                {
+                    var d = (KDays)e;
+                    if (E(a, "form", out KDays.Form form)) d.form = form;
+                    if (S(a, "levels", out var levels)) d.levels = levels;
+                    if (I(a, "today", out int today)) d.today = today;
+                    if (I(a, "seed", out int seed)) d.seed = seed;
+                }),
+            new Entry("KLadder", typeof(KLadder), () => new KLadder(), Children.None,
+                new[] { "rungs", "pitch", "fraction" },
+                (e, a) => { var l = (KLadder)e; a["rungs"] = l.rungs; a["pitch"] = Round(l.pitch); a["fraction"] = Round(l.fraction); },
+                (e, a) =>
+                {
+                    var l = (KLadder)e;
+                    if (I(a, "rungs", out int rungs)) l.rungs = rungs;
+                    if (F(a, "pitch", out float pitch)) l.pitch = pitch;
+                    if (F(a, "fraction", out float fraction)) l.fraction = fraction;
+                }),
+            new Entry("KActivityIcon", typeof(KActivityIcon), () => new KActivityIcon(), Children.None,
+                new[] { "activity", "tag" },
+                (e, a) => { var i = (KActivityIcon)e; a["activity"] = i.activity ?? ""; a["tag"] = i.tag ?? ""; },
+                (e, a) =>
+                {
+                    var i = (KActivityIcon)e;
+                    if (S(a, "activity", out var activity)) i.activity = activity;
+                    if (S(a, "tag", out var tag)) i.tag = tag;
+                }),
         };
 
         static readonly Dictionary<Type, Entry> byType = new();

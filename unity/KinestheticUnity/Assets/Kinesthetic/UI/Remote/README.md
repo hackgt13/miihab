@@ -45,6 +45,12 @@ Pseudo-states (`:hover`, `:active`, `:focus`) — the headset draws its own hove
 `KSteps.activity`: it is a data source, and the `KStep` rows it produced are what crosses. Any style
 outside the inline subset; anything a stylesheet says is carried by the sheet's id instead.
 
+**Painters.** A `generateVisualContent` delegate a screen attaches to a plain element draws on the Mac
+and nothing crosses: the replica gets an empty box. Anything painted goes through a component whose
+readings are attributes — `KArc`, `KMeter`, `KReach`, `KDays`, `KLadder`, `KActivityIcon`, `KMiiFace` —
+and the replica paints it from those. The menu's charts were the first casualty: the reach fan, the
+consistency grid and the program ring showed their numbers beside blank space on the headset.
+
 ## Unverified
 
 Only the editor verification has run: no relay, no headset. The seam in `GazeDwell` and

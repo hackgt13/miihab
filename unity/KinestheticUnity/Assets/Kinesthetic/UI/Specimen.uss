@@ -9,4 +9,11 @@
 .specimen-dark { padding: 18px 20px 8px 20px; border-radius: 12px; background-color: var(--prussian-70-a88); }
 .specimen-ring { width: 180px; height: 180px; }
 .specimen-meters { width: 260px; justify-content: space-around; height: 120px; }
+.specimen-reach { width: 180px; height: 200px; }
+.specimen-days { width: 260px; height: 140px; }
+.specimen-column { width: 260px; justify-content: space-around; height: 140px; }
+.specimen-strip { height: 22px; }
+.specimen-ladder { height: 22px; }
+.specimen-icon { width: 62px; height: 62px; }
+.specimen-program { width: 300px; height: 170px; }
 .specimen-steps { max-width: 620px; }

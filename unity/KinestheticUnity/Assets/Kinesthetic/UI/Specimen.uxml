@@ -80,6 +80,18 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
+        <k:KEyebrow text="REACH · DAYS · LADDER · ACTIVITY ICON" />
+        <ui:VisualElement class="specimen-row">
+            <k:KReach measured="true" now="63" start="41" target="85" class="specimen-reach" />
+            <k:KDays form="Calendar" levels="0012040301020041000203--" today="21" class="specimen-days" />
+            <ui:VisualElement class="specimen-column">
+                <k:KDays form="Strip" levels="0110100110111010011010111011" class="specimen-strip" />
+                <k:KLadder rungs="11" pitch="0.1" fraction="0.3" class="specimen-ladder" />
+                <k:KActivityIcon activity="rehab.studio" class="specimen-icon" />
+            </ui:VisualElement>
+            <k:KDays form="Program" levels="222122212212221222122122200000000000000000000000000000000000000000000000000000000000" today="24" seed="7" class="specimen-program" />
+        </ui:VisualElement>
+
         <k:KEyebrow text="STEPS · FROM THE CATALOG" />
         <k:KSteps activity="rehab.studio" class="specimen-steps" />
 
