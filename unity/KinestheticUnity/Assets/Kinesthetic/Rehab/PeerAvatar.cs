@@ -42,6 +42,7 @@ namespace Kinesthetic.Rehab
             internal TextMesh nameLabel, stateLabel;
             internal int tinted = int.MinValue;
             internal float shown;
+            internal Vector3 arm = Vector3.down;   // a live arm's smoothed direction, body frame
             /// Their rig, for publishing its bones (Mac) or posing it from them (headset).
             public PoseRig Rig => copy ? rig : null;
         }
@@ -120,10 +121,19 @@ namespace Kinesthetic.Rehab
                 bool live = i == streamed && motion.Live;
                 seat.State = live ? (motion.Calibrating ? "Hold still a moment…" : "LIVE")
                     : person.Sample ? "SAMPLE" : "Not streaming";
+                float ease = 1 - Mathf.Exp(-12 * Time.deltaTime);
+                seat.rig.Apply(null);
+                // Live and aligned: the whole arm, pointed where the AirPod says (two degrees of freedom), drawn
+                // as an arm movement along that direction. Everyone else does the group's movement at one angle.
+                if (live && motion.LiveArm(body?.Toward ?? Vector3.forward) is Vector3 arm)
+                {
+                    seat.arm = Vector3.Slerp(seat.arm, arm, ease);
+                    seat.rig.ApplyMovement(ArmAlong(seat.arm), view.Side == "left", Vector3.Angle(Vector3.down, seat.arm));
+                    continue;
+                }
                 float? target = live ? motion.LiveAngle
                     : person.Sample ? PeerMotion.FakeAngle(view.TargetDeg, person.Mii + i, Time.time) : null;
-                seat.shown = Mathf.Lerp(seat.shown, target ?? 0, 1 - Mathf.Exp(-12 * Time.deltaTime));
-                seat.rig.Apply(null);
+                seat.shown = Mathf.Lerp(seat.shown, target ?? 0, ease);
                 seat.rig.ApplyMovement(body, view.Side == "left", seat.shown);
             }
             for (int i = others.Count; i < seats.Count; i++) seats[i].Showing = false;
@@ -194,6 +204,13 @@ namespace Kinesthetic.Rehab
         }
 
         static Vector3 Flat(Vector3 v) { v.y = 0; return v; }
+        /// A straight arm swinging from hanging toward `direction`'s bearing: drawn at the angle from down, it points
+        /// exactly along `direction`, overhead included.
+        static BodyModel ArmAlong(Vector3 direction)
+        {
+            var bearing = Flat(direction);
+            return new BodyModel { Segment = "arm", Rest = Vector3.down, Toward = bearing.sqrMagnitude > 1e-4f ? bearing.normalized : Vector3.forward };
+        }
 
         /// The movement's body model, or a straight-arm raise when the catalog has none for this kind (the plan's
         /// single-AirPod shoulder raise, arm-elevation.v1, has no movement tile of its own): someone who cannot be

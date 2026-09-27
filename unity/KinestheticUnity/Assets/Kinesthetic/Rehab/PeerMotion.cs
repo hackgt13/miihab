@@ -14,6 +14,11 @@ namespace Kinesthetic.Rehab
     /// being the first second it was held still. It is presentation only — nobody scores it, and nothing here is
     /// sent anywhere. The patient's own readers all filter to `patient`, so this stream never reaches their record.
     ///
+    /// Two degrees of freedom: gravity in the AirPod's frame says how far the arm has tilted from hanging and which
+    /// way, so a live arm points anywhere around the shoulder — overhead, out to the side, waving. Gravity cannot say
+    /// which way the person faces, so the first real lift after calibration is taken to be the group's movement
+    /// (`LiveArm`'s `toward`), which fixes the facing for the rest of the stream.
+    ///
     /// Fake: a sample person with no live stream raises in a steady, human-paced loop toward the plan's target,
     /// each one offset by their Mii so two fakes are never in step. They are labelled sample wherever they appear.
     /// </summary>
@@ -26,8 +31,9 @@ namespace Kinesthetic.Rehab
 
         long ticks, sequence = -1;
         string session;
-        Vector3 rest, vertical;
-        bool calibrated;
+        Vector3 rest, vertical, restSide;
+        bool calibrated, aligned;
+        float facing;   // degrees about the vertical from the AirPod's rest frame to the body's
         float stillSince = -1;
 
         /// The second Mac is streaming right now.
@@ -44,19 +50,48 @@ namespace Kinesthetic.Rehab
                 try { p = JsonUtility.FromJson<ClubMotionPacket>(text); } catch (Exception) { continue; }
                 if (p == null || p.type != "club.motion" || p.playerId != "friend") continue;
                 if (p.quaternion?.Length != 4 || p.rotationRate?.Length != 3) continue;
-                if (p.sessionId != session) { session = p.sessionId; sequence = -1; calibrated = false; stillSince = -1; }
+                if (p.sessionId != session) { session = p.sessionId; sequence = -1; calibrated = aligned = false; stillSince = -1; }
                 if (p.sequence <= sequence) continue;
                 sequence = p.sequence; ticks = t;
                 vertical = VerticalInDevice(p.quaternion);
                 float speed = new Vector3(p.rotationRate[0], p.rotationRate[1], p.rotationRate[2]).magnitude;
                 if (!float.IsFinite(speed) || speed > StillRadS) stillSince = -1;
                 else if (stillSince < 0) stillSince = Time.unscaledTime;
-                if (!calibrated && stillSince >= 0 && Time.unscaledTime - stillSince >= CalibrateSeconds) { rest = vertical; calibrated = true; }
+                if (!calibrated && stillSince >= 0 && Time.unscaledTime - stillSince >= CalibrateSeconds) { rest = vertical; calibrated = true; aligned = false; restSide = Perpendicular(rest); }
             }
         }
 
         /// The live angle in degrees, or null when there is no calibrated stream to read one from.
         public float? LiveAngle => Live && calibrated ? Vector3.Angle(rest, vertical) : null;
+
+        /// The live arm's direction in the body frame (x out to the working side, y up, z forward), or null before the
+        /// first lift has fixed the facing. The arm
+        /// hangs at rest; it now points where the rotation that took gravity from `rest` to now carries it. `toward`
+        /// is the group's movement direction, which the first lift past 35° is aligned to.
+        public Vector3? LiveArm(Vector3 toward)
+        {
+            if (!Live || !calibrated) return null;
+            var arm = -(Quaternion.FromToRotation(vertical, rest) * rest);            // in the AirPod's rest frame
+            var restForward = Vector3.Cross(restSide, rest);
+            // CoreMotion's frame is right-handed and the body frame (out, up, forward) left-handed: one axis flips,
+            // or a wave out to the side would be drawn across the body.
+            var local = new Vector3(Vector3.Dot(arm, restSide), Vector3.Dot(arm, rest), -Vector3.Dot(arm, restForward));
+            if (!aligned && Vector3.Angle(Vector3.down, local) > 35)
+            {
+                var want = new Vector3(toward.x, 0, toward.z);
+                if (want.sqrMagnitude < 1e-4f) want = Vector3.forward;
+                facing = Vector3.SignedAngle(new Vector3(local.x, 0, local.z), want, Vector3.up);
+                aligned = true;
+            }
+            // Until then, null: the caller shows the one-angle movement, which needs no facing.
+            return aligned ? Quaternion.AngleAxis(facing, Vector3.up) * local : null;
+        }
+
+        static Vector3 Perpendicular(Vector3 v)
+        {
+            var side = Vector3.Cross(v, Vector3.forward);
+            return (side.sqrMagnitude > 1e-3f ? side : Vector3.Cross(v, Vector3.right)).normalized;
+        }
 
         /// A fake person's raise: up over 2 s, held 2 s, down over 3 s, rested 2.5 s — the tempo the plan coaches.
         public static float FakeAngle(float targetDeg, int seed, float time)
