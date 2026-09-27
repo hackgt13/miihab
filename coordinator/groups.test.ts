@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { GroupStore, CAPACITY } from './groups.ts';
+import { GroupStore, CAPACITY, PEER_ID } from './groups.ts';
 import { FriendStore } from './friends.ts';
 
 const dir = () => mkdtempSync(resolve(tmpdir(), 'groups-'));
@@ -138,4 +138,22 @@ test('real groups only: samples switched off leave no sample room, no sample per
   assert.ok(store.live().some(g => g.activityId === 'bowling.adaptive' && g.sample));
   // It is remembered.
   assert.equal(new GroupStore(store['file'].replace(/\/groups\.json$/, '')).samples, true);
+});
+
+const peer = { id: PEER_ID, displayName: 'Sam', mii: 1 };
+
+test('the second Mac comes into your room, and walks out of it when it goes quiet', () => {
+  const store = new GroupStore(dir());
+  store.setSamples(false);
+  const mine = store.create(me, 'golf.adaptive', false);
+  store.peerPresent(peer, me.id);
+  assert.equal(store.current(peer.id)!.id, mine.id, 'even a closed room, even with samples off');
+  assert.ok(!store.current(peer.id)!.members.find(m => m.id === peer.id)!.sample);
+  store.peerPresent(peer, me.id);
+  assert.equal(store.current(me.id)!.members.length, 2);
+  store.peerGone(peer.id);
+  assert.equal(store.current(peer.id), undefined);
+  const room = store.current(me.id)!;
+  assert.deepEqual(room.members.map(m => m.id), [me.id], 'your room goes on without them');
+  assert.equal(room.messages.at(-1)!.event, 'left');
 });

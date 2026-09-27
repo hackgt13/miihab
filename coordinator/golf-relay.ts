@@ -72,10 +72,15 @@ function route(path:string,player:string,remote:boolean):{path:string,player:str
 // status to confirm it, when it carries the pairing token. Viewing motion stays on this Mac.
 const paired=(req:import('node:http').IncomingMessage)=>pairToken!=='' &&
   new URL(req.url??'/','http://relay').searchParams.get('token')===pairToken;
+// Whether the second Mac is streaming right now, on either path: the coordinator reads this to seat it in a group
+// as a person (groups.ts `peerPresent`).
+const secondMac=()=>({live:[...golfMotion.received,...bowlingMotion.received]
+  .some(([key,s])=>key.endsWith(remoteKey)&&Date.now()-s.at<3000)});
 const server=createServer((req,res)=>{
   if(!loopback(req.socket.remoteAddress) && !paired(req)){res.writeHead(403).end();return;}
   res.writeHead(200,{'Content-Type':'application/json'}).end(JSON.stringify({
     ready:true,head:headLast?{connected:true,ageMs:Date.now()-headLast.at,seq:headLast.seq}:{connected:!!headProducer},players:[...golfMotion.producers.keys()].map(named),viewers:golfMotion.viewers.size,stateHost:!!golfState.host,stateClients:golfState.clients.size,
+    secondMac:secondMac(),
     bowlingPlayers:[...bowlingMotion.producers.keys()].map(named),bowlingViewers:bowlingMotion.viewers.size,
     bowlingHost:!!channels.get('/bowling-state')!.host,uiHost:!!ui.host,uiClients:ui.clients.size,
     samples:Object.fromEntries([...golfMotion.received].map(([id,s])=>[named(id),{ageMs:Date.now()-s.at,sequence:s.sequence,sourceId:s.sourceId}])),

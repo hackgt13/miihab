@@ -12,7 +12,7 @@ import { MessageStore, ENCOURAGEMENTS } from './messages.ts';
 import { spotlight, recap, daysSince } from './social-ai.ts';
 import { weeksSince, type Profile, type FriendActivity } from './matching.ts';
 import { IntroductionStore, LocalDirectory } from './introductions.ts';
-import { GroupStore } from './groups.ts';
+import { GroupStore, PEER_ID } from './groups.ts';
 import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, type RepParams, type RepSession } from './exercise/registry.ts';
@@ -57,6 +57,19 @@ const introductions = new IntroductionStore(socialDir);
 // Local today. When a shared backend exists this is the only line that changes.
 const directory = new LocalDirectory(socialDir);
 const groups = new GroupStore(socialDir);
+// The second Mac as a person in a group (groups.ts `peerPresent`). The relay knows when it is streaming; asked
+// rather than told, like the relay asks this process about groups, so neither needs the other to start first.
+// A short grace keeps an AirPod taken out for a moment from walking them out of the room.
+const relayUrl = 'http://' + new URL(process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767').host;   // the relay the motion comes from
+const peer = {id: PEER_ID, displayName: process.env.KINESTHETIC_PEER_NAME || 'Guest', mii: 1};
+let peerLiveAt = -Infinity;
+setInterval(async () => {
+  try {
+    const r = await fetch(relayUrl + '/', {signal: AbortSignal.timeout(800)});
+    if (r.ok && (await r.json())?.secondMac?.live) peerLiveAt = Date.now();
+  } catch {}
+  if (Date.now() - peerLiveAt < 10000) groups.peerPresent(peer, friends.me().id); else groups.peerGone(peer.id);
+}, 1000).unref();
 
 /// This patient, as the matcher sees them: what they are working toward and
 /// what they practise. Never a measurement — see the note at the top of

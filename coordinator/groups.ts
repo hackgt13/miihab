@@ -68,6 +68,8 @@ interface State {
 type Who = Pick<Member, 'id' | 'displayName' | 'mii' | 'sample'>;
 
 export const CAPACITY = 6;
+/// The person streaming from the second Mac (server.ts reads the relay). One id, so they are one member wherever they go.
+export const PEER_ID = 'peer-second-mac';
 const HISTORY = 200;
 
 // Sample strangers for seeded rooms. Pseudonymous and labelled, like every
@@ -294,6 +296,21 @@ export class GroupStore {
     this.enter(group, { ...pick, sample: true });
     this.save();
     return group.members[group.members.length - 1];
+  }
+
+  /// The second Mac is streaming: someone is sitting at it, so it is a real person (never a sample), and it comes
+  /// into whatever room you are in. Called on every poll while the stream is live; writes only when it joins.
+  peerPresent(peer: Who, meId: string): void {
+    const mine = this.current(meId);
+    if (!mine || mine.members.some(m => m.id === peer.id) || mine.members.length >= CAPACITY) return;
+    this.leave(peer.id, false);   // out of the room you left, into the one you are in
+    this.enter(mine, peer);
+    this.save();
+  }
+
+  /// The second Mac has gone quiet: it leaves, saying so.
+  peerGone(peerId: string): void {
+    if (this.leave(peerId, false)) this.save();
   }
 
   /// A member of this person's current room, for following them from the list.
