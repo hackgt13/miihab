@@ -1,54 +1,53 @@
-// Live AirPods IMU view: read-only viewer of the golf relay's motion channels (Club Motion / Bowling Motion apps).
+// Live AirPods IMU view: read-only viewer of the relay's raw /motion — the patient's two pairs, Mac 1 (this Mac) and
+// Mac 2 (the other Mac, over the tailnet), whichever Motion app either runs. The games read one stream that follows
+// the more active pair; the relay says which (`following`).
 const RELAY = 'ws://127.0.0.1:8767';
-const CHANNELS = [
-  { path: '/golf', type: 'club', label: 'Golf club', players: 'players', samples: 'samples' },
-  { path: '/bowling-motion', type: 'bowling', label: 'Bowling wrist', players: 'bowlingPlayers', samples: 'bowlingSamples' },
-];
+const LABEL = { mac1: 'Mac 1 · this Mac', mac2: 'Mac 2 · the other Mac' };
 const WINDOW_MS = 6000, STALE_MS = 1000;
 const chart = document.getElementById('imu-chart');
 const list = document.getElementById('imu-streams');
 const empty = document.getElementById('imu-empty');
-const streams = new Map();   // key: channel type + player
+const streams = new Map();   // key: mac1 | mac2
 const relayOpen = new Set();
+let following = null;
 
-function connect(channel) {
-  const ws = new WebSocket(`${RELAY}${channel.path}?role=viewer`);
-  ws.onopen = () => { relayOpen.add(channel.path); };
+function connect() {
+  const ws = new WebSocket(`${RELAY}/motion?role=viewer`);
+  ws.onopen = () => { relayOpen.add('/motion'); };
   ws.onmessage = event => {
     let p; try { p = JSON.parse(event.data); } catch { return; }
-    const key = `${channel.type}:${p.playerId}`;
-    if (p.type === `${channel.type}.disconnected`) { streams.get(key)?.card.remove(); streams.delete(key); return; }
-    if (p.type === `${channel.type}.motion`) add(channel, key, p);
+    if (p.type === 'motion.disconnected') { streams.get(p.mac)?.card.remove(); streams.delete(p.mac); return; }
+    if (p.type === 'motion.sample' && LABEL[p.mac]) add(p.mac, p);
   };
-  ws.onclose = () => { relayOpen.delete(channel.path); setTimeout(() => connect(channel), 1500); };
+  ws.onclose = () => { relayOpen.delete('/motion'); setTimeout(connect, 1500); };
 }
 
-function card(channel, key, playerId) {
-  let s = streams.get(key);
+function card(mac) {
+  let s = streams.get(mac);
   if (!s) {
     const el = document.createElement('div');
     el.className = 'imu-card';
-    el.style.setProperty('--series', `var(--series-${(streams.size % 3) + 1})`);
+    el.style.setProperty('--series', `var(--series-${mac === 'mac1' ? 1 : 2})`);
     el.innerHTML = `<div class="imu-name"><i></i><span></span></div>
       <div class="imu-speed"><strong>0.0</strong><small>rad/s</small></div>
       <dl><dt>Peak</dt><dd data-k="peak">—</dd><dt>Rate</dt><dd data-k="rate">—</dd>
       <dt>Roll</dt><dd data-k="roll">—</dd><dt>Pitch</dt><dd data-k="pitch">—</dd><dt>Yaw</dt><dd data-k="yaw">—</dd></dl>
       <p class="imu-note hint" hidden></p>`;
     list.append(el);
-    s = { card: el, history: [], arrivals: [], color: '', at: -Infinity, label: `${channel.label} · ${playerId}` };
-    streams.set(key, s);
+    s = { card: el, history: [], arrivals: [], color: '', at: -Infinity, label: LABEL[mac] };
+    streams.set(mac, s);
   }
   return s;
 }
 
-function add(channel, key, p) {
-  const s = card(channel, key, p.playerId);
+function add(mac, p) {
+  const s = card(mac);
   const now = performance.now();
   const [x, y, z] = p.rotationRate;
   s.last = p; s.at = now;
   s.history.push({ t: now, v: Math.hypot(x, y, z) });
   s.arrivals.push(now);
-  s.label = `${channel.label} · ${p.playerId} · ${p.sourceId} AirPod`;
+  s.label = `${LABEL[mac]} · ${p.sourceId} AirPod${following === mac ? ' · games follow this one' : ''}`;
 }
 
 // A motion app can hold its relay connection while its AirPods send nothing (Automatic Ear Detection dropped them,
@@ -57,17 +56,15 @@ const since = ms => ms < 60000 ? `${Math.round(ms / 1000)} s` : `${Math.floor(ms
 async function pollHealth() {
   try {
     const health = await (await fetch('/api/motion-health', { cache: 'no-store' })).json();
-    for (const channel of CHANNELS) {
-      const connected = new Set(health[channel.players] ?? []);
-      for (const playerId of connected) {
-        const s = card(channel, `${channel.type}:${playerId}`, playerId);
-        const age = health[channel.samples]?.[playerId]?.ageMs;
-        s.silent = age == null ? 'Connected, but no motion has arrived yet.'
-          : age > 2000 ? `Connected, but no motion for ${since(age)}. On that Mac: turn off Automatic Ear Detection for the AirPods and keep them as the sound output.`
-          : '';
-      }
-      for (const [key, s] of streams) if (key.startsWith(channel.type + ':') && !connected.has(key.slice(channel.type.length + 1))) s.silent = 'Motion app disconnected from the relay.';
+    const macs = health.macs ?? {};
+    following = health.following ?? null;
+    for (const mac of Object.keys(macs)) {
+      const s = card(mac), age = macs[mac].ageMs;
+      s.silent = age == null ? 'Connected, but no motion has arrived yet.'
+        : age > 2000 ? `Connected, but no motion for ${since(age)}. On that Mac: turn off Automatic Ear Detection for the AirPods and keep them as the sound output.`
+        : '';
     }
+    for (const [mac, s] of streams) if (!(mac in macs)) s.silent = 'Motion app disconnected from the relay.';
   } catch { /* coordinator restarting; keep what is shown */ }
   setTimeout(pollHealth, 1000);
 }
@@ -140,6 +137,6 @@ function drawChart(now) {
   }
 }
 
-CHANNELS.forEach(connect);
+connect();
 pollHealth();
 requestAnimationFrame(render);
