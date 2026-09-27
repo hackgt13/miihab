@@ -18,6 +18,7 @@ again without touching records that came from a sensor.
     python3 scripts/seed_demo_history.py --days 30
     python3 scripts/seed_demo_history.py --every-day     # no rest days: every past day gets a session
     python3 scripts/seed_demo_history.py --back calendar # ...and back to the first day the board's grid shows
+    python3 scripts/seed_demo_history.py --busy 0.6      # six days in ten get two to four sessions, not one
     python3 scripts/seed_demo_history.py --clean         # remove what this wrote, restore approvedAt
 
 `--back` seeds further than the program: a number of days, or `calendar` for the board's whole
@@ -77,6 +78,8 @@ def main() -> None:
     parser.add_argument("--clean", action="store_true", help="remove seeded records and restore approvedAt")
     parser.add_argument("--seed", type=int, default=13, help="jitter seed, so a rerun writes the same fortnight")
     parser.add_argument("--every-day", action="store_true", help="no rest days: a session on every past day")
+    parser.add_argument("--busy", type=float, default=0.0,
+                        help="share of seeded days that get 2-4 sessions (a darker square) instead of one")
     parser.add_argument("--back", default=None,
                         help="seed this many past days instead of the program so far, or 'calendar' for the board's grid")
     args = parser.parse_args()
@@ -121,51 +124,57 @@ def main() -> None:
         if not args.every_day and day.weekday() in REST_WEEKDAYS:
             continue
         progress = offset / max(1, back - 1)
-        ended = day.replace(hour=rng.choice((9, 10, 16, 17)), minute=rng.randrange(0, 58))
-        reach = round(REACH_FROM + (REACH_TO - REACH_FROM) * progress + rng.uniform(-1.6, 1.6), 1)
-        valid = max(1, min(PRESCRIBED, round(VALID_FROM + (VALID_TO - VALID_FROM) * progress + rng.uniform(-.8, .8))))
-        attempted = valid + rng.randrange(0, 3)
-        peaks = sorted(round(reach + rng.uniform(-3.5, 3.5), 1) for _ in range(valid))
-        identifier = str(uuid.UUID(int=rng.getrandbits(128), version=4))
-        duration = 60_000 + rng.randrange(0, 240_000)
-
-        (sessions / f"exercise-{identifier}.summary.json").write_text(json.dumps({
-            "seeded": True,
-            "exerciseId": identifier, "prescriptionId": PRESCRIPTION, "poseSessionId": None,
-            "poseSource": "camera:studio", "simulated": False, "endedAt": iso(ended), "sensor": "camera",
-            "exerciseKind": KIND, "algorithmVersion": "arm-elevation.v2", "side": SIDE, "planVersion": 1,
-            "params": {"side": SIDE, "targetDeg": TARGET_DEG, "targetMaxDeg": CEILING_DEG,
-                       "prescribedReps": PRESCRIBED, "planVersion": 1},
-            "calibrated": True, "attempted": attempted, "valid": valid,
-            "overshoots": sum(1 for p in peaks if p > CEILING_DEG), "prescribed": PRESCRIBED,
-            "completed": valid >= PRESCRIBED, "invalidReasons": {},
-            "medianValidPeakDeg": peaks[len(peaks) // 2], "validPeaksDeg": peaks,
-            "trunkDeviation": {"meanDeg": round(rng.uniform(2, 7), 1), "maxDuringRepsDeg": round(rng.uniform(7, 12), 1)},
-            "trackingLossEvents": 0, "frames": 1800 + rng.randrange(0, 900), "validFrameRatio": 1,
-        }, indent=2) + "\n")
-
-        (sessions / f"session-{identifier}.json").write_text(json.dumps({
-            "seeded": True,
-            "schema": "kinesthetic.activity.v1", "activitySessionId": identifier,
-            "activityId": "rehab.studio", "exerciseKinds": [KIND], "venueId": "studio", "patientId": None,
-            "planVersion": 1, "startedAt": iso(ended - timedelta(milliseconds=duration)), "endedAt": iso(ended),
-            "durationMs": duration, "completed": valid >= PRESCRIBED,
-            "subjects": [{"subjectId": "patient", "role": "patient",
-                          "dose": {"prescribed": PRESCRIBED, "attempted": attempted, "valid": valid},
-                          "primaryMetric": {"name": "medianValidPeak", "value": peaks[len(peaks) // 2], "unit": "deg"}}],
-            "trackingQuality": {"validFrameRatio": 1, "lossEvents": 0},
-            "flags": [] if valid >= PRESCRIBED else ["not_completed"],
-            "payload": {"kind": KIND, "schemaVersion": "1",
-                        "data": {"exerciseKind": KIND, "algorithmVersion": "arm-elevation.v2", "side": SIDE,
-                                 "planVersion": 1, "attempted": attempted, "valid": valid,
-                                 "medianValidPeakDeg": peaks[len(peaks) // 2], "validPeaksDeg": peaks}},
-        }, indent=2) + "\n")
-        written += 1
+        # A busy day is two to four sessions at different hours; the grid shades by count, so it reads darker.
+        count = rng.choice((2, 2, 3, 3, 4)) if rng.random() < args.busy else 1
+        for hour in sorted(rng.sample((8, 9, 10, 11, 14, 16, 17, 19), count)):
+            written += write_session(sessions, rng, day.replace(hour=hour, minute=rng.randrange(0, 58)), progress)
 
     finish = start + timedelta(days=83)
     print(f"seeded {written} session(s) from {seed_start:%d %b} to {today - timedelta(days=1):%d %b}")
     print(f"today is day {args.days} of 84 · program ends {finish:%d %b %Y}")
     print("today itself is left empty, so the streak and today's square reflect real work")
+
+
+def write_session(sessions: Path, rng: random.Random, ended: datetime, progress: float) -> int:
+    reach = round(REACH_FROM + (REACH_TO - REACH_FROM) * progress + rng.uniform(-1.6, 1.6), 1)
+    valid = max(1, min(PRESCRIBED, round(VALID_FROM + (VALID_TO - VALID_FROM) * progress + rng.uniform(-.8, .8))))
+    attempted = valid + rng.randrange(0, 3)
+    peaks = sorted(round(reach + rng.uniform(-3.5, 3.5), 1) for _ in range(valid))
+    identifier = str(uuid.UUID(int=rng.getrandbits(128), version=4))
+    duration = 60_000 + rng.randrange(0, 240_000)
+
+    (sessions / f"exercise-{identifier}.summary.json").write_text(json.dumps({
+        "seeded": True,
+        "exerciseId": identifier, "prescriptionId": PRESCRIPTION, "poseSessionId": None,
+        "poseSource": "camera:studio", "simulated": False, "endedAt": iso(ended), "sensor": "camera",
+        "exerciseKind": KIND, "algorithmVersion": "arm-elevation.v2", "side": SIDE, "planVersion": 1,
+        "params": {"side": SIDE, "targetDeg": TARGET_DEG, "targetMaxDeg": CEILING_DEG,
+                   "prescribedReps": PRESCRIBED, "planVersion": 1},
+        "calibrated": True, "attempted": attempted, "valid": valid,
+        "overshoots": sum(1 for p in peaks if p > CEILING_DEG), "prescribed": PRESCRIBED,
+        "completed": valid >= PRESCRIBED, "invalidReasons": {},
+        "medianValidPeakDeg": peaks[len(peaks) // 2], "validPeaksDeg": peaks,
+        "trunkDeviation": {"meanDeg": round(rng.uniform(2, 7), 1), "maxDuringRepsDeg": round(rng.uniform(7, 12), 1)},
+        "trackingLossEvents": 0, "frames": 1800 + rng.randrange(0, 900), "validFrameRatio": 1,
+    }, indent=2) + "\n")
+
+    (sessions / f"session-{identifier}.json").write_text(json.dumps({
+        "seeded": True,
+        "schema": "kinesthetic.activity.v1", "activitySessionId": identifier,
+        "activityId": "rehab.studio", "exerciseKinds": [KIND], "venueId": "studio", "patientId": None,
+        "planVersion": 1, "startedAt": iso(ended - timedelta(milliseconds=duration)), "endedAt": iso(ended),
+        "durationMs": duration, "completed": valid >= PRESCRIBED,
+        "subjects": [{"subjectId": "patient", "role": "patient",
+                      "dose": {"prescribed": PRESCRIBED, "attempted": attempted, "valid": valid},
+                      "primaryMetric": {"name": "medianValidPeak", "value": peaks[len(peaks) // 2], "unit": "deg"}}],
+        "trackingQuality": {"validFrameRatio": 1, "lossEvents": 0},
+        "flags": [] if valid >= PRESCRIBED else ["not_completed"],
+        "payload": {"kind": KIND, "schemaVersion": "1",
+                    "data": {"exerciseKind": KIND, "algorithmVersion": "arm-elevation.v2", "side": SIDE,
+                             "planVersion": 1, "attempted": attempted, "valid": valid,
+                             "medianValidPeakDeg": peaks[len(peaks) // 2], "validPeaksDeg": peaks}},
+    }, indent=2) + "\n")
+    return 1
 
 
 if __name__ == "__main__":

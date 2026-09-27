@@ -62,6 +62,16 @@ test('week, calendar and today reflect real sessions', () => {
   assert.deepEqual(d.history.map(h => h.label), ['Sep 17', 'Sep 21', 'Sep 23', 'Sep 23', 'Sep 26']);
 });
 
+test('the reach baseline is the median of the first measured week, not the oldest of the last eight', () => {
+  // Week one: 30, 32, 34 (median 32). Then a busy day months later, whose sessions fill the last eight.
+  const early = [rehab(100, { peak: 34 }), rehab(102, { peak: 30 }), rehab(104, { peak: 32 })];
+  const busy = [71, 54, 63, 61, 57, 58, 59, 65].map((peak, i) => rehab(0, { peak, hour: 8 + i }));
+  const d = build([...early, ...busy]);
+  assert.equal(d.history.length, 8); assert.equal(d.history[0].medianPeakDeg, 71);
+  assert.equal(d.baselinePeakDeg, 32, 'a session 8+ days after the first is not week one');
+  assert.equal(build([]).baselinePeakDeg, null);
+});
+
 test('rehab unlocks golf: swing power follows the level inside the envelope', () => {
   const store = new PlanStore(mkdtempSync(join(tmpdir(), 'unlock-')));
   const day1 = golfUnlock(store.active());                        // seed: 45° in a 40–90° envelope, 5° steps

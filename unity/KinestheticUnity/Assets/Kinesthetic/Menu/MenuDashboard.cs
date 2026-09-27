@@ -33,6 +33,8 @@ namespace Kinesthetic.Menu
         public int weekSessionsDone = 4, weekSessionsGoal = 5;
         public int programDay = 21, programTotalDays = 84;
         public float targetDeg = 85;
+        /// Median reach over the first week of measured work; what "since week one" is read against.
+        public float? baselinePeakDeg;
         public bool measured;                 // true once these come from real sessions
         public TodayTask[] today = Array.Empty<TodayTask>();
         public WeekPoint[] history = Array.Empty<WeekPoint>();
@@ -117,6 +119,7 @@ namespace Kinesthetic.Menu
             model.weekSessionsGoal = (int?)j["weekSessionsGoal"] ?? model.weekSessionsGoal;
             model.programDay = (int?)j["programDay"] ?? 1;
             model.programTotalDays = (int?)j["programTotalDays"] ?? model.programTotalDays;
+            model.baselinePeakDeg = (float?)j["baselinePeakDeg"];
             model.history = (j["history"] as JArray ?? new JArray()).Select(h => new WeekPoint { label = (string)h["label"],
                 attempted = (int?)h["attempted"] ?? 0, valid = (int?)h["valid"] ?? 0, medianPeakDeg = (float?)h["medianPeakDeg"] ?? 0 }).ToArray();
             model.calendar = (j["calendar"] as JArray ?? new JArray()).Select(c => new DayCell {
@@ -194,7 +197,7 @@ namespace Kinesthetic.Menu
             }
 
             float reach = model.history.Length > 0 ? model.history[^1].medianPeakDeg : 0;
-            float first = model.history.Length > 0 ? model.history[0].medianPeakDeg : 0;
+            float first = model.baselinePeakDeg ?? (model.history.Length > 0 ? model.history[0].medianPeakDeg : 0);
             float delta = reach - first;
             // Three lines. The green one says how far it has moved, the grey one where it stands against the
             // target; "median peak" is the clinician's word for it and belongs in the note, not the readout.

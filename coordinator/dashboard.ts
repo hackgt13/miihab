@@ -76,10 +76,20 @@ export function buildDashboard(args: { plans: Plan[]; summaries: any[]; envelope
 
   // Reach trend: the first measured prescription, its last eight real sessions.
   const primary = active.activities.find(a => a.exerciseKind);
-  const history = primary ? summaries.filter(s => belongsTo(s, primary) && s.medianValidPeakDeg != null)
-    .sort((a, b) => String(a.endedAt).localeCompare(String(b.endedAt))).slice(-8)
+  const measured = primary ? summaries.filter(s => belongsTo(s, primary) && s.medianValidPeakDeg != null)
+    .sort((a, b) => String(a.endedAt).localeCompare(String(b.endedAt))) : [];
+  const history = measured.slice(-8)
     .map(s => ({ label: new Date(s.endedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      attempted: s.attempted, valid: s.valid, medianPeakDeg: Math.round(s.medianValidPeakDeg * 10) / 10 })) : [];
+      attempted: s.attempted, valid: s.valid, medianPeakDeg: Math.round(s.medianValidPeakDeg * 10) / 10 }));
+  // Week one: the median reach over the first seven days of measured work. "Since week one" on the board is
+  // read against this, not against the oldest of the last eight — a busy day would otherwise make the
+  // trend the difference between two sessions of the same afternoon.
+  let baselinePeakDeg: number | null = null;
+  if (measured.length) {
+    const firstEnd = Date.parse(measured[0].endedAt) + 7 * 86_400_000;
+    const week = measured.filter(s => Date.parse(s.endedAt) < firstEnd).map(s => s.medianValidPeakDeg).sort((a, b) => a - b);
+    baselinePeakDeg = Math.round(week[Math.floor(week.length / 2)] * 10) / 10;
+  }
 
   return {
     goal: active.goal.text,
@@ -88,7 +98,7 @@ export function buildDashboard(args: { plans: Plan[]; summaries: any[]; envelope
     weekSessionsDone, weekSessionsGoal: WEEK_SESSIONS_GOAL,
     programDay, programTotalDays: PROGRAM_DAYS,
     targetDeg: primary ? Number(primary.params.targetDeg) : null,
-    today: today_, history, calendar,
+    today: today_, history, baselinePeakDeg, calendar,
   };
 }
 
