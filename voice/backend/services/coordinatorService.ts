@@ -46,6 +46,14 @@ export class CoordinatorService {
     if (!resp.ok) throw new Error(`Coordinator /api/visit/replies returned ${resp.status}`);
   }
 
+  /** One event for the clinician's coach feed (coordinator/coach-log.ts). Never blocks or fails the conversation. */
+  coachEvent(event: { conversation: string; source: 'coach' | 'patient' | 'engine'; kind: string; content: string; tool?: string }): void {
+    fetch(this.baseUrl + '/api/coach/events', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(2000),
+      body: JSON.stringify(event),
+    }).catch(() => {});
+  }
+
   private async get<T>(path: string): Promise<T> {
     const resp = await fetch(this.baseUrl + path, { signal: AbortSignal.timeout(2000) });
     if (!resp.ok) throw new Error(`Coordinator ${path} returned ${resp.status}`);

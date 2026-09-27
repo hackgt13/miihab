@@ -3,11 +3,13 @@ import { useParams } from '@tanstack/react-router'
 import { usePatientData } from '../../hooks/useLivePatient'
 import { concerning } from '../../data/coordinator'
 import { evaluateTrigger, computeNextSession } from '../../data/rules'
-import { useSessionSocket } from '../../hooks/useSessionSocket'
+import { useLiveExercise } from '../../hooks/useLiveExercise'
 import { LiveReadings } from '../../ui/LiveReadings'
 import { SessionTrendChart } from '../../ui/SessionTrendChart'
 import { VisitNotes } from '../../ui/VisitNotes'
 import { ProgramUpdate } from '../../ui/ProgramUpdate'
+import { CoachFeed } from '../../ui/CoachFeed'
+import { ProgramTimelapse } from '../../ui/ProgramTimelapse'
 import { PatientRelay } from '../../ui/PatientRelay'
 import type { PatientStatus } from '../../data/types'
 
@@ -142,7 +144,10 @@ export function PatientView() {
   // Live for the live patient, seed for the seeded ones. Every component below this line reads the same
   // PatientData shape either way - src/data/coordinator.ts is what makes the real records look like it.
   const { data, live, offline } = usePatientData(patientId)
-  const { status: wsStatus } = useSessionSocket({ url: 'ws://localhost:8766', enabled: true })
+  // The set happening right now on the headset, rep by rep (coordinator /exercise): the live patient's readings
+  // update as each rep lands, and the badge goes LIVE.
+  const liveSet = useLiveExercise()
+  const wsStatus = live && liveSet.running ? 'open' : 'closed'
   const [activeTab, setActiveTab] = useState('Summary')
   const [rightTab, setRightTab]   = useState('Overview')
 
@@ -348,7 +353,15 @@ export function PatientView() {
 
           {/* Live VR readings */}
           <SectionLabel label="Current Session" />
-          <LiveReadings session={session} wsStatus={wsStatus} baselineDeg={baselineDeg} />
+          <LiveReadings session={session} wsStatus={wsStatus} baselineDeg={baselineDeg}
+            override={live && liveSet.running ? liveSet.override : null}
+            now={live && liveSet.running ? [liveSet.angleDeg != null ? `arm ${liveSet.angleDeg}°` : null, liveSet.lastRep].filter(Boolean).join(' · ') : null} />
+
+          {/* The program so far, replayed: reach per session, the target at each plan version, what the patient said. */}
+          <SectionLabel label="Program Timelapse" />
+          <div className="px-3 py-3">
+            <ProgramTimelapse sessions={sessions} plans={plans} replies={data.replies} />
+          </div>
 
           {/* Clinical alert */}
           {trigger.fired && (
@@ -450,6 +463,12 @@ export function PatientView() {
               ))}
             </tbody>
           </table>
+
+          {/* What the coach told the patient, beside the measurements it coached from. */}
+          <SectionLabel label="Coach Feed" />
+          <div className="px-3 py-3">
+            <CoachFeed log={session.coachLog} />
+          </div>
 
           {/* The physician changes the live patient's program: a signed plan version the headset picks up. */}
           {live && (<>

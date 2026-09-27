@@ -13,7 +13,7 @@ import type { Patient, PatientData } from '../data/types'
 // Nothing here throws a patient away: when the coordinator is not running, `offline` goes true and the
 // seeded patients are all that is listed, so the portal is still demonstrable on a plane.
 
-const POLL_MS = 10_000
+const POLL_MS = 3_000   // quick enough that a set finishing on the headset shows up while the physician watches
 
 interface Live {
   data: PatientData | null

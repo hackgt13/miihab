@@ -16,12 +16,11 @@
 // it and the mapping underneath is the only thing that has to be re-read.
 //
 // What is NOT here, because the coordinator does not hold it, and must not be faked into looking real:
-//   · the coach's event log       - no endpoint records what the coach said, so `coachLog` is empty
 //   · scheduling                  - the program is a daily home program; there is no appointment book
 //   · more than one patient       - the coordinator is one machine, one patient, `patientId: null`
 import type {
   PatientData, PatientReport, PatientStatus, PlanVersion, RepEvent, ReplayMoment,
-  SessionHandoff, SessionSummary, VisitReply,
+  SessionEvent, SessionHandoff, SessionSummary, VisitReply,
 } from './types'
 
 /** The one real patient. Seeded patients keep their own ids, so the two can stand side by side. */
@@ -58,6 +57,9 @@ interface CoordinatorSummary {
   medianValidPeakDeg: number | null
   invalidReasons?: Record<string, number>
   trunkDeviation?: { meanDeg: number | null; maxDuringRepsDeg: number | null }
+  /** Head travel per rep from the headset (coordinator/head-lean.ts): a sign of trunk lean, with approximate angles. */
+  headLean?: { available: boolean; repsOverThreshold?: number; repsMeasured?: number; maxCm?: number;
+    perRep?: { rep: number; cm: number | null; approxDeg: number | null }[] }
   trackingLossEvents?: number
   validFrameRatio?: number
   reps?: CoordinatorRep[]
@@ -185,6 +187,17 @@ function patientReports(replies: VisitReply[], now: Date): PatientReport[] {
 }
 
 /** What the measurement itself is unsure about, in the words of what actually happened. */
+/** Trunk lean from the headset when no camera measured the trunk: the mean, and the mean over the last third of reps. */
+function headTrunk(summary: CoordinatorSummary | undefined): { meanDeg: number; finalDeg: number } | null {
+  const degs = (summary?.headLean?.available ? summary.headLean.perRep ?? [] : [])
+    .map(r => r.approxDeg).filter((d): d is number => d != null)
+  if (!degs.length) return null
+  const mean = (v: number[]) => Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10
+  return { meanDeg: mean(degs), finalDeg: mean(degs.slice(-Math.max(1, Math.ceil(degs.length / 3)))) }
+}
+
+interface CoachEventRecord { at: string; source: SessionEvent['source']; kind: SessionEvent['kind']; content: string; tool?: string }
+
 function uncertainty(summary: CoordinatorSummary): string[] {
   const notes: string[] = []
   const rejected = Object.entries(summary.invalidReasons ?? {})
@@ -194,7 +207,9 @@ function uncertainty(summary: CoordinatorSummary): string[] {
   if (usable < 0.95) notes.push(`${Math.round((1 - usable) * 100)}% of frames unusable`)
   // A wrist AirPod cannot see the trunk at all, so its sessions come back with no compensation figure.
   // Zero would read as "sat perfectly still", which is a measurement nobody made.
-  if (summary.trunkDeviation?.meanDeg == null) notes.push('Trunk deviation not measured by this sensor')
+  if (summary.trunkDeviation?.meanDeg == null)
+    notes.push(headTrunk(summary) ? 'Trunk lean estimated from the headset (head travel per rep), not measured at the trunk'
+      : 'Trunk deviation not measured by this sensor')
   if (summary.seeded) notes.push('Seeded demo session (scripts/seed_demo_history.py), not a sensor recording')
   return notes
 }
@@ -288,6 +303,9 @@ export async function fetchLivePatient(): Promise<PatientData> {
     get<{ me?: { displayName?: string } }>('/api/friends').catch(() => ({ me: undefined })),
     get<VisitReply[]>('/api/visit/replies').catch(() => [] as VisitReply[]),
   ])
+  // What Alex said in the latest conversation, and the studio reports he coached from (coordinator/coach-log.ts).
+  const coachEvents = await get<CoachEventRecord[]>('/api/coach/events').catch(() => [] as CoachEventRecord[])
+  const coachStart = coachEvents.length ? Date.parse(coachEvents[0].at) : 0
 
   const real = summaries.filter(isReal).sort((a, b) => a.endedAt.localeCompare(b.endedAt))
   const latest = real[real.length - 1]
@@ -297,7 +315,7 @@ export async function fetchLivePatient(): Promise<PatientData> {
     session: i + 1,
     date: s.endedAt,
     medianPeakDeg: tenth(s.medianValidPeakDeg),
-    trunkMeanDeg: tenth(s.trunkDeviation?.meanDeg),
+    trunkMeanDeg: tenth(s.trunkDeviation?.meanDeg ?? headTrunk(s)?.meanDeg),
     validReps: s.valid,
     prescribedReps: s.prescribed,
     completed: s.completed,
@@ -317,7 +335,9 @@ export async function fetchLivePatient(): Promise<PatientData> {
     reps: { valid: latest?.valid ?? 0, attempted: latest?.attempted ?? 0, prescribed: latest?.prescribed ?? 0 },
     medianPeakDeg: tenth(latest?.medianValidPeakDeg),
     baselineMedianPeakDeg: sessions[0]?.medianPeakDeg ?? 0,
-    trunkDeviation: {
+    trunkDeviation: latest?.trunkDeviation?.meanDeg == null && headTrunk(latest) ? {
+      meanDeg: headTrunk(latest)!.meanDeg, finalRepsDeg: headTrunk(latest)!.finalDeg,
+    } : {
       meanDeg: tenth(latest?.trunkDeviation?.meanDeg),
       finalRepsDeg: finalReps.length
         ? Math.round((finalReps.reduce((sum, r) => sum + r.trunkDeg, 0) / finalReps.length) * 10) / 10
@@ -327,7 +347,8 @@ export async function fetchLivePatient(): Promise<PatientData> {
     replayMoments: latest ? replayMoments(latest) : [],
     uncertainty: latest ? uncertainty(latest) : ['No measured session yet'],
     repEvents: reps,
-    coachLog: [],                // no endpoint records what the coach said
+    coachLog: coachEvents.map(e => ({ t: Math.max(0, (Date.parse(e.at) - coachStart) / 1000), source: e.source, kind: e.kind,
+      content: e.content, ...(e.tool ? { tool: e.tool } : {}) })),
     durationSec: Math.round(number(envelope?.durationMs) / 1000),
     timestamp: latest?.endedAt ?? new Date().toISOString(),
     synthetic: Boolean(latest?.seeded || latest?.simulated),

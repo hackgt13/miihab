@@ -14,7 +14,7 @@ namespace Kinesthetic.Rehab.Mechanics
     /// renders in stereo like everything else in the world; no screen-space UI.
     public sealed class ReticleMechanic : RepMechanic
     {
-        const float Distance = 1.25f, Below = .12f;                 // in front of the eyes, a little under the eyeline
+        const float Distance = 1.25f, Below = -.02f;                // in front of the eyes, on the eyeline, clear of the dock below
         const float OuterRadius = .11f, HoldRadius = .06f, CentreRadius = .03f, Travel = .085f;
         const float LeadFullDeg = 14f;                               // this far ahead of the pace puts the bubble at the edge
 

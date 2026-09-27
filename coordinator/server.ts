@@ -26,6 +26,7 @@ import { LIBRARY } from './exercises.ts';
 import { buildDashboard, golfUnlock, planUpdate } from './dashboard.ts';
 import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
 import { HeadLean } from './head-lean.ts';
+import { CoachLog } from './coach-log.ts';
 import { applyProgramUpdate, buildVisit, therapistFromEnv, VisitStore } from './visit.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,6 +49,8 @@ const socialDir = resolve(process.env.KINESTHETIC_SOCIAL_DIRECTORY ?? resolve(ro
 const friends = new FriendStore(socialDir);
 const messages = new MessageStore(socialDir);
 // Notes the therapist leaves for the patient's visit (visit.ts). Kept beside the plans: they are clinical.
+// What Alex and the patient said, and the studio reports Alex coached from (coach-log.ts), for the EHR's coach feed.
+const coachLog = new CoachLog(resolve(process.env.KINESTHETIC_COACH_DIRECTORY ?? resolve(root, 'local-data/coach')));
 const visit = new VisitStore(resolve(process.env.KINESTHETIC_VISIT_DIRECTORY ?? resolve(root, 'local-data/visit')));
 const therapist = therapistFromEnv();
 const introductions = new IntroductionStore(socialDir);
@@ -659,6 +662,10 @@ const server = createServer(async (request, response) => {
       // How the patient moved in each game: movements, typical speed and turn, consistency, and forearm ÷ club
       // rotation when a wrist AirPod was on. Computed once per finished session from the motion recordings and
       // kept next to its activity record; the recordings do not change after the session ends.
+      // The coach's conversation, event by event: posted by the voice server as it happens, read by the EHR.
+      if (request.method === 'POST' && url.pathname === '/api/coach/events') return json(201, coachLog.add(await readJson(request)));
+      if (request.method === 'GET' && url.pathname === '/api/coach/events')
+        return json(200, url.searchParams.get('scope') === 'recent' ? coachLog.recent(Number(url.searchParams.get('limit') ?? 100)) : coachLog.latestConversation());
       if (request.method === 'GET' && url.pathname === '/api/game-movement') {
         const files = (await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f));
         const envelopes = (await Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8')))))

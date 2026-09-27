@@ -44,7 +44,7 @@ and `--clean` takes them out again. Seeded sessions are marked as such wherever 
 | Plan versions and their diffs | `/api/plans` — what a clinician (or the progression rules) approved |
 | Visit whiteboard notes | `/api/visit/notes` — written back, read on the patient's headset |
 | Patient-reported symptoms | `/api/visit/replies` — what the patient relays at the end of a visit |
-| Coach feed | **Seed.** Nothing records what the coach said. |
+| Coach feed | `/api/coach/events` — what Alex said and heard, and the studio's rep and set reports he coached from |
 | SOAP notes, RTM review minutes | `localStorage` — this portal owns them; the coordinator never sees them |
 
 ---
