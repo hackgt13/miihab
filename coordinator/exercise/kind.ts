@@ -104,6 +104,8 @@ export interface Sample { tMs: number; valid: boolean; angleDeg: number | null; 
 
 export const sub = (a: Point, b: Point): Vec => [a.x - b.x, a.y - b.y, a.z - b.z];
 export const mid = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2 });
+/** How far a posture may creep during calibration before the hold starts over, in degrees. */
+export const CALIBRATION_DRIFT_DEG = 6;
 export const len = (v: Vec) => Math.hypot(v[0], v[1], v[2]);
 export const dot = (a: Vec, b: Vec) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 export const cross = (a: Vec, b: Vec): Vec =>
@@ -230,8 +232,11 @@ export class RepSession<R extends string = string> {
     this.lastValidT = t;
 
     if (this.state === 'calibrating') {
-      // Reference posture: the measured joint at rest. Held for calibrationMs of valid frames.
+      // Reference posture: the measured joint at rest. Held for calibrationMs of valid frames, and held: a posture
+      // that creeps more than CALIBRATION_DRIFT_DEG from where the hold began starts the hold again, so a slowly
+      // settling limb never becomes the reference.
       if (m.primaryDeg > c.restMaxDeg) { this.calib = null; return out; }
+      if (this.calib && m.axes.some((axis, i) => angle(axis, this.calib!.axes[0][i]) > CALIBRATION_DRIFT_DEG)) this.calib = null;
       this.calib ??= { start: t, axes: [], scales: [] };
       this.calib.axes.push(m.axes); this.calib.scales.push(m.scaleM);
       if (t - this.calib.start >= c.calibrationMs && this.calib.axes.length >= 5) {

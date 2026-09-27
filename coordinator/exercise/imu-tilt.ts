@@ -20,8 +20,9 @@ import {
   type ExerciseKind, type Observation, type ObservationInput, type Reference, type ResolvedParams, type Vec,
 } from './kind.ts';
 
-/** Below this angular speed the device counts as still; calibration only uses still frames. */
-const STILL_RAD_S = 0.35;
+/** Below this angular speed the device counts as still; calibration only uses still frames. About 9°/s: a held
+ *  arm, not one drifting into place. */
+const STILL_RAD_S = 0.15;
 
 /** The world's vertical axis in the device frame, for a CoreMotion attitude quaternion [x, y, z, w]. */
 export function verticalInDevice([x, y, z, w]: readonly number[]): Vec {

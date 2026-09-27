@@ -40,6 +40,10 @@ namespace Kinesthetic.Rehab
         ActivityEntry Modelled => movement ?? ActivityCatalog.MovementFor(exerciseKind);
         /// The biceps curl, whose path takes the mirror's place (CurlTrajectory).
         bool CurlPath => Modelled?.MovementKind == "biceps-curl.v1";
+        /// What calibration asks for: the coordinator fixes rest only after a strict four-second hold (server.ts
+        /// CALIBRATION_MS), and the arm movements start from arms straight down.
+        string CalibrateCue => Body?.Segment is "arm" or "forearm"
+            ? "Arms straight down. Hold still for 4 seconds." : "Hold the starting position still for 4 seconds.";
         BodyModel Body => Modelled?.Body;
         // Where each tracker is, from the card's tag: "AIRPODS ON WRIST AND CHEST" → ["wrist", "chest"].
         string[] Placements
@@ -636,7 +640,7 @@ namespace Kinesthetic.Rehab
                 : !inRep ? "YOUR TURN" : tooFast ? "SLOWER" : holding ? "HOLD" : phase == "lower" ? "LOWER" : "RAISE";
             cueTitle.text = stoppingSession ? "Saving your set…" : sessionError ? "Let’s reconnect." : startingSession ? "Hold still." : !running
                 ? summaryReceived ? "Well done today." : !fresh ? "Secure your AirPod." : ReadyToBegin ? "Ready. Let’s begin." : "Rest your arm."
-                : sorting ? sensorInstruction : !fresh ? "Let’s find your AirPod." : !calibrated ? "Hold still to calibrate." : coach && coach.Demonstrating ? "Watch Alex."
+                : sorting ? sensorInstruction : !fresh ? "Let’s find your AirPod." : !calibrated ? CalibrateCue : coach && coach.Demonstrating ? "Watch Alex."
                 : tooFast ? "Slower on the way down." : over ? "Lower gently." : holdMet ? "Held. Now lower slowly." : holding ? "Hold it there."
                 : reached ? "Hold. Then lower slowly." : phase == "lower" ? "Lower slowly, all the way." : "Raise, hold, lower.";
             if (holdRing != null)

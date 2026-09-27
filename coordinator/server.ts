@@ -254,6 +254,14 @@ function endCurlTrace(final = true) {
   if (payload) exerciseBroadcast({type:'exercise.trajectory', payload: {...payload, final: true}});
   curlTrace = null;
 }
+// Every set starts from a real rest: the patient holds the starting position (arm straight down, for the arm
+// movements) still for this long before the reference is fixed. The engine's own default is shorter for its unit
+// tests; the live studio always passes this.
+const CALIBRATION_MS = Number(process.env.KINESTHETIC_CALIBRATION_MS ?? 4000);
+// Demo sets are short: at most this many reps, whatever the plan prescribes. The plan itself is untouched — the
+// clinician's number stays in it and in the portal. KINESTHETIC_DEMO_REPS=0 runs the plan's count.
+const DEMO_REPS = Number(process.env.KINESTHETIC_DEMO_REPS ?? 3);
+const demoReps = (prescribed: number) => DEMO_REPS > 0 && Number.isFinite(prescribed) ? Math.min(prescribed, DEMO_REPS) : prescribed;
 async function readJson(request: import('node:http').IncomingMessage) {
   let body = ''; for await (const chunk of request) { body += chunk; if (body.length > 16384) throw Error('Body too large'); }
   return body ? JSON.parse(body) : {};
@@ -374,7 +382,8 @@ const server = createServer(async (request, response) => {
       exercise = createSession(kind.id, {side: (body.side ?? p.side) === 'left' ? 'left' : 'right',
         targetDeg: target,
         targetMaxDeg: Number(body.targetMaxDeg ?? target + Number(p.targetMaxDeg) - Number(p.targetDeg)),
-        prescribedReps: Number(body.prescribedReps ?? x.targetCount),
+        prescribedReps: demoReps(Number(body.prescribedReps ?? x.targetCount)),
+        calibrationMs: Number(body.calibrationMs ?? CALIBRATION_MS),
         holdMs: Number(body.holdMs ?? p.holdMs ?? 400),
         ...(compensation != null ? {maxCompensationDeg: Number(compensation)} : {}),
         planVersion: plan.version},
@@ -436,7 +445,9 @@ const server = createServer(async (request, response) => {
         const plan = plans.active(), activity = requireActivity(url.searchParams.get('activityId') ?? 'rehab.studio');
         const { prescription, practice } = prescriptionForActivity(plan, activity);
         const entry = prescription?.exerciseKind ? LIBRARY[prescription.exerciseKind] : undefined;
-        return json(200, { planVersion: plan.version, activityId: activity.id, practice, prescription,
+        // The studio briefs and counts what the set will run, so it is told the demo's rep count, not the plan's.
+        const briefed = prescription ? {...prescription, targetCount: demoReps(Number(prescription.targetCount))} : prescription;
+        return json(200, { planVersion: plan.version, activityId: activity.id, practice, prescription: briefed,
           label: entry?.label ?? null, sensor: entry?.sensor ?? null, posture: entry?.posture ?? null, cue: entry?.cue ?? null });
       }
       if (request.method === 'POST' && url.pathname === '/api/plans') {
