@@ -32,7 +32,10 @@ public static class QuestCombinedBuild
         try
         {
             PlayerSettings.Android.forceInternetPermission = true;
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = scenes, locationPathName = output, target = BuildTarget.Android });
+            // LZ4HC: Unity compresses its data files itself and the APK stores them as-is. The default (zip deflate) makes
+            // Unity split every data file into 1 MB chunks that the player re-inflates on each random read; on a Quest 2
+            // that pinned Loading.AsyncRead for minutes on the first scene and the app never got past the loading screen.
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = scenes, locationPathName = output, target = BuildTarget.Android, options = BuildOptions.CompressWithLz4HC });
             if (report.summary.result != BuildResult.Succeeded)
                 throw new InvalidOperationException($"Combined Quest build {report.summary.result}: {report.summary.totalErrors} errors.");
             return $"{output} ({report.summary.totalSize / 1048576} MB, {report.summary.totalTime.TotalSeconds:0}s)";
