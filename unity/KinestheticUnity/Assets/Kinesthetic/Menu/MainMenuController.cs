@@ -190,6 +190,9 @@ namespace Kinesthetic.Menu
             // Added at runtime so the generated menu scene needs no change.
             var friends = GetComponent<FriendsPanel>() ?? gameObject.AddComponent<FriendsPanel>();
             friends.Attach(friendsRoot, navigation);
+            // Who is already in each activity, on the card that takes you in.
+            var presence = GetComponent<GalleryPresence>() ?? gameObject.AddComponent<GalleryPresence>();
+            presence.Attach(galleryRoot);
             // FriendsPanel still owns its own buttons; the friends button here only turns the ring.
             actions["friends"] = () => carousel.Show("friends");
 
@@ -417,6 +420,10 @@ namespace Kinesthetic.Menu
             Part(copy, new Label(entry.DisplayName), "card-title");
             Part(copy, new Label(entry.Tagline), "card-description");
             Part(info, new Label("›"), "card-arrow");
+            // Who is already in there. Built empty and filled by GalleryPresence, so
+            // a card added by the catalog gets the row without anyone remembering.
+            Part(card, new VisualElement { name = "presence-" + entry.Id }, "card-presence")
+                .AddToClassList("hidden");
             return card;
         }
 

@@ -46,7 +46,7 @@
                         <k:KText name="profile-note" text="" size="Caption" tone="Soft" />
                     </ui:VisualElement>
                     <ui:VisualElement class="composer">
-                        <ui:TextField name="composer-text" class="composer-text" max-length="240" />
+                        <k:KField name="composer-text" placeholder="Write a message…" class="composer-text" max-length="240" />
                         <ui:Button name="composer-photo" text="Photo" class="ghost-button" />
                         <ui:Button name="composer-send" text="Send" class="send-button" />
                     </ui:VisualElement>
@@ -67,7 +67,7 @@
                         <ui:Button name="friends-invite" text="Invite a friend" class="ghost-button" />
                         <ui:Label name="invite-code" text="" class="invite-code hidden" />
                         <ui:VisualElement class="code-row">
-                            <ui:TextField name="friends-code" class="code-field" max-length="6" />
+                            <k:KField name="friends-code" placeholder="Their 6-letter code" class="code-field" max-length="6" />
                             <ui:Button name="friends-accept" text="Add" class="ghost-button" />
                         </ui:VisualElement>
                         <ui:Label name="friends-notice" text="" class="friends-notice" />

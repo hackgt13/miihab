@@ -19,6 +19,10 @@ voice_ready() { /usr/bin/curl -fsS --max-time 1 http://127.0.0.1:8769/health >/d
 if ! pose_ready; then
   # --env-file-if-exists so a repo-root .env (ANTHROPIC_API_KEY for the friends
   # AI) is read whatever shell started this, and a missing file is not an error.
+  # The clinician's EHR portal, served by the coordinator at http://127.0.0.1:8766/ehr/portal: build it once.
+  if [[ ! -f ehr/dist/index.html && -f ehr/package.json ]] && command -v npm >/dev/null; then
+    (cd ehr && npm install --no-audit --no-fund >/dev/null 2>&1 && npm run build >/dev/null 2>&1) || print -u2 -- "EHR portal build failed; run npm install && npm run build in ehr/"
+  fi
   nohup "$node_exe" --env-file-if-exists=.env coordinator/server.ts >local-data/logs/pose-bridge.log 2>&1 </dev/null &
   disown
 fi

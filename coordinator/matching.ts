@@ -37,6 +37,19 @@ export interface Profile {
   /** What a friend may see of them. Never used for matching — see `activity`
    *  below and the note at the top of this file. */
   activity?: FriendActivity;
+  /** Where they are right now, if anywhere. Never used for matching either. */
+  presence?: Presence;
+}
+
+/**
+ * Someone in an activity, now. `activityId` is a catalog id, so the gallery can
+ * put a face under the card it belongs to without either side inventing a name
+ * for the same thing. `since` is when they went in — the honest way to decide
+ * whether "online" is still true, rather than trusting a flag nobody clears.
+ */
+export interface Presence {
+  activityId: string;
+  since: string;
 }
 
 /**
