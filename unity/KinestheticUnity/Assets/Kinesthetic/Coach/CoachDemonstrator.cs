@@ -87,6 +87,32 @@ namespace Kinesthetic.Coach
             cycleStart = Time.time;
         }
 
+        /// Demonstrate the movement actually prescribed: the motion for its exercise kind and the prescription's
+        /// target, side and hold. Called when the studio opens a prescription and again when its set starts, so the
+        /// coach never demonstrates a shoulder raise for a curl. A kind with no motion here (neck, trunk, legs) leaves
+        /// the coach seated rather than demonstrating the wrong movement.
+        public void Configure(string exerciseKind, float? target, string side, float? holdMs)
+        {
+            var name = MotionFor(exerciseKind);
+            demonstrating = name != null;
+            if (name == null) return;
+            if (name != motionName) SetMotion(name);
+            if (target is float t) targetDeg = t;
+            if (holdMs is float h) holdSeconds = h / 1000f;
+            if (!string.IsNullOrEmpty(side)) SetSide(side);
+        }
+
+        /// The coach's recorded motion (Resources/CoachMotions) for an exercise kind, or null when there is none.
+        public static string MotionFor(string exerciseKind)
+        {
+            var k = (exerciseKind ?? "").ToLowerInvariant();
+            if (k.Contains("elbow") || k.Contains("curl")) return "elbow_curl";
+            if (k.Contains("shrug")) return "shoulder_shrug";
+            if (k.Contains("abduction")) return "shoulder_abduction";
+            if (k.Contains("arm-elevation") || k.Contains("arm-raise") || k.Contains("scaption") || k.Contains("shoulder-raise")) return "shoulder_scaption";
+            return null;
+        }
+
         /// Swap the active motion at runtime (e.g. the tutorial cycling through exercises).
         public void SetMotion(string name)
         {
@@ -188,7 +214,14 @@ namespace Kinesthetic.Coach
             {
                 JObject m; try { m = JObject.Parse(text); } catch (Exception) { continue; }
                 var type = (string)m["type"]; var e = m["payload"] as JObject;
-                if (type == "exercise.started") { SetMode(CoachMode.Calibrating); calibratedDuringDemo = false; StartCoroutine(LoadPlan()); }
+                if (type == "exercise.started")
+                {
+                    SetMode(CoachMode.Calibrating); calibratedDuringDemo = false;
+                    // The set says what it measures; the plan's first exercise is only a fallback for older coordinators.
+                    if (e?["exerciseKind"] != null && e["config"] is JObject config)
+                        Configure((string)e["exerciseKind"], (float?)config["targetDeg"], (string)config["side"], (float?)config["holdMs"]);
+                    else StartCoroutine(LoadPlan());
+                }
                 else if (type == "exercise.summary")
                 {   // Celebrate real work only; an empty or abandoned session just returns to demonstrating.
                     if (((int?)m["payload"]?["valid"] ?? 0) > 0) SetMode(CoachMode.Celebrate); else { SetMode(CoachMode.Loop); cycleStart = Time.time + 1f; }

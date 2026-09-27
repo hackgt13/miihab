@@ -31,8 +31,8 @@ test('with no real sessions the board is not measured, but today is the real pre
   assert.equal(d.measured, false, 'simulated and uncalibrated sessions are not the patient\'s work');
   assert.equal(d.streakDays, 0);
   assert.deepEqual(d.today.map(t => [t.activityId, t.title, t.detail]), [
-    ['rehab.studio', 'Movement Studio', '8 shoulder raises · right · to 45°'],
-    ['rehab.studio', 'Movement Studio', '10 biceps curls · right · to 90°'],
+    ['rehab.studio', 'Shoulder raise', '8 shoulder raises · right · to 45°'],
+    ['rehab.studio', 'Biceps curl', '10 biceps curls · right · to 90°'],
     ['golf.adaptive', 'Golf', '9 holes with a friend'],
   ]);
   assert.equal(d.goal, 'Play golf again with their best friend'); assert.equal(d.targetDeg, 45);

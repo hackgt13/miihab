@@ -138,7 +138,7 @@ namespace Kinesthetic.Rehab
         bool briefedWarning;
         KReadout repCount;
         KChip sensorStatus; KTag cueStep;
-        string coachingNote = "";
+        string coachingNote = "", prescriptionNote = "";
         // Rep qualities (coordinator/exercise/quality.ts): how well a counted rep is made — the hold at the top,
         // the tempo of each phase, hitches, the streak. The coordinator judges; this renders. Their configs are
         // plan params (holdTargetMs, raiseMs, lowerMs), live readouts ride every sample, verdicts ride rep.completed.
@@ -316,7 +316,10 @@ namespace Kinesthetic.Rehab
             planHoldMs = Num(p?["holdMs"]) ?? 0;
             holdTargetMs = Num(p?["holdTargetMs"]) ?? holdTargetMs;
             raiseMs = Num(p?["raiseMs"]) ?? raiseMs; lowerMs = Num(p?["lowerMs"]) ?? lowerMs;
-            if (practice) coachingNote = (string)x["note"] ?? "";
+            // The prescription's own note ("Elbow by your side.") before the plan-wide one.
+            prescriptionNote = (string)x["note"] ?? "";
+            if (practice) coachingNote = prescriptionNote;
+            FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>()?.Configure(exerciseKind, targetDeg, side, planHoldMs > 0 ? planHoldMs : (float?)null);
             UpdatePlanLabels();
         }
 
@@ -436,7 +439,7 @@ namespace Kinesthetic.Rehab
                 new BriefingLine("Hold at the end", HoldPrescribed ? Seconds(HoldTargetMs) : "No hold"),
                 new BriefingLine("Tempo", $"{Seconds(raiseMs)} out · {Seconds(lowerMs)} back"),
             },
-            note = coachingNote,
+            note = !string.IsNullOrEmpty(prescriptionNote) ? prescriptionNote : coachingNote,
             noteFrom = "FROM YOUR CARE TEAM",
             action = "Begin my set",
         };
@@ -475,7 +478,12 @@ namespace Kinesthetic.Rehab
             // The HTTP response also carries the summary if the exercise stream was interrupted.
             JObject summary = null;
             try { summary = JObject.Parse(request.downloadHandler.text); } catch (Exception) { }
-            if (summary?["attempted"] != null) ShowSummary(summary);
+            if (summary?["attempted"] != null && !summaryReceived)
+            {
+                ShowSummary(summary);
+                // The reply carries the progression too; without this a level-up was lost whenever the stream had dropped.
+                if (summary["progression"] is JObject progression) ShowProgression(progression);
+            }
             running = false; autoArmed = false; start.text = "Practice again";
             completed?.Invoke(true);
         }

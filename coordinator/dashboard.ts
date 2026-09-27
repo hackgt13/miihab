@@ -2,7 +2,7 @@
 // reach trend — computed from the plan and the sessions actually recorded, in the shape the board's
 // MenuDashboardModel already reads. Simulated sessions and sessions that never calibrated (a setup
 // failure) are not the patient's work and are left out. `measured` is false until a real session exists;
-// the board then keeps its labelled demo figures for everything except the prescription.
+// the board then shows the plan (prescription, program day) and empty progress.
 import type { ActivityPrescription, Plan } from './plans.ts';
 import { LIBRARY } from './exercises.ts';
 
@@ -67,7 +67,10 @@ export function buildDashboard(args: { plans: Plan[]; summaries: any[]; envelope
     const doneToday = a.exerciseKind
       ? summaries.some(s => belongsTo(s, a) && dayKey(new Date(s.endedAt)) === todayKey && (s.valid ?? 0) >= a.targetCount)
       : envelopes.some(e => e.activityId === a.activityId && e.completed && dayKey(new Date(e.endedAt)) === todayKey);
-    return { activityId: a.activityId, title: TITLES[a.activityId] ?? a.activityId, detail: taskDetail(a), done: doneToday };
+    // A measured prescription is named for its movement, so two studio exercises are two different rows.
+    const label = a.exerciseKind ? LIBRARY[a.exerciseKind]?.label.replace(/^Seated /, '') : undefined;
+    const title = label ? label[0].toUpperCase() + label.slice(1) : TITLES[a.activityId];
+    return { activityId: a.activityId, prescriptionId: a.id, title: title ?? a.activityId, detail: taskDetail(a), done: doneToday };
   });
 
   // Reach trend: the first measured prescription, its last eight real sessions.
