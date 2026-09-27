@@ -229,6 +229,10 @@ export class ToolService {
     const category = String(params['category'] ?? 'other');
     if (!reason) throw new Error('A reason is required.');
     const record = await this.patientService.addPlanReviewRequest(this.patientId, this.sessionId, plan?.version ?? null, reason, category);
+    // And where the clinician actually looks: the portal's "From the patient" list, beside the patient's visit replies.
+    const kind = category === 'pain' ? 'hurt' : category === 'too_easy' ? 'easy' : category === 'too_hard' || category === 'fatigue' ? 'hard' : 'message';
+    await this.coordinator.tellCareTeam(kind, `Review requested by Alex: ${reason}`, plan?.version ?? null)
+      .catch(error => console.warn('Plan review not shown in the portal:', (error as Error).message));
     this.emitEvent({ type: 'plan_review_requested', data: { reason, category, plan_version: plan?.version ?? null } });
     return { status: 'sent_to_physician', request_id: record.id, note: 'The plan is unchanged until the physician approves a new version.' };
   }
