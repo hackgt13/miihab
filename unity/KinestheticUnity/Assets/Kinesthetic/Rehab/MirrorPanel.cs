@@ -10,6 +10,12 @@ namespace Kinesthetic.Rehab
     /// It is a posed copy, not a second camera rendering a reflection, so on a headset it costs one extra skinned
     /// mesh rather than a whole extra view. The window faces whoever is looking: the Mac view today, the patient's
     /// own eyes in a headset. Added at runtime by RehabSession, so the generated scene needs no change.
+    ///
+    /// Reading as a mirror is the copy's whole job — a patient who takes it for a poster of someone else is not
+    /// watching themselves. That read is carried by the surface rather than by the reflection: a silvered metallic
+    /// back that takes the room from the studio's reflection probes, a frame with some weight and a bevel at its
+    /// lip, and a faint haze with two sheens raked across the glass. All of it is static geometry and set up once,
+    /// so none of it costs a frame.
     public sealed class MirrorPanel : MonoBehaviour
     {
         public IRehabView view;
@@ -51,15 +57,14 @@ namespace Kinesthetic.Rehab
             var facing = viewer - centre; facing.y = 0;
             window.SetPositionAndRotation(centre, Quaternion.LookRotation(facing.sqrMagnitude > 1e-4f ? facing.normalized : -left));
 
-            // Frame: a shallow box, so the reflection sits inside it rather than on a flat sheet. The back is silvered
-            // glass — metallic and near-mirror smooth, so it takes the room from the studio's reflection probes.
+            // Frame: heavier than a picture frame and closed at the corners, with a bevelled liner at its lip, so the
+            // opening is set into something rather than edged with four loose sticks. The back is silvered glass —
+            // metallic and near-mirror smooth, so it takes the room from the studio's reflection probes.
             frameMaterial = Lit(Palette.Sand00); var backMaterial = Lit(Palette.Sand00);
             backMaterial.SetFloat("_Metallic", 1); backMaterial.SetFloat("_Smoothness", .96f);
-            const float t = .018f;
-            Box(window, "Frame top", new Vector3(0, height * .5f + t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, .065f), frameMaterial);
-            Box(window, "Frame bottom", new Vector3(0, -height * .5f - t * .5f, -depth * .5f), new Vector3(width + 2 * t, t, .065f), frameMaterial);
-            Box(window, "Frame left", new Vector3(-width * .5f - t * .5f, 0, -depth * .5f), new Vector3(t, height, .065f), frameMaterial);
-            Box(window, "Frame right", new Vector3(width * .5f + t * .5f, 0, -depth * .5f), new Vector3(t, height, .065f), frameMaterial);
+            const float bar = .055f, lip = .02f;
+            Border(window, "Frame", width * .5f, height * .5f, bar, -depth * .5f, .12f, frameMaterial);
+            Border(window, "Frame liner", width * .5f - lip * .5f, height * .5f - lip * .5f, lip, -.10f, .03f, Lit(Palette.Slate30));
             Box(window, "Backing", new Vector3(0, 0, -depth), new Vector3(width, height, .02f), backMaterial);
             // The glass in front: a faint haze and two diagonal sheen streaks, so it reads as a pane, not an opening.
             float front = -depth * .5f + .034f;
@@ -89,6 +94,7 @@ namespace Kinesthetic.Rehab
             copy.localScale = new Vector3(-scale, scale, scale);
             copy.localPosition = Vector3.zero;
             Destroy(holder);
+
             var placed = WorldBounds(toRenderers);
             var inside = window.TransformPoint(new Vector3(0, 0, -depth * .5f));
             copy.position += new Vector3(inside.x - placed.center.x, inside.y - placed.center.y, inside.z - placed.center.z);
@@ -216,6 +222,17 @@ namespace Kinesthetic.Rehab
             box.transform.SetParent(parent, false); box.transform.localPosition = at; box.transform.localScale = size;
             box.GetComponent<Renderer>().sharedMaterial = material;
         }
+
+        /// A closed rectangle of four bars. Top and bottom run the full width, so the corners meet instead of
+        /// leaving the four-separate-sticks gap a picture frame gives away.
+        static void Border(Transform parent, string name, float halfW, float halfH, float bar, float z, float thick, Material m)
+        {
+            Box(parent, name + " top", new Vector3(0, halfH + bar * .5f, z), new Vector3(halfW * 2 + bar * 2, bar, thick), m);
+            Box(parent, name + " bottom", new Vector3(0, -halfH - bar * .5f, z), new Vector3(halfW * 2 + bar * 2, bar, thick), m);
+            Box(parent, name + " left", new Vector3(-halfW - bar * .5f, 0, z), new Vector3(bar, halfH * 2, thick), m);
+            Box(parent, name + " right", new Vector3(halfW + bar * .5f, 0, z), new Vector3(bar, halfH * 2, thick), m);
+        }
+
         static Bounds WorldBounds(Renderer[] renderers)
         {
             Bounds b = default; bool any = false;
