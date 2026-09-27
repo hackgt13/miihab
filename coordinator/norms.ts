@@ -66,6 +66,12 @@ export const NORMS: readonly NormEntry[] = [flexion, abduction, externalRotation
 /** Which exercise measures which movement. An exercise with no normative equivalent maps to null. */
 export const EXERCISE_MOVEMENT: Readonly<Record<string, string | null>> = {
   'arm-elevation.v1': 'shoulder_flexion',
+  // The paired kinds measure the same joints as their one-sensor versions, so they compare against the
+  // same tables — with a cleaner number, since the trunk's share is taken out rather than counted in.
+  // The neck has no age-banded table here for the same reason the single-sensor one has none.
+  'shoulder-raise.pair.v1': 'shoulder_flexion',
+  'neck-flexion.pair.v1': null,
+  'elbow-flexion.pair.v1': null,
   'shoulder-raise.v1': 'shoulder_flexion',
   'trunk-rotation.v1': null,          // no comparable normative table gathered yet
   // AAOS gives elbow flexion about 150 degrees, but agents/form-reference-data.md only surveyed

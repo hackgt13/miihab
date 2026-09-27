@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RepSession, type ImuSample } from './kind.ts';
 import { armElevation, elbowFlexion } from './arm-elevation.ts';
-import { bindQualities, qualityIdsFor, qualityLimits, phaseOf, beginTrace, stepTrace, QUALITIES } from './quality.ts';
+import { bindQualities, qualityIdsFor, qualityLimits, phaseOf, beginTrace, stepTrace, QUALITIES, trajectory, referenceDeg } from './quality.ts';
 import { createSession } from './registry.ts';
 import { PlanStore } from '../plans.ts';
 import { mkdtempSync } from 'node:fs';
@@ -138,12 +138,13 @@ test('a rep that did not count carries its verdicts but no score, and never exte
 });
 
 test('qualities compose per exercise: the catalog picks them, a plan param tunes them, and an unknown kind gets all of them', () => {
-  assert.deepEqual(qualityIdsFor('arm-elevation.v1'), ['hold', 'tempo', 'control', 'consistency']);
+  assert.deepEqual(qualityIdsFor('arm-elevation.v1'), ['hold', 'tempo', 'control', 'consistency', 'trajectory']);
   assert.deepEqual(qualityIdsFor('elbow-flexion.v1'), ['tempo', 'control', 'consistency']);
   assert.deepEqual(qualityIdsFor('shoulder-raise.v1'), QUALITIES.map(q => q.id));
   assert.deepEqual(qualityLimits('elbow-flexion.v1'), { raiseMs: [500, 10000], lowerMs: [500, 10000], hitchDeg: [2, 15], fatigueDropDeg: [3, 30] });
   const tuned = bindQualities('arm-elevation.v1', { holdTargetMs: 3000, lowerMs: '4000', side: 'right', targetDeg: 45 });
-  assert.deepEqual(tuned.map(b => b.config), [{ holdTargetMs: 3000 }, { raiseMs: 2000, lowerMs: 4000 }, { hitchDeg: 4 }, { fatigueDropDeg: 8 }]);
+  assert.deepEqual(tuned.map(b => b.config), [{ holdTargetMs: 3000 }, { raiseMs: 2000, lowerMs: 4000 }, { hitchDeg: 4 }, { fatigueDropDeg: 8 },
+    { toleranceDeg: 18, raiseMs: 2000, holdTargetMs: 3000, lowerMs: 4000 }]);
   // The same 2s hold that passed the default target fails a 3s one; nothing else about the rep changes.
   const { reps } = drive(session(armElevation, {}, { holdTargetMs: 3000 }), calibrate().rep(52));
   assert.equal(reps[0].valid, true); assert.equal(reps[0].quality.hold.ok, false); assert.equal(reps[0].quality.hold.targetMs, 3000);
@@ -155,7 +156,7 @@ test('qualities compose per exercise: the catalog picks them, a plan param tunes
   const registry = createSession('arm-elevation.v1', { side: 'right', targetDeg: 45 }, { holdTargetMs: 2500 });
   assert.deepEqual(registry.qualities.configs[0], { id: 'hold', holdTargetMs: 2500 });
   // A raise prescribed with no hold has no hold to judge; one prescribed with a 5s hold is asked for 5s, not the 2s default.
-  assert.deepEqual(session(armElevation, { holdMs: 0 }).qualities.configs.map(c => c.id), ['tempo', 'control', 'consistency']);
+  assert.deepEqual(session(armElevation, { holdMs: 0 }).qualities.configs.map(c => c.id), ['tempo', 'control', 'consistency', 'trajectory']);
   const endurance = drive(session(armElevation, { holdMs: 5000 }), calibrate().rep(52, { holdMs: 5200 })).reps[0].quality.hold;
   assert.equal(endurance.targetMs, 5000); assert.equal(endurance.ok, true);
 });
@@ -182,4 +183,72 @@ test('the phase of a rep is read from its trace alone', () => {
   const short = beginTrace(2, 0, 32);
   stepTrace(short, 100, 40, p); stepTrace(short, 200, 33, p);
   assert.equal(phaseOf(short, p), 'raise', 'a rep that has not reached the target is still raising, whatever it does');
+});
+
+// ── Trajectory ──────────────────────────────────────────────────────────────────────────────────
+
+/** Only the fields the trajectory quality reads; the rest of a prescription is irrelevant to it. */
+const prescribed = { targetDeg: 90, restMaxDeg: 10, holdMs: 400 } as any;
+
+test('the reference is the prescribed arc: rest at both ends, target at the top', () => {
+  const at = (t: number) => referenceDeg(t, 10, 90, 2000, 0, 3000);
+  assert.equal(at(0), 10);
+  assert.equal(Math.round(at(2000)), 90);
+  assert.equal(Math.round(at(5000)), 10);
+  // With a hold prescribed, the top is a plateau and the descent starts after it.
+  const held = (t: number) => referenceDeg(t, 10, 90, 2000, 1500, 3000);
+  assert.equal(held(2800), 90, 'still at the top while the hold runs');
+  assert.equal(Math.round(held(6500)), 10, 'and back to rest a hold later');
+  // Minimum jerk leaves rest slowly and arrives slowly: the middle of the raise moves fastest.
+  const early = at(200) - at(0), middle = at(1100) - at(900), late = at(2000) - at(1800);
+  assert.ok(middle > early && middle > late);
+});
+
+test('a rep that follows the prescribed arc scores near 100, one that ignores it does not', () => {
+  const params = prescribed;
+  const judge = (angles: (t: number) => number) => {
+    const j = trajectory.begin!(params, trajectory.defaults);
+    const trace = beginTrace(1, 0, angles(0));
+    let live: any = null;
+    for (let t = 40; t <= 7000; t += 40) {
+      trace.samples.push({tMs: t, angleDeg: angles(t)});
+      trace.endMs = t;
+      live = j.step(trace);
+    }
+    return {verdict: j.finish(trace), live};
+  };
+  const perfect = judge(t => referenceDeg(t, 10, 90, 2000, trajectory.defaults.holdTargetMs, 3000));
+  const jerky = judge(t => t < 300 ? 90 : t < 4000 ? 90 : 10);   // snaps up, holds, drops
+  assert.ok(perfect.verdict.percent >= 95, 'following the arc scores ' + perfect.verdict.percent);
+  assert.ok(jerky.verdict.percent < perfect.verdict.percent - 20, 'ignoring it scores ' + jerky.verdict.percent);
+  assert.equal(perfect.live.percent >= 95, true);
+});
+
+test('it reports nothing until there is enough of the rep to judge', () => {
+  const j = trajectory.begin!(prescribed, trajectory.defaults);
+  // beginTrace seeds the first sample, so the rep starts with one already in hand.
+  const trace = beginTrace(1, 0, 10);
+  assert.equal(j.step(trace).percent, null, 'a rep that has barely started says nothing');
+  trace.samples.push({tMs: 40, angleDeg: 11}); trace.endMs = 40;
+  assert.equal(j.step(trace).percent, null);
+  trace.samples.push({tMs: 80, angleDeg: 12}); trace.endMs = 80;
+  assert.equal(typeof j.step(trace).percent, 'number', 'and speaks once it can');
+});
+
+test('the corner figure rides every sample of a real rep, and reads higher for the better-shaped one', () => {
+  // A rep to the prescribed tempo, and one rushed up and dropped: same peak, same engine.
+  // Same peak and the same pause at the top; what differs is how the arc was travelled.
+  const smooth = drive(session(), calibrate().rep(45, { raiseMs: 2000, holdMs: 2000, lowerMs: 3000 }));
+  const rushed = drive(session(), calibrate().rep(45, { raiseMs: 400, holdMs: 2000, lowerMs: 600 }));
+
+  const live = smooth.lives.map(l => l.trajectory?.percent).filter(p => typeof p === 'number');
+  assert.ok(live.length > 10, `the percentage rode ${live.length} samples`);
+  assert.ok(live.every(p => p >= 0 && p <= 100), 'and stays a percentage');
+
+  // The first readings of a rep say nothing rather than opening at a number.
+  assert.ok(smooth.lives.some(l => l.trajectory?.percent == null), 'it is blank before it can judge');
+
+  const better = smooth.reps[0].quality.trajectory, worse = rushed.reps[0].quality.trajectory;
+  assert.ok(better.percent > worse.percent,
+    `following the prescribed arc (${better.percent}%) beats rushing it (${worse.percent}%)`);
 });

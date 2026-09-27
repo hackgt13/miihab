@@ -531,3 +531,12 @@ Button.activity-card.gallery-card.row-middle { margin-left: 2%; margin-right: 2%
 .profile-stats { flex-direction: row; flex-wrap: wrap; margin-bottom: 18px; }
 .profile-stat { flex-grow: 1; flex-basis: 0; min-width: 0; align-items: center; }
 .profile-days { height: 22px; flex-shrink: 0; margin-bottom: 10px; }
+
+/* ---- Who is already in there -----------------------------------------------
+   Layout only; the caption is a KText and the faces draw themselves. */
+
+.card-presence { flex-direction: row; align-items: center; margin-top: 8px; flex-shrink: 0; }
+.card-presence.hidden { display: none; }
+.presence-faces { flex-direction: row; align-items: center; margin-right: 8px; flex-shrink: 0; }
+/* The faces are .friend-face, the stacked-avatar look this screen already has:
+   same size, same overlap, same clip, and no paint declared twice. */
