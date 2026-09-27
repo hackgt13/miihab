@@ -24,6 +24,7 @@ import { NORMS, compareToNorm, type Sex, type Side } from './norms.ts';
 import { requireActivity } from './activities.ts';
 import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from './progression.ts';
 import { LIBRARY } from './exercises.ts';
+import { analyseCurl, samplesFromLog } from './exercise/trajectory.ts';
 import { buildDashboard, golfUnlock, planUpdate } from './dashboard.ts';
 import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
 import { HeadLean } from './head-lean.ts';
@@ -39,6 +40,8 @@ const motionDirs = {
   bowling: resolve(process.env.KINESTHETIC_BOWLING_RECORDINGS ?? resolve(root, 'local-data/bowling')),
 };
 mkdirSync(recordings, { recursive: true });
+// Simulated sets for the trajectory view (exercise/curl-synth.ts --write). Kept apart so they never count as a session.
+const demoRecordings = resolve(process.env.KINESTHETIC_DEMO_SESSIONS_DIRECTORY ?? resolve(root, 'local-data/demo-sessions'));
 const port = Number(process.env.KINESTHETIC_PORT ?? 8766);
 const plans = new PlanStore(resolve(process.env.KINESTHETIC_PLANS_DIRECTORY ?? resolve(root, 'local-data/plans')));
 const proposals = new ProposalStore(resolve(process.env.KINESTHETIC_PROPOSALS_DIRECTORY ?? resolve(root, 'local-data/proposals')));
@@ -266,9 +269,10 @@ async function introductionCards(kind: 'peer' | 'mentor', budgetMs: number) {
   }));
 }
 
-async function readSummaries() {
-  const files = (await readdir(recordings)).filter(f => /^exercise-.*\.summary\.json$/.test(f));
-  return Promise.all(files.map(async f => JSON.parse(await readFile(resolve(recordings, f), 'utf8'))));
+async function readSummaries(dir = recordings) {
+  let names: string[]; try { names = await readdir(dir); } catch { return []; }
+  const files = names.filter(f => /^exercise-.*\.summary\.json$/.test(f));
+  return Promise.all(files.map(async f => JSON.parse(await readFile(resolve(dir, f), 'utf8'))));
 }
 // After a session: rules propose the next dose; inside the clinician's envelope with auto-apply on, it applies.
 async function progress(prescriptionId: string, pain?: PainReport[]) {
@@ -709,6 +713,28 @@ const server = createServer(async (request, response) => {
           return json(201, {person, group: mine()});
         }
         return json(404, {error:'Not found'});
+      }
+      // A biceps curl's path through space and how close it came to the ideal curl (exercise/trajectory.ts), from
+      // the two AirPods' samples the session log keeps. Review only: the rep engine's counts are untouched.
+      if (request.method === 'GET' && url.pathname === '/api/trajectory') {
+        const curls = [...await readSummaries(), ...await readSummaries(demoRecordings)].filter((s: any) => s.exerciseKind === 'biceps-curl.v1');
+        curls.sort((a: any, b: any) => String(b.endedAt).localeCompare(String(a.endedAt)));
+        return json(200, curls.map((s: any) => ({id: s.exerciseId, endedAt: s.endedAt, simulated: !!s.simulated,
+          practice: !!s.practice, valid: s.valid ?? null, prescribed: s.prescribed ?? null})));
+      }
+      const trajectory = url.pathname.match(/^\/api\/trajectory\/([0-9a-f-]{36})$/i);
+      if (request.method === 'GET' && trajectory) {
+        const id = trajectory[1];
+        let log: string | null = null, summary: any = {}, dir = recordings;
+        for (const d of [recordings, demoRecordings]) {
+          try { log = await readFile(resolve(d, `exercise-${id}.jsonl`), 'utf8'); dir = d; break; } catch {}
+        }
+        if (log == null) return json(404, {error: 'No recording for that session'});
+        try { summary = JSON.parse(await readFile(resolve(dir, `exercise-${id}.summary.json`), 'utf8')); } catch {}
+        const targetDeg = Number(summary.config?.targetDeg ?? summary.targetDeg ?? 110);
+        const result = analyseCurl(samplesFromLog(log), {targetDeg});
+        return json(200, {id, simulated: !!summary.simulated, endedAt: summary.endedAt ?? null, side: summary.side ?? null,
+          engine: {valid: summary.valid ?? null, attempted: summary.attempted ?? null}, ...result});
       }
       const replay = url.pathname.match(/^\/api\/sessions\/([0-9a-f-]{36})\/replay$/i);
       if (request.method === 'GET' && replay) return json(200, await loadReplay(recordings, replay[1]));
