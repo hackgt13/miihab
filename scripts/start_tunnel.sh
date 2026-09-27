@@ -102,7 +102,18 @@ echo "Relay reachable. Pointing Bowling Motion at it."
 for d in org.kinesthetic.bowlingmotion org.kinesthetic.clubmotion; do defaults write \$d relayHost -string "\$ip"; defaults write \$d pairToken -string "\$token"; done
 pkill -x ClubMotionBridge 2>/dev/null
 # Either motion app works (the relay sorts a second Mac's stream onto the free channel); prefer the one beside this file.
-open -a "\$here/Kinesthetic Bowling Motion.app" 2>/dev/null || open -a "\$here/Kinesthetic Club Motion.app" 2>/dev/null || open -a "Kinesthetic Bowling Motion" 2>/dev/null || open -a "Kinesthetic Club Motion"
+app=""
+for c in "\$here/Kinesthetic Bowling Motion.app" "\$here/Kinesthetic Club Motion.app"; do [[ -d \$c ]] && { app=\$c; break; }; done
+[[ -n \$app ]] || { echo "No motion app beside this file. Unzip the whole folder from ${host} and run this again."; exit 1; }
+# App Transport Security counts only loopback and the RFC1918 ranges as local networking, and \$ip is a tailnet
+# address (100.64/10), so a bundle built without NSAllowsArbitraryLoads refuses its own relay connection and says
+# nothing: the app opens and simply never streams. Caught here, where the fix is a fresh zip.
+if [[ \$(/usr/bin/plutil -extract NSAppTransportSecurity.NSAllowsArbitraryLoads raw -o - "\$app/Contents/Info.plist" 2>/dev/null) != true ]]; then
+  echo "\"\${app:t}\" is too old to reach \$ip: App Transport Security blocks plain http to a tailnet address unless"
+  echo "the app allows it. Ask ${host} for a fresh zip (it rebuilds on 'zsh scripts/start_tunnel.sh receive')."
+  exit 1
+fi
+open "\$app" || { echo "Could not open \${app:t}."; exit 1; }
 echo "Pair this Mac's AirPods (Bluetooth), allow Motion access when asked. Waiting for motion to reach ${host} …"
 for i in {1..300}; do
   if curl -fsS --max-time 2 "http://\$ip:8767/?token=\$token" 2>/dev/null | python3 -c 'import sys,json;d=json.load(sys.stdin);n=sum(1 for k in ("samples","bowlingSamples") for s in d.get(k,{}).values() if s["ageMs"]<1500);sys.exit(0 if n>=2 else 1)' 2>/dev/null; then

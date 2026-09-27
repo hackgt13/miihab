@@ -7,5 +7,9 @@
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>NSMotionUsageDescription</key><string>Kinesthetic reads wrist-mounted AirPod motion to aim and roll your bowling ball.</string>
 <key>NSBluetoothAlwaysUsageDescription</key><string>Kinesthetic uses your connected AirPods for bowling motion.</string>
-<key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
+<key>NSAppTransportSecurity</key><dict><!-- The relay is plain ws/http on this Mac, the LAN or a Tailscale
+     peer. NSAllowsLocalNetworking exempts loopback and the RFC1918 ranges but NOT Tailscale's 100.64/10, so
+     it refused every tailnet address with NSURLErrorAppTransportSecurityRequiresSecureConnection. The keys
+     cannot be combined: NSAllowsLocalNetworking makes NSAllowsArbitraryLoads ignored on macOS 10.15+. -->
+<key>NSAllowsArbitraryLoads</key><true/></dict>
 </dict></plist>
