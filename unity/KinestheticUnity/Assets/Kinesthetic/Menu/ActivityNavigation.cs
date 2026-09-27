@@ -14,6 +14,9 @@ namespace Kinesthetic.Menu
     public sealed class ActivityNavigation : MonoBehaviour
     {
         public const string MenuScene = "MainMenu";
+        /// The intro is not a catalog activity (the coordinator neither prescribes nor records it), but it
+        /// gets the same Menu button and Esc as one, so no one is stuck inside it.
+        public const string TutorialScene = "Tutorial";
         const string MusicPreference = "RehabMii.MenuMusic";
         public AudioClip menuMusic, hoverSound, selectSound, backSound;
         public static ActivityNavigation Instance { get; private set; }
@@ -37,7 +40,7 @@ namespace Kinesthetic.Menu
             if (Supports(SceneManager.GetActiveScene().name)) Ensure();
         }
         static bool Supports(string scene) =>
-            scene == MenuScene || ActivityCatalog.All.Any(a => a.Scene == scene && a.UsesSharedNavigation);
+            scene == MenuScene || scene == TutorialScene || ActivityCatalog.All.Any(a => a.Scene == scene && a.UsesSharedNavigation);
         /// <summary>The activity last launched from the menu. Several activities share a scene (every movement opens the
         /// studio), so the scene alone cannot say which one is running; the scene asks this instead.</summary>
         public static string LaunchedActivityId { get; private set; }
@@ -160,6 +163,13 @@ namespace Kinesthetic.Menu
             // Every launch, from any card, tile or button, first asks: alone, or with other people?
             if (Bind() && group.Intercept(entry, () => Go(entry))) return;
             Go(entry);
+        }
+        public void LoadTutorial()
+        {
+            if (Busy) return;
+            if (!Application.CanStreamedLevelBeLoaded(TutorialScene)) { ShowUnavailable(); return; }
+            LaunchedActivityId = null;
+            PlaySelect(); StartCoroutine(Load(TutorialScene, null));
         }
         void Go(ActivityEntry entry)
         {

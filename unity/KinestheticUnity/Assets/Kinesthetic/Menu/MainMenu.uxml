@@ -19,6 +19,7 @@
                         <ui:Button name="edit-name" text="Not you?" class="utility-button" />
                         <ui:Button name="music" text="Music: On" class="utility-button" />
                         <ui:Button name="help" text="How to play" class="utility-button" />
+                        <ui:Button name="intro" text="Watch intro" class="utility-button" />
                     </ui:VisualElement>
                     <ui:VisualElement name="friend-spotlight" class="friend-spotlight hidden">
                         <ui:VisualElement name="spotlight-face" class="spotlight-face" picking-mode="Ignore" />

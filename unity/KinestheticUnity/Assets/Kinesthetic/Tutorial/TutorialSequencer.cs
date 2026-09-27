@@ -6,7 +6,8 @@ using UnityEngine.SceneManagement;
 
 namespace Kinesthetic.Tutorial
 {
-    /// First-run onboarding: Alex introduces herself and demonstrates two arm lifts (right then left).
+    /// Onboarding, opened from the menu's "Watch intro" button (never on its own, so the app always opens on
+    /// the menu): Alex introduces herself and demonstrates two arm lifts (right then left).
     /// After each demo the tutorial goes silent and waits for the patient to mimic the motion
     /// (detected via IMU rotation rate from either AirPod on the motion relay, with head-movement fallback).
     /// If no motion is detected within the timeout the coach repeats the demo once, then carries on, so the
@@ -83,16 +84,6 @@ namespace Kinesthetic.Tutorial
 
         const string CompletePref = "RehabMii.TutorialComplete";
         public static bool IsComplete => PlayerPrefs.GetInt(CompletePref, 0) != 0;
-
-        /// The intro plays once, the first time the app opens on the menu; after that it is the Getting Started
-        /// tile. Not on the headset, which follows whatever the Mac is running.
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void PlayOnFirstLaunch()
-        {
-            if (IsComplete || Application.platform == RuntimePlatform.Android) return;
-            if (SceneManager.GetActiveScene().name != "MainMenu") return;
-            if (Application.CanStreamedLevelBeLoaded("Tutorial")) SceneManager.LoadScene("Tutorial");
-        }
 
         void Start()
         {
@@ -410,8 +401,8 @@ namespace Kinesthetic.Tutorial
         IEnumerator FinishTutorial()
         {
             yield return new WaitForSeconds(completePause);
-            if (Application.CanStreamedLevelBeLoaded("MainMenu"))
-                SceneManager.LoadScene("MainMenu");
+            // Through the shared navigation, the same way the Menu button and Esc leave it.
+            Menu.ActivityNavigation.Ensure().ReturnToMenuNow();
         }
 
         // ── Subtitles ─────────────────────────────────────────────────────────
