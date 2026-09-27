@@ -109,9 +109,17 @@ async function handleSession(
     apiKey: config.elevenlabs.apiKey,
     onAudio: (chunk) =>
       emit(unity, { type: "audio", data: chunk.toString("base64") }),
-    onTranscript: (role, text) =>
-      emit(unity, { type: "transcript", role, text }),
-    onToolCall: (_id, name, params) => toolService.dispatch(name, params),
+    onTranscript: (role, text) => {
+      emit(unity, { type: "transcript", role, text });
+      // The clinician's coach feed: what Alex said, and what the patient said to him.
+      coordinator.coachEvent({ conversation: sessionId, source: role === "agent" ? "coach" : "patient",
+        kind: role === "agent" ? "llm_reply" : "speak", content: text });
+    },
+    onToolCall: (_id, name, params) => {
+      coordinator.coachEvent({ conversation: sessionId, source: "coach", kind: "tool_call", tool: name,
+        content: `${name}(${Object.entries(params ?? {}).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(", ")})` });
+      return toolService.dispatch(name, params);
+    },
     onInterrupt: () => emit(unity, { type: "interrupt" }),
     // Unity plays and records at these rates (pcm_16000 → 16 kHz, 16-bit mono).
     onFormat: (format) => emit(unity, { type: "audio_format", ...format }),
@@ -155,7 +163,11 @@ async function handleSession(
       } else if (msg["type"] === "context") {
         // What just happened in the studio (a rep, a set ending, a plan change), for Alex to react to.
         const text = String(msg["text"] ?? "").trim().slice(0, 600);
-        if (text) { if (msg["speak"] === true) conv.sendPrompt(text); else conv.sendContext(text); }
+        if (text) {
+          if (msg["speak"] === true) conv.sendPrompt(text); else conv.sendContext(text);
+          // What the studio measured, as the clinician's feed shows it beside what Alex said about it.
+          coordinator.coachEvent({ conversation: sessionId, source: "engine", kind: text.startsWith("[rep]") ? "measurement" : "report", content: text });
+        }
       } else if (msg["type"] === "session_end") {
         console.log("session_end received");
         resolve();

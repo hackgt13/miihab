@@ -8,6 +8,7 @@ import { LiveReadings } from '../../ui/LiveReadings'
 import { SessionTrendChart } from '../../ui/SessionTrendChart'
 import { VisitNotes } from '../../ui/VisitNotes'
 import { ProgramUpdate } from '../../ui/ProgramUpdate'
+import { CoachFeed } from '../../ui/CoachFeed'
 import { PatientRelay } from '../../ui/PatientRelay'
 import type { PatientStatus } from '../../data/types'
 
@@ -450,6 +451,12 @@ export function PatientView() {
               ))}
             </tbody>
           </table>
+
+          {/* What the coach told the patient, beside the measurements it coached from. */}
+          <SectionLabel label="Coach Feed" />
+          <div className="px-3 py-3">
+            <CoachFeed log={session.coachLog} />
+          </div>
 
           {/* The physician changes the live patient's program: a signed plan version the headset picks up. */}
           {live && (<>
