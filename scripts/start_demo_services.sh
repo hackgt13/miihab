@@ -43,12 +43,15 @@ for attempt in {1..30}; do
   sleep 0.1
 done
 
-case "${1:-club}" in
-  club) app="$repo/native/build/Kinesthetic Club Motion.app" ;;
-  bowling) app="$repo/native/build/Kinesthetic Bowling Motion.app" ;;
-  *) print -u2 'Motion activity must be club or bowling.'; exit 1 ;;
-esac
-if [[ -d "$app" ]] && golf_ready; then /usr/bin/open -a "$app"; fi
+# This Mac's AirPods (Mac 1). Either Motion app feeds the relay the same way (golf-relay.ts files a local stream as
+# Mac 1 whichever app it comes from), so the activity's name no longer picks the app:
+#   - one already running is left alone. `open -a` on a running app "reopens" it, and the app answers a reopen by
+#     pulling its window in front of everything (ClubMotionBridge.swift), which covered the headset cast on every
+#     set; and opening Bowling Motion beside Club Motion made Club Motion pause, so Mac 1 went silent for bowling.
+#   - none running: start Club Motion in the background (-g), streaming but never in front of the cast.
+case "${1:-club}" in club|bowling) ;; *) print -u2 'Motion activity must be club or bowling.'; exit 1 ;; esac
+app="$repo/native/build/Kinesthetic Club Motion.app"
+if [[ -d "$app" ]] && golf_ready && ! /usr/bin/pgrep -x ClubMotionBridge >/dev/null; then /usr/bin/open -g -a "$app"; fi
 
 # Alex, the ElevenLabs voice PT behind the studio coach. Needs voice/.env (ElevenLabs + Supabase keys).
 if [[ -f voice/.env ]] && ! voice_ready; then
