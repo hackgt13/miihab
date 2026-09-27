@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24" },
-  "scripts": { "catalog": "node write-catalog.ts", "start": "node --env-file-if-exists=../.env server.ts", "test": "node --test --test-timeout=40000 bridge.test.ts golf-relay.test.ts bowling-relay.test.ts ui-relay.test.ts measurement.test.ts exercise/trunk-rotation.test.ts exercise/arm-elevation.test.ts exercise.test.ts plans.test.ts activities.test.ts activity.test.ts hostclock.test.ts norms.test.ts progression.test.ts exercise/imu-session.test.ts exercise/quality.test.ts exercise/imu-library.test.ts exercise/two-imu.test.ts dashboard.test.ts game-movement.test.ts head-lean.test.ts invariants.test.ts social-ai.test.ts visit.test.ts matching.test.ts groups.test.ts friends.test.ts" },
+  "scripts": { "catalog": "node write-catalog.ts", "start": "node --env-file-if-exists=../.env server.ts", "test": "node --test --test-timeout=40000 bridge.test.ts golf-relay.test.ts bowling-relay.test.ts ui-relay.test.ts measurement.test.ts exercise/trunk-rotation.test.ts exercise/arm-elevation.test.ts exercise.test.ts plans.test.ts activities.test.ts activity.test.ts hostclock.test.ts norms.test.ts progression.test.ts exercise/imu-session.test.ts exercise/quality.test.ts exercise/imu-library.test.ts exercise/two-imu.test.ts exercise/imu-assign.test.ts dashboard.test.ts game-movement.test.ts head-lean.test.ts invariants.test.ts social-ai.test.ts visit.test.ts matching.test.ts groups.test.ts friends.test.ts" },
   "dependencies": { "@anthropic-ai/sdk": "^0.128.0", "ws": "8.18.3" }
 }

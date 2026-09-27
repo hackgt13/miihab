@@ -76,7 +76,7 @@ test('a second AirPod that goes quiet mid-rep is tracking loss, never a silent p
   assert.equal(lonely.calibrated, false, 'one AirPod cannot calibrate a two-AirPod movement');
 });
 
-test('server: a two-AirPod movement reads both relay streams, the wrist pair as the limb', { timeout: 30000 }, async () => {
+test('server: a two-AirPod movement reads both relay streams and learns which is the limb by which one moves', { timeout: 30000 }, async () => {
   const relay = new WebSocketServer({ port: 18830, host: '127.0.0.1' });
   const viewers = new Set<WebSocket>(); relay.on('connection', ws => viewers.add(ws));
   const dir = mkdtempSync(join(tmpdir(), 'two-imu-')), port = 18831, base = `http://127.0.0.1:${port}`;
@@ -85,26 +85,40 @@ test('server: a two-AirPod movement reads both relay streams, the wrist pair as 
       KINESTHETIC_PROPOSALS_DIRECTORY: join(dir, 'prop'), KINESTHETIC_SOCIAL_DIRECTORY: join(dir, 'social'),
       KINESTHETIC_MOTION_URL: 'ws://127.0.0.1:18830/golf?role=viewer', KINESTHETIC_WRIST_MOTION_URL: 'ws://127.0.0.1:18830/bowling-motion?role=viewer' } });
   const post = (path: string, body?: unknown) => fetch(base + path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
+  const sensors = async () => (await fetch(base + '/api/sensors')).json();
   try {
     await ready(child);
     const started = await (await post('/exercise/start', { activityId: 'movement.arm-raise' })).json();
-    assert.equal(started.exerciseKind, 'arm-raise.v1'); assert.equal(started.imuSource, 'wrist'); assert.equal(started.referenceSource, 'club');
+    assert.equal(started.exerciseKind, 'arm-raise.v1');
+    // Nothing is assumed from the channels: until both pairs are live and one has been moved, nothing is measured.
+    assert.deepEqual([started.sensors.mode, started.sensors.phase, started.sensors.imu], ['two', 'waiting', null]);
+    assert.match(started.sensors.instruction, /one AirPod on your wrist and one on your chest/);
     // The plan prescribes a one-AirPod shoulder raise; the gallery's arm raise measures that same prescription.
     assert.equal(started.prescriptionId, 'arm-elevation-right'); assert.equal(started.practice, false);
     while (viewers.size < 2) await new Promise(r => setTimeout(r, 20));
     let t = 5e6, seq = 0;
     // Paced, as the AirPods are (~25 Hz): two sockets drain in whatever order they like, so a burst would hand the
     // server one pair's whole stream before the other's.
-    const send = async (limb: number, ref: number, moving: boolean) => {
+    const send = async (limb: number, ref: number, moving: boolean, refMoving = moving) => {
       await new Promise(r => setTimeout(r, 3));
       t += 40; seq++;
       const packet = (type: string, sample: ImuSample) => JSON.stringify({ type, playerId: 'patient', sourceId: 'Left', sessionId: 's', sequence: seq,
         quaternion: sample.quaternion, rotationRate: sample.rotationRate, hostMonotonicMs: t });
       // The neighbouring segment's sample lands first, so it rides with the limb's step.
-      for (const ws of viewers) ws.send(packet('club.motion', at(REF_HEADING, ref, t, moving)));
+      for (const ws of viewers) ws.send(packet('club.motion', at(REF_HEADING, ref, t, refMoving)));
       for (const ws of viewers) ws.send(packet('bowling.motion', at(LIMB_HEADING, limb, t, moving)));
     };
+    // Both live and still: the studio is asked to move the limb's AirPod.
+    for (let i = 0; i < 10; i++) await send(0, 0, false);
+    let s = await sensors();
+    assert.equal(s.phase, 'identify'); assert.match(s.instruction, /Move the AirPod on your wrist/);
+    // The wrist pair is wiggled while the chest pair rests: it is the limb. (Had the chest pair been the one wiggled,
+    // the roles would be the other way round — the channels' names never decide.)
+    for (let i = 0; i < 20; i++) await send(3 * Math.sin(i), 0, true, false);
+    s = await sensors();
+    assert.deepEqual([s.phase, s.imu, s.ref, s.locked], ['ready', 'wrist', 'club', false]);
     for (let i = 0; i < 30; i++) await send(0, 0, false);
+    assert.equal((await sensors()).locked, true, 'calibrated against these streams: fixed for the set');
     for (const [limb, ref] of [[70, 2], [70, 18]]) {
       for (let i = 0; i <= 20; i++) await send(limb * i / 20, ref * i / 20, true);
       for (let i = 0; i < 20; i++) await send(limb, ref, false);
@@ -116,5 +130,15 @@ test('server: a two-AirPod movement reads both relay streams, the wrist pair as 
     assert.equal(summary.attempted, 2, JSON.stringify({frames: summary.frames, ratio: summary.validFrameRatio, calibrated: summary.calibrated, lost: summary.trackingLossEvents}));
     assert.deepEqual(summary.reps.map((r: any) => r.reason), [null, 'trunk_lean']);
     assert.equal(summary.exerciseKind, 'arm-raise.v1');
+    assert.deepEqual(summary.sensors, { imu: 'wrist', ref: 'club' });
+
+    // With someone else in the session, every pair but one is theirs: a two-AirPod movement is refused, a
+    // one-AirPod movement goes ahead.
+    assert.equal((await post('/api/groups', { activityId: 'movement.arm-raise' })).status, 201);
+    const refused = await post('/exercise/start', { activityId: 'movement.arm-raise' });
+    assert.equal(refused.status, 409); assert.match((await refused.json()).error, /one-AirPod movement/);
+    const one = await (await post('/exercise/start', { prescriptionId: 'arm-elevation-right' })).json();
+    assert.equal(one.sensors.mode, 'one');
+    await post('/exercise/stop'); await post('/api/groups/leave');
   } finally { await stop(child); relay.close(); }
 });

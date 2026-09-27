@@ -19,6 +19,17 @@ Dormant only because `QuestSceneSetup` sets `game.enabled = false`; all return t
 - IL2CPP strips code: reflection-based JSON works in-editor, returns null on device. No `link.xml` — suspect first if the headset connects but renders nothing.
 - Screen-space UI Toolkit (`m_RenderMode: 0`) does not render in stereo. No controller or gaze input — keyboard and pointer only.
 
+## Sensors
+
+Three sources, and only three: two AirPod pairs (one per Mac — macOS reads one `CMHeadphoneMotionManager` stream) and the Quest, which is always on the head. The relay's motion channels (`/golf` from the Club Motion app, `/bowling-motion` from the Bowling Motion app) are **transport, not meaning**. Never write code that assumes a channel, an app, a Mac or a mount is a particular limb.
+
+- **One IMU → take whatever is live.** The coordinator reads both channels and measures the patient stream that has samples; with two live, the most recent. Never pick by channel name.
+- **Two IMUs, one person → tell them apart by movement.** Both must be live. The studio says where each goes (the catalog's `sensor` and `reference` phrases) and asks the patient to move the limb's; the pair that moves while the other rests is `imu`, the other `ref` (`coordinator/exercise/imu-assign.ts`). Locked at calibration; a quiet pair after that is tracking loss, never a swap.
+- **Two people → one IMU each, one-IMU movements only.** The relay puts the second Mac's pair on `friend` whenever the running activity is for two or the patient is in a group (`golf-relay.ts` `route()`), so it never reaches the coordinator as `patient`; the coordinator refuses to start a `ref` movement in that state with 409 (`SensorRuleError`). Do not add a per-person second pair.
+- **The headset is the head.** Head pose (`/head`) leans the torso and is the trunk-lean sensor going forward; an AirPod is never assigned to the head. When head-pose lean reaches the engine, the arm raise becomes one IMU + head and the chest AirPod goes; until then it stays two-IMU. Do not build a third path to the same number.
+- **Retired:** `params.imuSource` and `SOURCE_OF`. A stored plan carrying `imuSource` loads with it dropped. `exercise.started` and `GET /api/sensors` carry `sensors: {mode, phase, imu, ref, live, locked, instruction}`; `exercise.sensors` broadcasts every change. A UI shows `instruction` verbatim during `waiting` and `identify`.
+- **Pinned by tests:** `exercise/imu-assign.test.ts`, the server tests in `exercise/two-imu.test.ts` and `exercise/imu-session.test.ts`, the routing tests in `golf-relay.test.ts`. Change the rule there first, then the code.
+
 ## Unity setup
 
 - **6000.6.2f1**, changeset **770e33f6875c**, arm64 — both pinned in tracked `ProjectSettings/ProjectVersion.txt`. **Never accept a Hub upgrade prompt**: it rewrites that file and migrates assets one-way.
