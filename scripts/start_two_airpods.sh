@@ -59,8 +59,9 @@ receive() {
     ok "AirDrop $bowling_zip to the other Mac (Apple silicon; an Intel Mac builds its own with zsh native/build.sh bowling)"
   fi
 
-  ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
-  if [[ -z $ip ]]; then bad "No Wi-Fi address; join the same network as the other Mac"; exit 1; fi
+  # The address the other Mac should use: the Wi-Fi one, unless a tunnel (scripts/start_tunnel.sh) hands one in.
+  ip=${KINESTHETIC_ADVERTISE_IP:-$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)}
+  if [[ -z $ip ]]; then bad "No Wi-Fi address; join the same network as the other Mac, or use scripts/start_tunnel.sh"; exit 1; fi
   if get "http://$ip:8767/?token=$token" >/dev/null; then ok "Relay answers on $ip with the token"
   else bad "Relay does not answer on $ip:8767 — see local-data/logs/golf-relay.log"; exit 1; fi
   code=$(/usr/bin/curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://$ip:8767/")
@@ -69,7 +70,7 @@ receive() {
   print "\nOn the other Mac, in the repo:"
   print "  zsh scripts/start_two_airpods.sh send $ip $token"
   print "or type into Bowling Motion:  Relay Mac IP $ip · Pairing token $token"
-  print "The address comes from this network's DHCP; rerun this after changing Wi-Fi."
+  [[ -n ${KINESTHETIC_ADVERTISE_IP:-} ]] || print "The address comes from this network's DHCP; rerun this after changing Wi-Fi."
 
   print "\nPairs"
   if [[ " $* " == *" --wait "* ]]; then
