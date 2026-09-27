@@ -152,6 +152,10 @@ async function handleSession(
       if (msg["type"] === "audio") {
         const pcm = Buffer.from(String(msg["data"]), "base64");
         conv.sendAudio(pcm);
+      } else if (msg["type"] === "context") {
+        // What just happened in the studio (a rep, a set ending, a plan change), for Alex to react to.
+        const text = String(msg["text"] ?? "").trim().slice(0, 600);
+        if (text) { if (msg["speak"] === true) conv.sendPrompt(text); else conv.sendContext(text); }
       } else if (msg["type"] === "session_end") {
         console.log("session_end received");
         resolve();

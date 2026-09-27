@@ -4,7 +4,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PlanStore } from './plans.ts';
-import { buildDashboard, dayKey, golfUnlock } from './dashboard.ts';
+import { buildDashboard, dayKey, golfUnlock, planUpdate } from './dashboard.ts';
 
 const NOW = new Date(2026, 8, 26, 15, 0);          // Saturday 26 Sep 2026, 3 pm local
 const at = (daysAgo: number, hour = 10) => new Date(2026, 8, 26 - daysAgo, hour).toISOString();
@@ -31,8 +31,8 @@ test('with no real sessions the board is not measured, but today is the real pre
   assert.equal(d.measured, false, 'simulated and uncalibrated sessions are not the patient\'s work');
   assert.equal(d.streakDays, 0);
   assert.deepEqual(d.today.map(t => [t.activityId, t.title, t.detail]), [
-    ['rehab.studio', 'Movement Studio', '8 shoulder raises · right · to 45°'],
-    ['rehab.studio', 'Movement Studio', '10 biceps curls · right · to 90°'],
+    ['rehab.studio', 'Shoulder raise', '8 shoulder raises · right · to 45°'],
+    ['rehab.studio', 'Biceps curl', '10 biceps curls · right · to 90°'],
     ['golf.adaptive', 'Golf', '9 holes with a friend'],
   ]);
   assert.equal(d.goal, 'Play golf again with their best friend'); assert.equal(d.targetDeg, 45);
@@ -73,4 +73,23 @@ test('rehab unlocks golf: swing power follows the level inside the envelope', ()
   assert.equal(golfUnlock(top).swingPowerCap, 1); assert.equal(golfUnlock(top).message, 'Full drive unlocked');
   const noProgression = store.approve({ rationale: 'golf only', activities: [{ activityId: 'golf.adaptive', exerciseKind: null, targetCount: 9 }] });
   assert.equal(golfUnlock(noProgression).swingPowerCap, 1, 'nothing measured: golf is unchanged');
+});
+
+test('a plan change the patient has not seen is announced from the visit board, and quiet once seen', () => {
+  // A level-up: the shoulder raise's target moves on, with the reason the patient should hear.
+  const store = new PlanStore(mkdtempSync(join(tmpdir(), 'dash-update-')));
+  const first = store.active(), raise = first.activities.find(a => a.exerciseKind)!;
+  store.approve({ rationale: 'Two good sessions in the safe band.', approvedBy: 'Auto-progression', origin: 'auto-progression',
+    changes: { [raise.id]: { params: { targetDeg: Number(raise.params.targetDeg) + 5 } } } });
+  const all = store.list();
+  const active = all[all.length - 1];
+  const update = planUpdate({ plans: all, notes: [], seen: { planVersion: first.version, at: new Date().toISOString() } });
+  assert.ok(update, 'a version newer than the one seen is announced');
+  assert.equal(update!.fromVersion, first.version); assert.equal(update!.origin, 'auto-progression');
+  assert.equal(update!.planVersion, active.version);
+  assert.ok(update!.changes.length >= 1 && update!.changes.length <= 3);
+  assert.ok(update!.changes.every(c => c.heading && c.detail), 'every change says what and how, in the visit\'s words');
+  assert.match(update!.headline, /plan/);
+  assert.equal(planUpdate({ plans: all, notes: [], seen: { planVersion: active.version, at: new Date().toISOString() } }), null);
+  assert.equal(planUpdate({ plans: all.slice(0, 1), notes: [], seen: null }), null, 'one version: nothing changed');
 });
