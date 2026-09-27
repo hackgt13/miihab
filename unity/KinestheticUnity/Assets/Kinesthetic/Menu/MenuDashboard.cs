@@ -95,6 +95,9 @@ namespace Kinesthetic.Menu
             if (j["today"] is JArray today)
                 model.today = today.Select(t => new TodayTask { activityId = (string)t["activityId"], title = (string)t["title"],
                     detail = (string)t["detail"], done = (bool?)t["done"] ?? false }).ToArray();
+            // Where the program stands is the plan's, not the sessions': a new patient is on day 1 of a real program.
+            model.programDay = (int?)j["programDay"] ?? model.programDay;
+            model.programTotalDays = (int?)j["programTotalDays"] ?? model.programTotalDays;
             if (j["measured"]?.Value<bool>() != true) return model;
 
             model.measured = true;
