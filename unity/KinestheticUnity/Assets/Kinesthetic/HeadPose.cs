@@ -65,6 +65,11 @@ namespace Kinesthetic
 
         void Update()
         {
+            // A domain reload clears statics and plain fields while this DontDestroyOnLoad object survives, and
+            // Awake never runs again: adopt the feed or stand down, rather than dereference null every frame.
+            if (!Instance) Instance = this;
+            if (Instance != this) { Destroy(gameObject); return; }
+            client ??= new GolfMotionClient(Url);
             while (client.Take(out var text, out _))
             {
                 try
