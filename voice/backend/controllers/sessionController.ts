@@ -17,6 +17,7 @@ import type { AnalyticsService } from "../services/analyticsService.ts";
 import type { CoordinatorService } from "../services/coordinatorService.ts";
 import { ToolService } from "../services/toolService.ts";
 import { TUTORIAL_LINES } from "../prompts.ts";
+import { listeners } from "../listeners.ts";
 
 interface SessionControllerDeps {
   config: Config;
@@ -198,38 +199,30 @@ async function handleTutorial(unity: WebSocket, config: Config): Promise<void> {
   emit(unity, { type: "audio_format", output: "pcm_16000", input: "pcm_16000" });
   emit(unity, { type: "session_started" });
 
-  // Set up cue listener BEFORE speaking intro so no cues are lost.
-  // Cues that arrive during the intro TTS are queued and spoken after it finishes.
-  const cueQueue: string[] = [];
-  let introDone = false;
+  // Every line goes through one queue: the intro first, then each cue in the order it arrived. Two lines never
+  // stream at once (their 100 ms chunks would interleave into noise), and a line that fails — ElevenLabs down, the
+  // network gone — is logged and skipped rather than taking the whole voice server down with an unhandled rejection.
+  let speaking: Promise<void> = Promise.resolve();
+  const say = (line: string) => {
+    speaking = speaking.then(() => speakLine(unity, line, config))
+      .catch((err) => console.error("TTS failed:", err instanceof Error ? err.message : err));
+  };
+  say(TUTORIAL_LINES.intro ?? "");
 
   await new Promise<void>((resolve) => {
-    unity.on("message", async (data: Buffer) => {
+    unity.on("message", (data: Buffer) => {
       let msg: Record<string, unknown>;
       try { msg = JSON.parse(data.toString()) as Record<string, unknown>; } catch { return; }
 
       if (msg["type"] === "cue") {
-        const step = String(msg["step"] ?? "");
-        const line = TUTORIAL_LINES[step];
-        if (!line) return;
-        if (!introDone) { cueQueue.push(step); return; }
-        await speakLine(unity, line, config);
+        const line = TUTORIAL_LINES[String(msg["step"] ?? "")];
+        if (line) say(line);
       } else if (msg["type"] === "session_end") {
         resolve();
       }
     });
     unity.on("close", resolve);
     unity.on("error", () => resolve());
-
-    // Speak the full intro (greeting + "watch me"), then drain any queued cues.
-    speakLine(unity, TUTORIAL_LINES.intro ?? "", config).then(async () => {
-      introDone = true;
-      for (const step of cueQueue) {
-        const line = TUTORIAL_LINES[step];
-        if (line) await speakLine(unity, line, config);
-      }
-      cueQueue.length = 0;
-    });
   });
 
   console.log("Tutorial session closed");
@@ -284,6 +277,8 @@ function emit(ws: WebSocket, msg: Record<string, unknown>): void {
       ws.send(JSON.stringify(msg));
     } catch {}
   }
+  // A headset listening hears Alex too (backend/listeners.ts).
+  listeners.mirror(msg);
 }
 
 function safeClose(ws: WebSocket, code?: number, reason?: string): void {
