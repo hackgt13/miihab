@@ -34,6 +34,10 @@ namespace Kinesthetic.Rehab
         public int Hitches, Streak;   // hitches so far this rep; reps in a row made well
         public bool Fast;             // the coordinator says: slower
         public int Valid, Prescribed; // the set so far: reps counted, of how many
+        /// How closely this rep is following the arc it was prescribed, 0..100, or -1 before there is
+        /// enough of the rep to say. The coordinator's trajectory quality; -1 rather than 0 because a
+        /// rep that has just begun is unjudged, not badly made.
+        public int Match;
 
         /// How far over the tempo the arm is moving, 0 at or under it, 1 at double. The thing a balance answers to.
         public float OverSpeed => TempoSpeed <= 0 ? 0 : UnityEngine.Mathf.Clamp01(UnityEngine.Mathf.Abs(Speed) / TempoSpeed - 1);

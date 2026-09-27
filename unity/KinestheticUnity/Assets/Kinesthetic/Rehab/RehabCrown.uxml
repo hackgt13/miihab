@@ -12,6 +12,10 @@
             <ui:VisualElement class="crown-side">
                 <k:KTag name="streak-tag" text="" tone="Good" class="hidden" />
                 <k:KReadout name="best-hold" value="—" caption="best hold" size="Compact" punch="true" />
+                <!-- How closely this rep is following the arc it was prescribed. Blank between reps and
+                     until there is enough of one to judge — the dial answers the angle, this answers
+                     the path. -->
+                <k:KReadout name="match-readout" value="—" caption="on track" size="Compact" class="match-readout" />
             </ui:VisualElement>
         </k:KSurface>
     </ui:VisualElement>
