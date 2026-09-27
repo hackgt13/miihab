@@ -2,6 +2,8 @@
 
 Kinesthetic's rehabilitation and adaptive-golf prototype: browser camera pose capture, a local Node relay, Unity patient/friend avatars, a Mac AirPod motion bridge, shoulder-exercise measurement, and a clinician plan-review portal.
 
+**[Meta Challenge Write-up](metachallenge.txt)**
+
 ## Prerequisites
 
 - **Unity 6000.6.2f1** through Unity Hub. For Quest work, also install Android Build Support, Android SDK/NDK Tools, and OpenJDK for this editor version.
