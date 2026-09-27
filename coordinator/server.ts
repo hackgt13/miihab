@@ -215,6 +215,9 @@ function watchMotion() {
     if (!role) return;   // not yet told which AirPod is which: nothing is measured
     exerciseLog?.write(JSON.stringify({type:'motion.sample', exerciseId, role, channel, payload:p})+'\n');
     curlTrace?.push(role, t, p);
+    // The curl's arm-measuring swing (curl-trace.ts) is not a rep: the engine never sees it. The games' streams come
+    // from the relay, not from here, so they are untouched either way.
+    if (curlTrace?.calibrating) return;
     const sample: ImuSample = {quaternion: p.quaternion, rotationRate: p.rotationRate, hostMonotonicMs: t};
     if (role === 'ref') { lastRef = {sample, hostMs: t}; return; }
     exerciseSource ??= `airpod:${channel}:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only
@@ -233,8 +236,9 @@ function watchMotion() {
   ws.on('close', () => { if (motion !== ws) return; motion = null; if (exercise && assigner) setTimeout(watchMotion, 1000); });
   ws.on('error', () => {});
 }
-// A biceps curl's path, drawn live in the studio beside the patient's arm (exercise/curl-trace.ts): twice a second
-// while the set runs, once more when it ends. Presentation only; the rep engine counts.
+// A biceps curl's path, drawn live in the studio where the mirror stands (exercise/curl-trace.ts): ten times a
+// second while the set runs, once more when it ends; the studio glides between. Presentation only; the rep engine
+// counts.
 let curlTrace: CurlTrace | null = null;
 let curlTraceTicker: ReturnType<typeof setInterval> | null = null;
 function startCurlTrace(kindId: string, targetDeg: number) {
@@ -244,7 +248,7 @@ function startCurlTrace(kindId: string, targetDeg: number) {
   curlTraceTicker = setInterval(() => {
     const payload = trace.next();
     if (payload) exerciseBroadcast({type:'exercise.trajectory', payload});
-  }, 500);
+  }, 100);
   curlTraceTicker.unref();
 }
 function endCurlTrace(final = true) {

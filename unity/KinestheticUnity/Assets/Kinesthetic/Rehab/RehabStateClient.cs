@@ -137,6 +137,8 @@ namespace Kinesthetic.Rehab
                 curl.view = this; curl.Remote = true;
             }
             curl.Apply(path);
+            // The path stands where the mirror does, as on the Mac.
+            if (path != null && GetComponent<MirrorPanel>() is MirrorPanel mirror) Destroy(mirror);
         }
 
         static void Pose(JToken pose, List<Transform> bones)

@@ -97,6 +97,56 @@ export function synthCurl(o: SynthOptions): MotionSample[] {
   return out;
 }
 
+const conj = (q: Quat): Quat => [-q[0], -q[1], -q[2], q[3]];
+/** v rotated by q (device → world); with conj(q), world → device. */
+function rotate(q: Quat, v: [number, number, number]): [number, number, number] {
+  const r = qmul(qmul(q, [v[0], v[1], v[2], 0]), conj(q));
+  return [r[0], r[1], r[2]];
+}
+
+export interface ReachSample { role: 'imu' | 'ref'; tMs: number; sensorTime: number; quaternion: Quat; rotationRate: number[]; userAcceleration: number[] }
+
+/**
+ * The calibration swing: a straight arm raised to `peak` degrees in front and lowered, with each AirPod `…DistM` from
+ * the shoulder. Rates and accelerations are the exact derivatives of the swing, turned into each AirPod's own frame
+ * through its mount, in g — what CMDeviceMotion reports — plus a little noise.
+ */
+export function synthReach(o: { upperDistM: number; foreDistM: number; peak?: number; upS?: number; downS?: number; hz?: number;
+  rateNoise?: number; accelNoise?: number; seed?: number; startMs?: number }): ReachSample[] {
+  const hz = o.hz ?? 25, peak = (o.peak ?? 165) * Math.PI / 180, up = o.upS ?? 2.2, down = o.downS ?? 2.4;
+  const random = rng(o.seed ?? 5), noise = (k: number) => (random() - .5) * 2 * k;
+  const mounts: Record<'imu' | 'ref', Quat> = {
+    imu: qmul(axisAngle(0, 0, 1, 37), axisAngle(1, 1, 0, 12)),
+    ref: qmul(axisAngle(0, 0, 1, -58), axisAngle(1, 0, 1, 9)),
+  };
+  // θ(t), θ'(t), θ''(t) for rest, a minimum-jerk raise, a short hold, a minimum-jerk lower, rest.
+  const legs: [number, number, number][] = [[1, 0, 0], [up, 0, peak], [.3, peak, peak], [down, peak, 0], [1, 0, 0]];
+  const out: ReachSample[] = [];
+  let t0 = 0;
+  for (const [T, a, b] of legs) {
+    for (let i = 0; i < Math.round(T * hz); i++) {
+      const u = i / (T * hz), d = b - a;
+      const th = a + d * (u * u * u * (10 - 15 * u + 6 * u * u));
+      const th1 = d * (30 * u * u - 60 * u ** 3 + 30 * u ** 4) / T;
+      const th2 = d * (60 * u - 180 * u * u + 120 * u ** 3) / (T * T);
+      const t = t0 + i / hz;
+      for (const role of ['ref', 'imu'] as const) {
+        const dist = role === 'ref' ? o.upperDistM : o.foreDistM;
+        const q = qmul(axisAngle(0, 1, 0, th * 180 / Math.PI), mounts[role]);
+        // The AirPod's point on the arm, swinging about the world Y axis through the shoulder.
+        const acc: [number, number, number] = [
+          dist * (th2 * -Math.cos(th) + th1 * th1 * Math.sin(th)), 0, dist * (th2 * Math.sin(th) + th1 * th1 * Math.cos(th))];
+        const a = rotate(conj(q), acc), w = rotate(conj(q), [0, th1, 0]);
+        out.push({ role, tMs: (o.startMs ?? 0) + t * 1000, sensorTime: t, quaternion: q,
+          rotationRate: w.map(x => x + noise(o.rateNoise ?? .02)),
+          userAcceleration: a.map(x => x / 9.80665 + noise(o.accelNoise ?? .01)) });
+      }
+    }
+    t0 += T;
+  }
+  return out;
+}
+
 /** A demo set with a story: good reps, then a swung one, a hitch, and a tiring, rushed finish. */
 export const DEMO_SET: RepPlan[] = [
   { peak: 118 }, { peak: 121 }, { peak: 119 },
@@ -113,7 +163,7 @@ if (import.meta.url === `file://${process.argv[1]}` && process.argv.includes('--
   const all = synthCurl({ reps: DEMO_SET, seed: 11 });
   let payload = null;
   for (let ms = 23800; ms < 40000 && !payload; ms += 200) {
-    const trace = new CurlTrace(110);
+    const trace = new CurlTrace(110, false);
     for (const x of all.filter(x => x.tMs < ms)) trace.push(x.role, x.tMs, { quaternion: [...x.quaternion], rotationRate: [...(x.rotationRate ?? [])] });
     const p = trace.next();
     if (p && p.reps.length === 4 && p.arm && p.arm.elbowDeg > 75) payload = p;

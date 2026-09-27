@@ -38,6 +38,8 @@ namespace Kinesthetic.Rehab
         // be the one-AirPod kind (the gallery's arm raise measures the plan's shoulder raise), so exerciseKind alone
         // would read as one AirPod until exercise.started.
         ActivityEntry Modelled => movement ?? ActivityCatalog.MovementFor(exerciseKind);
+        /// The biceps curl, whose path takes the mirror's place (CurlTrajectory).
+        bool CurlPath => Modelled?.MovementKind == "biceps-curl.v1";
         BodyModel Body => Modelled?.Body;
         // Where each tracker is, from the card's tag: "AIRPODS ON WRIST AND CHEST" → ["wrist", "chest"].
         string[] Placements
@@ -189,6 +191,7 @@ namespace Kinesthetic.Rehab
             var launched = Kinesthetic.Menu.ActivityNavigation.Current();
             movement = launched != null && launched.IsMovement ? launched : null;
             if (movement != null) { exerciseKind = movement.MovementKind ?? exerciseKind; movementLabel = movement.DisplayName; }
+            ArrangeCompany();   // now the movement is known: a curl's path takes the mirror's place
             if (startServices) StartCoroutine(ConnectServices());
             BindUI();
         }
@@ -699,7 +702,7 @@ namespace Kinesthetic.Rehab
                 switch ((string)m["type"])
                 {
                     case "exercise.started":
-                        exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0;
+                        exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0; ArrangeCompany();
                         if (p["sensors"] is JObject sensors) { sensorPhase = (string)sensors["phase"]; sensorInstruction = (string)sensors["instruction"]; }
                         UprightCount++;   // the patient is sitting still and upright: the headset zeroes its head here
                         Voice?.Context($"[set] Starting {movementLabel ?? exerciseKind}: {prescribedReps} reps, target {targetDeg:0}°, {side} side.");
@@ -930,7 +933,9 @@ namespace Kinesthetic.Rehab
         void ArrangeCompany()
         {
             if (useCameraPose || !this) return;
-            if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
+            // A biceps curl draws its 3D path where the mirror stands (CurlTrajectory), so it has no mirror.
+            if (CurlPath) { if (GetComponent<MirrorPanel>() is MirrorPanel mirror) Destroy(mirror); }
+            else if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
             bool together = Kinesthetic.Menu.GroupPanel.Instance?.InRoom == true;
             if (together && !GetComponent<PeerAvatar>()) gameObject.AddComponent<PeerAvatar>().view = this;
             else if (!together && GetComponent<PeerAvatar>() is PeerAvatar partner) Destroy(partner);
