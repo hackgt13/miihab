@@ -340,10 +340,9 @@ const server = createServer(async (request, response) => {
       const kind = exerciseKind(body.exercise ?? launched?.measureWith ?? x.exerciseKind);
       if (kind.requires.includes('pose') && !cameraMeasurement)
         throw Error(`Camera (MediaPipe) measurement is off; measure "${x.id}" with the AirPod (change "Measured with" in the portal).`);
-      // Sensors (AGENTS.md): both pairs are the patient's. Only the older relay reading that makes the second Mac
-      // another person (KINESTHETIC_REMOTE_MOTION=people) leaves one pair per person, and a two-IMU movement then
-      // cannot be measured with someone else in the session. Refused before anything is torn down.
-      if (process.env.KINESTHETIC_REMOTE_MOTION === 'people' && kind.requires.includes('ref') && peopleInSession(x.activityId) >= 2)
+      // Sensors (AGENTS.md), one or two: solo both pairs are the patient's; in a group each person has one, so a
+      // two-IMU movement cannot be measured there. Refused before anything is torn down.
+      if (kind.requires.includes('ref') && groups.current(friends.me().id))
         throw new SensorRuleError(`"${LIBRARY[kind.id]?.label ?? kind.id}" needs two AirPods on one person. In a session with someone else each person has one AirPod: pick a one-AirPod movement.`);
       await finishExercise();
       const p = x.params, target = Number(body.targetDeg ?? p.targetDeg);

@@ -143,14 +143,14 @@ test('two pairs are Mac 1 and Mac 2 whatever they arrive on, and every game foll
   } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
 });
 
-test('KINESTHETIC_REMOTE_MOTION=people: in a group session the second Mac is the other person',{timeout:40000},async()=>{
+test('one or two: in a group session the second Mac is the other person, one pair each',{timeout:40000},async()=>{
   // A stand-in coordinator that says the patient is in a group.
   const { createServer } = await import('node:http');
   let group:unknown={id:'room'};
   const coordinator=createServer((_q,r)=>r.writeHead(200,{'Content-Type':'application/json'}).end(JSON.stringify({group})));
   coordinator.listen(18799);await once(coordinator,'listening');
   const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
-    env:{...process.env,KINESTHETIC_GOLF_PORT:'18792',KINESTHETIC_PAIR_TOKEN:'pair-secret',KINESTHETIC_REMOTE_MOTION:'people',
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18792',KINESTHETIC_PAIR_TOKEN:'pair-secret',
       KINESTHETIC_COORDINATOR_URL:'http://127.0.0.1:18799',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-group-'))}});
   const clients:WebSocket[]=[];
   const connect=async(path:string)=>{const ws=new WebSocket('ws://127.0.0.1:18792'+path);clients.push(ws);await once(ws,'open');return ws;};

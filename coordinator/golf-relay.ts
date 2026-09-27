@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { createSocket } from 'node:dgram';
 import { createHmac } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
-import { mkdirSync, createWriteStream, readFileSync } from 'node:fs';
+import { mkdirSync, createWriteStream } from 'node:fs';
 import { resolve } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
 import { hostMonotonicMs } from './hostclock.ts';
@@ -28,36 +28,23 @@ const channels=new Map(['/state','/bowling-state','/rehab-state'].map(path=>[pat
 }]));
 const golfState=channels.get('/state')!;
 
-// Which activity is running, read off the state channel whose host is connected: every venue's Unity hosts its
-// own channel for as long as the scene is up (GolfStatePublisher, BowlingStatePublisher, RehabStatePublisher).
-const channelActivity:Record<string,string>={'/state':'golf.adaptive','/bowling-state':'bowling.adaptive','/rehab-state':'rehab.studio'};
-// How many people an activity is for, from the catalog. Read once and leniently: a catalog the relay cannot read
-// makes every activity one person, which is the reading that never mixes a second person into a patient's record.
-const subjects:Record<string,number>=(()=>{
-  try{const c=JSON.parse(readFileSync(resolve(import.meta.dirname,'activities.json'),'utf8'));
-    return Object.fromEntries((c.activities??c).map((a:any)=>[a.id,Number(a.subjects)||1]));}catch{return {};}
-})();
-const runningFor=()=>{for(const [path,ch] of channels)if(ch.host?.readyState===WebSocket.OPEN)return (subjects[channelActivity[path]]??1);return 1;};
 
-// Two AirPod pairs, both the patient's, everywhere (AGENTS.md, Sensors): Mac 1 is this Mac's pair, Mac 2 the pair on
-// the second Mac, which reaches this relay over the tailnet with the pairing token. Which app or path either arrives
-// on is transport and nothing else — both apps and both paths feed the same two slots.
+// One or two (AGENTS.md, Sensors). Mac 1 is this Mac's pair, Mac 2 the pair on the second Mac, which reaches this
+// relay over the tailnet with the pairing token. Solo, both are the patient's. In a group session each person has
+// one: Mac 2 is the other person, on /golf as `friend`, and never reaches the patient's record. Which app or path
+// either arrives on is transport and nothing else — both apps and both paths feed the same two slots.
 //
 //   /motion                    raw: every sample of both pairs, tagged mac1/mac2 (the coordinator measures from it)
 //   /golf, /bowling-motion     the games: one stream as `patient`, the more active pair, re-based so it never jumps
 //                              (motion-fuse.ts). Golf holds both pairs in the grip; bowling wears one on the wrist.
 //
 // So the second Mac needs no setting at all and no game knows there are two. A local app whose picker says `friend`
-// is still a friend on its own path. KINESTHETIC_REMOTE_MOTION=people restores the older reading of the second Mac
-// as the other person in golf and group sessions; =tagged takes each app's picker at its word.
+// is still a friend on its own path. KINESTHETIC_REMOTE_MOTION=tagged takes each app's picker at its word instead.
 const remoteMotion=process.env.KINESTHETIC_REMOTE_MOTION??'auto';
 const remoteProducers=new WeakSet<WebSocket>();
 // The second Mac is registered apart from this one, so both may run the same app with the same picker; the status
 // page still names it by its picker, which is what that app checks to say it is streaming.
 const remoteKey='@second-mac',named=(key:string)=>key.replace(remoteKey,'');
-// This Mac's own patient stream, wherever it is. The second AirPod takes the other path, so two sensors are never
-// interleaved as one — whichever app this Mac happens to be running.
-const localPatientOn=(path:string)=>{const ws=motions.get(path)!.producers.get('patient');return !!ws&&!remoteProducers.has(ws);};
 // Whether the patient is in a group session, asked of the coordinator (groups.ts), which is the authority on it.
 // Polled rather than pushed so neither process needs the other to start first; an unreachable coordinator is
 // "not in a group", the one-person reading.
@@ -67,14 +54,11 @@ const askGroup=async()=>{
   try{const r=await fetch(coordinator+'/api/groups/current',{signal:AbortSignal.timeout(800)});
     inGroup=r.ok&&!!(await r.json())?.group?.id;}catch{inGroup=false;}
 };
-if(remoteMotion==='people'){askGroup();setInterval(askGroup,1000).unref();}
+if(remoteMotion!=='tagged'){askGroup();setInterval(askGroup,1000).unref();}
 function route(path:string,player:string,remote:boolean):{path:string,player:string}{
   if(!remote||remoteMotion==='tagged')return {path,player};
-  if(remoteMotion==='people'){
-    if(runningFor()>=2||inGroup)return {path:'/golf',player:'friend'};
-    return {path:localPatientOn('/bowling-motion')?'/golf':'/bowling-motion',player:'patient'};
-  }
-  return {path,player:'patient'};
+  // Multiplayer is a group session: one pair each. Solo, the second pair is the patient's.
+  return inGroup?{path:'/golf',player:'friend'}:{path,player:'patient'};
 }
 // A motion app on another Mac (a second AirPod pair, e.g. on a wrist strap) may send motion here, and read this
 // status to confirm it, when it carries the pairing token. Viewing motion stays on this Mac.
