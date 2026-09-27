@@ -21,6 +21,9 @@ namespace Kinesthetic
     /// panel's own transform once (Pane.TryProject) and picks in paint order, so a modal's shade blocks the
     /// buttons under it and a disabled button is never committed. PanePointerInput and CarouselChrome ask the
     /// same question the same way.
+    ///
+    /// On a headset the Touch controllers are two more roads to the same press (ControllerPointer): point and
+    /// pull the trigger to press at once, or look and pull to skip the dwell.
     public sealed class GazeDwell : MonoBehaviour
     {
         public float dwellSeconds = 1.1f;
@@ -59,7 +62,20 @@ namespace Kinesthetic
             var cam = Camera.main;
             if (!cam || !document) { reticle.Hide(); return; }
 
-            string under = Under(cam);
+            // A controller pointing at this board outranks the head: the beam picks, the trigger presses, and
+            // there is no dwell to wait out.
+            var pointed = ControllerPointer.ButtonOn(gameObject, maxDistance, out bool pulled);
+            if (pointed != null)
+            {
+                lost = 0;
+                if (pointed.name != hot) { hot = pointed.name; held = 0; Entered?.Invoke(hot); }
+                hotButton = pointed;
+                reticle.Hide();
+                if (pulled) Commit();
+                return;
+            }
+
+            string under = ControllerPointer.Pointing ? null : Under(cam);
             if (under == null)
             {
                 lost += Time.unscaledDeltaTime;
@@ -70,9 +86,16 @@ namespace Kinesthetic
             lost = 0;
             if (under != hot) { hot = under; held = 0; Entered?.Invoke(hot); }
             held += Time.unscaledDeltaTime;
+            // Look and pull: a trigger on a controller that points at nothing confirms what the head is on.
+            if (ControllerPointer.PulledAtNothing) held = dwellSeconds;
             reticle.Show(cam, held / dwellSeconds);
 
             if (held < dwellSeconds) return;
+            Commit();
+        }
+
+        void Commit()
+        {
             held = 0;
             string fired = hot;
             var button = hotButton;
@@ -92,7 +115,13 @@ namespace Kinesthetic
             if (had) Entered?.Invoke(null);
         }
 
-        void OnDisable() { if (reticle) Leave(); }
+        void OnEnable() => ControllerPointer.Acquire();
+
+        void OnDisable()
+        {
+            ControllerPointer.Release();
+            if (reticle) Leave();
+        }
 
         // The name of the Button under the centre of the view, or null.
         string Under(Camera cam)
