@@ -73,9 +73,8 @@ pairs() {
   get http://127.0.0.1:8767/ | python3 -c '
 import sys,json
 d=json.load(sys.stdin)
-for role,key in (("IMU A","samples"),("IMU B","bowlingSamples")):
-    for who,s in d.get(key,{}).items():
-        print(role, s["sourceId"], "%dms"%s["ageMs"], "live" if s["ageMs"]<1500 else "stale")' 2>/dev/null
+for mac,s in sorted(d.get("macs",{}).items()):
+    if "ageMs" in s: print("Mac", mac[-1], s["sourceId"], "%dms"%s["ageMs"], "live" if s["ageMs"]<1500 else "stale")' 2>/dev/null
 }
 
 # A double-clickable connector for a Mac without the repo: Tailscale up, wait for this Mac, aim the app, open it.
@@ -105,7 +104,7 @@ pkill -x ClubMotionBridge 2>/dev/null
 open -a "\$here/Kinesthetic Bowling Motion.app" 2>/dev/null || open -a "\$here/Kinesthetic Club Motion.app" 2>/dev/null || open -a "Kinesthetic Bowling Motion" 2>/dev/null || open -a "Kinesthetic Club Motion"
 echo "Pair this Mac's AirPods (Bluetooth), allow Motion access when asked. Waiting for motion to reach ${host} …"
 for i in {1..300}; do
-  if curl -fsS --max-time 2 "http://\$ip:8767/?token=\$token" 2>/dev/null | python3 -c 'import sys,json;d=json.load(sys.stdin);n=sum(1 for k in ("samples","bowlingSamples") for s in d.get(k,{}).values() if s["ageMs"]<1500);sys.exit(0 if n>=2 else 1)' 2>/dev/null; then
+  if curl -fsS --max-time 2 "http://\$ip:8767/?token=\$token" 2>/dev/null | python3 -c 'import sys,json;d=json.load(sys.stdin);n=sum(1 for s in d.get("macs",{}).values() if s.get("ageMs",9e9)<1500);sys.exit(0 if n>=2 else 1)' 2>/dev/null; then
     echo "Streaming. Leave this window open or close it; the app keeps going."; exit 0; fi
   sleep 1
 done
@@ -141,7 +140,7 @@ receive() {
     now="$(pairs | awk '{print $2, $5}' | sort | tr '\n' ' ')"
     [[ $now == $last ]] && continue
     last=$now
-    print -P "  $(date +%H:%M:%S)  IMU A: $( [[ $now == *'A live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')   IMU B: $( [[ $now == *'B live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')"
+    print -P "  $(date +%H:%M:%S)  Mac 1: $( [[ $now == *'1 live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')   Mac 2: $( [[ $now == *'2 live'* ]] && print -P '%F{green}live%f' || print -P '%F{yellow}none%f')"
   done
 }
 
