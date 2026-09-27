@@ -21,6 +21,8 @@ Dormant only because `QuestSceneSetup` sets `game.enabled = false`; all return t
 
 ## Sensors
 
+**Before starting the app, read `TWO_MAC_SETUP.md`.** The AirPod motion apps compile from `native/ClubMotionBridge.swift`, and a running app is whatever was last built: after any change there, rebuild (`zsh native/build.sh club`, and the Bowling Motion zip for Mac 2) and reopen, or the change is not running. Nothing warns: an old build leaves new fields out (today `userAcceleration`, which the biceps curl's arm measurement needs) and the coordinator falls back quietly. The guide has a one-line check of what each live pair actually sends, and where the curl's AirPods go.
+
 Three sources, and only three: two AirPod pairs — **Mac 1** (the relay Mac's own) and **Mac 2** (the second Mac's, over Tailscale with the pairing token; one Mac reads one `CMHeadphoneMotionManager` stream) — and the Quest, always on the head.
 
 **One or two.** Solo, both pairs are the patient's. Multiplayer (a group session) is one pair each: Mac 2 is the other person, on `/golf` as `friend`, and never reaches the patient's record; the games follow Mac 1 alone and a two-IMU movement is refused with 409. Which Motion app or relay path a pair arrives on is transport; the relay files it as Mac 1 (loopback) or Mac 2 (paired), and nothing downstream sees an app, a path or a mount.
