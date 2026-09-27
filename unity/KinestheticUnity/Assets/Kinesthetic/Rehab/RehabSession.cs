@@ -33,7 +33,11 @@ namespace Kinesthetic.Rehab
         // The movement tile for the kind being measured: its body model draws the joint, its tag says where the
         // tracker goes ("AIRPODS IN YOUR EARS" → "ears"). Every library kind has one, so a studio opened on its own
         // draws a curl as a curl.
-        ActivityEntry Modelled => ActivityCatalog.MovementFor(exerciseKind);
+        // The movement tile this studio was launched as, when it was: it knows how many AirPods the set needs before
+        // the coordinator has said which kind it will measure with. The plan's prescription for the same movement may
+        // be the one-AirPod kind (the gallery's arm raise measures the plan's shoulder raise), so exerciseKind alone
+        // would read as one AirPod until exercise.started.
+        ActivityEntry Modelled => movement ?? ActivityCatalog.MovementFor(exerciseKind);
         BodyModel Body => Modelled?.Body;
         // Where each tracker is, from the card's tag: "AIRPODS ON WRIST AND CHEST" → ["wrist", "chest"].
         string[] Placements
