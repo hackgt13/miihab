@@ -16,6 +16,7 @@ import { CoordinatorService } from "./backend/services/coordinatorService.ts";
 import { createSessionController } from "./backend/controllers/sessionController.ts";
 import { handleHealth } from "./backend/controllers/healthController.ts";
 import { listeners } from "./backend/listeners.ts";
+import { createMuseProxy } from "./backend/museProxy.ts";
 
 if (!config.elevenlabs.agentId) {
   console.warn(
@@ -87,7 +88,16 @@ server.listen(config.server.port, "127.0.0.1", () => {
   );
 });
 
+// Muse Spark as Alex's brain (backend/museProxy.ts): the adapter ElevenLabs' custom LLM calls, on the Mac's loopback,
+// reached from outside only through the Tailscale Funnel scripts/start_alex_muse.sh sets up. It needs the Muse key
+// and the adapter's own password; without either, Alex keeps ElevenLabs' default model and nothing here starts.
+const museKey = process.env.MUSE_API_KEY?.trim(), proxyToken = process.env.MUSE_PROXY_TOKEN?.trim();
+const museProxy = museKey && proxyToken ? createMuseProxy({ museKey, token: proxyToken }) : null;
+const MUSE_PROXY_PORT = Number(process.env.MUSE_PROXY_PORT ?? 8770);
+museProxy?.listen(MUSE_PROXY_PORT, "127.0.0.1", () => console.log(`Muse adapter for Alex: http://127.0.0.1:${MUSE_PROXY_PORT}/v1/chat/completions`));
+
 function shutdown() {
+  museProxy?.close();
   for (const ws of wss.clients) ws.close();
   wss.close();
   server.close();

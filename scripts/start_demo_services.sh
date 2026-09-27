@@ -52,5 +52,5 @@ if [[ -d "$app" ]] && golf_ready; then /usr/bin/open -a "$app"; fi
 
 # Alex, the ElevenLabs voice PT behind the studio coach. Needs voice/.env (ElevenLabs + Supabase keys).
 if [[ -f voice/.env ]] && ! voice_ready; then
-  (cd voice && nohup "$node_exe" --env-file=.env server.ts >../local-data/logs/voice.log 2>&1 </dev/null &)
+  (cd voice && nohup "$node_exe" --env-file=.env --env-file-if-exists=../.env server.ts >../local-data/logs/voice.log 2>&1 </dev/null &)
 fi

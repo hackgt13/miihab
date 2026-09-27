@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test:cli": "node --env-file=.env --experimental-strip-types test/cli.ts",
     "migrate": "node --env-file=.env --input-type=module --eval \"import {execSync} from 'node:child_process'; execSync('psql ' + process.env.DATABASE_URL + ' -f supabase/schema.sql', {stdio:'inherit'})\"",
-    "test": "node --test test/tools.test.ts test/listeners.test.ts"
+    "test": "node --test test/tools.test.ts test/listeners.test.ts test/museProxy.test.ts"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.69.0",
