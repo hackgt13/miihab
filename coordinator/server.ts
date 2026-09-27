@@ -63,12 +63,13 @@ const groups = new GroupStore(socialDir);
 const relayUrl = 'http://' + new URL(process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767').host;   // the relay the motion comes from
 const peer = {id: PEER_ID, displayName: process.env.KINESTHETIC_PEER_NAME || 'Guest', mii: 1};
 let peerLiveAt = -Infinity;
+const peerLive = () => Date.now() - peerLiveAt < 10000;
 setInterval(async () => {
   try {
     const r = await fetch(relayUrl + '/', {signal: AbortSignal.timeout(800)});
     if (r.ok && (await r.json())?.secondMac?.live) peerLiveAt = Date.now();
   } catch {}
-  if (Date.now() - peerLiveAt < 10000) groups.peerPresent(peer, friends.me().id); else groups.peerGone(peer.id);
+  if (peerLive()) groups.peerPresent(peer, friends.me().id); else groups.peerGone(peer.id);
 }, 1000).unref();
 
 /// This patient, as the matcher sees them: what they are working toward and
@@ -603,6 +604,7 @@ const server = createServer(async (request, response) => {
           const recent = friends.list().filter(p => p.sample)
             .sort((a, b) => String(b.lastActiveAt).localeCompare(String(a.lastActiveAt)));
           groups.seed(activityId, recent);
+          if (peerLive()) groups.peerHosts(peer, activityId, me.id);
           return json(200, {...groups.lobby(activityId, friendIds()), current: mine(), samples: groups.samples});
         }
         if (request.method === 'GET' && url.pathname === '/api/groups/current') return json(200, {group: mine()});

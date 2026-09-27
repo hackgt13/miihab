@@ -308,6 +308,22 @@ export class GroupStore {
     this.save();
   }
 
+  /// With you in no room, the streaming second Mac hosts an open one for the activity you are choosing, so the lobby
+  /// shows a real person to join. Alone, its room follows the lobby you look at; once joined, it stays put.
+  peerHosts(peer: Who, activityId: string, meId: string): void {
+    if (this.current(meId)) return;
+    const theirs = this.current(peer.id);
+    if (theirs && (theirs.activityId === activityId || theirs.members.length > 1)) return;
+    this.leave(peer.id, false);
+    const group: Group = {
+      id: randomUUID(), activityId, title: `${peer.displayName}'s group`, hostId: peer.id, open: true,
+      createdAt: this.stamp(), endedAt: null, members: [], messages: [],
+    };
+    this.state.groups.push(group);
+    this.enter(group, peer);
+    this.save();
+  }
+
   /// The second Mac has gone quiet: it leaves, saying so.
   peerGone(peerId: string): void {
     if (this.leave(peerId, false)) this.save();

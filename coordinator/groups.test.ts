@@ -157,3 +157,19 @@ test('the second Mac comes into your room, and walks out of it when it goes quie
   assert.deepEqual(room.members.map(m => m.id), [me.id], 'your room goes on without them');
   assert.equal(room.messages.at(-1)!.event, 'left');
 });
+
+test('with you in no room, the second Mac hosts an open one in the lobby you look at', () => {
+  const store = new GroupStore(dir());
+  store.setSamples(false);
+  store.peerHosts(peer, 'golf.adaptive', me.id);
+  store.peerHosts(peer, 'golf.adaptive', me.id);
+  assert.equal(store.lobby('golf.adaptive', new Set()).open.length, 1, 'once, not a room per poll');
+  // Alone, their room follows the lobby; the old one ends.
+  store.peerHosts(peer, 'rehab.studio', me.id);
+  assert.equal(store.lobby('golf.adaptive', new Set()).open.length, 0);
+  // Joined, it stays put.
+  store.join(me, store.lobby('rehab.studio', new Set()).open[0].id);
+  store.peerHosts(peer, 'golf.adaptive', me.id);
+  assert.equal(store.current(peer.id)!.activityId, 'rehab.studio');
+  assert.equal(store.current(me.id)!.id, store.current(peer.id)!.id);
+});
