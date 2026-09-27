@@ -35,10 +35,15 @@ fi
 restart_voice
 lsof -nP -iTCP:8770 -sTCP:LISTEN >/dev/null 2>&1 && ok "Muse adapter listening on 127.0.0.1:8770" || { bad "The adapter did not start; see local-data/logs/voice.log"; exit 1; }
 
-# Public HTTPS onto the adapter only. The first time, Tailscale may print a link to allow Funnel for this tailnet.
-"$ts" funnel --bg 8770 || { bad "Funnel did not start. Follow the link above to allow it, then run this again."; exit 1; }
+# Public HTTPS onto the adapter only. Funnel must be allowed for this tailnet once (the Tailscale admin console:
+# Access controls → nodeAttrs "funnel"); `tailscale funnel` exits 0 even when it is not, so the address is proven
+# from outside before Alex is pointed at it — an unreachable brain would leave the live Alex silent.
+"$ts" funnel --bg 8770 2>&1 | tee /dev/stderr | /usr/bin/grep -qi "not enabled" && { bad "Funnel is not enabled on this tailnet. Enable it at https://login.tailscale.com/admin/acls (see TWO_MAC_SETUP.md), then run this again. Alex is unchanged."; exit 1; }
 host=$("$ts" status --json | python3 -c 'import sys,json;print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))')
 url="https://$host/v1"
-set_env MUSE_PROXY_URL "$url"; ok "Adapter public at $url (chat completions only, password required)"
+code=""
+for i in {1..20}; do code=$(/usr/bin/curl -s -o /dev/null -w '%{http_code}' --max-time 5 -X POST "$url/chat/completions"); [[ $code == 401 ]] && break; sleep 2; done
+[[ $code == 401 ]] || { bad "The public address did not answer (got '$code'); Alex is unchanged."; "$ts" funnel --https=443 off >/dev/null 2>&1; exit 1; }
+set_env MUSE_PROXY_URL "$url"; ok "Adapter public at $url, answering and refusing requests without the password"
 
 update_agent && ok "Alex now thinks with Muse Spark. Talk to him in the studio; 'zsh scripts/start_alex_muse.sh off' switches back."

@@ -38,7 +38,9 @@ async function proxySecretId(): Promise<string> {
 
 /** Muse Spark, through the adapter on the Mac (backend/museProxy.ts), as Alex's model; else ElevenLabs' default. */
 async function brain(): Promise<Record<string, unknown>> {
-  if (!useMuse) return {};
+  // Named, not left out: ElevenLabs keeps a custom LLM on an update that does not replace it, so switching back
+  // off Muse has to say which model. qwen35-397b-a17b is what Alex ran on before Muse.
+  if (!useMuse) return { llm: process.env.ELEVENLABS_LLM ?? "qwen35-397b-a17b", customLlm: null };
   return {
     llm: "custom-llm",
     customLlm: { url: proxyUrl, modelId: process.env.MUSE_MODEL ?? "muse-spark-1.3",
