@@ -44,7 +44,7 @@
         <ui:VisualElement name="golf-setup" class="golf-overlay">
             <ui:VisualElement class="setup-sheet">
                 <ui:VisualElement class="setup-hero">
-                    <ui:Label text="REHABMII SPORTS" class="sheet-eyebrow" />
+                    <ui:Label text="MIIHAB SPORTS" class="sheet-eyebrow" />
                     <ui:Label text="Today we will&#10;practice golf." class="setup-title" />
                     <ui:Label text="GOLF  /  HOLE 1  /  PAR 4" class="setup-tag" />
                     <ui:VisualElement class="hero-space" />

@@ -1,4 +1,4 @@
-# RehabMii
+# MiiHab
 
 Kinesthetic's rehabilitation and adaptive-golf prototype: browser camera pose capture, a local Node relay, Unity patient/friend avatars, a Mac AirPod motion bridge, shoulder-exercise measurement, and a clinician plan-review portal.
 
@@ -53,7 +53,7 @@ Other scenes:
 1. Connect the host Mac and Quest to the same LAN.
 2. In the Unity editor on the host Mac, run **Kinesthetic → Quest → Write host config**. Inspect the generated `Assets/Kinesthetic/Golf/Resources/Golf/QuestHostConfig.asset` and ensure `host` is the Mac's address on the Quest's network; VPN/extra adapters can affect automatic selection.
 3. The menu also creates `local-data/pair-token.txt`. Start or restart the golf relay using `scripts/start_demo_services.sh` after this step so it reads that token and exposes the game-state channel to the LAN. Sensor channels remain local.
-4. Run **Kinesthetic → Quest → Build combined headset app**. It regenerates the headset scenes, bakes the host config, and builds one APK, `local-data/builds/RehabMiiQuest.apk`, with the plaza (`QuestMenu.unity`) at index 0: the headset boots into the menu, waits for the Mac, and follows it through a door into golf, bowling, the studio, the intro or the therapist visit. The build refuses if any catalog scene has no headset copy (**Kinesthetic → Quest → Verify headset scene coverage** runs the same check). Generate the config on the host before building so the headset and relay use the same token.
+4. Run **Kinesthetic → Quest → Build combined headset app**. It regenerates the headset scenes, bakes the host config, and builds one APK, `local-data/builds/MiiHabQuest.apk`, with the plaza (`QuestMenu.unity`) at index 0: the headset boots into the menu, waits for the Mac, and follows it through a door into golf, bowling, the studio, the intro or the therapist visit. The build refuses if any catalog scene has no headset copy (**Kinesthetic → Quest → Verify headset scene coverage** runs the same check). Generate the config on the host before building so the headset and relay use the same token.
 5. Install it with `adb install -r`. If the headset still carries an older single-game app (`com.kinesthetic.questgolf` or `com.kinesthetic.questbowling`), uninstall it: those boot straight into their game. `scripts/demo.sh` checks for both.
 
 The host config is a `Resources` ScriptableObject, not `StreamingAssets`: on Android StreamingAssets lives inside the compressed APK, so a file read there always fails and the headset would silently fall back to loopback. The generated asset, its Unity `.meta`, and the pairing token are local files excluded from Git. Each teammate generates their own connection settings. The editor client uses the local relay; headset builds use the generated host config.

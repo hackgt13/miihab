@@ -1,4 +1,4 @@
-// RehabMii session API
+// MiiHab session API
 // Receives completed session data from Unity and serves it to the physician portal.
 //
 // Run:  node server/index.js
@@ -103,7 +103,7 @@ const server = http.createServer(async (req, res) => {
 })
 
 server.listen(PORT, () => {
-  console.log(`\nRehabMii session API  →  http://localhost:${PORT}`)
+  console.log(`\nMiiHab session API  →  http://localhost:${PORT}`)
   console.log('  POST /api/session          submit session from Unity')
   console.log('  GET  /api/session/:id      latest session for a patient')
   console.log('  GET  /api/sessions         all sessions (debug)\n')

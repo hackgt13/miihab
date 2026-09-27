@@ -82,8 +82,8 @@ namespace Kinesthetic.Tutorial
             "Great job! You're all set. Let's get started.",
         };
 
-        const string CompletePref = "RehabMii.TutorialComplete";
-        public static bool IsComplete => PlayerPrefs.GetInt(CompletePref, 0) != 0;
+        const string CompletePref = "MiiHab.TutorialComplete", OldCompletePref = "RehabMii.TutorialComplete";
+        public static bool IsComplete => PlayerPrefs.GetInt(CompletePref, PlayerPrefs.GetInt(OldCompletePref, 0)) != 0;
 
         void Start()
         {
@@ -189,8 +189,8 @@ namespace Kinesthetic.Tutorial
                     var voice = Coach.CoachVoice.Instance;
                     if (voice && !voice.Connected)
                     {
-                        var id = PlayerPrefs.GetString("RehabMii.TutorialPatientId", "");
-                        if (string.IsNullOrEmpty(id)) { id = System.Guid.NewGuid().ToString(); PlayerPrefs.SetString("RehabMii.TutorialPatientId", id); PlayerPrefs.Save(); }
+                        var id = PlayerPrefs.GetString("MiiHab.TutorialPatientId", PlayerPrefs.GetString("RehabMii.TutorialPatientId", ""));
+                        if (string.IsNullOrEmpty(id)) { id = System.Guid.NewGuid().ToString(); PlayerPrefs.SetString("MiiHab.TutorialPatientId", id); PlayerPrefs.Save(); }
                         voice.Begin(id, "tutorial");
                     }
                     break;

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Button } from './Button'
 
 // Notes the therapist leaves for the patient's visit. They are written up on the whiteboard in the
-// patient's RehabMii visit scene, under "From your licensed therapist", and read aloud by Alex.
-// Served by the RehabMii coordinator (coordinator/visit.ts) through the /api proxy in vite.config.ts.
+// patient's MiiHab visit scene, under "From your licensed therapist", and read aloud by Alex.
+// Served by the MiiHab coordinator (coordinator/visit.ts) through the /api proxy in vite.config.ts.
 
 interface Note { id: string; text: string; author: string; at: string }
 interface BoardUpdate { kind: string; heading: string; detail: string }

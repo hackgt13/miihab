@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Kinesthetic.Activities;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 
@@ -12,10 +13,10 @@ using UnityEditor.SceneManagement;
 // pairing token, then builds. QuestActivityFollower switches scenes to whatever the Mac is hosting.
 public static class QuestCombinedBuild
 {
-    public const string Output = "../../local-data/builds/RehabMiiQuest.apk";
+    public const string Output = "../../local-data/builds/MiiHabQuest.apk";
     /// The one headset app. The golf-only and bowling-only APKs from when each game was the whole product had their
     /// own identifiers, so a headset could carry them beside this one and boot straight into a game from the library.
-    public const string Identifier = "com.kinesthetic.rehabmii";
+    public const string Identifier = "com.kinesthetic.miihab";
 
     /// Every headset scene, plaza first: the plaza boots, the headset waits there for the Mac, and every activity is
     /// entered through a door. This list and the catalog's `questScene` entries must agree (VerifyCoverage).
@@ -47,6 +48,9 @@ public static class QuestCombinedBuild
         try
         {
             PlayerSettings.Android.forceInternetPermission = true;
+            // The id the headset app installs under. Set here so the constant above is what ships, not whatever the
+            // settings file last held; scripts/demo.sh checks the same id.
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, Identifier);
             // LZ4HC: Unity compresses its data files itself and the APK stores them as-is. The default (zip deflate) makes
             // Unity split every data file into 1 MB chunks that the player re-inflates on each random read; on a Quest 2
             // that pinned Loading.AsyncRead for minutes on the first scene and the app never got past the loading screen.

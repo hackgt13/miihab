@@ -68,7 +68,7 @@ namespace Kinesthetic.Golf
                 using var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
                 using var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
                 using var wifi = activity.Call<AndroidJavaObject>("getSystemService", "wifi");
-                multicastLock = wifi.Call<AndroidJavaObject>("createMulticastLock", "rehabmii-relay");
+                multicastLock = wifi.Call<AndroidJavaObject>("createMulticastLock", "miihab-relay");
                 multicastLock.Call("acquire");
             }
             catch (Exception e) { Debug.LogWarning("Relay discovery: no multicast lock (" + e.Message + ")"); }
@@ -90,7 +90,7 @@ namespace Kinesthetic.Golf
                         {
                             var m = JObject.Parse(Encoding.UTF8.GetString(bytes));
                             var sender = from.Address.ToString();
-                            if ((string)m["service"] != "rehabmii-relay") continue;
+                            if ((string)m["service"] != "miihab-relay") continue;
                             var expected = BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(sender))).Replace("-", "").ToLowerInvariant();
                             if ((string)m["proof"] != expected) continue;
                             if (host != sender) Debug.Log("Relay discovery: the Mac is at " + sender);

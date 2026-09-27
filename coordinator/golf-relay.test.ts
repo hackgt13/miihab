@@ -85,7 +85,7 @@ test('on the network the relay announces itself with a proof only the pairing to
   try {
     await ready(proc);
     const {msg,from}=await heard;
-    assert.equal(msg.service,'rehabmii-relay'); assert.equal(msg.port,18787);
+    assert.equal(msg.service,'miihab-relay'); assert.equal(msg.port,18787);
     assert.equal(msg.proof,createHmac('sha256','pair-secret').update(from).digest('hex'),'verifiable with the token, for the sender address');
     assert.notEqual(msg.proof,createHmac('sha256','other-token').update(from).digest('hex'));
     assert.ok(!JSON.stringify(msg).includes('pair-secret'),'the token itself is never broadcast');

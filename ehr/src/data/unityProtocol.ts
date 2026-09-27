@@ -1,4 +1,4 @@
-// ── Unity → RehabMii API payload ──────────────────────────────────────────
+// ── Unity → MiiHab API payload ──────────────────────────────────────────
 //
 // Unity sends this as a JSON POST body to:
 //   POST http://localhost:3001/api/session

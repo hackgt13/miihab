@@ -127,8 +127,9 @@ namespace Kinesthetic.Rehab
         {
             get
             {
-                var id = PlayerPrefs.GetString("RehabMii.PatientId", "");
-                if (string.IsNullOrEmpty(id)) { id = Guid.NewGuid().ToString(); PlayerPrefs.SetString("RehabMii.PatientId", id); PlayerPrefs.Save(); }
+                // The key before the rename is read once: this id keys every session the coordinator has recorded.
+                var id = PlayerPrefs.GetString("MiiHab.PatientId", PlayerPrefs.GetString("RehabMii.PatientId", ""));
+                if (string.IsNullOrEmpty(id)) { id = Guid.NewGuid().ToString(); PlayerPrefs.SetString("MiiHab.PatientId", id); PlayerPrefs.Save(); }
                 return id;
             }
         }

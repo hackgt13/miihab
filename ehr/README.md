@@ -1,11 +1,11 @@
-# Doctor view — RehabMii clinician portal
+# Doctor view — MiiHab clinician portal
 
-A physician's view of a patient on the RehabMii program: the sessions the headset recorded, the plan
+A physician's view of a patient on the MiiHab program: the sessions the headset recorded, the plan
 behind them, and what changed between plan versions.
 
 ## Running it against real data
 
-This portal lives in the RehabMii repo under `ehr/` and is served by the coordinator itself, same origin as
+This portal lives in the MiiHab repo under `ehr/` and is served by the coordinator itself, same origin as
 the data: build it once, then open **http://127.0.0.1:8766/ehr/portal**.
 
     cd ehr && npm install && npm run build       # scripts/start_demo_services.sh does this if it is missing

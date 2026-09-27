@@ -10,7 +10,7 @@ export function TopAppBar() {
     <div className="w-full shrink-0 flex items-center px-3 gap-3 bg-[#1a2332]" style={{ height: 36 }}>
       {/* Wordmark */}
       <div className="flex items-center gap-2 shrink-0">
-        <span className="text-white font-bold text-[13px] tracking-tight">RehabMii</span>
+        <span className="text-white font-bold text-[13px] tracking-tight">MiiHab</span>
         <span className="text-[#4B6A88] text-[10px] tracking-[0.15em] uppercase select-none">Physician Portal</span>
       </div>
 

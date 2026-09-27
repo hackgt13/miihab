@@ -7,7 +7,7 @@ set -u
 repo="${0:A:h:h}"; cd "$repo" || exit 1
 adb=/Applications/Unity/Hub/Editor/6000.6.2f1-arm64/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb
 [[ -x $adb ]] || adb=/Applications/Unity/Hub/Editor/6000.6.2f1/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb
-apk=local-data/builds/RehabMiiQuest.apk
+apk=local-data/builds/MiiHabQuest.apk
 ok()   { print -P "  %F{green}✓%f $1"; }
 warn() { print -P "  %F{yellow}!%f $1"; }
 bad()  { print -P "  %F{red}✗%f $1"; failures=$((failures+1)); }
@@ -56,11 +56,12 @@ if [[ -x $adb ]]; then
   if [[ -n $device ]]; then
     ok "Quest connected over USB ($device)"
     packages=$($adb -s $device shell pm list packages 2>/dev/null)
-    print -r -- $packages | grep -q com.kinesthetic.rehabmii && ok "RehabMii installed on the Quest" \
+    print -r -- $packages | grep -q com.kinesthetic.miihab && ok "MiiHab installed on the Quest" \
       || warn "App not installed — run: $adb install -r $apk"
     for old in com.kinesthetic.questgolf com.kinesthetic.questbowling; do
       print -r -- $packages | grep -q $old && bad "Old single-game app $old still installed; it boots straight into its game — run: $adb -s $device uninstall $old"
     done
+    print -r -- $packages | grep -q com.kinesthetic.rehabmii && bad "Old RehabMii-named app com.kinesthetic.rehabmii still installed — run: $adb -s $device uninstall com.kinesthetic.rehabmii"
   elif [[ -n $unauthorized ]]; then warn "Quest connected but not authorized — put it on and tap Allow USB debugging"
   else warn "No Quest over USB (needed only to install; the game itself runs over Wi-Fi)"; fi
 fi

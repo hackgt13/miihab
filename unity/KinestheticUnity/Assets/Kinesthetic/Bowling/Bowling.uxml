@@ -3,7 +3,7 @@
   <ui:Style src="Bowling.uss" />
   <ui:VisualElement name="bowlingRoot" class="bowling" picking-mode="Ignore">
     <ui:VisualElement class="top" picking-mode="Ignore">
-      <ui:VisualElement class="brand"><ui:Label text="REHABMII SPORTS" class="eyebrow" /><ui:Label text="Bowling" class="title" /></ui:VisualElement>
+      <ui:VisualElement class="brand"><ui:Label text="MIIHAB SPORTS" class="eyebrow" /><ui:Label text="Bowling" class="title" /></ui:VisualElement>
       <ui:VisualElement class="top-actions"><ui:Label name="device" text="Connecting AirPods…" class="device" /><ui:Button name="calibrate" text="Recenter" /><ui:Button name="pause" text="Pause" /></ui:VisualElement>
     </ui:VisualElement>
     <ui:VisualElement name="scoreboard" class="scoreboard" />

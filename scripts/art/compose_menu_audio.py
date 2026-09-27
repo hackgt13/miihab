@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render RehabMii's original 16-bar menu loop and UI sounds (requires numpy)."""
+"""Render MiiHab's original 16-bar menu loop and UI sounds (requires numpy)."""
 from pathlib import Path
 import math
 import wave

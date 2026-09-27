@@ -11,14 +11,15 @@ namespace Kinesthetic.Menu
     /// wrong on the headset.
     public static class MenuProfile
     {
-        const string NameKey = "rehabmii.patient.displayName";
+        const string NameKey = "miihab.patient.displayName";
+        const string OldNameKey = "rehabmii.patient.displayName";   // read once, so a name entered before the rename survives it
         public const string DefaultName = "Alex";
 
         public static string Name
         {
             get
             {
-                var stored = PlayerPrefs.GetString(NameKey, "").Trim();
+                var stored = PlayerPrefs.GetString(NameKey, PlayerPrefs.GetString(OldNameKey, "")).Trim();
                 return stored.Length > 0 ? stored : DefaultName;
             }
             set
@@ -30,7 +31,7 @@ namespace Kinesthetic.Menu
             }
         }
 
-        public static bool HasName => PlayerPrefs.GetString(NameKey, "").Trim().Length > 0;
-        public static void Forget() { PlayerPrefs.DeleteKey(NameKey); PlayerPrefs.Save(); }
+        public static bool HasName => PlayerPrefs.GetString(NameKey, PlayerPrefs.GetString(OldNameKey, "")).Trim().Length > 0;
+        public static void Forget() { PlayerPrefs.DeleteKey(NameKey); PlayerPrefs.DeleteKey(OldNameKey); PlayerPrefs.Save(); }
     }
 }

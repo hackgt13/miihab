@@ -309,7 +309,7 @@ if(bindHost!=='127.0.0.1'){
       const ip=a.address.split('.').map(Number),mask=a.netmask.split('.').map(Number);
       const directed=ip.map((o,i)=>(o|(~mask[i]&255))).join('.');
       const proof=createHmac('sha256',pairToken).update(a.address).digest('hex');
-      beacon.send(JSON.stringify({service:'rehabmii-relay',host:a.address,port,proof}),beaconPort,directed,()=>{});
+      beacon.send(JSON.stringify({service:'miihab-relay',host:a.address,port,proof}),beaconPort,directed,()=>{});
     }
   };
   beacon.bind(()=>{beacon.setBroadcast(true);announce();setInterval(announce,1000).unref();});

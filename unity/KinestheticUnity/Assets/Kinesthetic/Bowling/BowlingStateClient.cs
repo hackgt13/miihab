@@ -53,7 +53,7 @@ namespace Kinesthetic.Bowling
                 string phase = (string)p["phase"];
                 hud.text = $"BOWLING  ·  FRAME {p["frame"]}  ·  BALL {p["roll"]}\n{p["cue"]}\n{BowlingHud.AimText((float)p["aim"])}   ·   {Mathf.RoundToInt((float)p["power"] * 100)}% power";
                 if (phase == "Complete") hud.text = $"Nice bowling!\n{p["total"]} points\nPlay again on your Mac.";
-                scoreboard.text = "REHABMII  /  BOWLING\n";
+                scoreboard.text = "MIIHAB  /  BOWLING\n";
                 for (int i = 0; i < 10; i++) scoreboard.text += $"{i + 1}: {marks[i]} ({scores[i]})    " + (i == 4 ? "\n" : "");
                 scoreboard.text += $"\nTOTAL   {p["total"]}";
                 if (game.aimLine)

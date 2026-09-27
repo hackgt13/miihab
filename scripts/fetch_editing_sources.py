@@ -56,7 +56,7 @@ def main():
     parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parents[1])
     args = parser.parse_args()
     try:
-        with tempfile.TemporaryDirectory(prefix="rehabmii-art-download-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="miihab-art-download-") as temporary:
             subprocess.run(["gh", "release", "download", RELEASE, "--repo", REPOSITORY,
                             "--pattern", ARCHIVE, "--dir", temporary], check=True)
             install(Path(temporary) / ARCHIVE, args.output_dir, args.overwrite)

@@ -1,4 +1,4 @@
-// The live patient, read from the RehabMii coordinator.
+// The live patient, read from the MiiHab coordinator.
 //
 // Everything else in src/data is seed: four invented patients with invented sessions, which is what this
 // portal was built against. This module is the one that is real. It reads the records the coordinator
@@ -28,7 +28,7 @@ export const LIVE_PATIENT_ID = 'live'
 
 // ── The coordinator's own records ─────────────────────────────────────────
 // Only the fields this portal reads. `summary` is coordinator/exercise/kind.ts, `plan` is
-// coordinator/plans.ts (schema rehabmii.plan.v2), `dashboard` is coordinator/dashboard.ts.
+// coordinator/plans.ts (schema kinesthetic.plan.v2), `dashboard` is coordinator/dashboard.ts.
 
 interface CoordinatorRep {
   rep: number

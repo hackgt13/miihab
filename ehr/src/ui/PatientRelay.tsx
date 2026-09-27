@@ -2,7 +2,7 @@ import type { VisitReply } from '../data/types'
 
 // What the patient said, at the top of the page, before any of the measurements.
 //
-// Every visit in RehabMii ends on "is there anything you want me to know?", and the answer is stored by
+// Every visit in MiiHab ends on "is there anything you want me to know?", and the answer is stored by
 // coordinator/visit.ts. It is the only thing on this page the patient said themselves - everything else is
 // a sensor's account of them - and it is the only thing that can mean stop. So it is read first, not found
 // six panels down in the visit whiteboard where the rest of the correspondence lives.

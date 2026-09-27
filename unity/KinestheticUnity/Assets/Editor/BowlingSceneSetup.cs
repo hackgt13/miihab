@@ -203,7 +203,7 @@ public static class BowlingSceneSetup
         QuestRigBuilder.Build(seat, QuestRigBuilder.EyeHeight(model, seat), 100, CameraClearFlags.Skybox, ~(1 << QuestRigBuilder.LocalHeadLayer));
         var hud = Text("Bowling instructions", new Vector3(0, 1.1f, .2f), .012f); hud.text = "Waiting for Bowling on your Mac…";
         TextPanel("Instructions", hud.transform.position, new Vector2(2.3f, .48f));
-        var board = Text("Bowling scoreboard", new Vector3(0, 2.8f, 4), .023f); board.text = "REHABMII  /  BOWLING";
+        var board = Text("Bowling scoreboard", new Vector3(0, 2.8f, 4), .023f); board.text = "MIIHAB  /  BOWLING";
         TextPanel("Scoreboard", board.transform.position, new Vector2(3.7f, 1));
         var client = new GameObject("Bowling state client").AddComponent<BowlingStateClient>(); client.game = game; client.hud = hud; client.scoreboard = board;
     }
