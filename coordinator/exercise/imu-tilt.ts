@@ -43,34 +43,55 @@ export type TiltMeasure =
   | { kind: 'tilt' }
   | { kind: 'axis'; axis: Vec; sign: (p: ResolvedParams) => 1 | -1 };
 
-export type ImuTiltSpec = Pick<ExerciseKind<'trunk_compensation'>, 'id' | 'algorithmVersion' | 'defaults' | 'limits' | 'measurementNote'>
-  & { measure?: TiltMeasure };
+/**
+ * A second AirPod, on the segment next to the measured one. Each AirPod reads yaw-free tilt from its own calibrated
+ * rest, so the pair never needs a shared heading — two pairs of AirPods never agree on one, and both drift.
+ *
+ *   'certify'  The neighbouring segment is meant to stay put (the trunk under a raised arm, the upper arm above a
+ *              curl). Its tilt is the rep's compensation: a rep that moved it past maxCompensationDeg does not count,
+ *              so every counted rep is within that many degrees of the true joint angle. One IMU can only assume it.
+ *   'sum'      The joint sits between two segments that tilt opposite ways from vertical (thigh forward and shin back
+ *              in a squat), so the joint angle is the sum of the two tilts. One IMU cannot measure it at all.
+ */
+export type SecondImu = { role: 'certify'; reason: string; key: string } | { role: 'sum' };
+
+export type ImuTiltSpec = Pick<ExerciseKind, 'id' | 'algorithmVersion' | 'defaults' | 'limits' | 'measurementNote'>
+  & { measure?: TiltMeasure; second?: SecondImu };
+
+const still = (imu: { rotationRate: readonly number[] }) => Math.hypot(...imu.rotationRate) <= STILL_RAD_S;
 
 /** Build an exercise kind from a spec. Everything else — calibration, reps, validity, summary — is the rep engine's. */
-export function imuTilt({ measure = { kind: 'tilt' }, ...spec }: ImuTiltSpec): ExerciseKind<'trunk_compensation'> {
+export function imuTilt({ measure = { kind: 'tilt' }, second, ...spec }: ImuTiltSpec): ExerciseKind {
   return {
     // AirPods stream ~25 Hz; allow a little more than one dropped packet before calling tracking lost.
     ...spec, defaults: { trackingGapMs: 400, ...spec.defaults },
-    requires: ['imu'],
-    compensationReason: 'trunk_compensation',
-    compensationKey: 'trunkDeviation',
+    requires: second ? ['imu', 'ref'] : ['imu'],
+    compensationReason: second?.role === 'certify' ? second.reason : 'trunk_compensation',
+    compensationKey: second?.role === 'certify' ? second.key : 'trunkDeviation',
     landmarks: () => [],   // no pose
 
     observe(input: ObservationInput, p: ResolvedParams, reference: Reference | null): Observation | null {
-      const imu = input.imu!;
+      const imu = input.imu!, ref = second ? input.ref! : null;
       const vertical = verticalInDevice(imu.quaternion);
+      const refVertical = ref ? verticalInDevice(ref.quaternion) : null;
+      const axes = refVertical ? [vertical, refVertical] : [vertical];
       // scaleM is 1 because no segment length is involved, so the plausibility check stays inert.
       if (!reference) {
-        // A moving device is not a resting reference.
-        if (Math.hypot(...imu.rotationRate) > STILL_RAD_S) return null;
-        return { primaryDeg: 0, compensationDeg: null, scaleM: 1, axes: [vertical] };
+        // A moving device is not a resting reference, and with two, both have to be still.
+        if (!still(imu) || (ref && !still(ref))) return null;
+        return { primaryDeg: 0, compensationDeg: null, scaleM: 1, axes };
       }
       const rest = reference.axes[0];
-      const primaryDeg = measure.kind === 'tilt' ? angle(vertical, rest)
+      const limb = measure.kind === 'tilt' ? angle(vertical, rest)
         : measure.sign(p) * signedTiltAbout(rest, vertical, measure.axis);
-      return { primaryDeg, compensationDeg: null, scaleM: 1, axes: [vertical] };
+      const other = refVertical ? angle(refVertical, reference.axes[1]) : null;
+      return {
+        primaryDeg: second?.role === 'sum' ? limb + other! : limb,
+        compensationDeg: second?.role === 'certify' ? other : null,
+        scaleM: 1, axes,
+      };
     },
 
-    calibration: (r: Reference) => ({ restingVertical: r.axes[0] }),
+    calibration: (r: Reference) => ({ restingVertical: r.axes[0], ...(r.axes[1] ? { referenceRestingVertical: r.axes[1] } : {}) }),
   };
 }

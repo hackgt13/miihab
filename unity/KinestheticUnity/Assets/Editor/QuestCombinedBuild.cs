@@ -9,6 +9,9 @@ using UnityEditor.SceneManagement;
 public static class QuestCombinedBuild
 {
     public const string Output = "../../local-data/builds/RehabMiiQuest.apk";
+    /// The one headset app. The golf-only and bowling-only APKs from when each game was the whole product had their
+    /// own identifiers, so a headset could carry them beside this one and boot straight into a game from the library.
+    public const string Identifier = "com.kinesthetic.rehabmii";
 
     [MenuItem("Kinesthetic/Quest/Build combined headset app (golf + bowling + rehab)")]
     public static string Build()
@@ -25,12 +28,9 @@ public static class QuestCombinedBuild
         var scenes = new[] { QuestMenuSetup.ScenePath, QuestSceneSetup.ScenePath, BowlingSceneSetup.QuestScenePath, QuestRehabSetup.ScenePath };
         var output = Path.GetFullPath(Output);
         Directory.CreateDirectory(Path.GetDirectoryName(output));
-        // The Mac build settings (menu first) and app identifier stay as they are; only this build differs.
-        var target = UnityEditor.Build.NamedBuildTarget.Android;
-        string identifier = PlayerSettings.GetApplicationIdentifier(target);
+        // The Mac build settings (menu first) stay as they are; only this build's scene list differs.
         try
         {
-            PlayerSettings.SetApplicationIdentifier(target, "com.kinesthetic.rehabmii");
             PlayerSettings.Android.forceInternetPermission = true;
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = scenes, locationPathName = output, target = BuildTarget.Android });
             if (report.summary.result != BuildResult.Succeeded)
@@ -39,7 +39,6 @@ public static class QuestCombinedBuild
         }
         finally
         {
-            PlayerSettings.SetApplicationIdentifier(target, identifier);
             EditorBuildSettings.scenes = macScenes;
             AssetDatabase.SaveAssets();
             // Leave the editor where the app starts, so Play after a build begins in the menu, not in golf.

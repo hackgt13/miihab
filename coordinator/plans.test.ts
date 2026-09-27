@@ -180,10 +180,12 @@ test('a v1 plan file on disk still loads, unrewritten, and reads as v2', () => {
   assert.equal(stored.exercise, undefined, 'the compatibility view is computed, never persisted');
 });
 
-test('a movement tile runs the plan\'s prescription for its kind, or a practice set at the library defaults', () => {
+test('a movement tile runs the plan\'s prescription for its movement, or a practice set at the library defaults', () => {
   const plan = new PlanStore(mkdtempSync(join(tmpdir(), 'plans-'))).active();
-  const planned = prescriptionForActivity(plan, requireActivity('movement.elbow-flexion'));
+  // The plan prescribes a one-AirPod curl; the gallery's curl is the two-AirPod one, and measures the same prescription.
+  const planned = prescriptionForActivity(plan, requireActivity('movement.biceps-curl'));
   assert.equal(planned.practice, false); assert.equal(planned.prescription?.id, 'elbow-flexion-right');
+  assert.equal(planned.measureWith, 'biceps-curl.v1');
   const practice = prescriptionForActivity(plan, requireActivity('movement.neck-flexion'));
   assert.equal(practice.practice, true);
   assert.deepEqual(practice.prescription, { id: 'practice-neck-flexion-right', activityId: 'movement.neck-flexion', exerciseKind: 'neck-flexion.v1',

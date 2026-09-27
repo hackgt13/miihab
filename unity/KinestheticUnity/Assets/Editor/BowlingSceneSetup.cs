@@ -22,26 +22,8 @@ public static class BowlingSceneSetup
     [MenuItem("Kinesthetic/Bowling/Create Quest scene")]
     public static string CreateQuest() => Build(true);
 
-    [MenuItem("Kinesthetic/Bowling/Build Quest APK")]
-    public static string BuildQuestPlayer()
-    {
-        CreateQuest();
-        string identifier = PlayerSettings.GetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android);
-        try
-        {
-            QuestSceneSetup.ConfigureAndroidXR();
-            PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, "com.kinesthetic.questbowling");
-            PlayerSettings.Android.forceInternetPermission = true;
-            Directory.CreateDirectory("Builds");
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions {
-                scenes = new[] { QuestScenePath }, locationPathName = "Builds/QuestBowling.apk", target = BuildTarget.Android,
-                options = BuildOptions.Development });
-            if (report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
-                throw new InvalidOperationException("Quest Bowling build " + report.summary.result + ": " + report.summary.totalErrors + " errors.");
-            return Path.GetFullPath("Builds/QuestBowling.apk");
-        }
-        finally { PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, identifier); }
-    }
+    // The headset is built once, with every activity, by QuestCombinedBuild; a bowling-only APK would boot into
+    // the lane instead of the plaza.
 
     static string Build(bool quest)
     {
@@ -212,18 +194,13 @@ public static class BowlingSceneSetup
     static void Headset(BowlingGame game)
     {
         // First person: the headset sees from the bowler's own eyes — the floor under the Mii, facing down the
-        // lane, at the height of its face — with its head hidden from itself, as in golf and rehab.
+        // lane, at the height of its eyes — with its head hidden from itself, as in golf and rehab.
         var model = game.avatar.model;
-        // A Mii's head is large: it runs from the head bone (the base of the skull) to the top of the model, and the
-        // eyes sit about halfway up it.
-        float skull = model.GetComponentsInChildren<Transform>().First(t => t.name == "head").position.y;
-        float top = model.GetComponentsInChildren<Renderer>(true).Max(r => r.bounds.max.y);
-        float eyeHeight = skull + (top - skull) * .5f;
         var feet = game.avatar.transform.position;
         var seat = new GameObject("Bowler seat").transform;
         seat.SetPositionAndRotation(new Vector3(feet.x, 0, feet.z), Quaternion.LookRotation(Vector3.forward));
         QuestRigBuilder.HideOwnHead(model);
-        QuestRigBuilder.Build(seat, eyeHeight, 100, CameraClearFlags.Skybox, ~(1 << QuestRigBuilder.LocalHeadLayer));
+        QuestRigBuilder.Build(seat, QuestRigBuilder.EyeHeight(model, seat), 100, CameraClearFlags.Skybox, ~(1 << QuestRigBuilder.LocalHeadLayer));
         var hud = Text("Bowling instructions", new Vector3(0, 1.1f, .2f), .012f); hud.text = "Waiting for Bowling on your Mac…";
         TextPanel("Instructions", hud.transform.position, new Vector2(2.3f, .48f));
         var board = Text("Bowling scoreboard", new Vector3(0, 2.8f, 4), .023f); board.text = "REHABMII  /  BOWLING";

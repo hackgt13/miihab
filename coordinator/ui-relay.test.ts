@@ -31,7 +31,7 @@ const press=(seq:number,extra={})=>JSON.stringify({type:'ui.press',seq,board:'go
 const snapshot=(bytes:number,rev=1)=>({type:'ui.snapshot',proto:1,vocab:'v',rev,boards:[{id:'golf.hud',tree:{t:'VisualElement',n:'x'.repeat(bytes)}}]});
 
 test('ui: one host, unique client ids, resync both ways, broadcast trees, acks to one client, presses stamped and checked',{timeout:40000},async()=>{
-  const r=relay('18790');
+  const r=relay('18820');
   try {
     await ready(r.proc);
     const c1=await r.open('client');await r.heard(c1,1);
@@ -41,7 +41,7 @@ test('ui: one host, unique client ids, resync both ways, broadcast trees, acks t
     const c2=await r.open('client');await r.heard(c2,1);await r.heard(host,2);
     assert.deepEqual(c2.messages[0],{type:'ui.welcome',client:'c2'});
     assert.deepEqual(host.messages[1],{type:'ui.resync',client:'c2'},'a client joining a live host is resynced');
-    const duplicate=new WebSocket('ws://127.0.0.1:18790/ui?role=host');r.clients.push(duplicate);
+    const duplicate=new WebSocket('ws://127.0.0.1:18820/ui?role=host');r.clients.push(duplicate);
     assert.equal((await once(duplicate,'close'))[0],1008,'one host');
     assert.deepEqual(await r.status().then(s=>[s.uiHost,s.uiClients]),[true,2]);
     // Trees reach every client, and may be far larger than a game-state message.
@@ -88,7 +88,7 @@ test('ui: one host, unique client ids, resync both ways, broadcast trees, acks t
 });
 
 test('ui: a cue from the host reaches every client as sent; a cue with no kind cuts the host off',{timeout:40000},async()=>{
-  const r=relay('18795');
+  const r=relay('18825');
   try {
     await ready(r.proc);
     const c1=await r.open('client'),c2=await r.open('client');await r.heard(c1,1);await r.heard(c2,1);
@@ -108,7 +108,7 @@ test('ui: a cue from the host reaches every client as sent; a cue with no kind c
 });
 
 test('ui: a client that floods is throttled, then disconnected; a burst refills; rare drops are forgiven',{timeout:40000},async()=>{
-  const r=relay('18791');
+  const r=relay('18821');
   try {
     await ready(r.proc);
     const host=await r.open('host'),flood=await r.open('client'),calm=await r.open('client');await r.heard(host,2);
@@ -137,7 +137,7 @@ test('ui: a client that floods is throttled, then disconnected; a burst refills;
 });
 
 test('ui: a host still closing gives way to the next one, and a client that cannot keep up is told to come back',{timeout:40000},async()=>{
-  const r=relay('18794');
+  const r=relay('18824');
   try {
     await ready(r.proc);
     const host=await r.open('host'),c1=await r.open('client');await r.heard(host,1);
@@ -162,11 +162,11 @@ test('ui: a host still closing gives way to the next one, and a client that cann
 });
 
 test('ui: a duplicate host that misbehaves while being turned away cannot crash the relay',{timeout:40000},async()=>{
-  const r=relay('18795');let raw:import('node:net').Socket|undefined;
+  const r=relay('18825');let raw:import('node:net').Socket|undefined;
   try {
     await ready(r.proc);
     const host=await r.open('host');
-    raw=connect(18795,'127.0.0.1');await once(raw,'connect');
+    raw=connect(18825,'127.0.0.1');await once(raw,'connect');
     raw.write('GET /ui?role=host HTTP/1.1\r\nHost: 127.0.0.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'+
       'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n');
     let got=Buffer.alloc(0);
@@ -179,8 +179,8 @@ test('ui: a duplicate host that misbehaves while being turned away cannot crash 
 });
 
 test('ui: no browser may join, in either role',{timeout:40000},async()=>{
-  const r=relay('18792');
-  const open=(query:string,origin:string)=>{const ws=new WebSocket(`ws://127.0.0.1:18792/ui?${query}`,{origin});r.clients.push(ws);
+  const r=relay('18822');
+  const open=(query:string,origin:string)=>{const ws=new WebSocket(`ws://127.0.0.1:18822/ui?${query}`,{origin});r.clients.push(ws);
     return new Promise<boolean>(r=>{ws.once('open',()=>r(true));ws.once('error',()=>r(false));});};
   try {
     await ready(r.proc);
@@ -195,8 +195,8 @@ test('ui: no browser may join, in either role',{timeout:40000},async()=>{
 test('ui: over the network a headset needs the pairing token, and may never be the host',{timeout:10000},async()=>{
   const lan=Object.values(networkInterfaces()).flat().find(a=>a && a.family==='IPv4' && !a.internal)?.address;
   if(!lan) return;   // no network interface on this machine: nothing to test
-  const r=relay('18793',{KINESTHETIC_GOLF_HOST:'0.0.0.0',KINESTHETIC_PAIR_TOKEN:'pair-secret'});
-  const open=(query:string)=>{const ws=new WebSocket(`ws://${lan}:18793/ui?${query}`);r.clients.push(ws);
+  const r=relay('18823',{KINESTHETIC_GOLF_HOST:'0.0.0.0',KINESTHETIC_PAIR_TOKEN:'pair-secret'});
+  const open=(query:string)=>{const ws=new WebSocket(`ws://${lan}:18823/ui?${query}`);r.clients.push(ws);
     return new Promise<boolean>(r=>{ws.once('open',()=>r(true));ws.once('error',()=>r(false));});};
   try {
     await ready(r.proc);

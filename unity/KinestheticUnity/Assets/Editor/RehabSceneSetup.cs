@@ -32,7 +32,7 @@ public static class RehabSceneSetup
     {
         new("Dock board",    "rehab.dock",    Root + "/RehabDock.uxml",    Stations.Dock,           new Vector2(.80f, .34f)),
         new("Focus board",   "rehab.focus",   Root + "/RehabFocus.uxml",   Stations.Focus,          new Vector2(1.2f, .8f)),
-        new("Measure board", "rehab.measure", Root + "/RehabMeasure.uxml", Stations.Measure,        new Vector2(.48f, .60f)),
+        new("Crown board",   "rehab.crown",   Root + "/RehabCrown.uxml",   Stations.Crown,          new Vector2(.30f, .13f)),
         new("Brief board",   "rehab.brief",   Root + "/RehabBrief.uxml",   Stations.Reading,        new Vector2(.216f, .279f)),
     };
 
@@ -130,7 +130,13 @@ public static class RehabSceneSetup
         seatGo.transform.SetPositionAndRotation(slot.position, Quaternion.LookRotation(forward, Vector3.up));
         var seat = seatGo.GetComponent<SeatRig>(); seat.eyeHeight = eyes.eyeHeight;
         var boards = seatGo.GetComponent<BoardSet>();
-        foreach (var board in Boards) boards.Adopt(BoardBuilder.Build(seat, board.label, board.id, board.uxml, board.station, board.size));
+        foreach (var board in Boards)
+        {
+            var built = BoardBuilder.Build(seat, board.label, board.id, board.uxml, board.station, board.size);
+            // The crown rides with the view rather than standing at its station (ViewFollow keeps the station's density).
+            if (board.id == "rehab.crown") built.gameObject.AddComponent<ViewFollow>().station = board.station;
+            boards.Adopt(built);
+        }
 
         var ui = new GameObject("Rehab session");
         var session = ui.AddComponent<RehabSession>();

@@ -57,7 +57,13 @@ export interface Group {
   messages: GroupMessage[];
 }
 
-interface State { schema: 'kinesthetic.groups.v1'; groups: Group[] }
+interface State {
+  schema: 'kinesthetic.groups.v1';
+  groups: Group[];
+  /// Sample people on or off. Off is "real groups only": nothing is seeded, no sample room is listed or kept,
+  /// and no sample person stays in a real one. Absent (older files) is on.
+  samples?: boolean;
+}
 
 type Who = Pick<Member, 'id' | 'displayName' | 'mii' | 'sample'>;
 
@@ -113,6 +119,7 @@ export class GroupStore {
   /// one open room of sample strangers, and one room around the sample friend who
   /// was around most recently. Idempotent — a room already seeded stays as it is.
   seed(activityId: string, sampleFriends: Who[] = []): void {
+    if (!this.samples) return;
     let changed = false;
     const live = this.live().filter(g => g.activityId === activityId && g.sample);
     const minutesAgo = (n: number) => new Date(this.now().getTime() - n * 60000).toISOString();
@@ -145,6 +152,24 @@ export class GroupStore {
       changed = true;
     }
     if (changed) this.save();
+  }
+
+  get samples(): boolean { return this.state.samples !== false; }
+
+  /// Switch between sample groups and real ones only. Turning samples off clears them out now, not just from the
+  /// next lobby: every sample room ends, and every sample person leaves a real room, saying so in its chat.
+  setSamples(on: boolean): void {
+    this.state.samples = on;
+    if (!on) {
+      for (const group of this.live()) {
+        if (group.sample) { group.endedAt = this.stamp(); continue; }
+        for (const member of group.members.filter(m => m.sample)) {
+          group.members = group.members.filter(m => m !== member);
+          this.line(group, member, 'left');
+        }
+      }
+    }
+    this.save();
   }
 
   /// A fresh room with this person as its host.
@@ -233,7 +258,7 @@ export class GroupStore {
   /// What the lobby needs: rooms with a friend in them, and open rooms without one.
   lobby(activityId: string, friendIds: Set<string>) {
     const now = this.now();
-    const rooms = this.live().filter(g => g.activityId === activityId);
+    const rooms = this.live().filter(g => g.activityId === activityId && (this.samples || !g.sample));
     const withFriends = rooms.filter(g => g.members.some(m => friendIds.has(m.id)));
     const open = rooms.filter(g => g.open && !withFriends.includes(g) && g.members.length < CAPACITY);
     return {
@@ -254,6 +279,21 @@ export class GroupStore {
       // Empty strings rather than nulls: Unity's JsonUtility reads both as "".
       messages: group.messages.map(m => ({ ...m, event: m.event ?? '', kind: m.kind ?? '' })),
     };
+  }
+
+  /// Put a sample stranger into this person's room: a fake partner for a demo or a test, labelled like every
+  /// sample, who says nothing and moves only as a simulator or a second Mac makes them.
+  inject(personId: string): Member {
+    if (!this.samples) throw Object.assign(new Error('Sample people are switched off'), { status: 409 });
+    const group = this.current(personId);
+    if (!group) throw Object.assign(new Error('You are not in a group'), { status: 409 });
+    if (group.members.length >= CAPACITY) throw Object.assign(new Error('That group is full'), { status: 409 });
+    const here = new Set(group.members.map(m => m.id));
+    const pick = STRANGERS.find(s => !here.has(s.id) && !this.current(s.id));
+    if (!pick) throw Object.assign(new Error('No sample people left to add'), { status: 409 });
+    this.enter(group, { ...pick, sample: true });
+    this.save();
+    return group.members[group.members.length - 1];
   }
 
   /// A member of this person's current room, for following them from the list.

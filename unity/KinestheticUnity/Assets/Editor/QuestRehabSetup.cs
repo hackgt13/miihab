@@ -51,7 +51,7 @@ public static class QuestRehabSetup
             document.visualTreeAsset = board.id == "rehab.dock" ? waiting : null;
         }
 
-        var headset = QuestRigBuilder.Build(seat.transform, seat.eyeHeight, farClip: 300, CameraClearFlags.SolidColor, ~(1 << QuestRigBuilder.LocalHeadLayer));
+        var headset = QuestRigBuilder.Build(seat.transform, QuestRigBuilder.EyeHeight(rig.avatar, seat.transform), farClip: 300, CameraClearFlags.SolidColor, ~(1 << QuestRigBuilder.LocalHeadLayer));
         headset.backgroundColor = Palette.Cerulean10;   // the studio's own sky, as on the Mac
 
         // The coach's seat, from this scene's own patient — the same pose the Mac seats its coach at.

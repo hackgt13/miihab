@@ -104,3 +104,38 @@ test('following someone from the room puts only their room name and Mii in the g
   assert.ok(view.members.find(m => m.id === stranger.id)!.friend);
   assert.ok(view.members.find(m => m.id === 'me')!.isMe);
 });
+
+test('a fake partner can be put into your room, labelled, and never twice the same person', () => {
+  const store = new GroupStore(dir());
+  assert.throws(() => store.inject('me'), /not in a group/);
+  store.create(me, 'rehab.studio', true);
+  const a = store.inject('me'), b = store.inject('me');
+  assert.ok(a.sample && b.sample);
+  assert.notEqual(a.id, b.id);
+  assert.equal(store.current('me')!.members.length, 3);
+  assert.deepEqual(store.current('me')!.messages.map(m => m.event), ['joined', 'joined', 'joined']);
+});
+
+test('real groups only: samples switched off leave no sample room, no sample person, and seed nothing', () => {
+  const store = new GroupStore(dir());
+  store.seed('golf.adaptive', [maya]);
+  const mine = store.create(me, 'golf.adaptive', true);
+  store.inject('me');
+  assert.equal(store.current('me')!.members.length, 2);
+
+  store.setSamples(false);
+  assert.equal(store.samples, false);
+  assert.ok(store.live().every(g => !g.sample), 'every sample room ended');
+  assert.deepEqual(store.current('me')!.members.map(m => m.id), ['me'], 'the sample person left my room');
+  assert.equal(store.current('me')!.messages.at(-1)!.event, 'left');
+  store.seed('bowling.adaptive', [maya]);
+  assert.equal(store.live().filter(g => g.activityId === 'bowling.adaptive').length, 0, 'nothing seeded');
+  assert.deepEqual(store.lobby('golf.adaptive', new Set()).open.map(g => g.id), [mine.id]);
+  assert.throws(() => store.inject('me'), /switched off/);
+
+  store.setSamples(true);
+  store.seed('bowling.adaptive', [maya]);
+  assert.ok(store.live().some(g => g.activityId === 'bowling.adaptive' && g.sample));
+  // It is remembered.
+  assert.equal(new GroupStore(store['file'].replace(/\/groups\.json$/, '')).samples, true);
+});

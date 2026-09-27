@@ -91,6 +91,10 @@ namespace Kinesthetic.UI.Boards
         /// A briefing is handed to you, so it arrives here and leaves again. Nothing lives at this
         /// distance: it is inside your reach and across the room you are looking at.
         public static readonly Station Reading = new("Reading", 0, -40, .48f, tiltDegrees: -18);
+        /// Above the eyeline, close, for a board that rides with the view (ViewFollow): a heads-up count that is
+        /// there when looked up at and out of the way of what is in front. Pitch and distance are measured from
+        /// the view rather than the seat, so this is the one station that does not stand anywhere.
+        public static readonly Station Crown = new("Crown", 0, 16, 1.0f);
 
         public static readonly Station[] All = { Dock, Focus, Score, Measure, Reading };
     }

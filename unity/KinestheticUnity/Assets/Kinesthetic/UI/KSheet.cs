@@ -22,6 +22,12 @@ namespace Kinesthetic.UI
         /// coach stands ahead-right, so the briefing he hands you arrives from the Right.
         public enum Entrance { Right, Left, Below }
 
+        /// Which side it leaves by. `Back` retraces the entrance, which is right for something that was
+        /// only being shown — a summary rises and sinks again. A page you have finished with is not put
+        /// back where it came from: it is swept aside, and that is a different side from the one that
+        /// handed it to you.
+        public enum Exit { Back, Left, Right, Below }
+
         /// What Sheet.uss spends leaving. The sheet is taken out of layout once it has gone, and this is
         /// how long to wait before doing it.
         const long ExitMilliseconds = 260;
@@ -30,10 +36,23 @@ namespace Kinesthetic.UI
         const string Offstage = Block + "--offstage", Gone = Block + "--gone";
 
         Entrance entranceValue;
+        Exit exitValue;
         IVisualElementScheduledItem pending;
 
         [UxmlAttribute]
-        public Entrance entrance { get => entranceValue; set { entranceValue = value; KStyles.Variant(this, Block, value); } }
+        public Entrance entrance { get => entranceValue; set { entranceValue = value; if (Presented) return; KStyles.Variant(this, Block, value); } }
+
+        [UxmlAttribute]
+        public Exit exit { get => exitValue; set => exitValue = value; }
+
+        /// The side the sheet is offstage on while it is leaving.
+        Entrance Leaving => exitValue switch
+        {
+            Exit.Left => Entrance.Left,
+            Exit.Right => Entrance.Right,
+            Exit.Below => Entrance.Below,
+            _ => entranceValue,
+        };
 
         /// Whether the sheet is standing, or on its way to standing. A caller asking "is the summary up"
         /// means this, not whether the entrance has finished playing.
@@ -54,6 +73,7 @@ namespace Kinesthetic.UI
             Presented = true;
             Cancel();
             RemoveFromClassList(Gone);
+            KStyles.Variant(this, Block, entranceValue);   // back to the side it is handed from
             AddToClassList(Offstage);
             // The offstage style has to be laid out once before the landed style is somewhere to travel
             // from. A sheet built and shown inside a single frame has no resolved geometry yet, so dropping
@@ -81,6 +101,9 @@ namespace Kinesthetic.UI
             if (!Presented) { Hide(); return; }
             Presented = false;
             Cancel();
+            // Swapped while the sheet still stands, where the side classes draw nothing: only the move to
+            // offstage reads them, so this decides where it goes without moving it first.
+            KStyles.Variant(this, Block, Leaving);
             AddToClassList(Offstage);
             pending = schedule.Execute(() => AddToClassList(Gone)); pending.ExecuteLater(ExitMilliseconds);
         }

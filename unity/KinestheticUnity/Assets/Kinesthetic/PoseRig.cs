@@ -330,7 +330,9 @@ namespace Kinesthetic
             var direction = BodyToWorld(model.At(deg), left);
             switch (model.Segment)
             {
-                case "arm": Aim(Bone("bicep" + s), Bone("forearm" + s), direction); Aim(Bone("forearm" + s), Bone("hand" + s), direction); break;
+                case "arm":
+                    var clear = ClearOfTorso(direction, left, deg);
+                    Aim(Bone("bicep" + s), Bone("forearm" + s), clear); Aim(Bone("forearm" + s), Bone("hand" + s), clear); break;
                 case "forearm" when model.Roll:
                     var along = BodyToWorld(model.Rest, left);
                     Aim(Bone("forearm" + s), Bone("hand" + s), along);
@@ -339,6 +341,15 @@ namespace Kinesthetic
                 case "thigh": Aim(Bone("thigh" + s), Bone("calf" + s), direction); break;
                 case "shank": Aim(Bone("calf" + s), Bone("foot" + s), direction); break;
                 case "leg": Aim(Bone("thigh" + s), Bone("calf" + s), direction); Aim(Bone("calf" + s), Bone("foot" + s), direction); break;
+                // A squat: both legs, the thigh forward by half the knee angle and the shin back by the other half.
+                case "knees":
+                    foreach (var side in new[] { ".L", ".R" })
+                    {
+                        bool l = side == ".L";
+                        Aim(Bone("thigh" + side), Bone("calf" + side), BodyToWorld(model.At(deg / 2), l));
+                        Aim(Bone("calf" + side), Bone("foot" + side), BodyToWorld(model.At(-deg / 2), l));
+                    }
+                    break;
                 // Aimed like a limb rather than turned from the authored pose, whose neck and spine lean about 12
                 // degrees: the drawn angle has to be the measured one, measured from upright.
                 case "head": Aim(Bone("neck"), Bone("head"), direction); break;
@@ -366,12 +377,14 @@ namespace Kinesthetic
                 "thigh" => (Bone("thigh" + s).position, Span("thigh" + s, "calf" + s)),
                 "shank" => (Bone("calf" + s).position, Span("calf" + s, "foot" + s)),
                 "leg" => (Bone("thigh" + s).position, Span("thigh" + s, "calf" + s, "foot" + s)),
+                "knees" => (Bone("thigh" + s).position, Span("thigh" + s, "calf" + s)),
                 // The head bone sits at the base of the skull; the crown is about as far again.
                 "head" => (Bone("neck").position, Span("neck", "head") * 2.2f),
                 "trunk" => (Bone("spine.001").position, Span("spine.001", "neck")),
                 _ => (Vector3.zero, 0f),
             };
-            direction = BodyToWorld(model.At(deg), left);
+            // A squat's ghost is the thigh, which carries half the knee angle.
+            direction = BodyToWorld(model.At(model.Segment == "knees" ? deg / 2 : deg), left);
             return length > 0;
         }
 
@@ -385,7 +398,7 @@ namespace Kinesthetic
                 var d = key == "legs" ? BodyToWorld(v, side) : direction;
                 switch (key)
                 {
-                    case "upperArm": Aim(Bone("bicep" + s), Bone("forearm" + s), d); break;
+                    case "upperArm": Aim(Bone("bicep" + s), Bone("forearm" + s), ClearOfTorso(d, side, 0)); break;
                     case "forearm": Aim(Bone("forearm" + s), Bone("hand" + s), d); break;
                     case "thigh": Aim(Bone("thigh" + s), Bone("calf" + s), d); break;
                     case "shank": Aim(Bone("calf" + s), Bone("foot" + s), d); break;
@@ -395,6 +408,32 @@ namespace Kinesthetic
         }
         /// The patient's frame in the world: x out to the working side, y up, z forward. The authored Mii faces
         /// local -Z; its anatomical left is local +X.
+        /// The headset's head pose (HeadPoseFeed): an offset from the seated eye point and an orientation, both in the
+        /// seat's frame (x right, y up, z forward). The torso leans from the hips toward where the head is and the head
+        /// turns as the wearer's does. Call after Apply(null) and before ApplyMovement, so the measured arm hangs from
+        /// the leaning shoulder; the arm's own angle stays referenced to gravity, as it is measured.
+        public void ApplyHeadPose(Vector3 offset, Quaternion rotation)
+        {
+            Initialize();
+            if (!mii) return;
+            var seatFrame = Quaternion.LookRotation(transform.TransformDirection(new Vector3(0, 0, -1)), transform.TransformDirection(Vector3.up));
+            var spine = Bone("spine.001"); var neck = Bone("neck"); var head = Bone("head");
+            if (!spine || !neck || !head) return;
+            var headRest = head.rotation;
+            var shift = seatFrame * Vector3.ClampMagnitude(offset, .35f);   // a lean, never a walk
+            Aim(spine, neck, neck.position - spine.position + shift);
+            head.rotation = seatFrame * rotation * Quaternion.Inverse(seatFrame) * headRest;
+        }
+
+        /// A Mii's shoulder joint sits inside its round body, so an arm hanging straight down from it is drawn through
+        /// the torso. Near rest the arm swings out just enough to clear the body; the swing fades to nothing by 40
+        /// degrees of elevation, so from there up — and at every target — the drawn angle is exactly the measured one.
+        Vector3 ClearOfTorso(Vector3 direction, bool left, float deg)
+        {
+            float fade = Mathf.Clamp01(1 - deg / 40f);
+            if (fade <= 0) return direction;
+            return (direction + BodyToWorld(new Vector3(1, 0, 0), left) * (.32f * fade)).normalized;
+        }
         Vector3 BodyToWorld(Vector3 v, bool left) =>
             (transform.TransformDirection(new Vector3(left ? 1 : -1, 0, 0)) * v.x + transform.TransformDirection(Vector3.up) * v.y
              + transform.TransformDirection(new Vector3(0, 0, -1)) * v.z).normalized;

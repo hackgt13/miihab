@@ -14,6 +14,8 @@
 .k-surface.k-surface--paper { background-color: var(--sand-00-a96); border-radius: 24px; border-width: 1px; border-color: var(--sand-00); border-bottom-width: 3px; border-bottom-color: var(--slate-30); }
 .k-surface.k-surface--glass { background-color: var(--prussian-70-a88); border-radius: 24px; border-width: 1px; border-color: var(--sand-00-a24); }
 .k-surface.k-surface--scrim { background-color: var(--prussian-70-a45); border-width: 0; border-radius: 0; }
+/* A well sunk into paper: where paper-coloured things (a conversation's balloons) need a ground to sit on. */
+.k-surface.k-surface--well { background-color: var(--sand-30-a70); border-radius: 18px; border-width: 0; }
 .k-surface.k-surface--compact { padding: 16px 20px; }
 .k-surface.k-surface--comfortable { padding: 24px 28px; }
 .k-surface.k-surface--flush { padding: 0; }

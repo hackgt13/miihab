@@ -16,7 +16,7 @@ import { GroupStore } from './groups.ts';
 import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, type RepParams, type RepSession } from './exercise/registry.ts';
-import { PairSync } from './exercise/imu-pair.ts';
+import { ImuAssigner, type Channel, type Mode } from './exercise/imu-assign.ts';
 import type { Frame, ImuSample, RepEvent } from './exercise/kind.ts';
 import { activitySummaryFromExercise, parseActivitySummary } from './activity.ts';
 import { NORMS, compareToNorm, type Sex, type Side } from './norms.ts';
@@ -25,6 +25,7 @@ import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from '.
 import { LIBRARY } from './exercises.ts';
 import { buildDashboard, golfUnlock } from './dashboard.ts';
 import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
+import { HeadLean } from './head-lean.ts';
 import { applyProgramUpdate, buildVisit, therapistFromEnv, VisitStore } from './visit.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -116,87 +117,91 @@ function exerciseBroadcast(message: any) {
   for (const ws of exerciseViewers) if (ws.readyState === WebSocket.OPEN && ws.bufferedAmount < 128*1024) ws.send(text);
 }
 // Engine output goes to /exercise viewers and the session log the same way for both sensors.
+// The headset's head pose during an AirPod set (head-lean.ts): head travel per rep, a camera-free sign of leaning to
+// compensate. Read from the relay's /head channel while a set runs; with no headset the summary says so.
+const headUrl = process.env.KINESTHETIC_HEAD_URL ?? 'ws://127.0.0.1:8767/head?role=viewer';
+let head: WebSocket | null = null, headLean: HeadLean | null = null;
+function watchHead() {
+  if (head) return;
+  const ws = new WebSocket(headUrl); head = ws;
+  ws.on('message', data => {
+    if (!headLean) return;
+    let p: any; try { p = JSON.parse(String(data)); } catch { return; }
+    if (p.type === 'head.pose') headLean.push(Number(p.hostMonotonicMs), p.p);
+  });
+  ws.on('close', () => { if (head !== ws) return; head = null; if (headLean) setTimeout(watchHead, 1000); });
+  ws.on('error', () => {});
+}
+
 function feed(events: RepEvent[], sourceSessionId: string | null) {
   if (!exercise) return;
+  for (const event of events) if (event.type === 'rep.completed') headLean?.rep(event.rep, event.startMs, event.tMs);
   const sample = exercise.samples.at(-1);
   // `quality` is the rep qualities' live readout (hold timer, tempo pace, hitches) while a rep runs; null between reps.
   if (sample) exerciseBroadcast({type:'exercise.sample', payload:{...sample, phase:exercise.phase, rep:exercise.currentRep, quality:exercise.live}});
-  for (const event of events) { exerciseBroadcast({type:'exercise.event', payload:event}); exerciseLog?.write(JSON.stringify({type:'exercise.event', exerciseId, sourceSessionId, payload:event})+'\n'); }
+  for (const event of events) {
+    exerciseBroadcast({type:'exercise.event', payload:event}); exerciseLog?.write(JSON.stringify({type:'exercise.event', exerciseId, sourceSessionId, payload:event})+'\n');
+    // Calibrated against these streams: from here a quiet AirPod is tracking loss, never a different AirPod.
+    if (event.type === 'calibration.complete' && assigner?.lock()) sensorsChanged();
+  }
 }
-// IMU exercises read an AirPod from the motion relay while they run: the club AirPod (Club Motion app, /golf) for a
-// handle mount such as the dumbbell, or the strap AirPod (Bowling Motion app, /bowling-motion) for a body mount such
-// as the wrist — the prescription's imuSource, which the plan fills from the mount. The wrist
-// pair is usually a second pair on another Mac, sending to this relay with the pairing token.
-const MOTION_SOURCES = {
+// The motion relay's two channels are transport, not meaning (AGENTS.md, "Sensors"): the Club Motion app sends on
+// /golf and the Bowling Motion app on /bowling-motion, but which pair is the measured limb — and, with two, which is
+// the neighbouring segment — is decided per set by exercise/imu-assign.ts from what is live and what moves. The
+// coordinator reads both channels for as long as an exercise runs, filtered to the patient: the relay has already
+// put a second person's pair on `friend`, so it never arrives here.
+const MOTION_CHANNELS: Record<Channel, {url: string; type: string}> = {
   club: {url: process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767/golf?role=viewer', type: 'club.motion'},
   wrist: {url: process.env.KINESTHETIC_WRIST_MOTION_URL ?? 'ws://127.0.0.1:8767/bowling-motion?role=viewer', type: 'bowling.motion'},
-} as const;
-type MotionSource = keyof typeof MOTION_SOURCES;
+};
 const motionPlayer = process.env.KINESTHETIC_MOTION_PLAYER ?? 'patient';
-// A paired kind (exercise/imu-pair.ts) reads both relays at once: the moving segment's sensor and the
-// one on the segment it moves against. PairSync holds the newest of each and only hands the engine a
-// reading when both are about the same instant — two streams from two Macs do not arrive together.
-const pairSync = new PairSync();
-/** Newest sample time per relay, so two streams keep their own order and their own silence. */
-const lastImuAt = new Map<MotionSource, number>();
-const pairedKind = () => exercise != null && exercise.kind.id.includes('.pair.');
-// One socket per relay. A one-sensor kind holds one; a paired kind holds both at once, which is why
-// this is a map rather than the single socket it used to be — opening the second used to close the first.
-const motions = new Map<MotionSource, WebSocket>();
-let motionSource: MotionSource = 'club';
-function watchMotion(...want: MotionSource[]) {
-  const sources = want.length ? want : [motionSource];
-  motionSource = sources[0];
-  for (const [source, ws] of [...motions]) {
-    if (sources.includes(source)) continue;
-    motions.delete(source); pairSync.drop(source === 'wrist' ? 'base' : 'moving'); ws.close();
-  }
-  for (const source of sources) if (!motions.has(source)) openMotion(source);
+const motion: Record<Channel, WebSocket | null> = {club: null, wrist: null};
+let assigner: ImuAssigner | null = null;
+let assignerTicker: NodeJS.Timeout | null = null;
+let lastRef: {sample: ImuSample; hostMs: number} | null = null;
+// The last sample's host-clock stamp and when it arrived, so liveness lapses on the stream's own clock.
+let lastMotionAt: {host: number; wall: number} | null = null;
+const motionNow = () => lastMotionAt ? lastMotionAt.host + (Date.now() - lastMotionAt.wall) : hostMonotonicMs();
+const sensorState = () => assigner?.state ?? null;
+function sensorsChanged() { exerciseBroadcast({type:'exercise.sensors', payload: sensorState()}); }
+/** How many people this set is for: the activity's own count, or two whenever the patient is in a group session. */
+const peopleInSession = (activityId: string) => Math.max(requireActivity(activityId).subjects, groups.current(friends.me().id) ? 2 : 1);
+class SensorRuleError extends Error {}
+/** The set is over: no more assignment. The relay sockets stay up for the next set. */
+function releaseSensors() {
+  if (assignerTicker) { clearInterval(assignerTicker); assignerTicker = null; }
+  assigner = null; lastRef = null; lastMotionAt = null;
 }
-function openMotion(source: MotionSource) {
-  const ws = new WebSocket(MOTION_SOURCES[source].url); motions.set(source, ws);
+function watchMotion(channel: Channel) {
+  if (motion[channel]) return;
+  const ws = new WebSocket(MOTION_CHANNELS[channel].url); motion[channel] = ws;
   ws.on('message', data => {
-    if (!exercise?.kind.requires.includes('imu') || motions.get(source) !== ws) return;
+    if (!exercise || !assigner || motion[channel] !== ws) return;
     let p: any; try { p = JSON.parse(String(data)); } catch { return; }
-    if (p.type !== MOTION_SOURCES[source].type || p.playerId !== motionPlayer) return;
-    exerciseSource ??= `airpod:${source}:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only
-    exerciseLog?.write(JSON.stringify({type:'motion.sample', exerciseId, payload:p})+'\n');
+    if (p.type !== MOTION_CHANNELS[channel].type || p.playerId !== motionPlayer) return;
     // Both relays stamp the shared host clock (hostclock.ts); older relays did not, so fall back to local time.
     const t = Number.isFinite(p.hostMonotonicMs) ? Number(p.hostMonotonicMs) : hostMonotonicMs();
-    // Per stream: with two of them, one running ahead must not make the other look out of order.
-    const last = lastImuAt.get(source) ?? -Infinity;
-    if (t <= last) return;
+    if (!lastMotionAt || t > lastMotionAt.host) lastMotionAt = {host: t, wall: Date.now()};
+    if (assigner.push(channel, p.rotationRate, t)) sensorsChanged();
+    const role = assigner.roleOf(channel);
+    if (!role) return;   // not yet told which AirPod is which: nothing is measured
+    exerciseLog?.write(JSON.stringify({type:'motion.sample', exerciseId, role, channel, payload:p})+'\n');
+    const sample: ImuSample = {quaternion: p.quaternion, rotationRate: p.rotationRate, hostMonotonicMs: t};
+    if (role === 'ref') { lastRef = {sample, hostMs: t}; return; }
+    exerciseSource ??= `airpod:${channel}:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only
+    if (t <= lastImuMs) return;
     // The relay only forwards samples, so a silent stream is seen here: step the engine with no IMU at the
     // moment the gap passed, which is tracking loss, before the sample that ends it.
-    if (last > -Infinity && t - last > exercise.params.trackingGapMs) {
-      // A stream that went quiet: forget its half so nothing stale pairs with a live sample.
-      if (pairedKind()) pairSync.drop(source === 'wrist' ? 'base' : 'moving');
-      feed(exercise.pushFused({tMs: last + exercise.params.trackingGapMs + 1, imu: null}), p.sessionId);
-    }
-    lastImuAt.set(source, t);
+    if (lastImuMs > -Infinity && t - lastImuMs > exercise.params.trackingGapMs)
+      feed(exercise.pushFused({tMs: lastImuMs + exercise.params.trackingGapMs + 1, imu: null}), p.sessionId);
     lastImuMs = t;
-    const imu: ImuSample = {quaternion: p.quaternion, rotationRate: p.rotationRate, hostMonotonicMs: t};
     const pose = lastPose && Math.abs(t - lastPose.hostMs) < 250 ? lastPose.frame : null;
-    if (pairedKind()) {
-      // Which relay this sample came from is which segment it is on: the profile's `base` sensor is
-      // the second pair, on the other Mac, reaching the wrist relay.
-      pairSync.push(source === 'wrist' ? 'base' : 'moving', imu);
-      const both = pairSync.pair();
-      // No pair yet is not a reading. The engine sees the gap and calls tracking lost, which is the
-      // truth: one of the two sensors is not saying anything.
-      if (!both) return;
-      feed(exercise.pushFused({tMs: both.tMs, imu: both.moving, imuBase: both.base, pose}), p.sessionId);
-      return;
-    }
-    feed(exercise.pushFused({tMs: t, imu, pose}), p.sessionId);
+    // A second AirPod that has gone quiet is no second AirPod: the step fails its `ref` channel, which is tracking loss.
+    const ref = lastRef && Math.abs(t - lastRef.hostMs) < exercise.params.trackingGapMs ? lastRef.sample : null;
+    feed(exercise.pushFused({tMs: t, imu: sample, pose, ref}), p.sessionId);
   });
-  // A socket replaced by another source is not reconnected; a current one is, while an IMU exercise runs.
-  ws.on('close', () => {
-    if (motions.get(source) !== ws) return;
-    motions.delete(source);
-    pairSync.drop(source === 'wrist' ? 'base' : 'moving');
-    if (exercise?.kind.requires.includes('imu')) setTimeout(() => openMotion(source), 1000);
-  });
+  // Reconnected while an exercise reads it; between sets the next start reconnects.
+  ws.on('close', () => { if (motion[channel] !== ws) return; motion[channel] = null; if (exercise && assigner) setTimeout(() => watchMotion(channel), 1000); });
   ws.on('error', () => {});
 }
 async function readJson(request: import('node:http').IncomingMessage) {
@@ -228,7 +233,10 @@ async function finishExercise() {
   const measured = exercise.summary() as Record<string, any>;
   const summary = {exerciseId, prescriptionId: exercisePrescriptionId, poseSessionId: exercisePoseSession, poseSource: exerciseSource,
     simulated: /synthetic|fixture|simulat/i.test(exerciseSource ?? ''), endedAt: new Date().toISOString(),
-    sensor: exercise.kind.requires.includes('imu') ? 'imu' : 'pose', practice: exercisePractice, ...measured, config: measured.params};
+    sensor: exercise.kind.requires.includes('imu') ? 'imu' : 'pose', sensors: assigner ? {imu: assigner.state.imu, ref: assigner.state.ref} : null,
+    practice: exercisePractice, ...measured, config: measured.params,
+    headLean: headLean?.summary() ?? {available: false, thresholdCm: 5}};
+  headLean = null;
   await writeFile(resolve(recordings, `exercise-${exerciseId}.summary.json`), JSON.stringify(summary, null, 2));
   const envelope = activitySummaryFromExercise({activitySessionId: exerciseId, activityId: exerciseActivityId,
     venueId: requireActivity(exerciseActivityId).venue,
@@ -236,7 +244,7 @@ async function finishExercise() {
   await writeFile(resolve(recordings, `session-${exerciseId}.json`), JSON.stringify(envelope, null, 2));
   exerciseBroadcast({type:'exercise.summary', payload:summary});
   exerciseLog?.end(); exerciseLog = null;
-  exercise = null;
+  exercise = null; releaseSensors();
   let progression = null;
   if (exercisePractice) return {...summary, progression};
   try { progression = await progress(exercisePrescriptionId); exerciseBroadcast({type:'exercise.progression', payload:progression}); }
@@ -259,7 +267,7 @@ const server = createServer(async (request, response) => {
         const summary = await finishExercise();
         response.writeHead(summary ? 200 : 409, {'Content-Type':'application/json'}).end(JSON.stringify(summary ?? {error:'No exercise running'})); return;
       }
-      const body = await readJson(request) as Partial<RepParams> & {maxTrunkDeviationDeg?: number; exercise?: string; prescriptionId?: string; activityId?: string};
+      const body = await readJson(request) as Partial<RepParams> & {maxTrunkDeviationDeg?: number; exercise?: string; prescriptionId?: string; activityId?: string; imuChannel?: string};
       // The session pins an approved plan version; its thresholds come from that plan. Explicit fields
       // in the request are development overrides and are recorded as such in the summary config.
       const plan = body.planVersion != null ? plans.get(Number(body.planVersion)) : plans.active();
@@ -270,9 +278,14 @@ const server = createServer(async (request, response) => {
       const x = launched ? launched.prescription : plan.activities.find(a => a.id === body.prescriptionId);
       if (!x?.exerciseKind) throw Error(body.prescriptionId ? `No measured prescription "${body.prescriptionId}" in plan v${plan.version}` : `Plan v${plan.version} prescribes nothing measured`);
       // `exercise` measures this prescription with another kind (e.g. by camera): a development override.
-      const kind = exerciseKind(body.exercise ?? x.exerciseKind);
+      // A movement tile measures with its own kind, which may be a better sensor setup than the plan's for the same movement.
+      const kind = exerciseKind(body.exercise ?? launched?.measureWith ?? x.exerciseKind);
       if (kind.requires.includes('pose') && !cameraMeasurement)
         throw Error(`Camera (MediaPipe) measurement is off; measure "${x.id}" with the AirPod (change "Measured with" in the portal).`);
+      // Sensors (AGENTS.md): with two people in the session every pair but one is another person's, so a two-IMU
+      // movement cannot be measured there. Refused before anything is torn down.
+      if (kind.requires.includes('ref') && peopleInSession(x.activityId) >= 2)
+        throw new SensorRuleError(`"${LIBRARY[kind.id]?.label ?? kind.id}" needs two AirPods on one person. In a session with someone else each person has one AirPod: pick a one-AirPod movement.`);
       await finishExercise();
       const p = x.params, target = Number(body.targetDeg ?? p.targetDeg);
       const compensation = body.maxCompensationDeg ?? body.maxTrunkDeviationDeg ?? p.maxCompensationDeg;
@@ -286,21 +299,26 @@ const server = createServer(async (request, response) => {
         // The prescription's params tune the qualities the exercise is coached on (holdTargetMs, lowerMs, …).
         {...p, ...body});
       exercisePrescriptionId = x.id; exerciseActivityId = x.activityId; exercisePractice = !!launched?.practice; lastImuMs = -Infinity;
-      // The plan fills imuSource from the mount (exercises.ts SOURCE_OF): club AirPod in a handle, strap AirPod on the body.
-      // A paired kind reads both relays at once; a one-sensor kind reads the one its mount names.
+      headLean = kind.requires.includes('imu') ? new HeadLean() : null;
+      if (headLean) watchHead();
       if (kind.requires.includes('imu')) {
-        pairSync.clear(); lastImuAt.clear();
-        if (kind.id.includes('.pair.')) watchMotion('club', 'wrist');
-        else watchMotion(p.imuSource === 'wrist' ? 'wrist' : 'club');
+        // One IMU takes whatever is live; two are told apart by which one moves (exercise/imu-assign.ts). Both relay
+        // channels are read: which app or Mac a pair came through says nothing about what it measures.
+        const mode: Mode = kind.requires.includes('ref') ? 'two' : 'one', entry = LIBRARY[kind.id];
+        const pinned = body.imuChannel === 'club' || body.imuChannel === 'wrist' ? {imu: body.imuChannel} : undefined;
+        assigner = new ImuAssigner({mode, wear: {imu: entry?.sensor ?? 'AirPod on the wrist', ref: entry?.reference}, pinned});
+        watchMotion('club'); watchMotion('wrist');
+        assignerTicker = setInterval(() => { if (assigner?.tick(motionNow())) sensorsChanged(); }, 500); assignerTicker.unref();
       }
       exerciseId = randomUUID(); exercisePoseSession = null; exerciseSource = null;
       exerciseStartedAt = new Date().toISOString();
       exerciseLog = createWriteStream(resolve(recordings, `exercise-${exerciseId}.jsonl`));
-      const started = {exerciseId, prescriptionId: x.id, practice: exercisePractice, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose', imuSource: kind.requires.includes('imu') ? motionSource : null, config: exercise.params,
+      const started = {exerciseId, prescriptionId: x.id, practice: exercisePractice, exerciseKind: kind.id, sensor: kind.requires.includes('imu') ? 'imu' : 'pose',
+        sensors: sensorState(), config: exercise.params,
         qualities: exercise.qualities.configs};
       exerciseBroadcast({type:'exercise.started', payload: started});
       response.writeHead(200, {'Content-Type':'application/json'}).end(JSON.stringify(started));
-    } catch (error) { response.writeHead(400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }
+    } catch (error) { response.writeHead(error instanceof SensorRuleError ? 409 : 400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }
     return;
   }
   if (request.method === 'POST' && url.pathname === '/activity/session') {
@@ -345,6 +363,8 @@ const server = createServer(async (request, response) => {
         try { return json(200, await (await fetch('http://127.0.0.1:8767/', {signal: AbortSignal.timeout(1000)})).json()); }
         catch { return json(503, {ready: false}); }
       }
+      // Which AirPod is which for the running set, and what to tell the patient (exercise/imu-assign.ts).
+      if (request.method === 'GET' && url.pathname === '/api/sensors') return json(200, sensorState() ?? {phase: 'idle'});
       if (request.method === 'GET' && url.pathname === '/api/golf-unlock') return json(200, golfUnlock(plans.active()));
       if (request.method === 'GET' && url.pathname === '/api/dashboard') {
         const envelopes = await Promise.all((await readdir(recordings)).filter(f => /^session-.*\.json$/.test(f))
@@ -495,32 +515,6 @@ const server = createServer(async (request, response) => {
             goalComponents: known?.goalComponents ?? [],
           });
         }
-        // Who is in an activity right now, grouped by the catalog id the gallery
-        // already knows its cards by. Presence goes stale the moment a machine
-        // stops reporting, so it is read with a window rather than trusted: no
-        // heartbeat inside it and the person is simply not shown.
-        if (request.method === 'GET' && url.pathname === '/api/friends/presence') {
-          const window = Number(process.env.KINESTHETIC_PRESENCE_MINUTES ?? 15) * 60000;
-          const known = await directory.profiles();
-          const mine = new Set(friends.list().map(p => p.id));
-          const inside: Record<string, {id: string; displayName: string; mii: number}[]> = {};
-          for (const p of known) {
-            if (!p.presence || !mine.has(p.personId)) continue;
-            const age = Date.now() - Date.parse(p.presence.since);
-            if (!Number.isFinite(age) || age < 0 || age > window) continue;
-            const person = friends.person(p.personId);
-            (inside[p.presence.activityId] ??= []).push({
-              id: p.personId,
-              displayName: person?.displayName ?? p.displayName ?? 'A friend',
-              mii: person?.mii ?? 0,
-            });
-          }
-          // An array, because Unity's JsonUtility cannot read an object with
-          // dynamic keys - the same reason the spotlight's activity is one.
-          return json(200, {
-            activities: Object.entries(inside).map(([activityId, people]) => ({activityId, people})),
-          });
-        }
         if (request.method === 'GET' && url.pathname === '/api/friends/spotlight') {
           const people = friends.list();
           const unread = messages.unread(me, people.map(p => p.id));
@@ -587,7 +581,7 @@ const server = createServer(async (request, response) => {
           const recent = friends.list().filter(p => p.sample)
             .sort((a, b) => String(b.lastActiveAt).localeCompare(String(a.lastActiveAt)));
           groups.seed(activityId, recent);
-          return json(200, {...groups.lobby(activityId, friendIds()), current: mine()});
+          return json(200, {...groups.lobby(activityId, friendIds()), current: mine(), samples: groups.samples});
         }
         if (request.method === 'GET' && url.pathname === '/api/groups/current') return json(200, {group: mine()});
         if (request.method === 'POST' && url.pathname === '/api/groups') {
@@ -607,6 +601,18 @@ const server = createServer(async (request, response) => {
         }
         if (request.method === 'POST' && url.pathname === '/api/groups/message') {
           groups.send(me.id, await readJson(request) as {kind?: string; text?: string});
+          return json(201, {group: mine()});
+        }
+        // Sample groups or real ones only (groups.ts `setSamples`). The G key on the Mac flips it (GroupPanel).
+        if (request.method === 'GET' && url.pathname === '/api/groups/samples') return json(200, {on: groups.samples});
+        if (request.method === 'POST' && url.pathname === '/api/groups/samples') {
+          const body = await readJson(request) as {on?: boolean};
+          groups.setSamples(body.on !== false);
+          return json(200, {on: groups.samples, group: mine()});
+        }
+        // A fake partner, for a demo or a test (groups.ts `inject`): a labelled sample person joins your room.
+        if (request.method === 'POST' && url.pathname === '/api/groups/inject') {
+          groups.inject(me.id);
           return json(201, {group: mine()});
         }
         // Following someone from the room's list: only someone actually in the room with you.
@@ -766,7 +772,7 @@ server.listen(port, '127.0.0.1', () => console.log(`Kinesthetic local pose bridg
 // Shutdown must actually terminate (see golf-relay.ts): a peer that vanished without a closing handshake,
 // or the outgoing motion-relay socket, would otherwise keep the process alive.
 function shutdown() {
-  recording?.end(); exercise = null; motion?.terminate();
+  recording?.end(); exercise = null; for (const ws of Object.values(motion)) ws?.terminate();
   for (const ws of sockets.clients) ws.terminate(); sockets.close();
   server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 500).unref();
 }

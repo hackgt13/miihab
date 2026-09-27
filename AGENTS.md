@@ -6,7 +6,7 @@
 
 - **Mac is authority; Quest only renders.** Sensors (camera, AirPods IMU, mic) are Mac-attached. `coordinator/server.ts` (8766) + `golf-relay.ts` (8767) run there as separate Node processes; Unity is a client of both, never a host. The headset gets resolved `golf.state`, never raw sensor data.
 - **AirPods IMU is Mac-only.** `CMHeadphoneMotionManager` (`native/ClubMotionBridge.swift`, ~25 Hz), unreachable from Horizon OS. Chain: AirPods → Mac → relay → Unity (Mac) → `golf.state` → Quest.
-- **Scene index 0 is what a build boots, and it is always a menu.** `MainMenu.unity` on the Mac, `QuestMenu.unity` (the plaza) on the headset; an activity scene is never the entry. The combined headset build orders its own list. For a manual Quest build, **Kinesthetic → Quest → Boot headset scene** first and **Boot menu scene** after.
+- **Scene index 0 is what a build boots, and it is always a menu.** `MainMenu.unity` on the Mac (**Kinesthetic → Menu → Configure Mac build scenes** repairs the list), `QuestMenu.unity` (the plaza) on the headset. **Kinesthetic → Quest → Build combined headset app** is the only headset build: one APK, `com.kinesthetic.rehabmii`, plaza first, every activity behind a door. The golf-only and bowling-only APKs are gone; if a headset still has `com.kinesthetic.questgolf` or `questbowling`, uninstall it (`scripts/demo.sh` flags it).
 - **Perf is a separate budget.** Quest: 2 eyes, 72–90 Hz, mobile GPU, Vulkan. Mac: 1 view, Metal. Measure on device first. Foveated rendering, SpaceWarp, dynamic resolution all off — first knobs to reach for.
 
 ### Android traps
@@ -18,6 +18,17 @@ Dormant only because `QuestSceneSetup` sets `game.enabled = false`; all return t
 - `UnityWebRequest` to `127.0.0.1` hits the *headset*, not the Mac. Plain HTTP may need `usesCleartextTraffic`.
 - IL2CPP strips code: reflection-based JSON works in-editor, returns null on device. No `link.xml` — suspect first if the headset connects but renders nothing.
 - Screen-space UI Toolkit (`m_RenderMode: 0`) does not render in stereo. No controller or gaze input — keyboard and pointer only.
+
+## Sensors
+
+Three sources, and only three: two AirPod pairs (one per Mac — macOS reads one `CMHeadphoneMotionManager` stream) and the Quest, which is always on the head. The relay's motion channels (`/golf` from the Club Motion app, `/bowling-motion` from the Bowling Motion app) are **transport, not meaning**. Never write code that assumes a channel, an app, a Mac or a mount is a particular limb.
+
+- **One IMU → take whatever is live.** The coordinator reads both channels and measures the patient stream that has samples; with two live, the most recent. Never pick by channel name.
+- **Two IMUs, one person → tell them apart by movement.** Both must be live. The studio says where each goes (the catalog's `sensor` and `reference` phrases) and asks the patient to move the limb's; the pair that moves while the other rests is `imu`, the other `ref` (`coordinator/exercise/imu-assign.ts`). Locked at calibration; a quiet pair after that is tracking loss, never a swap.
+- **Two people → one IMU each, one-IMU movements only.** The relay puts the second Mac's pair on `friend` whenever the running activity is for two or the patient is in a group (`golf-relay.ts` `route()`), so it never reaches the coordinator as `patient`; the coordinator refuses to start a `ref` movement in that state with 409 (`SensorRuleError`). Do not add a per-person second pair.
+- **The headset is the head.** Head pose (`/head`) leans the torso and is the trunk-lean sensor going forward; an AirPod is never assigned to the head. When head-pose lean reaches the engine, the arm raise becomes one IMU + head and the chest AirPod goes; until then it stays two-IMU. Do not build a third path to the same number.
+- **Retired:** `params.imuSource` and `SOURCE_OF`. A stored plan carrying `imuSource` loads with it dropped. `exercise.started` and `GET /api/sensors` carry `sensors: {mode, phase, imu, ref, live, locked, instruction}`; `exercise.sensors` broadcasts every change. A UI shows `instruction` verbatim during `waiting` and `identify`.
+- **Pinned by tests:** `exercise/imu-assign.test.ts`, the server tests in `exercise/two-imu.test.ts` and `exercise/imu-session.test.ts`, the routing tests in `golf-relay.test.ts`. Change the rule there first, then the code.
 
 ## Unity setup
 

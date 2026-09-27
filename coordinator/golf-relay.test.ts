@@ -91,3 +91,141 @@ test('on the network the relay announces itself with a proof only the pairing to
     assert.ok(!JSON.stringify(msg).includes('pair-secret'),'the token itself is never broadcast');
   } finally { listener.close(); await stop(proc); }
 });
+
+test('the second Mac is read by the activity: golf makes it the friend, anything else the patient\'s second AirPod',{timeout:40000},async()=>{
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18791',KINESTHETIC_PAIR_TOKEN:'pair-secret',
+      KINESTHETIC_COORDINATOR_URL:'http://127.0.0.1:9',   // no coordinator: never in a group
+      KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-route-'))}});
+  const clients:WebSocket[]=[];
+  const connect=async(path:string)=>{const ws=new WebSocket('ws://127.0.0.1:18791'+path);clients.push(ws);await once(ws,'open');return ws;};
+  const settle=()=>new Promise(r=>setTimeout(r,80));
+  try {
+    await ready(proc);
+    const club:any[]=[],wrist:any[]=[];
+    (await connect('/golf?role=viewer')).on('message',b=>club.push(JSON.parse(b.toString())));
+    (await connect('/bowling-motion?role=viewer')).on('message',b=>wrist.push(JSON.parse(b.toString())));
+    // Whatever its picker says — here "friend", on the club path — the paired Mac's stream is placed by the activity.
+    const second=await connect('/golf?role=producer&player=friend&token=pair-secret');
+    let n=0;const send=()=>{n++;second.send(JSON.stringify({type:'club.motion',playerId:'friend',sourceId:'Left',
+      sessionId:'route-fixture',sequence:n,sensorTime:n,quaternion:[0,0,0,1],rotationRate:[0,1,0]}));};
+
+    send();await settle();   // nothing running: one person, so this is the patient's second AirPod
+    assert.deepEqual(wrist.filter(p=>p.type==='bowling.motion').map(p=>p.playerId),['patient']);
+    assert.equal(club.filter(p=>p.type==='club.motion').length,0);
+
+    const golf=await connect('/state?role=host');   // golf is up: two people
+    send();await settle();
+    assert.deepEqual(club.filter(p=>p.type==='club.motion').map(p=>p.playerId),['friend']);
+    assert.ok(wrist.some(p=>p.type==='bowling.disconnected'&&p.playerId==='patient'),'the old reading is told it ended');
+
+    golf.close();await once(golf,'close');await settle();   // back to the studio
+    send();await settle();
+    assert.equal(wrist.filter(p=>p.type==='bowling.motion').length,2);
+
+    // A stream from this Mac is untouched: its own path, its own player.
+    const local=await connect('/golf?role=producer&player=patient');
+    local.send(JSON.stringify({type:'club.motion',playerId:'patient',sourceId:'Right',sessionId:'local',sequence:1,sensorTime:1,quaternion:[0,0,0,1],rotationRate:[0,0,0]}));
+    await settle();
+    assert.deepEqual(club.filter(p=>p.type==='club.motion').map(p=>p.playerId),['friend','patient']);
+
+    // …and if this Mac's own AirPod is the wrist one, the second Mac's reading takes the club path instead.
+    const localWrist=await connect('/bowling-motion?role=producer&player=patient');
+    localWrist.send(JSON.stringify({type:'bowling.motion',playerId:'patient',sourceId:'Right',sessionId:'local-wrist',sequence:1,sensorTime:1,quaternion:[0,0,0,1],rotationRate:[0,0,0]}));
+    send();await settle();
+    assert.deepEqual(club.filter(p=>p.type==='club.motion').map(p=>p.playerId),['friend','patient','patient']);
+    assert.equal(club.filter(p=>p.type==='club.motion').at(-1).sessionId,'route-fixture');
+
+    // Both Macs on the same app with the same picker is fine: the second is registered apart, and still reports
+    // as "patient" on the status page its app reads.
+    const twin=await connect('/golf?role=producer&player=patient&token=pair-secret');
+    twin.send(JSON.stringify({type:'club.motion',playerId:'patient',sourceId:'Left',sessionId:'twin',sequence:1,sensorTime:1,quaternion:[0,0,0,1],rotationRate:[0,0,0]}));
+    await settle();
+    assert.equal(twin.readyState,WebSocket.OPEN);
+    const health=await (await fetch('http://127.0.0.1:18791/')).json();
+    assert.ok(health.players.includes('patient') && !health.players.some((p:string)=>p.includes('@')));
+  } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
+});
+
+test('in a group session the second Mac is the other person, whatever is running',{timeout:40000},async()=>{
+  // A stand-in coordinator that says the patient is in a group.
+  const { createServer } = await import('node:http');
+  let group:unknown={id:'room'};
+  const coordinator=createServer((_q,r)=>r.writeHead(200,{'Content-Type':'application/json'}).end(JSON.stringify({group})));
+  coordinator.listen(18799);await once(coordinator,'listening');
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18792',KINESTHETIC_PAIR_TOKEN:'pair-secret',
+      KINESTHETIC_COORDINATOR_URL:'http://127.0.0.1:18799',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-group-'))}});
+  const clients:WebSocket[]=[];
+  const connect=async(path:string)=>{const ws=new WebSocket('ws://127.0.0.1:18792'+path);clients.push(ws);await once(ws,'open');return ws;};
+  const wait=(ms:number)=>new Promise(r=>setTimeout(r,ms));
+  try {
+    await ready(proc);await wait(300);   // the first answer from the coordinator
+    const club:any[]=[],wrist:any[]=[];
+    (await connect('/golf?role=viewer')).on('message',b=>club.push(JSON.parse(b.toString())));
+    (await connect('/bowling-motion?role=viewer')).on('message',b=>wrist.push(JSON.parse(b.toString())));
+    await connect('/rehab-state?role=host');   // the studio, an activity for one
+    const second=await connect('/bowling-motion?role=producer&player=patient&token=pair-secret');
+    let n=0;const send=()=>{n++;second.send(JSON.stringify({type:'bowling.motion',playerId:'patient',sourceId:'Left',
+      sessionId:'group-fixture',sequence:n,sensorTime:n,quaternion:[0,0,0,1],rotationRate:[0,1,0]}));};
+    send();await wait(80);
+    assert.deepEqual(club.filter(p=>p.type==='club.motion').map(p=>p.playerId),['friend']);
+    assert.equal(wrist.filter(p=>p.type==='bowling.motion').length,0,'never read as the patient\'s own sensor');
+
+    group=null;await wait(1300);   // left the group: back to the patient's second AirPod
+    send();await wait(80);
+    assert.deepEqual(wrist.filter(p=>p.type==='bowling.motion').map(p=>p.playerId),['patient']);
+  } finally { for(const ws of clients)ws.terminate(); await stop(proc); coordinator.close(); }
+});
+
+test('a late client is caught up from the host\'s last state only while it is fresh',{timeout:40000},async()=>{
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18790',KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-fresh-'))}});
+  const clients:WebSocket[]=[];
+  const connect=async(query:string)=>{const ws=new WebSocket('ws://127.0.0.1:18790/state?'+query);clients.push(ws);await once(ws,'open');return ws;};
+  const firstMessage=(ws:WebSocket,ms:number)=>new Promise<string|null>(r=>{const t=setTimeout(()=>r(null),ms);ws.once('message',b=>{clearTimeout(t);r(b.toString());});});
+  try {
+    await ready(proc);
+    const host=await connect('role=host');
+    host.send(JSON.stringify({type:'golf.state',hole:1}));
+    await new Promise(r=>setTimeout(r,50));
+    // Joining right after a frame: caught up at once.
+    const prompt=await connect('role=client');
+    assert.deepEqual(JSON.parse((await firstMessage(prompt,500))!),{type:'golf.state',hole:1});
+    // Joining after the host has been silent past the freshness window, without closing: nothing replayed.
+    await new Promise(r=>setTimeout(r,2200));
+    const late=await connect('role=client');
+    assert.equal(await firstMessage(late,300),null);
+    // The host publishing again catches everyone up live, as before.
+    host.send(JSON.stringify({type:'golf.state',hole:2}));
+    assert.deepEqual(JSON.parse((await firstMessage(late,500))!),{type:'golf.state',hole:2});
+  }finally{for(const ws of clients)ws.terminate();await stop(proc);}
+});
+
+test('the headset sends its head pose; this Mac reads it; nothing else may send or read it', {timeout:15000}, async()=>{
+  const lan=Object.values(networkInterfaces()).flat().find(a=>a && a.family==='IPv4' && !a.internal)?.address;
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18840',KINESTHETIC_GOLF_HOST:'0.0.0.0',KINESTHETIC_PAIR_TOKEN:'pair-secret',
+      KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-head-')),KINESTHETIC_HEAD_RECORDINGS:mkdtempSync(join(tmpdir(),'head-'))}});
+  const clients:WebSocket[]=[];
+  const open=(url:string)=>{const ws=new WebSocket(url);clients.push(ws);return new Promise<WebSocket|null>(r=>{ws.once('open',()=>r(ws));ws.once('error',()=>r(null));});};
+  try {
+    await ready(proc);
+    const viewer=(await open('ws://127.0.0.1:18840/head?role=viewer'))!;
+    const headset=(await open('ws://127.0.0.1:18840/head?role=producer'))!;   // over the USB cable: loopback
+    const got=new Promise<any>(r=>viewer.on('message',m=>r(JSON.parse(String(m)))));
+    headset.send(JSON.stringify({type:'head.pose',seq:1,p:[0.02,-0.01,0.06],q:[0,0.1,0,0.995]}));
+    const pose=await got;
+    assert.equal(pose.type,'head.pose'); assert.deepEqual(pose.p,[0.02,-0.01,0.06]); assert.ok(Number.isFinite(pose.hostMonotonicMs));
+    const second=(await open('ws://127.0.0.1:18840/head?role=producer'))!;
+    const [code]=await once(second,'close'); assert.equal(code,1008,'one headset at a time');
+    const health=await (await fetch('http://127.0.0.1:18840/')).json();
+    assert.equal(health.head.connected,true); assert.equal(health.head.seq,1);
+    if(lan){
+      assert.equal(await open(`ws://${lan}:18840/head?role=producer`),null,'no token from the network');
+      assert.equal(await open(`ws://${lan}:18840/head?role=viewer&token=pair-secret`),null,'reading stays on this Mac');
+    }
+    // A malformed pose closes the sender rather than reaching the Mac.
+    const closed=once(headset,'close'); headset.send(JSON.stringify({type:'head.pose',seq:2,p:[99,0,0],q:[0,0,0,1]})); await closed;
+  } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
+});

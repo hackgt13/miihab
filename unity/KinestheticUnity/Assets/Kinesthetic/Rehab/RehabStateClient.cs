@@ -7,10 +7,11 @@ using UnityEngine;
 
 namespace Kinesthetic.Rehab
 {
-    /// Headset: renders the rehab studio the Mac is running (RehabStatePublisher). Poses the patient and the
-    /// coach from the published bones and feeds the mirror window. Reps, the cue and every button are the
-    /// Mac's boards, mirrored by UI/Remote onto the same world-space boards this scene carries — so this
-    /// draws no text of its own. It measures nothing and decides nothing.
+    /// Headset: renders the rehab studio the Mac is running (RehabStatePublisher). Poses the patient, the coach
+    /// and each group member from the published bones, and feeds the mirror window when there is no group. Reps,
+    /// the cue and every button are the Mac's boards, mirrored by UI/Remote onto the same world-space boards this
+    /// scene carries; the one text it draws is each member's name tag, which is theirs. It measures nothing and
+    /// decides nothing.
     public sealed class RehabStateClient : MonoBehaviour, IRehabView
     {
         public PoseRig rig;
@@ -18,6 +19,8 @@ namespace Kinesthetic.Rehab
         public Transform coachSeat;
         public string url = "ws://127.0.0.1:8767/rehab-state?role=client";
         LatestSocket socket; List<Transform> patientBones, coachBones; Kinesthetic.Coach.CoachDemonstrator coach;
+        PeerAvatar group;
+        readonly Dictionary<PoseRig, List<Transform>> memberBones = new();
         float lastStateAt = -99;
         string side = "right", kind = "arm-elevation.v1"; float target = 80, band = 15; float? angle; bool handoff;
         RepFeel feel;
@@ -30,6 +33,13 @@ namespace Kinesthetic.Rehab
         public string ExerciseKind => kind;
         public float? ShownAngle => Time.unscaledTime - lastStateAt < 1 ? angle : null;
         public bool CoachHandingOff => handoff;
+
+        // The scene's mirror is given this view by QuestRehabSetup, but an interface field is not serialised, so
+        // on its own it wakes with none and switches itself off. Hand it over before any Start runs.
+        void Awake()
+        {
+            if (GetComponent<MirrorPanel>() is MirrorPanel mirror && mirror.view == null) mirror.view = this;
+        }
 
         void Start()
         {
@@ -50,6 +60,7 @@ namespace Kinesthetic.Rehab
             }
         }
 
+        int lastUpright = -1;
         void Apply(JObject s)
         {
             if ((string)s["type"] != "rehab.state") return;
@@ -57,6 +68,13 @@ namespace Kinesthetic.Rehab
             target = (float?)s["target"] ?? target; band = (float?)s["band"] ?? band;
             angle = s["angle"]?.Type is JTokenType.Float or JTokenType.Integer ? (float)s["angle"] : null;
             handoff = (bool?)s["handoff"] ?? false;
+            // A set is starting with the patient sitting still and upright: zero the headset's head there, so the
+            // lean the Mac draws (and measures) is from how they sat at the start of the set.
+            if ((int?)s["upright"] is int upright && upright != lastUpright)
+            {
+                if (lastUpright >= 0) FindAnyObjectByType<SeatedHeadset>()?.RecenterNow();
+                lastUpright = upright;
+            }
             if (s["feel"] is JObject f)
                 feel = new RepFeel
                 {
@@ -68,6 +86,7 @@ namespace Kinesthetic.Rehab
                     Valid = (int?)f["valid"] ?? 0, Prescribed = (int?)f["prescribed"] ?? 0,
                 };
             Pose(s["patient"], patientBones);
+            Group(s["partners"] as JArray);
             if (s["coach"] is JObject c)
             {
                 if (!coach && (coach = FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>()))
@@ -81,6 +100,34 @@ namespace Kinesthetic.Rehab
                     else coach.transform.SetPositionAndRotation(GolfStateFormat.V(c["p"]), GolfStateFormat.Q(c["r"]));
                     Pose(c["pose"], coachBones);
                 }
+            }
+        }
+
+        /// The rest of the group in the seats the Mac gave them, exactly as the Mac draws them; the mirror when the
+        /// Mac has no group. Seated from this scene's patient (PeerAvatar), so the Mac's world positions are not
+        /// trusted here.
+        void Group(JArray people)
+        {
+            if (people == null)
+            {
+                if (group) { Destroy(group); group = null; memberBones.Clear(); }
+                if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
+                return;
+            }
+            if (!group)
+            {
+                if (GetComponent<MirrorPanel>() is MirrorPanel mirror) Destroy(mirror);
+                group = gameObject.AddComponent<PeerAvatar>(); group.view = this;
+            }
+            var shown = new List<(string, string, int)>();
+            foreach (var p in people.OfType<JObject>()) shown.Add(((string)p["name"], (string)p["state"], (int?)p["mii"] ?? 0));
+            group.Present(shown);
+            for (int i = 0; i < group.Seats.Count && i < people.Count; i++)
+            {
+                var rig = group.Seats[i].Rig;
+                if (!rig) continue;   // a seat is built before it is posed; its first frame may still be coming
+                if (!memberBones.TryGetValue(rig, out var bones)) memberBones[rig] = bones = GolfStateFormat.Bones(rig);
+                Pose(people[i]["pose"], bones);
             }
         }
 

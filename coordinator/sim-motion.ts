@@ -11,6 +11,12 @@
 //   Drive it by hand from the keyboard (arrow keys raise and lower, space swings):
 //     node sim-motion.ts hand [--channel club|wrist]
 //
+//   Be the second Mac: add --second-mac to any mode and the relay reads this stream as it would the other
+//   Mac's AirPods (golf-relay.ts `route`) — the other person in a group session or in golf, the patient's
+//   second AirPod otherwise. Needs the pairing token (KINESTHETIC_PAIR_TOKEN or local-data/pair-token.txt).
+//   A fake partner doing shoulder raises for as long as you like:
+//     node sim-motion.ts reps 999 --second-mac
+//
 // Why this exists: sim-rehab.ts streams synthetic *pose* into the bridge, but camera measurement is
 // off (KINESTHETIC_CAMERA_MEASUREMENT), so the only live measurement path is the IMU and nothing
 // could exercise it without hardware. Golf, bowling and the studio all read the relay, so all three
@@ -21,7 +27,8 @@
 // modes resequence from zero onto a fresh session id rather than replaying the recorded ones, so a
 // looped file is still a legal stream.
 
-import { createReadStream } from 'node:fs';
+import { createReadStream, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
@@ -30,7 +37,7 @@ import { WebSocket } from 'ws';
 
 type Channel = 'club' | 'wrist';
 const CHANNELS: Record<Channel, { path: string; type: string }> = {
-  // The studio reads 'club' unless the prescription sets imuSource: 'wrist'; golf reads 'club'; bowling 'wrist'.
+  // Two transport channels; the coordinator takes whichever is live (exercise/imu-assign.ts). Golf reads 'club'; bowling 'wrist'.
   club: { path: '/golf', type: 'club.motion' },
   wrist: { path: '/bowling-motion', type: 'bowling.motion' },
 };
@@ -59,7 +66,14 @@ const { path, type } = CHANNELS[channelArg];
 const sessionId = `simulated-${randomUUID()}`;
 
 let finished = false;   // declared before the handlers: a close can arrive during the open handshake
-const socket = new WebSocket(`${relay}${path}?role=producer&player=${player}`);
+// As the second Mac: the pairing token is what the relay tells the two Macs apart by.
+const token = has('second-mac')
+  ? (process.env.KINESTHETIC_PAIR_TOKEN ?? (() => {
+      try { return readFileSync(resolve(import.meta.dirname, '../local-data/pair-token.txt'), 'utf8').trim(); }
+      catch { throw Error('--second-mac needs KINESTHETIC_PAIR_TOKEN or local-data/pair-token.txt'); }
+    })())
+  : '';
+const socket = new WebSocket(`${relay}${path}?role=producer&player=${player}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
 socket.on('unexpected-response', (_req, res) => {
   console.error(`Relay refused the producer socket (${res.statusCode}). Another producer may hold "${player}" — ` +
     'disconnect the AirPod app, or pass a different KINESTHETIC_MOTION_PLAYER.');
@@ -140,7 +154,7 @@ if (mode === 'replay') {
     for (let i = 0; i < Math.round(ms / 1000 * hz); i++) { at(deg, 0); await delay(1000 * dt); }
   };
 
-  console.log(`Synthesising ${reps} reps to ${peak}° → ${relay}${path} as "${player}"`);
+  console.log(`Synthesising ${reps} reps to ${peak}° → ${relay}${path} as ${token ? 'the second Mac' : `"${player}"`}`);
   // Calibration only accepts frames under 0.35 rad/s and needs calibrationMs of them; two seconds is ample.
   console.log('  holding still to calibrate…');
   await still(0, 2000);
@@ -231,7 +245,8 @@ if (mode === 'replay') {
   console.error('Usage:\n  node sim-motion.ts replay <recording.jsonl> [--speed N] [--loop]\n' +
     '  node sim-motion.ts reps [count] [--peak 52] [--channel club|wrist] [--short] [--fast]\n' +
     '                          [--raise 2000] [--hold 2000] [--lower 3000] [--hitch] [--fade [deg]]\n' +
-    '  node sim-motion.ts hand [--channel club|wrist]');
+    '  node sim-motion.ts hand [--channel club|wrist]\n' +
+    '  add --second-mac to any of them to stream as the other Mac (the other person in a group)');
   process.exit(2);
 }
 

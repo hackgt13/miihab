@@ -28,12 +28,20 @@ function rows() {
     when: new Date(s.endedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
     planVersion: s.planVersion, attempted: s.attempted, valid: s.valid, prescribed: s.prescribed, medianValidPeakDeg: s.medianValidPeakDeg,
     trunk: s.invalidReasons?.trunk_compensation ?? 0, simulated: s.simulated !== false, reasons: s.invalidReasons ?? {}, tracking: s.validFrameRatio, id: s.exerciseId, targetDeg: s.config?.targetDeg,
-    sensor: s.sensor ?? 'pose',
+    sensor: s.sensor ?? 'pose', headLean: s.headLean ?? null,
     // How well the counted reps were made (exercise/quality.ts): the mean form score, the best hold, controlled lowerings.
     form: s.quality?.formScore ?? null, bestHoldMs: s.quality?.hold?.bestMs ?? null,
     controlledLowers: s.quality?.tempo ? `${s.quality.tempo.controlledLowers}/${s.quality.tempo.reps}` : null,
     fatigued: s.quality?.consistency?.fatigued === true,
   }));
+}
+
+// Head travel from the headset per rep (coordinator/head-lean.ts): how many reps passed the threshold, and the most.
+function headLeanCell(h) {
+  if (!h?.available) return '<span class="muted">—</span>';
+  const maxDeg = Math.max(...h.perRep.map(r => r.approxDeg ?? 0));
+  return `<span class="${h.repsOverThreshold > 0 ? 'lean-flag' : ''}">${h.repsOverThreshold} of ${h.repsMeasured} reps ≥ ${h.thresholdCm} cm</span>` +
+    `<div class="muted small">max ${h.maxCm} cm · ≈${maxDeg}°</div>`;
 }
 
 function render() {
@@ -87,6 +95,7 @@ function render() {
     <td class="num" title="${r.bestHoldMs != null ? `best hold ${(r.bestHoldMs / 1000).toFixed(1)} s · ` : ''}${r.controlledLowers != null ? `${r.controlledLowers} lowered with control` : ''}">${r.form != null ? Math.round(r.form * 100) + '%' : '—'}${r.fatigued ? ' <span class="muted small">fatigue</span>' : ''}</td>
     <td>${Object.entries(r.reasons).map(([k, n]) => `${n} × ${REASONS[k] ?? k}`).join(', ') || '—'}</td>
     <td>${r.tracking != null ? Math.round(r.tracking * 100) + '%' : '—'}</td>
+    <td>${headLeanCell(r.headLean)}</td>
     <td>${r.sensor === 'imu' ? '<span class="muted small">AirPod</span>' : `<button type="button" class="small-btn" data-replay="${esc(r.id)}">Replay</button>`}</td></tr>`).join('');
   document.querySelectorAll('[data-replay]').forEach(b => b.addEventListener('click', () => openReplay(b.dataset.replay)));
 

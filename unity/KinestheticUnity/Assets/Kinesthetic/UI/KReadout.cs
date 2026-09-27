@@ -19,9 +19,62 @@ namespace Kinesthetic.UI
         readonly Label figure = new Label(), label = new Label();
         Size sizeValue;
         Tone toneValue;
+        bool punchValue; float punchStart = -1; IVisualElementScheduledItem punching;
+        // The figure's leading number, so a punch fires only when the count goes up and not on every redraw.
+        double lastNumber = double.NaN;
 
         [UxmlAttribute]
-        public string value { get => figure.text; set => figure.text = value; }
+        public string value
+        {
+            get => figure.text;
+            set
+            {
+                if (figure.text == value) return;
+                figure.text = value;
+                var number = Leading(value);
+                if (punchValue && !double.IsNaN(number) && !double.IsNaN(lastNumber) && number > lastNumber) Punch();
+                lastNumber = number;
+            }
+        }
+
+        /// A count that punches when it goes up: the figure swells and shakes for a third of a second, as a score
+        /// does when it is earned. Only ever on an increase, so a figure that merely redraws stays still. The
+        /// motion is on the figure alone; the caption, tone and layout do not move.
+        [UxmlAttribute]
+        public bool punch { get => punchValue; set => punchValue = value; }
+
+        static double Leading(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return double.NaN;
+            int end = 0;
+            while (end < text.Length && (char.IsDigit(text[end]) || text[end] == '.' || (end == 0 && text[end] == '-'))) end++;
+            return end > 0 && double.TryParse(text.Substring(0, end), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : double.NaN;
+        }
+
+        /// Swell to 1.22× with a little overshoot, and a two-cycle shake that dies out, over 340 ms.
+        public void Punch()
+        {
+            const float duration = .34f;
+            punchStart = UnityEngine.Time.unscaledTime;
+            punching?.Pause();
+            punching = figure.schedule.Execute(() =>
+            {
+                float t = UnityEngine.Mathf.Clamp01((UnityEngine.Time.unscaledTime - punchStart) / duration);
+                // Ease out back: up fast, over the top, then settle.
+                float back = 1 - UnityEngine.Mathf.Pow(1 - t, 3) * (1 + 2.2f * t);
+                float swell = 1 + .22f * (1 - t) * UnityEngine.Mathf.Sin(back * UnityEngine.Mathf.PI * .5f + UnityEngine.Mathf.PI * .5f) ;
+                float shake = 2.5f * (1 - t) * UnityEngine.Mathf.Sin(t * UnityEngine.Mathf.PI * 4);
+                figure.style.scale = new StyleScale(new Scale(new UnityEngine.Vector2(swell, swell)));
+                figure.style.translate = new StyleTranslate(new Translate(shake, 0));
+                if (t >= 1)
+                {
+                    figure.style.scale = new StyleScale(new Scale(UnityEngine.Vector2.one));
+                    figure.style.translate = new StyleTranslate(new Translate(0, 0));
+                    punching.Pause();
+                }
+            }).Every(16);
+        }
 
         [UxmlAttribute]
         public string caption

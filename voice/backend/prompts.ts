@@ -51,3 +51,16 @@ Do not diagnose or prescribe. If they say stop, stop.
 `;
 
 export const FIRST_MESSAGE = "Hey — let me just grab your info real quick.";
+
+// ── Tutorial lines (spoken via TTS, not the conversational agent) ─────────────
+
+export const TUTORIAL_LINES: Record<string, string> = {
+  intro: "Hi, I'm Alex, a virtual clinician. In a moment you're about to enter physical therapy at home. I'll be there the whole way, so don't worry. Before we begin, I want you to get used to the controls. Watch me, and copy.",
+  repeat_right: "No worries, let me show you again.",
+  demo_left: "Good! Now the other side.",
+  repeat_left: "Let me show you one more time.",
+  navigate: "Perfect! Now head over to this button over here.",
+  look: "Now turn your head and look to your right.",
+  keep_going: "That's okay, we'll practise this together in the studio. Let's keep going.",
+  complete: "Great job! You're all set. Let's get started.",
+};

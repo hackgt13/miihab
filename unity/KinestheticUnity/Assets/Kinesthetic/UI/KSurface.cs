@@ -4,7 +4,7 @@ namespace Kinesthetic.UI
     [UxmlElement]
     public partial class KSurface : VisualElement
     {
-        public enum Tone { Paper, Glass, Scrim }
+        public enum Tone { Paper, Glass, Scrim, Well }
         public enum Density { Compact, Comfortable, Flush }
         Tone toneValue; Density densityValue;
         [UxmlAttribute] public Tone tone { get => toneValue; set { toneValue = value; KStyles.Variant(this, "k-surface", value); } }

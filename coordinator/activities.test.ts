@@ -44,7 +44,8 @@ test('every library movement is a gallery activity, and the catalog is what the 
   const text = readFileSync(resolve(import.meta.dirname, 'activities.json'), 'utf8');
   assert.equal(text, regenerate(text), 'activities.json is stale against the exercise library. Run `npm run catalog`.');
   if (existsSync(UNITY_COPY)) assert.equal(readFileSync(UNITY_COPY, 'utf8'), text, "Unity's catalog copy is stale. Run `npm run catalog`.");
-  for (const kind of Object.keys(LIBRARY)) {
+  for (const [kind, x] of Object.entries(LIBRARY)) {
+    if (x.supersededBy) { assert.equal(activityById(movementActivityId(kind)), null, `${kind} is superseded and has no tile`); continue; }
     const a = requireActivity(movementActivityId(kind));
     assert.deepEqual([a.group, a.exerciseKinds, a.prescribable], ['movement', [kind], false]);
   }

@@ -147,19 +147,22 @@ Readable headings and instructions. Sizes: `Title` (36px), `Heading` (26px), `Bo
 
 ### `KSurface` — `tone`, `density`
 
-Shared surfaces for compact HUDs and summaries. Tones: `Paper`, `Glass`, `Scrim`. Densities:
+Shared surfaces for compact HUDs and summaries. Tones: `Paper`, `Glass`, `Scrim`, and `Well` — a
+sunken sand ground set into paper, for paper-coloured things that need something to sit on. Densities:
 `Compact`, `Comfortable`, `Flush`. The screen positions the surface and its children; the component
 owns its padding, background, edge and radius. A scrim's blocking behavior and visibility remain
 with the screen. These variants and `KText` are also shown in `Specimen.uxml`.
 
-### `KSheet` — `entrance`, plus everything `KSurface` has
+### `KSheet` — `entrance`, `exit`, plus everything `KSurface` has
 
 A surface that is handed to you and taken away again: the briefing a venue opens with and the summary
 it closes on are the same object at two ends of a session, so they are one component. Entrances:
 `Right`, `Left`, `Below` — chosen for where the giver stands in the room, not for the layout, so in the
-studio the briefing arrives from the coach's side. `Present()`, `Dismiss()` and `Hide()` (no exit, for a
-reset or a rebuilt tree) drive it; `Presented` is where it is heading, not whether the motion has
-finished.
+studio the briefing arrives from the coach's side. `exit` is which side it leaves by — `Back` (default)
+retraces the entrance, which is right for something that was only being shown, while a page you have
+finished with is swept aside instead, and that is a different side from the one that handed it to you.
+`Present()`, `Dismiss()` and `Hide()` (no exit, for a reset or a rebuilt tree) drive it; `Presented` is
+where it is heading, not whether the motion has finished.
 
 It is the first animation in the library, and the reason motion belongs to a component: `transition` is
 paint, so a sealed screen may not write it. `Sheet.uss` carries the entrance (ease-out-back, a few
@@ -172,6 +175,17 @@ A person's face, drawn from their Mii index: the same face in the friends roster
 session's member list and the Tab list. The screen gives it a size; it fills the smaller side and clips
 itself round. For an element a screen already has, `KMiiFace.Paint(element, variant, size)` draws into it.
 Skin and hair keep representational colours; the disc behind the head is from the palette.
+
+### `KOption` — `tone`
+
+One choice in a list, pressed as a whole row: a group to join, a way to play. The row is the button, so
+nothing pressable sits inside it; the screen fills it with `KText`, `KTag` and `KMiiTag`. `Plain` is paper
+with a slate edge; `Highlight` is jungle and means something good is in it (a friend is in that group).
+Hover and focus are cerulean for both, and a press halves the lip, as on `KButton`.
+
+### `KMiiTag` — `variant`, `text`
+
+A friend, small: their face and name in a jungle-edged pill. It only ever names a friend.
 
 ### `KMessage` — `side`, `author`, `said`, `text`, `time`
 
