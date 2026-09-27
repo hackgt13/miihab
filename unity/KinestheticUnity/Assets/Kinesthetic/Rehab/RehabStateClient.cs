@@ -87,6 +87,7 @@ namespace Kinesthetic.Rehab
                 };
             Pose(s["patient"], patientBones);
             Group(s["partners"] as JArray);
+            Trajectory(s["trajectory"] as JObject);
             if (s["coach"] is JObject c)
             {
                 if (!coach && (coach = FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>()))
@@ -123,6 +124,19 @@ namespace Kinesthetic.Rehab
                 if (!memberBones.TryGetValue(rig, out var bones)) memberBones[rig] = bones = GolfStateFormat.Bones(rig);
                 Pose(people[i]["pose"], bones);
             }
+        }
+
+        /// The curl's path the Mac is drawing, drawn here too; hidden when the Mac sends none.
+        void Trajectory(JObject path)
+        {
+            var curl = GetComponent<CurlTrajectory>();
+            if (!curl)
+            {
+                if (path == null) return;
+                curl = gameObject.AddComponent<CurlTrajectory>();
+                curl.view = this; curl.Remote = true;
+            }
+            curl.Apply(path);
         }
 
         static void Pose(JToken pose, List<Transform> bones)

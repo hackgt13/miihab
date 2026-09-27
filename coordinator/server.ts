@@ -25,6 +25,7 @@ import { requireActivity } from './activities.ts';
 import { evaluate, evidenceFromSummary, ProposalStore, type PainReport } from './progression.ts';
 import { LIBRARY } from './exercises.ts';
 import { analyseCurl, samplesFromLog } from './exercise/trajectory.ts';
+import { CurlTrace } from './exercise/curl-trace.ts';
 import { buildDashboard, golfUnlock, planUpdate } from './dashboard.ts';
 import { GAME_ACTIVITIES, gameMovement } from './game-movement.ts';
 import { HeadLean } from './head-lean.ts';
@@ -216,6 +217,7 @@ function watchMotion() {
     const role = assigner.roleOf(channel);
     if (!role) return;   // not yet told which AirPod is which: nothing is measured
     exerciseLog?.write(JSON.stringify({type:'motion.sample', exerciseId, role, channel, payload:p})+'\n');
+    curlTrace?.push(role, t, p);
     const sample: ImuSample = {quaternion: p.quaternion, rotationRate: p.rotationRate, hostMonotonicMs: t};
     if (role === 'ref') { lastRef = {sample, hostMs: t}; return; }
     exerciseSource ??= `airpod:${channel}:${p.sourceId}:${p.sessionId}`;   // no pose recording: replay stays camera-only
@@ -233,6 +235,26 @@ function watchMotion() {
   // Reconnected while an exercise reads it; between sets the next start reconnects.
   ws.on('close', () => { if (motion !== ws) return; motion = null; if (exercise && assigner) setTimeout(watchMotion, 1000); });
   ws.on('error', () => {});
+}
+// A biceps curl's path, drawn live in the studio beside the patient's arm (exercise/curl-trace.ts): twice a second
+// while the set runs, once more when it ends. Presentation only; the rep engine counts.
+let curlTrace: CurlTrace | null = null;
+let curlTraceTicker: ReturnType<typeof setInterval> | null = null;
+function startCurlTrace(kindId: string, targetDeg: number) {
+  endCurlTrace(false);
+  if (kindId !== 'biceps-curl.v1') return;
+  const trace = curlTrace = new CurlTrace(Number.isFinite(targetDeg) ? targetDeg : 110);
+  curlTraceTicker = setInterval(() => {
+    const payload = trace.next();
+    if (payload) exerciseBroadcast({type:'exercise.trajectory', payload});
+  }, 500);
+  curlTraceTicker.unref();
+}
+function endCurlTrace(final = true) {
+  if (curlTraceTicker) { clearInterval(curlTraceTicker); curlTraceTicker = null; }
+  const payload = final ? curlTrace?.next(true) : null;
+  if (payload) exerciseBroadcast({type:'exercise.trajectory', payload: {...payload, final: true}});
+  curlTrace = null;
 }
 async function readJson(request: import('node:http').IncomingMessage) {
   let body = ''; for await (const chunk of request) { body += chunk; if (body.length > 16384) throw Error('Body too large'); }
@@ -304,6 +326,7 @@ async function finishExercise() {
     venueId: requireActivity(exerciseActivityId).venue,
     startedAt: exerciseStartedAt || summary.endedAt, endedAt: summary.endedAt, measured});
   await writeFile(resolve(recordings, `session-${exerciseId}.json`), JSON.stringify(envelope, null, 2));
+  endCurlTrace();
   exerciseBroadcast({type:'exercise.summary', payload:summary});
   exerciseLog?.end(); exerciseLog = null;
   exercise = null; releaseSensors();
@@ -381,6 +404,7 @@ const server = createServer(async (request, response) => {
         sensors: sensorState(), config: exercise.params,
         qualities: exercise.qualities.configs};
       exerciseBroadcast({type:'exercise.started', payload: started});
+      startCurlTrace(kind.id, Number(exercise.params.targetDeg));
       response.writeHead(200, {'Content-Type':'application/json'}).end(JSON.stringify(started));
     } catch (error) { response.writeHead(error instanceof SensorRuleError ? 409 : 400, {'Content-Type':'application/json'}).end(JSON.stringify({error:String((error as Error).message)})); }
     return;

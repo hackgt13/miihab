@@ -85,3 +85,20 @@ test('a session log reads back into samples, and one stream alone gives no traje
   const onlyUpper = synthCurl({ reps: clean(2) }).filter(s => s.role === 'ref');
   assert.equal(analyseCurl(onlyUpper).set, null);
 });
+
+test('live trace: the rep being made, the last few finished ones, the arm now, and only when something changed', async () => {
+  const { CurlTrace } = await import('./curl-trace.ts');
+  const trace = new CurlTrace(110);
+  assert.equal(trace.next(), null, 'nothing yet');
+  for (const s of synthCurl({ reps: DEMO_SET, seed: 11 })) trace.push(s.role, s.tMs, { quaternion: [...s.quaternion], rotationRate: [...(s.rotationRate ?? [])] });
+  const p = trace.next()!;
+  assert.equal(p.reps.length, DEMO_SET.length);
+  assert.equal(p.recent.length, 3);
+  assert.deepEqual(p.recent.map(r => r.rep), [6, 7, 8]);
+  assert.ok(p.recent.every(r => r.path.length <= 40));
+  assert.ok(p.live.length > 0 && p.live.length <= 160);
+  assert.ok(p.arm && Math.abs(p.arm.elbowDeg) < 10, 'the set ended at rest');
+  assert.equal(p.set!.reps, 8);
+  assert.equal(trace.next(), null, 'no new samples, nothing to send');
+  assert.ok(trace.next(true), 'unless asked for the final picture');
+});

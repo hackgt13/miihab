@@ -55,6 +55,9 @@ namespace Kinesthetic.Rehab
                 b.Append(",\"pose\":"); Pose(b, coachBones); b.Append('}');
             }
             Partner(b);
+            // The curl's path, as the Mac's CurlTrajectory is drawing it, so the headset draws the same.
+            if (session.GetComponent<CurlTrajectory>()?.Last is Newtonsoft.Json.Linq.JObject path)
+                b.Append(",\"trajectory\":").Append(path.ToString(Newtonsoft.Json.Formatting.None));
             b.Append('}');
             socket.Send(b.ToString());
         }

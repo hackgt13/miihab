@@ -172,6 +172,9 @@ namespace Kinesthetic.Rehab
             // person sits where it stands instead (PeerAvatar): you watch them move, not yourself. Joining or leaving
             // a group mid-visit swaps one for the other.
             ArrangeCompany();
+            // The curl's path beside the working arm, drawn from what the coordinator rebuilds from both AirPods.
+            // Hidden until a curl set sends one, so every other movement is unaffected.
+            if (!useCameraPose && !GetComponent<CurlTrajectory>()) gameObject.AddComponent<CurlTrajectory>().view = this;
             var groups = Kinesthetic.Menu.GroupPanel.Instance;
             if (groups) groups.RoomChanged += ArrangeCompany;
             // The patient's own eyes (mirror left, coach right); C glides out to the wide shot.
