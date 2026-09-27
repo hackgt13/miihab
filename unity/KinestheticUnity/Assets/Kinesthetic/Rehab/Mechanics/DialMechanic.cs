@@ -9,8 +9,10 @@ namespace Kinesthetic.Rehab.Mechanics
     /// the reticle and answers the angle directly, which is the most immediate feedback the studio has.
     public sealed class DialMechanic : RepMechanic
     {
-        const float Distance = 1.25f, Below = .12f, Aside = .27f;   // the reticle's frame, and the dial's offset to the limb's side
-        const float Radius = .095f;
+        // Nearer and larger than the reticle: at 0.8 m a 0.2 m needle is about three times the size the reticle's
+        // elements are to the eye, with its pivot just off the centre line on the limb's side so the arc sweeps outward.
+        const float Distance = .8f, Below = .05f, Aside = .12f;
+        const float Radius = .2f;
 
         Transform pivotDot, tip; LineRenderer needle, track, band, ceilingTick;
         Material tipMaterial, pivotMaterial;
@@ -20,12 +22,12 @@ namespace Kinesthetic.Rehab.Mechanics
         void Start()
         {
             tipMaterial = Ghost(); pivotMaterial = Ghost();
-            tip = Primitive(PrimitiveType.Sphere, "Dial tip", Vector3.one * .018f, tipMaterial);
-            pivotDot = Primitive(PrimitiveType.Sphere, "Dial pivot", Vector3.one * .012f, pivotMaterial);
-            needle = Line("Dial needle", .0065f);
-            track = Line("Dial track", .003f);
-            band = Line("Dial band", .009f);
-            ceilingTick = Line("Dial ceiling", .006f);
+            tip = Primitive(PrimitiveType.Sphere, "Dial tip", Vector3.one * .04f, tipMaterial);
+            pivotDot = Primitive(PrimitiveType.Sphere, "Dial pivot", Vector3.one * .025f, pivotMaterial);
+            needle = Line("Dial needle", .014f);
+            track = Line("Dial track", .006f);
+            band = Line("Dial band", .02f);
+            ceilingTick = Line("Dial ceiling", .012f);
             Visible(false);
         }
 
@@ -37,7 +39,7 @@ namespace Kinesthetic.Rehab.Mechanics
             alpha = Mathf.Lerp(alpha, show ? 1 : 0, 1 - Mathf.Exp(-6 * dt));
             if (alpha < .02f) { Visible(false); return; }
 
-            // The same easing as the reticle, so the two ride together; offset to the side the limb is on.
+            // The same easing as the reticle, so the two ride together; nearer, and offset to the side the limb is on.
             bool left = view.Side == "left";
             var target = eyes.position + eyes.forward * Distance + Vector3.down * Below;
             place = placed ? Vector3.Lerp(place, target, 1 - Mathf.Exp(-5 * dt)) : target;

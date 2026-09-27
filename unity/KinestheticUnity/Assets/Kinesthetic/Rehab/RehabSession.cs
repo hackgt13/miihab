@@ -111,11 +111,11 @@ namespace Kinesthetic.Rehab
         Kinesthetic.Coach.CoachDemonstrator coach;
         bool voiceOn; string currentExerciseId; Label hudCoachState;
         static Kinesthetic.Coach.CoachVoice Voice => Kinesthetic.Coach.CoachVoice.Instance;
-        VisualElement hudCoach; Label hudCoachLine; Button viewToggle, summaryClose, summaryMenu;
+        VisualElement hudCoach; Label hudCoachLine; Button summaryClose, summaryMenu;
         int boundGeneration = -1;
         // Held, so a rebind after one board rebuilds can take them off the boards that did not (-= then +=):
         // a handler added twice fires twice, and a toggle that fires twice does nothing.
-        Action onSummaryClose, onSummaryMenu, onViewToggle, onStart;
+        Action onSummaryClose, onSummaryMenu, onStart;
         /// Stable per machine, so Alex (the voice PT) remembers this patient between sessions.
         static string PatientId
         {
@@ -240,7 +240,6 @@ namespace Kinesthetic.Rehab
             // for today, straight back to the menu — the set is already saved, so there is nothing to confirm.
             onSummaryClose ??= () => { summaryCard.Dismiss(); onStart(); };
             onSummaryMenu ??= () => Kinesthetic.Menu.ActivityNavigation.Ensure().ReturnToMenuNow();
-            onViewToggle ??= () => GetComponent<StudioCamera>()?.ToggleView();   // the Mac's camera only
             onStart ??= () => {
                 if (IsBusy) return;
                 if (running) StartCoroutine(Stop());
@@ -253,7 +252,6 @@ namespace Kinesthetic.Rehab
             };
             summaryClose = Rebind(summaryClose, root.Q<Button>("summary-close"), onSummaryClose);
             summaryMenu = Rebind(summaryMenu, root.Q<Button>("summary-menu"), onSummaryMenu);
-            viewToggle = Rebind(viewToggle, root.Q<Button>("view-toggle"), onViewToggle);
             start = Rebind(start, button, onStart);
             // Mounted after every rebuild, in whatever state it was already in — a board that remade its
             // tree must not hand a dismissed sheet back to someone mid-set. A venue with no briefing host
@@ -539,8 +537,6 @@ namespace Kinesthetic.Rehab
             bool summaryOpen = summaryCard != null && summaryCard.Presented;
             boards.Q("dock-board")?.EnableInClassList("hidden", summaryOpen);
             boards.Q("crown-board")?.EnableInClassList("hidden", summaryOpen || !running);
-            var cameraRig = GetComponent<StudioCamera>();
-            viewToggle.text = cameraRig && cameraRig.InSeatedView ? "Wide view" : "Seated view";
             bool fresh = useCameraPose ? Fresh : MotionFresh;
             bool live = running && Fresh && liveAngle.HasValue;
             bool reached = live && liveAngle.Value >= targetDeg && liveAngle.Value <= targetDeg + bandDeg;
