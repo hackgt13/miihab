@@ -64,7 +64,7 @@ namespace Kinesthetic.UI.Boards
     {
         /// What to do now: the cue, the status, the primary button and the connection chip. Low and near, so
         /// it is in the lower field of view like a lectern rather than covering the room.
-        public static readonly Station Dock = new("Dock", 0, -33, 1.2f);
+        public static readonly Station Dock = new("Dock", 0, -38, 1.2f);
 
         /// Modals only — a summary, a setup — straight ahead at reading distance, shown and hidden.
         public static readonly Station Focus = new("Focus", 0, 0, 1.4f);
@@ -94,7 +94,7 @@ namespace Kinesthetic.UI.Boards
         /// Above the eyeline, close, for a board that rides with the view (ViewFollow): a heads-up count that is
         /// there when looked up at and out of the way of what is in front. Pitch and distance are measured from
         /// the view rather than the seat, so this is the one station that does not stand anywhere.
-        public static readonly Station Crown = new("Crown", 0, 16, 1.0f);
+        public static readonly Station Crown = new("Crown", 0, 19, 1.0f);
 
         public static readonly Station[] All = { Dock, Focus, Score, Measure, Reading };
     }
