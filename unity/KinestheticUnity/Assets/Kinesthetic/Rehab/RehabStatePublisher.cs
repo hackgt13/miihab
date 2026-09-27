@@ -59,10 +59,9 @@ namespace Kinesthetic.Rehab
             socket.Send(b.ToString());
         }
 
-        /// The rest of the group, while the patient is in one (PeerAvatar stands in for the mirror): for each person
+        /// The rest of the group, while the patient is in one (PeerAvatar, beside the mirror): for each person
         /// seated, who, their state line, their Mii, and their bones as drawn here — in seat order, so a headset
-        /// seats the same person in the same place. Absent on your own, which is how a headset knows to keep its
-        /// mirror. The headset seats them from its own patient, as it does the coach.
+        /// seats the same person in the same place. Absent on your own. The headset seats them from its own patient, as it does the coach.
         void Partner(StringBuilder b)
         {
             var group = session.GetComponent<PeerAvatar>();

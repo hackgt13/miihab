@@ -145,7 +145,7 @@ namespace Kinesthetic.Rehab
         float planHoldMs, holdTargetMs = 2000, raiseMs = 2000, lowerMs = 3000;
         JObject liveQuality;            // this sample's readouts by quality id; null between reps
         int streak; float bestHoldMs; int holdMetRep;
-        KArc holdRing; KReadout holdReadout, bestHoldReadout; KTag streakTag;   // the dock's hold ring; the crown's figures
+        KArc holdRing; KReadout matchReadout, holdReadout, bestHoldReadout; KTag streakTag;   // the dock's hold ring; the crown's figures
         bool HoldPrescribed => planHoldMs > 0;
         float HoldTargetMs => Mathf.Max(holdTargetMs, planHoldMs);
         // The rep as the in-world mechanics feel it (Mechanics/): the coordinator's live judgements plus the speed
@@ -235,7 +235,7 @@ namespace Kinesthetic.Rehab
             hudCoachLine = root.Q<Label>("hud-coach-line");
             hudCoachState = root.Q<Label>("hud-coach-state");
             holdRing = root.Q<KArc>("hold-ring"); holdReadout = root.Q<KReadout>("hold-readout");
-            streakTag = root.Q<KTag>("streak-tag"); bestHoldReadout = root.Q<KReadout>("best-hold");
+            streakTag = root.Q<KTag>("streak-tag"); bestHoldReadout = root.Q<KReadout>("best-hold"); matchReadout = root.Q<KReadout>("match-readout");
             // The summary's two ways on: another set straight away (what the dock's Practice again does), or done
             // for today, straight back to the menu — the set is already saved, so there is nothing to confirm.
             onSummaryClose ??= () => { summaryCard.Dismiss(); onStart(); };
@@ -514,6 +514,8 @@ namespace Kinesthetic.Rehab
                 Hitches = control?["hitches"]?.Value<int>() ?? 0, Streak = streak,
                 Fast = (string)tempo?["guidance"] == "slower",
                 Valid = valid, Prescribed = prescribedReps,
+                Match = inRep && liveQuality?["trajectory"]?["percent"] is JToken m && m.Type != JTokenType.Null
+                    ? Mathf.RoundToInt(m.Value<float>()) : -1,
             };
         }
 
@@ -555,6 +557,17 @@ namespace Kinesthetic.Rehab
             {
                 streakTag.text = streak >= 2 ? $"{streak} IN A ROW" : "";
                 streakTag.EnableInClassList("hidden", streak < 2);
+            }
+            // The path, beside the angle the dial answers. A dash until the rep has enough of itself to
+            // judge, and hidden entirely for an exercise that is not scored on its trajectory — a
+            // percentage nobody is being measured against is just a number on the glass.
+            if (matchReadout != null)
+            {
+                bool judged = qualityIds?.Contains("trajectory") ?? true;
+                int match = feel.Match;
+                matchReadout.EnableInClassList("hidden", !judged);
+                matchReadout.value = match >= 0 ? $"{match}%" : "—";
+                matchReadout.tone = match >= 80 ? KReadout.Tone.Good : KReadout.Tone.Ink;
             }
             if (bestHoldReadout != null)
             {
@@ -871,22 +884,14 @@ namespace Kinesthetic.Rehab
             if (groups) groups.RoomChanged -= ArrangeCompany;
         }
 
-        /// The mirror when you are on your own, the other person when you are in a group — never both, since they
-        /// stand in the same place.
+        /// The mirror always; the rest of the group too while you are in one, seated past the mirror's edge.
         void ArrangeCompany()
         {
             if (useCameraPose || !this) return;
+            if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
             bool together = Kinesthetic.Menu.GroupPanel.Instance?.InRoom == true;
-            if (together)
-            {
-                if (GetComponent<MirrorPanel>() is MirrorPanel mirror) Destroy(mirror);
-                if (!GetComponent<PeerAvatar>()) gameObject.AddComponent<PeerAvatar>().view = this;
-            }
-            else
-            {
-                if (GetComponent<PeerAvatar>() is PeerAvatar partner) Destroy(partner);
-                if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
-            }
+            if (together && !GetComponent<PeerAvatar>()) gameObject.AddComponent<PeerAvatar>().view = this;
+            else if (!together && GetComponent<PeerAvatar>() is PeerAvatar partner) Destroy(partner);
         }
     }
 }

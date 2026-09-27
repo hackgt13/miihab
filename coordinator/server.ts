@@ -13,7 +13,7 @@ import { spotlight, recap, draft, introLine, milestoneLine, daysSince } from './
 import { MilestoneStore, milestoneFrom } from './milestones.ts';
 import { weeksSince, readable, type Profile, type FriendActivity } from './matching.ts';
 import { IntroductionStore, LocalDirectory } from './introductions.ts';
-import { GroupStore } from './groups.ts';
+import { GroupStore, PEER_ID } from './groups.ts';
 import { hostMonotonicMs } from './hostclock.ts';
 import { loadReplay } from './replay.ts';
 import { createSession, exerciseKind, type RepParams, type RepSession } from './exercise/registry.ts';
@@ -59,6 +59,20 @@ const introductions = new IntroductionStore(socialDir);
 const directory = new LocalDirectory(socialDir);
 directory.seedSamples();
 const groups = new GroupStore(socialDir);
+// The second Mac as a person in a group (groups.ts `peerPresent`). The relay knows when it is streaming; asked
+// rather than told, like the relay asks this process about groups, so neither needs the other to start first.
+// A short grace keeps an AirPod taken out for a moment from walking them out of the room.
+const relayUrl = 'http://' + new URL(process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767').host;   // the relay the motion comes from
+const peer = {id: PEER_ID, displayName: process.env.KINESTHETIC_PEER_NAME || 'Guest', mii: 1};
+let peerLiveAt = -Infinity;
+const peerLive = () => Date.now() - peerLiveAt < 10000;
+setInterval(async () => {
+  try {
+    const r = await fetch(relayUrl + '/', {signal: AbortSignal.timeout(800)});
+    if (r.ok && (await r.json())?.secondMac?.live) peerLiveAt = Date.now();
+  } catch {}
+  if (peerLive()) groups.peerPresent(peer, friends.me().id); else groups.peerGone(peer.id);
+}, 1000).unref();
 const milestones = new MilestoneStore(socialDir);
 
 /// This patient, as the matcher sees them: what they are working toward and
@@ -652,6 +666,7 @@ const server = createServer(async (request, response) => {
           const recent = friends.list().filter(p => p.sample)
             .sort((a, b) => String(b.lastActiveAt).localeCompare(String(a.lastActiveAt)));
           groups.seed(activityId, recent);
+          if (peerLive()) groups.peerHosts(peer, activityId, me.id);
           return json(200, {...groups.lobby(activityId, friendIds()), current: mine(), samples: groups.samples});
         }
         if (request.method === 'GET' && url.pathname === '/api/groups/current') return json(200, {group: mine()});

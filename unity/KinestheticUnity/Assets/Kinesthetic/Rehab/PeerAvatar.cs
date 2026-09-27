@@ -8,9 +8,9 @@ namespace Kinesthetic.Rehab
 {
     /// <summary>
     /// The rest of a group session, seated around the patient: everyone on the Tab list, on an arc to the patient's
-    /// left that starts where the mirror window stands when they are on their own, each turned toward them and doing
-    /// the same movement. RehabSession adds this instead of the mirror when the patient is in a group (GroupPanel),
-    /// so the generated scene needs no change.
+    /// left that starts just past the mirror window's edge, each turned toward them and doing the same movement.
+    /// RehabSession adds this beside the mirror when the patient is in a group (GroupPanel), so the generated scene
+    /// needs no change.
     ///
     /// Each person is a copy of the patient's own seated Mii and wheelchair, recoloured with their Mii's skin, hair
     /// and shirt (KMiiFace), so the person in the room matches the face in the member list. How they move:
@@ -24,12 +24,12 @@ namespace Kinesthetic.Rehab
     public sealed class PeerAvatar : MonoBehaviour
     {
         public IRehabView view;
-        [Tooltip("How far the seats are from the patient's hips, in metres. The first stands where the mirror does.")]
+        [Tooltip("How far the seats are from the patient's hips, in metres.")]
         public float radius = 2.72f;
         [Tooltip("Where the arc starts and how far apart the seats are, in degrees to the patient's left of straight ahead.")]
-        public float firstSeatDeg = 36, seatSpacingDeg = 24;
-        [Tooltip("Degrees each person is turned away from facing the patient, so a forward raise is seen from the side rather than end-on. Positive shows the measured arm's side.")]
-        public float turnDeg = 55;
+        public float firstSeatDeg = 62, seatSpacingDeg = 24;   // the mirror spans about 24–48° (MirrorPanel)
+        [Tooltip("Degrees each person is turned away from facing the patient. 0 faces them; ~55 shows a forward raise in profile instead of end-on.")]
+        public float turnDeg = 0;
 
         /// One person in one seat. Seats are kept and reused as people come and go; an empty one is hidden.
         public sealed class Seat
@@ -163,8 +163,7 @@ namespace Kinesthetic.Rehab
             copy.SetPositionAndRotation(source.position + (left * Mathf.Sin(a) + forward * Mathf.Cos(a)) * radius, source.rotation);
             Destroy(holder);
             rig.Initialize();   // its bone table is filled here, and the copy was made asleep
-            // Turned toward the patient, then three-quarters away: face-on, a forward raise points straight at the
-            // patient and cannot be seen; with the measured arm's side toward them it reads in profile.
+            // Turned toward the patient, face-on, then by turnDeg (none by default: company faces you).
             var facing = Flat(rig.transform.TransformDirection(Vector3.back));
             var toPatient = Flat(hip - rig.Hip.position);
             if (facing.sqrMagnitude > 1e-4f && toPatient.sqrMagnitude > 1e-4f)

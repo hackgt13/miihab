@@ -103,22 +103,16 @@ namespace Kinesthetic.Rehab
             }
         }
 
-        /// The rest of the group in the seats the Mac gave them, exactly as the Mac draws them; the mirror when the
-        /// Mac has no group. Seated from this scene's patient (PeerAvatar), so the Mac's world positions are not
+        /// The rest of the group in the seats the Mac gave them, exactly as the Mac draws them, beside the mirror. Seated from this scene's patient (PeerAvatar), so the Mac's world positions are not
         /// trusted here.
         void Group(JArray people)
         {
             if (people == null)
             {
                 if (group) { Destroy(group); group = null; memberBones.Clear(); }
-                if (!GetComponent<MirrorPanel>()) gameObject.AddComponent<MirrorPanel>().view = this;
                 return;
             }
-            if (!group)
-            {
-                if (GetComponent<MirrorPanel>() is MirrorPanel mirror) Destroy(mirror);
-                group = gameObject.AddComponent<PeerAvatar>(); group.view = this;
-            }
+            if (!group) { group = gameObject.AddComponent<PeerAvatar>(); group.view = this; }
             var shown = new List<(string, string, int)>();
             foreach (var p in people.OfType<JObject>()) shown.Add(((string)p["name"], (string)p["state"], (int?)p["mii"] ?? 0));
             group.Present(shown);

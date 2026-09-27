@@ -77,3 +77,46 @@ test("the gallery is the catalog: no authored cards, and every activity is reach
   assert.deepEqual(invisible.map(a => a.id), [],
     `these activities have no gallery card and no other way in, so nobody can reach them from the menu: ${invisible.map(a => a.id).join(', ')}.`);
 });
+
+// The two Macs: the motion app on the second Mac dials this Mac's relay over plain ws:// and http://. Both of the
+// checks below are for failures that are completely mute -- the app opens, streams nothing, and logs nothing a
+// script can read -- so they are asserted here rather than discovered at a venue.
+
+test('the motion apps may speak plain http/ws to a tailnet address, not just a LAN one', () => {
+  // App Transport Security treats only loopback and the RFC1918 ranges (10/8, 172.16/12, 192.168/16) as local
+  // networking. Tailscale assigns from 100.64/10 (RFC6598), which is not among them, so a bundle declaring
+  // NSAllowsLocalNetworking streamed fine over a phone hotspot (192.168.x) and refused every tailnet peer with
+  // NSURLErrorAppTransportSecurityRequiresSecureConnection -- before opening a socket, so nothing was there to see.
+  for (const name of ['BowlingInfo.plist', 'Info.plist']) {
+    const path = resolve(import.meta.dirname, '../native', name);
+    if (!existsSync(path)) continue;          // coordinator can be checked out without the native apps
+    const plist = readFileSync(path, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    assert.match(plist, /<key>NSAllowsArbitraryLoads<\/key>\s*<true\/>/,
+      `${name} does not allow plain http/ws loads, so the app cannot reach a relay on a Tailscale address ` +
+      `(100.64/10). It would open, refuse its own relay connection and report nothing.`);
+    assert.doesNotMatch(plist, /<key>NSAllowsLocalNetworking<\/key>/,
+      `${name} declares NSAllowsLocalNetworking, which makes NSAllowsArbitraryLoads ignored on macOS 10.15 and ` +
+      `later. The two cannot be combined: the app would silently be back to LAN-only.`);
+  }
+});
+
+test('the launch scripts pass `open -a` a literal app name, never a path or a variable', () => {
+  // `open -a` resolves its argument through LaunchServices as an app *name*. Given a relative path it reports
+  // "Unable to find application named 'native/build/…'" and exits 1, which read as the app being missing when it
+  // was sitting right there. A bundle path belongs to plain `open`, and must be absolute (`"${app:A}"`).
+  //
+  // The argument therefore has to be a literal name. A variable is rejected even though it might hold an absolute
+  // path, because that is exactly how the bug shipped: `open -a "$app"`, where $app was "native/build/…". Checking
+  // for a visible slash would have passed it.
+  for (const name of ['start_two_airpods.sh', 'start_tunnel.sh']) {
+    const path = resolve(import.meta.dirname, '../scripts', name);
+    if (!existsSync(path)) continue;
+    const script = readFileSync(path, 'utf8');
+    const bad = [...script.matchAll(/open\s+-a\s+("[^"]*"|\S+)/g)].map(m => m[1])
+      .filter(arg => arg.includes('/') || arg.includes('$'));
+    assert.deepEqual(bad, [],
+      `${name} passes \`open -a\` something that is not a literal app name: ${bad.join(', ')}. ` +
+      `\`open -a\` looks its argument up as an app name, so a path — or a variable that may hold one — ` +
+      `fails with "Unable to find application named …". Use \`open "\${app:A}"\` for a bundle path.`);
+  }
+});
