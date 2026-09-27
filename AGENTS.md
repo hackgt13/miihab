@@ -30,6 +30,7 @@ Three sources, and only three: the patient's two AirPod pairs — **Mac 1** (the
 - **Connection is one and done.** `zsh scripts/start_tunnel.sh receive --watch` on Mac 1 (Tailscale up, relay on the tailnet with the persisted token in `local-data/pair-token.txt`, Quest over its cable). Mac 2 runs the zipped connector once; its Motion app keeps the address and token and reconnects on its own from then on. Tailscale addresses are stable, so nothing is re-entered.
 - **Retired:** the `club`/`wrist` channel names in the coordinator, `KINESTHETIC_MOTION_URL`/`KINESTHETIC_WRIST_MOTION_URL` (now `KINESTHETIC_RAW_MOTION_URL`), `params.imuSource` and `SOURCE_OF`. `exercise.started` and `GET /api/sensors` carry `sensors: {mode, phase, imu, ref, live, locked, instruction}` with `imu`/`ref` as `mac1`/`mac2`; a UI shows `instruction` verbatim during `waiting` and `identify`.
 - **Pinned by tests:** `motion-fuse.test.ts`, `exercise/imu-assign.test.ts`, the server tests in `exercise/two-imu.test.ts` and `exercise/imu-session.test.ts`, the relay tests in `golf-relay.test.ts` and `bowling-relay.test.ts`. Change the rule there first, then the code.
+- **Two Macs, step by step:** `TWO_MAC_SETUP.md` — the `receive` and `send` commands, Tailscale, the Quest over USB, and what each failure looks like.
 
 ## Unity setup
 
