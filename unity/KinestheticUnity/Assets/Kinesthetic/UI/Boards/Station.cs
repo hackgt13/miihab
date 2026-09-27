@@ -64,7 +64,7 @@ namespace Kinesthetic.UI.Boards
     {
         /// What to do now: the cue, the status, the primary button and the connection chip. Low and near, so
         /// it is in the lower field of view like a lectern rather than covering the room.
-        public static readonly Station Dock = new("Dock", 0, -22, 1.2f);
+        public static readonly Station Dock = new("Dock", 0, -33, 1.2f);
 
         /// Modals only — a summary, a setup — straight ahead at reading distance, shown and hidden.
         public static readonly Station Focus = new("Focus", 0, 0, 1.4f);
