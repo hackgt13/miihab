@@ -94,22 +94,31 @@ send() {
     bad "No relay at $ip:8767 with that token — same Wi-Fi as the receiver? did it run 'receive'?"; exit 1
   fi
   ok "Relay at $ip accepts the token"
-  if [[ ! -d $bowling_app ]]; then
-    if zsh native/build.sh bowling >/dev/null; then ok "Built $bowling_app"; else bad "Bowling Motion build failed (needs Xcode or Command Line Tools)"; exit 1; fi
+  # Either motion app will do: the relay registers a second Mac's stream apart from the receiver's own and routes it
+  # onto whichever channel the receiver is not using (golf-relay.ts route()). Use what is here; build only if nothing is.
+  local club_app="native/build/Kinesthetic Club Motion.app" app=""
+  for candidate in "$bowling_app" "$club_app" "/Applications/Kinesthetic Bowling Motion.app" "/Applications/Kinesthetic Club Motion.app"; do
+    [[ -d $candidate ]] && { app=$candidate; break; }
+  done
+  if [[ -z $app ]]; then
+    if zsh native/build.sh bowling >/dev/null; then app=$bowling_app; ok "Built $app"; else bad "Motion app build failed (needs Xcode or Command Line Tools)"; exit 1; fi
   fi
-  # The app reads these from its own defaults domain, so it opens already pointed at the receiver.
+  # Both apps read these from their own defaults domain, so whichever opens is already pointed at the receiver.
   pkill -x ClubMotionBridge 2>/dev/null
-  defaults write org.kinesthetic.bowlingmotion relayHost -string "$ip"
-  defaults write org.kinesthetic.bowlingmotion pairToken -string "$token"
-  /usr/bin/open -a "$bowling_app"
-  ok "Bowling Motion opened, pointed at $ip. Pair this Mac's AirPods and allow Motion access when asked."
+  for domain in org.kinesthetic.bowlingmotion org.kinesthetic.clubmotion; do
+    defaults write $domain relayHost -string "$ip"; defaults write $domain pairToken -string "$token"
+  done
+  /usr/bin/open -a "$app"
+  ok "${app:t:r} opened, pointed at $ip. Pair this Mac's AirPods and allow Motion access when asked."
   print "  waiting for this pair to reach the receiver; Ctrl-C to stop"
+  # The receiver's own pair was live before we started; one more live pair on either channel is this Mac's.
+  local before=$(get "http://$ip:8767/?token=$token" | pairs | grep -c live)
   for i in {1..120}; do
     live=$(get "http://$ip:8767/?token=$token" | pairs)
-    if [[ $live == *"IMU B "*live* ]]; then ok "${${(f)live}[(r)IMU B *]} — streaming"; return 0; fi
+    if (( $(print -r -- "$live" | grep -c live) > before )); then ok "streaming — the relay sees: $(print -r -- "$live" | grep live | tr '\n' ';')"; return 0; fi
     sleep 1
   done
-  warn "No IMU B samples after two minutes. Check the app's status line: it names the reporting bud once motion arrives."
+  warn "No samples from this Mac after two minutes. Check the app's status line: it names the reporting bud once motion arrives."
   return 1
 }
 
