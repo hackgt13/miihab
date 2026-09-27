@@ -64,6 +64,8 @@ export interface LibraryExercise {
   wear?: string;
   /** 1: everyone knows it (an arm raise, a squat). 2: recognisable. 3: a clinician's exercise. The gallery leads with 1. */
   familiar: 1 | 2 | 3;
+  /** The gallery's first movement, on its first page beside golf and bowling: the one-AirPod arm raise. One entry only. */
+  lead?: boolean;
   /** A better way to measure the same movement exists: the gallery shows that one instead, and a plan prescribing
    *  this kind is measured with it when launched from the gallery (plans.ts, prescriptionForActivity). */
   supersededBy?: string;
@@ -103,9 +105,9 @@ export const LIBRARY: Record<string, LibraryExercise> = {
   },
   ...entries([
     // THE one-AirPod movement (AGENTS.md, "Sensors"): the arm raise everyone knows, from the wrist alone, so it is the
-    // one that plays in a group session where each person has one pair. It leads the one-AirPod tiles.
+    // one that plays in a group session where each person has one pair. It leads the gallery's movements.
     { kind: 'arm-raise.v1', movement: 'shoulder_raise', label: 'Arm raise', sensor: 'AirPod on the wrist',
-      familiar: 1, posture: 'Elbow straight.', body: { segment: 'arm', rest: DOWN, toward: FORWARD },
+      familiar: 1, lead: true, posture: 'Elbow straight.', body: { segment: 'arm', rest: DOWN, toward: FORWARD },
       components: ['shoulder elevation', 'scapular control'],
       cue: 'Stand or sit tall. Lift your straight arm in front of you to the line, pause, and lower slowly.',
       defaults: { targetDeg: 60, ceilingMarginDeg: 20, prescribedReps: 8, holdMs: 400 },

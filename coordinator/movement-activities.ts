@@ -54,12 +54,14 @@ export function movementActivity(x: LibraryExercise) {
 }
 
 /**
- * The gallery's movements: the ones everyone knows first (familiar 1), two-AirPod versions ahead of one-AirPod ones
+ * The gallery's movements: the lead movement first (the one-AirPod arm raise, so it sits on the gallery's first page
+ * beside golf and bowling), then the ones everyone knows (familiar 1), two-AirPod versions ahead of one-AirPod ones
  * at the same tier because they measure properly, then library order. A kind superseded by a better way to measure
  * the same movement has no tile of its own.
  */
 export const movementActivities = () => Object.values(LIBRARY)
   .map((x, order) => ({ x, order }))
   .filter(({ x }) => !x.supersededBy)
-  .sort((a, b) => a.x.familiar - b.x.familiar || Number(!!b.x.reference) - Number(!!a.x.reference) || a.order - b.order)
+  .sort((a, b) => Number(!!b.x.lead) - Number(!!a.x.lead) || a.x.familiar - b.x.familiar
+    || Number(!!b.x.reference) - Number(!!a.x.reference) || a.order - b.order)
   .map(({ x }) => movementActivity(x));

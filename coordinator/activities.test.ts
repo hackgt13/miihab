@@ -58,3 +58,10 @@ test('a movement measures exactly one kind', () => {
   c.activities[0].group = 'shelf';
   assert.throws(() => parseCatalog(c, 'test'), /group must be movement/);
 });
+
+test('the one-AirPod arm raise leads the movements, on the gallery\'s first page (six cards) beside golf and bowling', () => {
+  assert.equal(Object.values(LIBRARY).filter(x => x.lead).length, 1, 'one lead movement');
+  const cards = ACTIVITIES.filter(a => a.card).map(a => a.id);
+  assert.equal(cards.filter(id => id.startsWith('movement.'))[0], 'movement.arm-raise');
+  assert.ok(cards.indexOf('movement.arm-raise') < 6, `arm raise is card ${cards.indexOf('movement.arm-raise') + 1}; the first page holds six`);
+});
