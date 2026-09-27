@@ -10,7 +10,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
-// Builds the therapist visit: the studio room, a whiteboard on an easel ahead-left, and Alex standing beside
+// Builds the therapist visit: the studio room, a whiteboard card ahead-left, and Alex standing beside
 // it, ahead-right, with a speech balloon over their head. The patient's eyes are the camera; nothing is
 // measured here, so there is no patient body, only the seat the boards stand around.
 public static class TherapistVisitSetup
@@ -84,36 +84,12 @@ public static class TherapistVisitSetup
     /// writing sits on the white. The panel is transparent; this is the board you see.
     static Transform BuildWhiteboard(SeatRig seat)
     {
+        // The board is the whiteboard board's own card (a KSurface, rounded, in the palette), like every other
+        // board in the product; a lit grey box behind it read as a slab with square corners. What stays is the
+        // spot the therapist turns to while writing.
         var pose = seat.PoseAt(Whiteboard);
         var group = new GameObject("Whiteboard").transform;
         group.SetPositionAndRotation(pose.position, pose.rotation);
-        var white = Mat("Whiteboard face", Palette.Sand00, .65f);
-        var metal = Mat("Whiteboard frame", Palette.Slate30, .5f);
-        var ink = Mat("Whiteboard marker", Palette.Prussian60, .3f);
-        float w = WhiteboardSize.x + .12f, h = WhiteboardSize.y + .12f, rim = .035f;
-        // The panel's front faces away from the viewer along +Z, so behind it is +Z.
-        Part(group, "Board face", PrimitiveType.Cube, new(0, 0, .02f), new(w, h, .02f), white);
-        Part(group, "Frame top", PrimitiveType.Cube, new(0, h / 2, .02f), new(w + rim, rim, .04f), metal);
-        Part(group, "Frame bottom", PrimitiveType.Cube, new(0, -h / 2, .02f), new(w + rim, rim, .04f), metal);
-        Part(group, "Frame left", PrimitiveType.Cube, new(-w / 2, 0, .02f), new(rim, h + rim, .04f), metal);
-        Part(group, "Frame right", PrimitiveType.Cube, new(w / 2, 0, .02f), new(rim, h + rim, .04f), metal);
-        Part(group, "Marker tray", PrimitiveType.Cube, new(0, -h / 2 - .02f, -.03f), new(w * .7f, .02f, .08f), metal);
-        for (int i = 0; i < 2; i++)
-        {
-            var marker = Part(group, "Marker " + i, PrimitiveType.Cylinder, new(-.12f + i * .1f, -h / 2 + .003f, -.04f), new(.022f, .06f, .022f), ink);
-            marker.transform.localRotation = Quaternion.Euler(0, 0, 90);
-        }
-        // Easel legs: straight down from behind each side of the frame to the floor. They stand in their own
-        // level group, since a non-uniform scale under the tilted board would shear them.
-        var easel = new GameObject("Easel").transform; easel.SetParent(group, true);
-        easel.SetPositionAndRotation(new Vector3(pose.position.x, 0, pose.position.z), seat.Facing);
-        foreach (var side in new[] { -1, 1 })
-        {
-            var top = group.TransformPoint(new Vector3(side * (w / 2 - .08f), h / 2, .06f));
-            var foot = easel.InverseTransformPoint(new Vector3(top.x, 0, top.z));
-            Part(easel, side < 0 ? "Easel leg left" : "Easel leg right", PrimitiveType.Cylinder, foot + Vector3.up * top.y / 2, new(.03f, top.y / 2, .03f), metal);
-            Part(easel, side < 0 ? "Easel foot left" : "Easel foot right", PrimitiveType.Cube, foot + Vector3.up * .015f, new(.06f, .03f, .5f), metal);
-        }
         return group;
     }
 
@@ -173,24 +149,6 @@ public static class TherapistVisitSetup
         return slot;
     }
 
-    static Material Mat(string name, Color color, float smoothness)
-    {
-        string folder = Root + "/Materials", path = $"{folder}/{name}.mat";
-        if (!AssetDatabase.IsValidFolder(folder)) AssetDatabase.CreateFolder(Root, "Materials");
-        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
-        if (!m) { m = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(m, path); }
-        m.SetColor("_BaseColor", color); m.SetFloat("_Smoothness", smoothness); EditorUtility.SetDirty(m); return m;
-    }
-
-    static GameObject Part(Transform parent, string name, PrimitiveType type, Vector3 position, Vector3 scale, Material material)
-    {
-        var go = GameObject.CreatePrimitive(type); go.name = name; go.transform.SetParent(parent, false);
-        go.transform.localPosition = position; go.transform.localScale = scale;
-        go.GetComponent<Renderer>().sharedMaterial = material;
-        UnityEngine.Object.DestroyImmediate(go.GetComponent<Collider>());
-        return go;
-    }
-
     /// What the scene must hold, read back from the saved file: the catalog loads it, every board is at its
     /// station, the whiteboard's face is behind its panel, and the therapist stands where a seated patient
     /// sees them without turning.
@@ -216,9 +174,8 @@ public static class TherapistVisitSetup
             Check(Vector3.Distance(placement.board.position, pose.position) < .01f, $"{placement.board.name} is not at {placement.station}");
             Check(Mathf.Abs(placement.station.yawDegrees) <= Station.MaxYawDegrees, $"{placement.station} asks the patient to turn");
         }
-        var face = visit.whiteboard.Find("Board face");
         var panel = visit.boards.Boards.First(b => b.name == "Whiteboard board").transform;
-        Check(face && Vector3.Dot(face.position - panel.position, panel.forward) > 0, "the whiteboard's face is in front of its writing");
+        Check(Vector3.Distance(visit.whiteboard.position, panel.position) < .05f, "the therapist writes somewhere other than the board");
         var speech = visit.boards.Boards.First(b => b.name == "Speech board").transform;
         var flat = new Vector2(speech.position.x - visit.therapist.position.x, speech.position.z - visit.therapist.position.z);
         Check(flat.magnitude < .05f, $"the speech balloon is {flat.magnitude:0.00} m off the therapist's head");
