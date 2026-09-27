@@ -54,6 +54,7 @@ namespace Kinesthetic.Tutorial
             if (!coach || !coach.model) { Debug.LogError("Tutorial: the coach prefab has no CoachDemonstrator with a model."); enabled = false; return false; }
             coach.demonstrating = false; coach.enabled = false;
             foreach (var voice in go.GetComponentsInChildren<Kinesthetic.Coach.CoachVoice>(true)) voice.enabled = false;
+            Kinesthetic.Coach.CoachVoiceListener.Attach(go.transform);   // the Mac holds the conversation; the headset hears it
             foreach (var r in go.GetComponentsInChildren<Renderer>(true)) r.enabled = true;
             bones = coach.model.GetComponentsInChildren<Transform>(true).ToList();
             return true;

@@ -25,6 +25,10 @@ namespace Kinesthetic.Coach
         public string Line => Time.unscaledTime - lineAt < 7 ? line : "";
         public bool Connected { get; private set; }
         public bool Speaking => level > .03f;
+        /// A headset is playing Alex (CoachVoiceListener): this Mac stays quiet so he is heard once, from the coach in
+        /// the headset rather than from AirPods on the patient's wrist. The sound is still measured here — the mouth
+        /// and the half-duplex microphone follow it — only its volume is off.
+        public bool HeadsetListening { get; private set; }
         /// Connected, with a microphone, and not talking: what the patient says now reaches Alex.
         public bool Listening => Connected && mic && !Speaking && Time.unscaledTime - lastSpokeAt >= .4f;
 
@@ -163,6 +167,10 @@ namespace Kinesthetic.Coach
                     case "interrupt": lock (ringGate) { readAt = writeAt = queued = 0; } break;
                     case "transcript":
                         if ((string)m["role"] == "agent") { line = (string)m["text"] ?? ""; lineAt = Time.unscaledTime; }
+                        break;
+                    case "listeners":
+                        HeadsetListening = ((int?)m["count"] ?? 0) > 0;
+                        if (source) source.volume = HeadsetListening ? 0 : 1;
                         break;
                     case "error": Debug.LogWarning("Coach voice: " + (string)m["message"]); break;
                     case "closed": if (socket != null) Close(); break;

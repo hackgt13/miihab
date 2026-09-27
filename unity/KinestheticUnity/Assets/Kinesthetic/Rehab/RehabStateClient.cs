@@ -93,6 +93,7 @@ namespace Kinesthetic.Rehab
                 if (!coach && (coach = FindAnyObjectByType<Kinesthetic.Coach.CoachDemonstrator>()))
                 {
                     coach.enabled = false;   // the Mac's coach drives this one
+                    Kinesthetic.Coach.CoachVoiceListener.Attach(coach.transform);   // and Alex is heard from it
                     coachBones = coach.model.GetComponentsInChildren<Transform>(true).ToList();
                 }
                 if (coach)
