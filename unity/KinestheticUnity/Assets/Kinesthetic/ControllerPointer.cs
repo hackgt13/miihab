@@ -119,10 +119,17 @@ namespace Kinesthetic
 
                 var pointer = new Pointer { ray = new Ray(origin, forward), tracked = tracked, pulled = Pulled(controller) };
                 float length = BeamLength;
-                if (tracked && Physics.Raycast(pointer.ray, out var hit, MaxDistance) && hit.collider.GetComponentInParent<Panes.Pane>())
+                // The same hit rule as picking, so the beam passes through an empty layer (the nav shell)
+                // exactly where a press would.
+                if (tracked)
                 {
-                    pointer.onPane = true;
-                    length = hit.distance;
+                    Panes.WorldPanelPick.Under<VisualElement>(pointer.ray, MaxDistance, Physics.DefaultRaycastLayers, out var pane, out _, out _);
+                    if (pane)
+                    {
+                        pointer.onPane = true;
+                        foreach (var collider in pane.GetComponentsInChildren<Collider>())
+                            if (collider.Raycast(pointer.ray, out var hit, MaxDistance)) { length = hit.distance; break; }
+                    }
                 }
                 pointers.Add(pointer);
                 seen.Add(device);
