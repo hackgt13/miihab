@@ -56,9 +56,10 @@ test('days are whole, clamped at zero, and null when never', () => {
 });
 
 test('with no key configured every entry point declines instead of throwing', async () => {
-  const saved = [process.env.ANTHROPIC_API_KEY, process.env.ANTHROPIC_AUTH_TOKEN];
+  const saved = [process.env.ANTHROPIC_API_KEY, process.env.ANTHROPIC_AUTH_TOKEN, process.env.MUSE_API_KEY];
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.ANTHROPIC_AUTH_TOKEN;
+  delete process.env.MUSE_API_KEY;
   try {
     assert.equal(available(), false);
     assert.equal(await spotlight(people), null);
@@ -70,5 +71,6 @@ test('with no key configured every entry point declines instead of throwing', as
   } finally {
     if (saved[0]) process.env.ANTHROPIC_API_KEY = saved[0];
     if (saved[1]) process.env.ANTHROPIC_AUTH_TOKEN = saved[1];
+    if (saved[2]) process.env.MUSE_API_KEY = saved[2];
   }
 });

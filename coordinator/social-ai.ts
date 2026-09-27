@@ -14,6 +14,11 @@
 // measurements ever — friends.ts keeps one patient's numbers away from another,
 // and the model does not get an exception to that rule.
 //
+// Which model: Meta's Muse Spark (Meta Model API, MUSE_API_KEY) when configured, else Claude. Muse is called
+// through its OpenAI-compatible Chat Completions with structured output against the same schema the Claude path's
+// tool uses, and its reply is read back through the same toolInput(), so every entry point and normaliser is
+// provider-blind.
+//
 // The model narrates; it never speaks as a person. A line here is the app
 // saying "returned after three days", never Maya saying anything. FriendsPanel
 // still quotes real messages verbatim and this never overwrites one.
@@ -134,6 +139,33 @@ const RECAP_TOOL = {
   },
 } as const;
 
+const MUSE_URL = process.env.MUSE_BASE_URL ?? 'https://api.meta.ai/v1';
+const MUSE_MODEL = process.env.MUSE_MODEL ?? 'muse-spark-1.3';
+const muse = () => process.env.MUSE_API_KEY || null;
+
+/// Muse Spark reasons before it answers; for a line of social copy minimal reasoning is plenty and keeps a menu
+/// load at a couple of seconds. Muse cannot be forced to call a tool (tool_choice is "auto" only), so it answers
+/// in structured output against the tool's own schema instead, and that answer is shaped here like an Anthropic
+/// tool_use block, so the rest of this file never knows which model spoke.
+async function callMuse(system: string, tool: any, payload: unknown, maxTokens: number) {
+  const response = await fetch(`${MUSE_URL}/chat/completions`, {
+    method: 'POST', signal: AbortSignal.timeout(20_000),
+    headers: { Authorization: `Bearer ${muse()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: MUSE_MODEL, reasoning_effort: 'minimal', max_completion_tokens: maxTokens + 600,
+      messages: [{ role: 'system', content: `${system}\n\n${tool.description ?? ''}` }, { role: 'user', content: JSON.stringify(payload) }],
+      response_format: { type: 'json_schema', json_schema: { name: tool.name, schema: tool.input_schema, strict: true } },
+    }),
+  });
+  if (!response.ok) throw Error(`Muse ${response.status}: ${(await response.text()).slice(0, 200)}`);
+  const body = await response.json();
+  const choice = body.choices?.[0];
+  if (choice?.finish_reason === 'content_filter' || choice?.message?.refusal) return { stop_reason: 'refusal', content: [] };
+  let input: unknown = null;
+  try { input = JSON.parse(choice?.message?.content ?? 'null'); } catch { /* malformed: toolInput sees null */ }
+  return { stop_reason: 'tool_use', content: [{ type: 'tool_use', name: tool.name, input }] };
+}
+
 let client: Anthropic | null = null;
 function anthropic(): Anthropic | null {
   // An unset key is the normal case for a local install, not an error.
@@ -145,7 +177,12 @@ function anthropic(): Anthropic | null {
 /// Whether the AI path is configured at all. Routes use this to answer quickly
 /// instead of constructing a request that cannot be sent.
 export function available(): boolean {
-  return anthropic() !== null;
+  return muse() !== null || anthropic() !== null;
+}
+
+/// Which model the social surface is using, for the status line and the pitch: 'muse', 'claude' or null.
+export function provider(): 'muse' | 'claude' | null {
+  return muse() ? 'muse' : anthropic() ? 'claude' : null;
 }
 
 /// Degrading silently makes "no key" and "the request failed" look identical
@@ -173,6 +210,7 @@ function toolInput(response: any, name: string): any | null {
 }
 
 async function call(system: string, tool: unknown, payload: unknown, maxTokens: number) {
+  if (muse()) return callMuse(system, tool as any, payload, maxTokens);
   const api = anthropic();
   if (!api) return null;
   return await api.beta.messages.create({
