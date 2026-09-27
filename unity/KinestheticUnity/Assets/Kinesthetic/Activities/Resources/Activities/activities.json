@@ -151,7 +151,6 @@
       ],
       "subjects": 1,
       "prescribable": false,
-      "navigation": "activity",
       "loadingMessage": "Heading to the lanes\u2026",
       "help": {
         "title": "Today we will practice bowling.",

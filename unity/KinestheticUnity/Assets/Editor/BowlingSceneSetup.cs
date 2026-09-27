@@ -201,10 +201,12 @@ public static class BowlingSceneSetup
         seat.SetPositionAndRotation(new Vector3(feet.x, 0, feet.z), Quaternion.LookRotation(Vector3.forward));
         QuestRigBuilder.HideOwnHead(model);
         QuestRigBuilder.Build(seat, QuestRigBuilder.EyeHeight(model, seat), 100, CameraClearFlags.Skybox, ~(1 << QuestRigBuilder.LocalHeadLayer));
-        var hud = Text("Bowling instructions", new Vector3(0, 1.1f, .2f), .012f); hud.text = "Waiting for Bowling on your Mac…";
-        TextPanel("Instructions", hud.transform.position, new Vector2(2.3f, .48f));
-        var board = Text("Bowling scoreboard", new Vector3(0, 2.8f, 4), .023f); board.text = "MIIHAB  /  BOWLING";
-        TextPanel("Scoreboard", board.transform.position, new Vector2(3.7f, 1));
+        // One sign, down the lane where a bowling alley hangs its screen: the score, and under it the line that tells
+        // the bowler what to do. The instructions used to stand on their own board 20 cm in front of the seat — fine
+        // for the old over-the-shoulder view, but in first person it filled the whole view like a wall.
+        var board = Text("Bowling scoreboard", new Vector3(0, 2.85f, 4), .023f); board.text = "MIIHAB  /  BOWLING";
+        var hud = Text("Bowling instructions", new Vector3(0, 2.2f, 4), .015f); hud.text = "Waiting for Bowling on your Mac…";
+        TextPanel("Scoreboard", new Vector3(0, 2.55f, 4), new Vector2(3.7f, 1.35f));
         var client = new GameObject("Bowling state client").AddComponent<BowlingStateClient>(); client.game = game; client.hud = hud; client.scoreboard = board;
     }
 }

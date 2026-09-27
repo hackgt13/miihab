@@ -33,16 +33,13 @@ namespace Kinesthetic.Bowling
             root.Q<Button>("replay").clicked += game.RestartRound;
             foreach (string name in new[] { "setupBack", "pauseBack", "resultBack" }) root.Q<Button>(name).clicked += Back;
         }
-        static void Back()
-        {
-            const string menu = "Assets/Kinesthetic/Menu/MainMenu.unity";
-            if (Application.CanStreamedLevelBeLoaded(menu)) { Time.timeScale = 1; SceneManager.LoadScene(menu); }
-        }
+        // The same way back as every other activity (ActivityNavigation), so the round is recorded and the headset
+        // follows the Mac to the menu, rather than a scene load only the Mac knew about.
+        static void Back() { Time.timeScale = 1; Kinesthetic.Menu.ActivityNavigation.Ensure().ReturnToMenuNow(); }
         public static string AimText(float degrees) => Mathf.Abs(degrees) < .25f ? "Straight" : $"{Mathf.Abs(degrees):0.0}° {(degrees < 0 ? "left" : "right")}";
         void Update()
         {
             if (root == null || !game) return;
-            if (Keyboard.current?.escapeKey.wasPressedThisFrame == true) game.SetPaused(!game.Paused);
             bool setup = game.Phase == "Setup";
             root.Q("setup").EnableInClassList("hidden", !setup || game.Paused);
             root.Q("paused").EnableInClassList("hidden", !game.Paused);
