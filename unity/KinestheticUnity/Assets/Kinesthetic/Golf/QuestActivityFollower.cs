@@ -86,7 +86,15 @@ namespace Kinesthetic.Golf
             if ((string)message["kind"] != UiCue.Scene) return;
             string scene = HeadsetSceneFor((string)message["scene"]);
             string phase = (string)message["phase"], venue = (string)message["venue"];
-            if (scene == null || transitioning || !Application.CanStreamedLevelBeLoaded(scene)) return;
+            if (scene == null || !Application.CanStreamedLevelBeLoaded(scene))
+            {
+                // Say so once per walk, or a headset that stays in the plaza looks like a transition that failed.
+                if (phase == UiCue.Leave)
+                    Debug.LogWarning($"Headset has no scene for the Mac's '{(string)message["scene"]}'; staying in {SceneManager.GetActiveScene().name}. " +
+                                     "Give it a questScene in coordinator/activities.json and a Kinesthetic/Quest setup (Verify headset scene coverage).");
+                return;
+            }
+            if (transitioning) return;
             // `leave` is the walk itself. `arrive` alone means the walk was missed; just get there.
             if (phase == UiCue.Leave) StartCoroutine(Transition(scene, venue));
             else if (phase == UiCue.Arrive && SceneManager.GetActiveScene().name != scene) StartCoroutine(Transition(scene, null));

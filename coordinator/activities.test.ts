@@ -65,3 +65,19 @@ test('the one-AirPod arm raise leads the movements, on the gallery\'s first page
   assert.equal(cards.filter(id => id.startsWith('movement.'))[0], 'movement.arm-raise');
   assert.ok(cards.indexOf('movement.arm-raise') < 6, `arm raise is card ${cards.indexOf('movement.arm-raise') + 1}; the first page holds six`);
 });
+
+test('every scene the menu can reach names its headset copy: the Quest build refuses without one', () => {
+  // The therapist visit and the intro shipped on the Mac with `questScene: null`, and the headset silently stayed in
+  // the plaza when the Mac walked in. A Mac scene is one line here; the studio's movements all share Rehab.
+  const byScene = new Map<string, Set<string | null>>();
+  for (const a of ACTIVITIES) {
+    if (!a.scene) continue;
+    if (!byScene.has(a.scene)) byScene.set(a.scene, new Set());
+    byScene.get(a.scene)!.add(a.questScene);
+  }
+  for (const [scene, quests] of byScene) {
+    const named = [...quests].filter((q): q is string => typeof q === 'string' && q.length > 0);
+    assert.equal(named.length, 1, `'${scene}' should name exactly one questScene, found ${JSON.stringify([...quests])}; add a Kinesthetic/Quest setup for it and name it in activities.json`);
+    assert.equal(quests.size, 1, `every '${scene}' activity should name the same questScene, found ${JSON.stringify([...quests])}`);
+  }
+});
