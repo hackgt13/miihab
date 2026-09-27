@@ -1,17 +1,15 @@
-// A simulated biceps curl, as the two AirPods would report it: for the trajectory tests, and for a labelled
-// demo recording when no real two-AirPod set exists yet.
+// A simulated biceps curl, as the two AirPods would report it: for the trajectory tests, and for the studio's
+// curl-path preview when no real two-AirPod set exists yet.
 //
 // Each AirPod's attitude is built the way CoreMotion reports one — device to world, [x, y, z, w] — from three
 // parts: a heading that drifts (AirPod yaw is arbitrary and wanders, which is why nothing may depend on it), the
 // segment's tilt in and out of the curl's plane, and a fixed mount (the AirPod never sits square on the arm).
 // The analysis must recover the tilts through all three.
 //
-// Every recording this writes is simulated and says so: the session id starts `simulated-`, which server.ts and
-// progression.ts already treat as not a person moving, and the summary carries simulated: true.
+// Anything this writes is simulated and says so.
 //
-//   node exercise/curl-synth.ts --write      a demo set (clean reps, then a swing, a hitch and a tiring, rushed end)
+//   node exercise/curl-synth.ts --payload    the studio's live curl path, partway through a demo set
 
-import { randomUUID } from 'node:crypto';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { MotionSample } from './trajectory.ts';
@@ -124,26 +122,4 @@ if (import.meta.url === `file://${process.argv[1]}` && process.argv.includes('--
   mkdirSync(resolve(out, '..'), { recursive: true });
   writeFileSync(out, JSON.stringify({ ...payload, simulated: true }));
   console.log(`Wrote a simulated mid-set curl path to ${out}`);
-}
-
-// Write a labelled demo recording into the session store, where the trajectory view finds it.
-if (import.meta.url === `file://${process.argv[1]}` && process.argv.includes('--write')) {
-  // Its own folder, never the real session store: the dashboard, the portal and progression read that one, and a
-  // simulated set must not count toward anyone's streak. Only the trajectory view looks here.
-  const dir = resolve(process.env.KINESTHETIC_DEMO_SESSIONS_DIRECTORY ?? resolve(import.meta.dirname, '../../local-data/demo-sessions'));
-  mkdirSync(dir, { recursive: true });
-  const exerciseId = randomUUID(), sessionId = `simulated-${randomUUID()}`;
-  const start = Date.now();
-  const lines = synthCurl({ reps: DEMO_SET, seed: 11, startMs: 0 }).map(s => JSON.stringify({
-    type: 'motion.sample', exerciseId, role: s.role, channel: s.role === 'imu' ? 'wrist' : 'club',
-    payload: { type: s.role === 'imu' ? 'bowling.motion' : 'club.motion', playerId: 'patient', sourceId: 'Left', sessionId,
-      quaternion: s.quaternion, rotationRate: s.rotationRate, hostMonotonicMs: s.tMs },
-  }));
-  writeFileSync(resolve(dir, `exercise-${exerciseId}.jsonl`), lines.join('\n') + '\n');
-  writeFileSync(resolve(dir, `exercise-${exerciseId}.summary.json`), JSON.stringify({
-    exerciseId, simulated: true, exerciseKind: 'biceps-curl.v1', algorithmVersion: 'biceps-curl.v1', side: 'right',
-    practice: true, config: { targetDeg: 110 }, endedAt: new Date(start + 60000).toISOString(), sensor: 'imu',
-    note: 'Simulated by coordinator/exercise/curl-synth.ts for the trajectory view. Not a person moving.',
-  }, null, 2));
-  console.log(`Wrote simulated curl set ${exerciseId} (${DEMO_SET.length} reps) to ${dir}`);
 }

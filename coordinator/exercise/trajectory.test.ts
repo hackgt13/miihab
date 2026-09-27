@@ -3,7 +3,7 @@
 // a cheat, a hitch or a short rep scores lower than a clean one, never higher.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyseCurl, samplesFromLog } from './trajectory.ts';
+import { analyseCurl } from './trajectory.ts';
 import { synthCurl, DEMO_SET, type RepPlan } from './curl-synth.ts';
 
 const clean = (n: number, peak = 120): RepPlan[] => Array.from({ length: n }, () => ({ peak }));
@@ -77,11 +77,7 @@ test('the demo set tells its story in the scores', () => {
   assert.ok(t.set!.consistency < 90, 'the tiring end spreads the peaks');
 });
 
-test('a session log reads back into samples, and one stream alone gives no trajectory', () => {
-  const line = (role: string, t: number) => JSON.stringify({ type: 'motion.sample', role,
-    payload: { quaternion: [0, 0, 0, 1], rotationRate: [0, 0, 0], hostMonotonicMs: t } });
-  const samples = samplesFromLog([line('imu', 1), line('ref', 2), '{"type":"exercise.event"}', 'garbage'].join('\n'));
-  assert.equal(samples.length, 2);
+test('one stream alone gives no trajectory', () => {
   const onlyUpper = synthCurl({ reps: clean(2) }).filter(s => s.role === 'ref');
   assert.equal(analyseCurl(onlyUpper).set, null);
 });

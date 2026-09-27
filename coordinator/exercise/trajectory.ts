@@ -257,21 +257,3 @@ export function analyseCurl(samples: MotionSample[], options: TrajectoryOptions 
   return { points, ideal, reps, set,
     meta: { upperArmM: Lu, forearmM: Lf, targetDeg: target, frames: pairs.length, hz: round(hz), sigmaCm: SIGMA_M * 100 } };
 }
-
-/**
- * The samples of one recorded exercise, from its session log (server.ts writes `motion.sample` lines, tagged with
- * the role the coordinator assigned). Times are the relay's shared host clock when present.
- */
-export function samplesFromLog(text: string): MotionSample[] {
-  const out: MotionSample[] = [];
-  for (const line of text.split('\n')) {
-    if (!line.includes('"motion.sample"')) continue;
-    let m: any; try { m = JSON.parse(line); } catch { continue; }
-    const p = m.payload;
-    if ((m.role !== 'imu' && m.role !== 'ref') || !Array.isArray(p?.quaternion)) continue;
-    const tMs = Number.isFinite(p.hostMonotonicMs) ? Number(p.hostMonotonicMs) : Number(p.sensorTime) * 1000;
-    if (!Number.isFinite(tMs)) continue;
-    out.push({ role: m.role, tMs, quaternion: p.quaternion, rotationRate: p.rotationRate });
-  }
-  return out;
-}
