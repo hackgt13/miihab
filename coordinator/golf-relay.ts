@@ -46,13 +46,16 @@ const remoteProducers=new WeakSet<WebSocket>();
 // page still names it by its picker, which is what that app checks to say it is streaming.
 const remoteKey='@second-mac',named=(key:string)=>key.replace(remoteKey,'');
 // Whether the patient is in a group session, asked of the coordinator (groups.ts), which is the authority on it.
-// Polled rather than pushed so neither process needs the other to start first; an unreachable coordinator is
-// "not in a group", the one-person reading.
+// Polled rather than pushed so neither process needs the other to start first. A missed answer keeps the last
+// one for a few seconds — a coordinator restarting mid-group must not turn the other person's AirPods into the
+// patient's for a moment — and a coordinator gone for longer is "not in a group", the one-person reading.
 const coordinator=process.env.KINESTHETIC_COORDINATOR_URL??'http://127.0.0.1:8766';
-let inGroup=false;
+const groupGraceMs=5000;
+let inGroup=false,groupAnsweredAt=0;
 const askGroup=async()=>{
   try{const r=await fetch(coordinator+'/api/groups/current',{signal:AbortSignal.timeout(800)});
-    inGroup=r.ok&&!!(await r.json())?.group?.id;}catch{inGroup=false;}
+    if(!r.ok)throw Error();inGroup=!!(await r.json())?.group?.id;groupAnsweredAt=Date.now();}
+  catch{if(Date.now()-groupAnsweredAt>groupGraceMs)inGroup=false;}
 };
 if(remoteMotion!=='tagged'){askGroup();setInterval(askGroup,1000).unref();}
 function route(path:string,player:string,remote:boolean):{path:string,player:string}{
@@ -91,6 +94,8 @@ const pairToken=process.env.KINESTHETIC_PAIR_TOKEN??'';
 // closing (a scene torn down, a Mac asleep), and a headset booting into the plaza must not be sent into its game.
 const stateFreshMs=2000;
 stateSockets.on('connection',(ws,role,path)=>{
+  // First, before any close: a frame arriving during a refusal's closing handshake must not become an unhandled error.
+  ws.on('error',()=>ws.close());
   const channel=channels.get(path)!;
   if(role==='host'){
     if(channel.host){ws.close(1008,'A game host is already connected');return;}
@@ -105,7 +110,6 @@ stateSockets.on('connection',(ws,role,path)=>{
     channel.clients.add(ws);if(channel.last&&Date.now()-channel.lastAt<stateFreshMs)ws.send(channel.last);
     ws.on('close',()=>channel.clients.delete(ws));
   }
-  ws.on('error',()=>ws.close());
 });
 // World-space UI mirror. Unity on the Mac (the one host) broadcasts board trees; headsets send presses back.
 // The relay checks shapes, stamps the client id and routes; it never reads a tree. Same auth as game state,
@@ -193,7 +197,8 @@ const headSockets=new WebSocketServer({noServer:true,maxPayload:1024});
 const headViewers=new Set<WebSocket>();
 let headProducer:WebSocket|null=null,headLast:{at:number,seq:number}|null=null;
 headSockets.on('connection',(ws,role)=>{
-  if(role==='viewer'){headViewers.add(ws);ws.on('close',()=>headViewers.delete(ws));ws.on('error',()=>ws.close());return;}
+  ws.on('error',()=>ws.close());
+  if(role==='viewer'){headViewers.add(ws);ws.on('close',()=>headViewers.delete(ws));return;}
   if(headProducer){ws.close(1008,'A headset is already sending its head pose');return;}
   headProducer=ws;let seq=-1;
   const log=createWriteStream(resolve(headDir,`head-${Date.now()}.jsonl`));
@@ -212,7 +217,6 @@ headSockets.on('connection',(ws,role)=>{
     }catch{ws.close(1008,'Invalid head pose');}
   });
   ws.on('close',()=>{if(headProducer===ws){headProducer=null;headLast=null;broadcast(headViewers,{type:'head.disconnected'});}log.end();});
-  ws.on('error',()=>ws.close());
 });
 
 // The two pairs. A slot is held by one producer socket for as long as it is open; this Mac's app prefers Mac 1 and
@@ -244,7 +248,8 @@ const finiteArray=(x:unknown,n:number):x is number[]=>Array.isArray(x)&&x.length
 sockets.on('connection',(ws,role,player,path,remote)=>{
   const {viewers,producers,received,type,dir}=motions.get(path)!;
   let routedTo:{path:string,player:string}|null=null;   // where this producer's samples went last, to say goodbye there
-  if(role==='viewer'){viewers.add(ws);ws.on('close',()=>viewers.delete(ws));ws.on('error',()=>ws.close());return;}
+  ws.on('error',()=>ws.close());
+  if(role==='viewer'){viewers.add(ws);ws.on('close',()=>viewers.delete(ws));return;}
   const key=remote?player+remoteKey:player;
   if(producers.has(key)){ws.close(1008,'This player already has a motion source');return;}
   producers.set(key,ws);if(remote)remoteProducers.add(ws);
@@ -264,7 +269,7 @@ sockets.on('connection',(ws,role,player,path,remote)=>{
       sequence=p.sequence;time=p.sensorTime;received.set(key,{at:Date.now(),sequence,sourceId:p.sourceId});
       // Routed per sample, not per connection: the second Mac keeps streaming across a walk from golf to the studio.
       const to=route(path,player,remote),target=motions.get(to.path)!;
-      // A reading that changed (only KINESTHETIC_REMOTE_MOTION=people does that) says goodbye where it was.
+      // A reading that changed (the patient joining or leaving a group session) says goodbye where it was.
       if(routedTo&&(routedTo.path!==to.path||routedTo.player!==to.player)){
         if(routedTo.player==='patient')releaseMac(ws);
         else broadcast(motions.get(routedTo.path)!.viewers,{type:motions.get(routedTo.path)!.type+'.disconnected',playerId:routedTo.player});
@@ -291,7 +296,6 @@ sockets.on('connection',(ws,role,player,path,remote)=>{
   });
   ws.on('close',()=>{if(producers.get(key)===ws){producers.delete(key);received.delete(key);releaseMac(ws);
     const last=routedTo??{path,player};if(last.player!=='patient')broadcast(motions.get(last.path)!.viewers,{type:motions.get(last.path)!.type+'.disconnected',playerId:last.player});}log.end();});
-  ws.on('error',()=>ws.close());
 });
 // LAN game-state channels require a pairing token; sensor streams stay loopback-only.
 const bindHost=process.env.KINESTHETIC_GOLF_HOST??'127.0.0.1';
@@ -315,6 +319,22 @@ if(bindHost!=='127.0.0.1'){
   beacon.bind(()=>{beacon.setBroadcast(true);announce();setInterval(announce,1000).unref();});
   beacon.unref();
 }
+// Liveness. A peer that vanished without a closing handshake — a Mac that slept, a headset that dropped off the cable —
+// kept its slot until the relay restarted, so the same app reconnecting was refused ("This player already has a
+// motion source", "A headset is already sending…"). Every socket is pinged; one that has not answered two pings in a
+// row is terminated, which runs its close handler and frees the slot. Every client here (ws, .NET ClientWebSocket,
+// URLSessionWebSocketTask, browsers) answers pings on its own.
+const heartbeatMs=Number(process.env.KINESTHETIC_HEARTBEAT_MS ?? 10_000);
+const missedPongs=new WeakMap<WebSocket,number>();
+setInterval(()=>{
+  for(const wss of [sockets,stateSockets,headSockets,uiHostSockets,uiClientSockets])for(const ws of wss.clients){
+    if(!missedPongs.has(ws))ws.on('pong',()=>missedPongs.set(ws,0));
+    const missed=(missedPongs.get(ws)??0)+1;
+    if(missed>2){ws.terminate();continue;}
+    missedPongs.set(ws,missed);
+    try{ws.ping();}catch{}
+  }
+},heartbeatMs).unref();
 // Shutdown must actually terminate. A graceful ws.close() waits for a closing handshake, and a peer
 // that vanished without one (a terminated test client, a Quest that dropped off the network) holds its
 // handle open, so server.close() never completes and the process hangs instead of exiting.

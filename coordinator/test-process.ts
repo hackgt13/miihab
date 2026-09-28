@@ -21,3 +21,12 @@ export async function stop(child: ChildProcess) {
   child.kill('SIGTERM');
   await exited;
 }
+
+/** Resolves once `done()` is true, or throws after `ms`. For waits a fixed sleep made flaky under a busy test run. */
+export async function until(done: () => boolean, ms = 3000, step = 10) {
+  const deadline = Date.now() + ms;
+  while (!done()) {
+    if (Date.now() > deadline) throw Error(`condition not met within ${ms} ms`);
+    await new Promise(r => setTimeout(r, step));
+  }
+}

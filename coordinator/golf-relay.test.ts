@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { WebSocket } from 'ws';
 import { createSocket } from 'node:dgram';
 import { createHmac } from 'node:crypto';
-import { ready, stop } from './test-process.ts';
+import { ready, stop, until } from './test-process.ts';
 
 test('golf relay preserves player identity and rejects stale, duplicate and malformed motion',{timeout:40000},async()=>{
   const dir=mkdtempSync(join(tmpdir(),'golf-test-'));
@@ -28,6 +28,8 @@ test('golf relay preserves player identity and rejects stale, duplicate and malf
     patient.send(JSON.stringify(packet('patient',1,1)));
     patient.send(JSON.stringify(packet('patient',2,.5)));
     friend.send(JSON.stringify(packet('friend',1,1)));
+    // Wait for the two that should arrive, then a moment more so a third (a duplicate let through) would be seen.
+    await until(()=>received.filter(p=>p.type==='club.motion').length>=2);
     await new Promise(r=>setTimeout(r,80));
     assert.equal(received.filter(p=>p.type==='club.motion').length,2);
     assert.deepEqual(received.filter(p=>p.type==='club.motion').map(p=>p.playerId).sort(),['friend','patient']);
@@ -223,5 +225,26 @@ test('the headset sends its head pose; this Mac reads it; nothing else may send 
     }
     // A malformed pose closes the sender rather than reaching the Mac.
     const closed=once(headset,'close'); headset.send(JSON.stringify({type:'head.pose',seq:2,p:[99,0,0],q:[0,0,0,1]})); await closed;
+  } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
+});
+
+test('a producer that vanished without closing gives its slot back, so the same app can reconnect',{timeout:40000},async()=>{
+  const proc=spawn(process.execPath,['golf-relay.ts'],{cwd:import.meta.dirname,
+    env:{...process.env,KINESTHETIC_GOLF_PORT:'18795',KINESTHETIC_HEARTBEAT_MS:'100',KINESTHETIC_COORDINATOR_URL:'http://127.0.0.1:9',
+      KINESTHETIC_GOLF_RECORDINGS:mkdtempSync(join(tmpdir(),'golf-heartbeat-'))}});
+  const clients:WebSocket[]=[];
+  try {
+    await ready(proc);
+    // A Mac that went to sleep: the socket stays open on the relay's side and never answers a ping.
+    const asleep=new WebSocket('ws://127.0.0.1:18795/golf?role=producer&player=patient',{autoPong:false});clients.push(asleep);
+    await once(asleep,'open');
+    const gone=once(asleep,'close');
+    await gone;   // terminated after two unanswered pings
+    // It wakes and reconnects as the same player: accepted, not refused as a duplicate.
+    const again=new WebSocket('ws://127.0.0.1:18795/golf?role=producer&player=patient');clients.push(again);
+    await once(again,'open');
+    again.send(JSON.stringify({type:'club.motion',playerId:'patient',sourceId:'Left',sessionId:'woke',sequence:1,sensorTime:1,quaternion:[0,0,0,1],rotationRate:[0,0,0]}));
+    await new Promise(r=>setTimeout(r,400));   // several heartbeats: a live, answering socket is never cut
+    assert.equal(again.readyState,WebSocket.OPEN);
   } finally { for(const ws of clients)ws.terminate(); await stop(proc); }
 });
