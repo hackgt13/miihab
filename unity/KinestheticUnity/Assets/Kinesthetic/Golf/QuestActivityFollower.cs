@@ -100,7 +100,10 @@ namespace Kinesthetic.Golf
                                      "Give it a questScene in coordinator/activities.json and a Kinesthetic/Quest setup (Verify headset scene coverage).");
                 return;
             }
-            if (transitioning) return;
+            // Mid-walk, the newest cue is kept rather than dropped: the Mac leaving golf for the menu while the headset
+            // was still loading golf used to leave the headset in golf for good (the menu publishes no stream that
+            // the fallback in Update could follow).
+            if (transitioning) { pendingScene = scene; return; }
             // `leave` is the walk itself. `arrive` alone means the walk was missed; just get there.
             if (phase == UiCue.Leave) StartCoroutine(Transition(scene, venue));
             else if (phase == UiCue.Arrive && SceneManager.GetActiveScene().name != scene) StartCoroutine(Transition(scene, null));
@@ -135,7 +138,13 @@ namespace Kinesthetic.Golf
             yield return null;   // the new scene's camera exists; HeadFade has moved onto it
             yield return PlazaApproach.Arrive(fade);
             transitioning = false;
+            if (pendingScene != null)
+            {
+                var next = pendingScene; pendingScene = null;
+                if (SceneManager.GetActiveScene().name != next) StartCoroutine(Transition(next, null));
+            }
         }
+        string pendingScene;   // the scene a cue asked for while a walk was under way
 
         void Update()
         {

@@ -86,6 +86,10 @@ namespace Kinesthetic.UI.Remote
         {
             if (Instance && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
+            // Whichever copy becomes the client lives across scene loads, not only one made by Ensure(). The plaza
+            // carries its own copy; it used to die with the plaza, and golf and bowling carry none, so there the
+            // navigation board (Menu / How to play) froze and its presses went nowhere.
+            if (transform.parent == null) DontDestroyOnLoad(gameObject);
             var config = Resources.Load<QuestHostConfig>(QuestHostConfig.ResourcePath);
             url = "ws://127.0.0.1:8767/ui?role=client";
             socket = config ? new UiSocket(config.Url("/ui?role=client")) : new UiSocket(url);

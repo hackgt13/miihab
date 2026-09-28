@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Kinesthetic.Shell
 {
@@ -94,6 +95,10 @@ namespace Kinesthetic.Shell
         void LateUpdate()
         {
             var cam = Camera.main;
+            // The camera being left is still Camera.main for the frames the scene takes to swap. Riding it again would
+            // parent the curtain into the old scene and unload it with that scene, so the new one arrived unfaded.
+            if (cam && cam == leaving) return;
+            leaving = null;
             if (cam != attached || (cam && transform.parent != cam.transform)) Attach(cam);
             if (!attached) return;
             // How far across the quad the edge of the view reaches, re-read every frame: a camera's aspect is
@@ -105,8 +110,15 @@ namespace Kinesthetic.Shell
         /// Off the camera and back to a root object, keeping its place in the world. Called by whoever is
         /// about to swap scenes, so the sheet survives the camera it was riding; it takes the next camera in
         /// LateUpdate. Still drawn meanwhile: whatever renders next is covered.
+        Camera leaving;
+        // Once the new scene is active the swap is over: whatever Camera.main is then — even a camera that survived
+        // the swap — is the one to ride.
+        void OnEnable() => SceneManager.activeSceneChanged += SceneSwapped;
+        void OnDisable() => SceneManager.activeSceneChanged -= SceneSwapped;
+        void SceneSwapped(Scene from, Scene to) => leaving = null;
         public void Detach()
         {
+            if (attached) leaving = attached;
             if (transform.parent) transform.SetParent(null, true);
             // Parenting moved it into the camera's scene; back at the root it would still unload with that
             // scene unless it is made persistent again.
@@ -117,7 +129,7 @@ namespace Kinesthetic.Shell
         void Attach(Camera cam)
         {
             attached = cam;
-            if (!cam) { Detach(); return; }
+            if (!cam) { if (transform.parent) transform.SetParent(null, true); DontDestroyOnLoad(gameObject); return; }
             transform.SetParent(cam.transform, false);
             transform.localPosition = new Vector3(0, 0, Distance);
             transform.localRotation = Quaternion.identity;
