@@ -89,7 +89,10 @@ test('curls use the same tilt with their own rest band and target', () => {
 
 test('server: a shoulder raise reads the patient\'s wrist AirPod from the motion relay and progresses on it', {timeout:30000}, async () => {
   const relay = new WebSocketServer({ port: 18781, host: '127.0.0.1' });
-  const viewers = new Set<WebSocket>(); relay.on('connection', ws => viewers.add(ws));
+  // Motion and head pose share this fake relay; samples are only sent once the motion viewer itself is connected
+  // (the coordinator opens the head socket first, and on a busy machine it was the only one when streaming began).
+  const viewers = new Set<WebSocket>(); let motionViewer = false;
+  relay.on('connection', (ws, req) => { viewers.add(ws); if (req.url?.startsWith('/motion')) motionViewer = true; });
   const dir = mkdtempSync(join(tmpdir(), 'imuapi-')), port = 18782, base = `http://127.0.0.1:${port}`;
   const child = spawn(process.execPath, ['server.ts'], {cwd:join(import.meta.dirname, '..'), stdio:['ignore','pipe','pipe'],
     env:{...process.env, KINESTHETIC_PORT:String(port), KINESTHETIC_RECORDINGS_DIRECTORY:join(dir, 'rec'), KINESTHETIC_PLANS_DIRECTORY:join(dir, 'plans'),
@@ -101,7 +104,7 @@ test('server: a shoulder raise reads the patient\'s wrist AirPod from the motion
   let session = 0;
   const run = async (peaks: number[], opts: { gapAt?: number; leanM?: number } = {}, body: Record<string, unknown> = {}) => {
     const started = await (await post('/exercise/start', {prescribedReps: peaks.length, ...body})).json();
-    while (!viewers.size) await new Promise(r => setTimeout(r, 20));
+    while (!motionViewer) await new Promise(r => setTimeout(r, 20));
     const sessionId = `airpod-session-${session++}`;
     // The relay stamps the shared host clock; streams sent here are timed on it, not on arrival.
     stream(peaks, { ...opts, t0: session * 1e6 }).forEach((imu, i) => {
