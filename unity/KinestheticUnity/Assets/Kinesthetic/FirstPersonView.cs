@@ -23,14 +23,22 @@ namespace Kinesthetic
         static void Install()
         {
             Build();
-            SceneManager.sceneLoaded += (scene, mode) => Build();
+            // Named, and removed before it is added: with domain reload off (Enter Play Mode Options), a lambda here
+            // survived every play session and piled up — one more eye camera per scene load per session.
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
+
+        static void OnSceneLoaded(Scene scene, LoadSceneMode mode) => Build();
 
         static void Build()
         {
             if (HeadsetPresent()) return;
             var found = Object.FindAnyObjectByType<EyeAnchor>();
             if (!found) return;
+            // Once per anchor: a second call for the same scene must not build a second camera.
+            foreach (var existing in Object.FindObjectsByType<FirstPersonView>(FindObjectsSortMode.None))
+                if (existing.anchor == found) return;
             // A scene that drives its own eye view still needs the own-body layering — StudioCamera culls that
             // layer from inside the head — but not a second eye camera on a second toggle key.
             if (found.sceneOwnsView) { HideOwnBody(found); return; }

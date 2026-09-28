@@ -65,7 +65,9 @@ public static class MenuIntegrationVerification
             var bowling = ActivityCatalog.ById("bowling.adaptive");
             Check(bowling != null && bowling.NeedsImu && !bowling.NeedsPose && bowling.Subjects == 1,
                 "Bowling must be a solo IMU activity");
-            Check(!bowling.UsesSharedNavigation, "Bowling must own its controls");
+            // Bowling uses the shared Menu / How to play bar like every activity: its own Back and Pause were on a
+            // screen-space overlay the headset never draws, so there was no way out in the headset.
+            Check(bowling.UsesSharedNavigation, "Bowling must use the shared navigation");
             Check(ActivityCatalog.ById("rehab.studio").NeedsImu && !ActivityCatalog.ById("rehab.studio").NeedsPose,
                 "Studio must stay IMU-only");
             Check(Application.CanStreamedLevelBeLoaded(bowling.Scene), "Bowling missing from the build list");
@@ -136,19 +138,24 @@ public static class MenuIntegrationVerification
             Check(Pick(galleryDoc, galleryDoc.rootVisualElement.Q<Button>(bowlingCard))?.name == bowlingCard,
                 "Bowling card cannot be selected by a ray");
             Commit(menu, bowlingCard);
+            // Every shared-navigation activity first asks "alone or with others?" (GroupPanel); answer solo.
+            yield return null;
+            if (GroupPanel.Instance != null && ActivityNavigation.Instance.OverlayOpen && SceneManager.GetActiveScene().name != bowling.Scene)
+                GroupPanel.Instance.StartCoroutine((System.Collections.IEnumerator)typeof(GroupPanel).GetMethod("Solo", Private).Invoke(GroupPanel.Instance, null));
             while (SceneManager.GetActiveScene().name != bowling.Scene || ActivityNavigation.Instance.Busy) yield return null;
             yield return null;
             var navigation = ActivityNavigation.Instance;
             var navRoot = navigation.GetComponent<UIDocument>().rootVisualElement;
-            Check(navRoot.Q<Button>("return-menu").ClassListContains("hidden") &&
-                  navRoot.Q<Button>("activity-help").ClassListContains("hidden"), "duplicate navigation controls appeared");
+            Check(!navRoot.Q<Button>("return-menu").ClassListContains("hidden") &&
+                  !navRoot.Q<Button>("activity-help").ClassListContains("hidden"), "bowling is missing the shared Menu / How to play bar");
             var game = UnityEngine.Object.FindAnyObjectByType<BowlingGame>();
             var hud = UnityEngine.Object.FindAnyObjectByType<BowlingHud>();
             Check(Keyboard.current != null, "keyboard unavailable for Escape regression check");
             InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(Key.Escape)); InputSystem.Update();
             typeof(BowlingHud).GetMethod("Update", Private).Invoke(hud, null);
             typeof(ActivityNavigation).GetMethod("Update", Private).Invoke(navigation, null);
-            Check(game.Paused && navRoot.Q("return-dialog").ClassListContains("hidden"), "Escape opened two overlays");
+            // One overlay per Escape: the shared "Back to the menu?" dialog, and bowling itself does not also pause.
+            Check(!game.Paused && !navRoot.Q("return-dialog").ClassListContains("hidden"), "Escape must open exactly the shared return dialog");
             InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState()); InputSystem.Update();
             typeof(BowlingHud).GetMethod("Back", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, null);
             while (SceneManager.GetActiveScene().name != ActivityNavigation.MenuScene) yield return null;

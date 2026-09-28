@@ -40,8 +40,12 @@ namespace Kinesthetic
         static void Install()
         {
             Attach();
-            SceneManager.sceneLoaded += (scene, mode) => Attach();
+            // Named and removed first: with domain reload off, a lambda subscription survived every play session.
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
+
+        static void OnSceneLoaded(Scene scene, LoadSceneMode mode) => Attach();
 
         public static void Attach()
         {

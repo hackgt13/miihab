@@ -25,9 +25,13 @@ namespace Kinesthetic.Tutorial
         static void Boot()
         {
             if (Application.platform == RuntimePlatform.Android) return;
-            SceneManager.sceneLoaded += (scene, _) => { if (scene.name == MacScene) Ensure(); };
+            // Named and removed first: with domain reload off, a lambda subscription survived every play session.
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
             if (SceneManager.GetActiveScene().name == MacScene) Ensure();
         }
+
+        static void OnSceneLoaded(Scene scene, LoadSceneMode mode) { if (scene.name == MacScene) Ensure(); }
 
         public static TutorialStatePublisher Ensure()
         {
