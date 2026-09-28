@@ -53,7 +53,7 @@ namespace Kinesthetic.Bowling
         Vector3[] pinPositions;
         Quaternion[] pinRotations;
         bool[] standing;
-        string session, source;
+        string session, source, mac;   // mac: the pair the relay's fused stream follows (see ReceiveMotion)
         long sequence = -1, lastArrival;
         double sensorTime = -1;
         float rollStarted, stillStarted = -1, resultUntil, readySince = -1;
@@ -139,7 +139,7 @@ namespace Kinesthetic.Bowling
                 if ((string)p["playerId"] != "patient") return;
                 if ((string)p["type"] == "bowling.disconnected") { LoseMotion(); return; }
                 if ((string)p["type"] != "bowling.motion") return;
-                string nextSession = (string)p["sessionId"], nextSource = (string)p["sourceId"];
+                string nextSession = (string)p["sessionId"], nextSource = (string)p["sourceId"], nextMac = (string)p["mac"];
                 if (string.IsNullOrEmpty(nextSession) || nextSource != "Left" && nextSource != "Right") return;
                 long seq = (long)p["sequence"]; double time = (double)p["sensorTime"];
                 var q = p["quaternion"] as JArray; var r = p["rotationRate"] as JArray;
@@ -148,8 +148,13 @@ namespace Kinesthetic.Bowling
                 var rate = new Vector3((float)r[0], (float)r[1], (float)r[2]);
                 float norm = Quaternion.Dot(attitude, attitude);
                 if (!float.IsFinite(norm) || norm < .5f || norm > 1.5f || !float.IsFinite(rate.sqrMagnitude) || rate.magnitude > 100) return;
-                if (session != nextSession || source != nextSource)
+                // A new session, or a different bud within the same pair, starts over. The fused stream handing over
+                // from the resting pair to the throwing wrist (a change of mac) is re-based by the relay and must not:
+                // it happens at the start of every throw, and resetting there lost the throw.
+                bool budChanged = source != nextSource && (string.IsNullOrEmpty(nextMac) || nextMac == mac);
+                if (session != nextSession || budChanged)
                 { session = nextSession; source = nextSource; sequence = -1; sensorTime = -1; Swing.Reset(); readySince = -1; if (Phase == "Ready") Phase = "Setup"; }
+                source = nextSource; mac = nextMac;
                 if (seq <= sequence || time <= sensorTime) return;
                 sequence = seq; sensorTime = time; lastArrival = arrival; Connection = "AirPod connected";
                 if (Paused) return;

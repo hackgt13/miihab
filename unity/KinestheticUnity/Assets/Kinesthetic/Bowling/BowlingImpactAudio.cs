@@ -8,6 +8,10 @@ namespace Kinesthetic.Bowling
         static AudioClip clip;
         static float last;
         AudioSource source;
+        // Statics outlive a play session when domain reload is off (Enter Play Mode Options), while unscaled time
+        // starts again near zero: an old `last` silenced every impact until the clock caught up with it.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => last = -1;
         void Awake()
         {
             if (!clip)

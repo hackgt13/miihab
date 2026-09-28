@@ -64,15 +64,17 @@ namespace Kinesthetic.Activities
         {
             if (string.IsNullOrEmpty(url)) return null;
             if (!motions.TryGetValue(url, out var client))
+            {
                 motions[url] = client = new GolfMotionClient(url);
+                // A new socket gets its full retry window to connect; with the clock at 0 it was replaced (and
+                // counted as a reconnect, i.e. tracking loss in the record) on the very next frame.
+                motionRetryAt[url] = Time.unscaledTime + RetrySeconds;
+            }
             return client;
         }
         public int MotionReconnectsFor(string url) => motionReconnects.TryGetValue(url, out var n) ? n : 0;
 
         public bool PoseConnected => pose != null && pose.Connected;
-        public bool MotionConnected => MotionConnectedFor(DefaultMotionUrl);
-        public bool MotionConnectedFor(string url) => motions.TryGetValue(url, out var c) && c != null && c.connected;
-        public string PoseStatus => pose?.Status ?? "Pose bridge not started";
         /// <summary>How many times each channel has had to reconnect. An activity reads the delta
         /// across its own session to report tracking quality, rather than owning the socket to count.</summary>
         public int PoseReconnects { get; private set; }
@@ -84,6 +86,7 @@ namespace Kinesthetic.Activities
             Instance = this;
             DontDestroyOnLoad(gameObject);
             pose = new LivePoseClient(DefaultPoseUrl);
+            retryPoseAt = Time.unscaledTime + RetrySeconds;   // see MotionFor: time to connect before it counts as lost
         }
 
         void Update()

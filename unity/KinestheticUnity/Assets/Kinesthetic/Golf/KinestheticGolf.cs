@@ -21,7 +21,6 @@ namespace Kinesthetic.Golf
         public bool allowDeveloperShots;
         public int activePlayer;
         public int clubIndex;
-        public bool ClubSelectedAutomatically { get; private set; }
         public float aimOffset;
         public string Phase { get; private set; } = "Address";
         public string Message { get; private set; } = "Starting camera and AirPod tracking…";
@@ -41,11 +40,12 @@ namespace Kinesthetic.Golf
         bool postingRound;
         DateTime roundStartedUtc = DateTime.UtcNow;
         bool roundReported;
-        int poseReconnectsAtRoundStart;
-        int PoseLossEvents => (SensorHub.Instance?.PoseReconnects ?? 0) - poseReconnectsAtRoundStart;
+        // Tracking loss in the round's record is the AirPod stream reconnecting: golf no longer uses the camera, whose
+        // reconnects were counted here before, and the baseline is taken at the start of every round, the first too.
+        int motionReconnectsAtRoundStart;
+        int TrackingLossEvents => (SensorHub.Instance?.MotionReconnects ?? 0) - motionReconnectsAtRoundStart;
         // The camera is not part of golf any more: the club is the AirPod, held from the hip, and a swing that goes
         // through the ball hits it. A live camera still animates the arms when there is one; nothing waits on it.
-        public bool PoseReady => true;
         public Vector3 HudAim => AimDirection();
         public Vector3 GetLie(int index) => lies[index];
         public float HudPower => Phase=="Address" ? (IMUReady && swing.Calibrated ? SwingPower(new Vector3(latest.rotationRate[0],latest.rotationRate[1],latest.rotationRate[2]).magnitude)*PowerCap : 0) : lastShotPower;
@@ -77,18 +77,14 @@ namespace Kinesthetic.Golf
         public static float SwingPower(float radPerSec)=>Mathf.Lerp(PowerFloor,1,Mathf.InverseLerp(MinSwingRadPerSec,FullSwingRadPerSec,radPerSec));
         GolfHud hud;
         GolfScreens screens;
-        public bool CaptureRequested => captureRequested;
-        public bool StartingCapture => startingCapture;
         public bool MotionReady => IMUReady;
         public bool ClubCalibrated => swing.Calibrated;
-        public string CaptureStatus => captureStatus;
         public bool InterfaceOpen => screens?.SetupVisible == true || Kinesthetic.Menu.ActivityNavigation.Instance?.OverlayOpen == true;
         GroundAimGuide groundAim;
         readonly ClubSwingGate swing = new();
         readonly VirtualClubStrike strikeZone = new();
         bool pendingSpatial;
         float pendingSpeed;
-        public bool StrikePoseReady=>true;
         Vector3 Grip(int player)=>rigs[player].GolfGripCenter; // same point the rendered club attaches to
         AudioSource hitAudio;
         AudioClip hitClip;
@@ -111,9 +107,8 @@ namespace Kinesthetic.Golf
         Vector3 cameraVelocity, lastSafeLie;
         Label heading, score, distance, guidance;
         Button setupButton;
-        bool captureRequested, startingCapture;
+        bool captureRequested;
         float readySince=-1, advanceAt=-1;
-        string captureStatus="Connecting…";
 
         string logPath;
 
@@ -147,6 +142,7 @@ namespace Kinesthetic.Golf
             hitAudio.playOnAwake=false; hitAudio.spatialBlend=0;
             // Headsets render this host's state; they never run their own shot simulation.
             if(!GetComponent<GolfStatePublisher>())gameObject.AddComponent<GolfStatePublisher>();
+            motionReconnectsAtRoundStart=SensorHub.Instance?.MotionReconnects ?? 0;
             BindUI(); BeginTurn(0); StartCapture(); StartCoroutine(LoadUnlock());
         }
         bool BindUI()
@@ -166,12 +162,6 @@ namespace Kinesthetic.Golf
             screens=new GolfScreens(root,this);
             return true;
         }
-        void ChangeClub(int delta)
-        {
-            if(Phase!="Address")return;
-            clubIndex=(clubIndex+delta+3)%3; ClubSelectedAutomatically=false; ResetSwing();
-            Message="Virtual "+clubNames[clubIndex]+" selected. Keep the same physical club; calibrate at address.";
-        }
         // Gameplay presets for this course, not inferred physical club identity.
         public int RecommendedClub(Vector3 lie)
         {
@@ -186,7 +176,7 @@ namespace Kinesthetic.Golf
         void SelectClubForCurrentLie()
         {
             if(Phase!="Address")return;
-            clubIndex=RecommendedClub(ball.position); ClubSelectedAutomatically=true; ResetSwing();
+            clubIndex=RecommendedClub(ball.position); ResetSwing();
             Message="Virtual "+clubNames[clubIndex]+" selected for this lie. Keep the same physical club; calibrate at address.";
         }
         void Aim(float delta) {if(Phase!="Address")return; aimOffset+=delta; ResetSwing();}
@@ -208,7 +198,7 @@ namespace Kinesthetic.Golf
             var rotation=clubPresentation[activePlayer].AddressRotation;
             strikeZone.Calibrate(ball.position,rotation,lastAttitude,clubPresentation[activePlayer].ScaledShaft,.12f);
             strikeZone.Sample(Grip(activePlayer),lastAttitude,imuTicks/(double)System.Diagnostics.Stopwatch.Frequency);
-            swing.Calibrate(lastAttitude,latest.sourceId,latest.sensorTime);
+            swing.Calibrate(lastAttitude,latest.sessionId,latest.sensorTime);   // the stream, not the bud: see ReadMotion
             Message="Ready. Swing back, then through the ball.";
         }
         public void BeginTurn(int index)
@@ -249,7 +239,7 @@ namespace Kinesthetic.Golf
         {
             Strokes=new int[2]; Finished=new bool[2]; Misses=new int[2]; lies[0]=lies[1]=tee.position;
             roundStartedUtc=DateTime.UtcNow; roundReported=false;
-            poseReconnectsAtRoundStart=SensorHub.Instance?.PoseReconnects ?? 0;
+            motionReconnectsAtRoundStart=SensorHub.Instance?.MotionReconnects ?? 0;
             clubIndex=0; BeginTurn(0);
         }
         // One session record per round, in the same envelope an exercise session produces, POSTed to the
@@ -273,7 +263,7 @@ namespace Kinesthetic.Golf
             Completed?.Invoke(id);
             postingRound=true;
             StartCoroutine(ActivityRecorder.Send(bridge, ActivityId, id, roundStartedUtc, subjects,
-                PoseLossEvents, "golf.round",
+                TrackingLossEvents, "golf.round",
                 new {strokes=Strokes, misses=Misses, acceptedShots=AcceptedShots, club=clubNames[clubIndex]},
                 _=>postingRound=false, completed));
         }
@@ -298,7 +288,10 @@ namespace Kinesthetic.Golf
                 pendingSpatial=false;
                 Launch(SwingPower(pendingSpeed)*PowerCap,"airpod",pendingSpeed);
             }
-            else pendingSpatial=false;
+            // A swing that finished while a screen was open (the setup countdown, the help card, the menu dialog) is
+            // dropped — and the detector re-armed with it: ClubSwingGate ignores everything once it has fired, so
+            // without the reset golf went deaf to every later swing.
+            else if(pendingSpatial){pendingSpatial=false;ResetSwing(false);}
             CompanionTurn();
             if(Phase=="Flight")
             {
@@ -353,13 +346,17 @@ namespace Kinesthetic.Golf
                     if(p.sequence<=imuSequence || (latest!=null && p.sensorTime<=latest.sensorTime))continue;
                     var q=new Quaternion(p.quaternion[0],p.quaternion[1],p.quaternion[2],p.quaternion[3]);
                     if(Quaternion.Dot(q,q)<.5f || Quaternion.Dot(q,q)>1.5f)continue;
-                    if(latest!=null && (p.sourceId!=latest.sourceId || p.sensorTime-latest.sensorTime>.25)) {ResetSwing();stationarySince=-1;}
+                    // A different bud within the same pair has its own frame, so calibration no longer holds. The fused
+                    // stream switching pairs (golf both pairs in the grip) is re-based by the relay and keeps it: resetting
+                    // there wiped calibration at the start of every swing, the moment the swinging pair took over.
+                    bool budChanged=latest!=null && p.sourceId!=latest.sourceId && (string.IsNullOrEmpty(p.mac) || p.mac==latest.mac);
+                    if(latest!=null && (budChanged || p.sensorTime-latest.sensorTime>.25)) {ResetSwing();stationarySince=-1;}
                     var rate=new Vector3(p.rotationRate[0],p.rotationRate[1],p.rotationRate[2]);
                     if(rate.magnitude<.15f) {if(stationarySince<0)stationarySince=Time.unscaledTime;}else stationarySince=-1;
                     latest=p;imuSequence=p.sequence;imuTicks=ticks;lastAttitude=q.normalized;
                     // Strike samples and the rendered club use the same corrected grip.
                     if(strikeZone.Calibrated)clubPresentation[activePlayer].Present(strikeZone.Rotation(lastAttitude));
-                    if(Phase=="Address" && swing.Sample(lastAttitude,rate,p.sourceId,p.sensorTime,out var speed))
+                    if(Phase=="Address" && swing.Sample(lastAttitude,rate,p.sessionId,p.sensorTime,out var speed))
                     {
                         motionContactAt=ticks/(double)System.Diagnostics.Stopwatch.Frequency;
                         pendingSpatial=true;pendingSpeed=speed;
@@ -472,12 +469,12 @@ namespace Kinesthetic.Golf
         }
         void OnDestroy(){if(groundAim)Destroy(groundAim.gameObject);hud?.Dispose();}   // the hub owns both channels
 
+        /// Starts listening for the club (golf's setup screen and its retry call this). The AirPods connect on their
+        /// own through the sensor hub; there is no camera to launch.
         public void StartCapture()
         {
-            if(startingCapture)return;
             if(Phase=="Round complete")RestartRound();
             captureRequested=true; readySince=-1; ResetSwing();
-            captureStatus="Connecting AirPods…";   // the camera is not used in golf
         }
         void UpdateAutomaticSetup()
         {

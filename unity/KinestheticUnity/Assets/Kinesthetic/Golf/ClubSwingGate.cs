@@ -37,7 +37,9 @@ namespace Kinesthetic.Golf
             if (angle > 180) { angle = 360-angle; direction = -direction; }
             if (!backed)
             {
-                if (angle >= 12 && angle <= 150)   // a short backswing counts: this is rehab, not a tour swing
+                // A short backswing counts (this is rehab, not a tour swing), but not a waggle at address: 18° sits between
+                // the ~15° waggle and a gentle swing's first 25°+ (Editor/GolfVerification.SwingChecks pins both).
+                if (angle >= 18 && angle <= 150)
                 { backed = true; axis = direction; previous = angle; peakSpeed = rate.magnitude; Stage = "Swing back through address"; }
                 return false;
             }
