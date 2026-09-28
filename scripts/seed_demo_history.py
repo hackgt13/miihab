@@ -27,7 +27,7 @@ before the first plan carry planVersion 1 like the rest; nothing reads a plan fo
 
 Run it with the coordinator up or down; both read the directory on each request.
 """
-import argparse, json, random, uuid
+import argparse, json, random, re, uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -97,10 +97,12 @@ def main() -> None:
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     start = today - timedelta(days=args.days - 1)
 
-    for plan in sorted(plans.glob("plan-v*.json")):
+    # The first plan is what the program is counted from; later versions keep their own date. (Every version used to
+    # be rewritten to the same timestamp, which scrambled the plan history and its order.)
+    versions = sorted(plans.glob("plan-v*.json"), key=lambda p: int(re.search(r"(\d+)", p.stem).group(1)))
+    for plan in versions[:1]:
         record = json.loads(plan.read_text())
         record.setdefault("approvedAtBeforeSeed", record["approvedAt"])
-        # The first plan is what the program is counted from; later versions keep their own date.
         record["approvedAt"] = iso(start.replace(hour=9, minute=12))
         plan.write_text(json.dumps(record, indent=2) + "\n")
 

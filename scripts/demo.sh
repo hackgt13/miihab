@@ -42,11 +42,17 @@ pgrep -f "Unity.app/Contents/MacOS/Unity" >/dev/null && ok "Unity editor running
 print "\nQuest"
 config=unity/KinestheticUnity/Assets/StreamingAssets/quest-host.json
 ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+# Over the USB cable (start_tunnel.sh reverses the ports) the headset reaches this Mac on its own loopback first, so
+# the Wi-Fi address baked into the build only matters without a cable: then a stale one is a warning, not a failure.
+cabled=""
+[[ -x $adb ]] && $adb reverse --list 2>/dev/null | grep -q "tcp:8767 tcp:8767" && cabled=1
+[[ -n $cabled ]] && ok "Headset reaches this Mac over its USB cable (relay, coordinator and voice ports reversed)"
 if [[ -f $config ]]; then
   baked=$(python3 -c "import json;print(json.load(open('$config'))['host'])")
   if [[ $baked == $ip ]]; then ok "Headset app points at this Mac ($ip)"
+  elif [[ -n $cabled ]]; then warn "Headset app's Wi-Fi fallback is $baked (this Mac is now $ip); fine while it's on the cable"
   else bad "Headset app points at $baked but this Mac is now $ip — in Unity run Kinesthetic ▸ Quest ▸ Write host config, then rebuild the APK"; fi
-else warn "No headset config yet (Kinesthetic ▸ Quest ▸ Create headset scene)"; fi
+elif [[ -z $cabled ]]; then warn "No headset config yet (Kinesthetic ▸ Quest ▸ Create headset scene)"; fi
 if lsof -nP -iTCP:8767 -sTCP:LISTEN 2>/dev/null | grep -q '\*:8767'; then ok "Relay reachable on Wi-Fi (token required)"
 else warn "Relay is local-only — headset can't connect until local-data/pair-token.txt exists and the relay restarts"; fi
 [[ -f $apk ]] && ok "APK built: $apk" || warn "No APK built yet (Kinesthetic ▸ Quest ▸ Build combined headset app)"

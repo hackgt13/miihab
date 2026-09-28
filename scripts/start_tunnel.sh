@@ -133,7 +133,9 @@ receive() {
   tunnel_up || exit 1
   local ip=$(tailnet_ip)
   # Relay bound with the token, services, this Mac's motion app, the other Mac's app built — addressed by the tunnel.
-  KINESTHETIC_ADVERTISE_IP=$ip /bin/zsh scripts/start_two_airpods.sh receive
+  # A failed setup (relay unreachable, the other Mac's app blocked by ATS) stops here, rather than going on to
+  # write a connector and print AirDrop instructions for a receiver that is not there.
+  KINESTHETIC_ADVERTISE_IP=$ip /bin/zsh scripts/start_two_airpods.sh receive || { bad "Receiver setup failed; see above. Nothing to send yet."; exit 1; }
   local token=$(<"$token_file")
   write_connector "$ip" "$token"
   print "\nQuest"; quest_wire
