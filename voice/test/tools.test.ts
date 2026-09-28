@@ -114,3 +114,14 @@ test('with the coordinator down the agent is told not to state numbers', async (
   assert.ok((await t.dispatch('get_patient_profile', {}) as any).care_plan.unavailable);
   await assert.rejects(t.dispatch('log_pain_level', { level: 14 }), /0–10/);
 });
+
+test('update_patient_info writes only the fields it declares, with the types it declares', async () => {
+  let written: Record<string, unknown> | null = null;
+  const patients = { upsertPatient: async (_id: string, fields: Record<string, unknown>) => { written = fields; return { id: 'patient-1', ...fields }; } } as unknown as PatientService;
+  const t = tools(patients, 'http://127.0.0.1:9');
+  await t.dispatch('update_patient_info', { name: '  Marcus ', age: 34, goals: ['golf', 7, ''], id: 'someone-else', created_at: 'x', clinician_notes: 'overwritten' });
+  assert.deepEqual(written, { name: 'Marcus', age: 34, goals: ['golf'] });
+  written = null;
+  const none = await t.dispatch('update_patient_info', { age: 'old', role: 'admin' }) as { status: string };
+  assert.equal(none.status, 'unchanged'); assert.equal(written, null);
+});

@@ -191,8 +191,21 @@ export class ToolService {
     return this.analyticsService.getPatientAnalytics(this.patientId);
   }
 
+  /// Only the fields the tool declares, each with the type it declares. The model's arguments went straight into an
+  /// upsert with the service key before, so a stray or adversarial field could have written any column of the row.
   private async updatePatientInfo(params: ToolParams) {
-    const updated = await this.patientService.upsertPatient(this.patientId, params as any);
+    const fields: Record<string, unknown> = {};
+    const text = (v: unknown) => typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : undefined;
+    const list = (v: unknown) => Array.isArray(v) ? v.map(text).filter((x): x is string => !!x).slice(0, 20) : undefined;
+    fields['name'] = text(params['name']);
+    fields['condition'] = text(params['condition']);
+    const age = Number(params['age']);
+    if (params['age'] != null && Number.isInteger(age) && age > 0 && age < 130) fields['age'] = age;
+    fields['goals'] = list(params['goals']);
+    fields['precautions'] = list(params['precautions']);
+    for (const key of Object.keys(fields)) if (fields[key] === undefined) delete fields[key];
+    if (Object.keys(fields).length === 0) return { status: 'unchanged', reason: 'nothing to update' };
+    const updated = await this.patientService.upsertPatient(this.patientId, fields as any);
     return { status: 'updated', patient: updated };
   }
 
