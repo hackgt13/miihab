@@ -32,6 +32,13 @@ final class AudioRouteKeeper {
     private var toneRunning = false
     private var phase: Double = 0
     private var heldDeviceID: AudioDeviceID = 0
+    /// The one tone source. A new one is built per route (its format follows the device), and the old one is
+    /// detached first: engine.reset() does not detach nodes, so they used to pile up on the mixer, all advancing
+    /// the same phase from the audio thread.
+    private var toneNode: AVAudioSourceNode?
+    /// What the user had as their output before the AirPods were claimed, to hand back on release.
+    private var previousOutput: AudioDeviceID = 0
+    private var terminationObserver: NSObjectProtocol?
 
     /// Amplitude of the holding tone. -80 dBFS: inaudible in practice, but not
     /// digital silence, which some devices treat as idle and disconnect.
@@ -51,6 +58,11 @@ final class AudioRouteKeeper {
 
     init(nameMatch: String = "AirPods") {
         self.nameMatch = nameMatch
+        // Quitting hands the output back too (NSApplication.willTerminateNotification, named so this file stays
+        // free of AppKit).
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: Notification.Name("NSApplicationWillTerminateNotification"), object: nil, queue: .main
+        ) { [weak self] _ in self?.release() }
     }
 
     // ---- CoreAudio device plumbing ------------------------------------------
@@ -213,6 +225,8 @@ final class AudioRouteKeeper {
             return noErr
         }
 
+        if let old = toneNode { engine.detach(old) }
+        toneNode = source
         engine.attach(source)
         engine.connect(source, to: engine.mainMixerNode, format: format)
         do {
@@ -259,7 +273,12 @@ final class AudioRouteKeeper {
         let output = speakersToo ? (AudioRouteKeeper.combinedDevice(airPods: target.id) ?? target.id) : target.id
         let outputName = output == target.id ? target.name : "\(target.name) and this Mac's speakers"
 
-        if AudioRouteKeeper.defaultOutputDevice() != output {
+        let current = AudioRouteKeeper.defaultOutputDevice()
+        if current != output {
+            // Remember the user's own choice once, not a device of ours we are replacing.
+            if previousOutput == 0 && current != target.id && AudioRouteKeeper.transport(current) != kAudioDeviceTransportTypeAggregate {
+                previousOutput = current
+            }
             if AudioRouteKeeper.setDefaultOutputDevice(output) {
                 restartTone()
                 holding = toneRunning
@@ -295,9 +314,15 @@ final class AudioRouteKeeper {
         }
     }
 
-    /// Stops the tone and gives the audio route back to the user.
+    /// Stops the tone and gives the audio route back to the user: the output they had before, if it is still there.
+    /// Called on Pause and when the app quits, so quitting no longer leaves the Mac on the AirPods-and-speakers device.
     func release() {
         if toneRunning { engine.stop(); toneRunning = false }
+        if let node = toneNode { engine.detach(node); toneNode = nil }
+        if previousOutput != 0, AudioRouteKeeper.outputDevices().contains(where: { $0.id == previousOutput }) {
+            _ = AudioRouteKeeper.setDefaultOutputDevice(previousOutput)
+        }
+        previousOutput = 0
         holding = false
         heldDeviceID = 0
     }
