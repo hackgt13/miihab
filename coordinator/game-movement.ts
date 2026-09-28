@@ -139,17 +139,29 @@ export async function readMotion(dir: string, playerId: string, fromMs: number, 
     const path = resolve(dir, name);
     if ((await stat(path)).mtimeMs >= fromMs) files.push(path);
   }
-  const rows: MotionRow[] = [];
+  // A file is named after the app's own picker, not after whom its samples went to: in a group session the second
+  // Mac's "patient" app is routed to `friend` (golf-relay.ts), so each row is kept only if it went to this player.
+  // Rows from the relay's two-pair era carry no playerId (raw /motion samples, always the patient's) and a `mac`.
+  // Two pairs of the patient's can land in one folder; interleaved, their frames would read as wild rotations, so
+  // the stream that moved most is kept — the same "follow the active pair" rule the games use (motion-fuse.ts).
+  const streams = new Map<string, { rows: MotionRow[]; activity: number }>();
   for (const path of files) {
     for await (const line of createInterface({ input: createReadStream(path), crlfDelay: Infinity })) {
       let r: any; try { r = JSON.parse(line); } catch { continue; }
       const t = Number(r.receivedAt);
       if (!(t >= fromMs && t <= toMs) || !Array.isArray(r.quaternion) || !Array.isArray(r.rotationRate)) continue;
+      if ((r.playerId ?? 'patient') !== playerId) continue;
       const [x, y, z] = r.rotationRate.map(Number);
-      rows.push({ t, q: r.quaternion.map(Number), speed: Math.hypot(x, y, z) });
+      const key = typeof r.mac === 'string' ? r.mac : 'one pair';   // untagged rows: one pair, across reconnects
+      const stream = streams.get(key) ?? { rows: [], activity: 0 };
+      const speed = Math.hypot(x, y, z);
+      stream.rows.push({ t, q: r.quaternion.map(Number), speed }); stream.activity += speed;
+      streams.set(key, stream);
     }
   }
-  return rows.sort((a, b) => a.t - b.t);
+  let best: MotionRow[] = [], most = -1;
+  for (const { rows, activity } of streams.values()) if (activity > most) { best = rows; most = activity; }
+  return best.sort((a, b) => a.t - b.t);
 }
 
 /** Which sensor measures the patient in each game, and which one (if any) is the forearm reference. */

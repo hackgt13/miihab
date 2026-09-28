@@ -49,7 +49,7 @@ export class MilestoneStore {
     try { this.done = existsSync(this.file) ? JSON.parse(readFileSync(this.file, 'utf8')) : {}; } catch { this.done = {}; }
   }
 
-  answered(id: string): boolean { return id in this.done; }
+  answered(id: string): boolean { return Object.hasOwn(this.done, id); }
 
   answer(id: string, answer: 'shared' | 'dismissed', now = new Date()): void {
     this.done[id] = { answer, at: now.toISOString() };

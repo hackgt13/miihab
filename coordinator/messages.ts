@@ -44,7 +44,7 @@ const PHOTO_TYPES: Record<string, string> = {
 /// so both go through this one gate.
 export function compose(body: { kind?: string; text?: string; photoId?: string }, photos = true):
     { kind: Encouragement | null; text: string; photoId: string | null } {
-  const kind = body.kind && body.kind in ENCOURAGEMENTS ? body.kind as Encouragement : null;
+  const kind = body.kind && Object.hasOwn(ENCOURAGEMENTS, body.kind) ? body.kind as Encouragement : null;
   const text = String(body.text ?? '').trim().slice(0, TEXT_LIMIT);
   const photoId = photos && body.photoId && /^[\w-]{1,64}\.\w{2,5}$/.test(body.photoId) ? body.photoId : null;
   if (!kind && !text && !photoId)

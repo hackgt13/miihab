@@ -82,7 +82,7 @@ export class FriendStore {
 
   me(): Person { return this.graph.people[this.graph.me]; }
   person(id: string): Person | undefined { return this.graph.people[id]; }
-  has(id: string): boolean { return id in this.graph.people; }
+  has(id: string): boolean { return Object.hasOwn(this.graph.people, id); }   // own keys: never "__proto__"
 
   /// Everyone reachable from me in either direction, with the edge state.
   list(): Array<Person & { following: boolean; followsMe: boolean }> {

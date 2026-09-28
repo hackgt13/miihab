@@ -137,7 +137,7 @@ function progressionOf(input: any, targetDeg: number, kindId: string, label: str
   const p: Progression = { stepDeg: 5, minTargetDeg: Math.min(lo + 5, targetDeg), maxTargetDeg: Math.min(hi, targetDeg + 30),
     sessionsToProgress: 2, inBandRatio: .8, maxOvershoots: 2, autoApply: false };
   for (const [key, value] of Object.entries(input ?? {})) {
-    if (!(key in p) || value == null) continue;
+    if (!Object.hasOwn(p, key) || value == null) continue;
     (p as any)[key] = key === 'autoApply' ? Boolean(value) : Number(value);
   }
   const check = (key: string, value: number, range: readonly [number, number]) => {

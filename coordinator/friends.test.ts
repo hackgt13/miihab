@@ -22,3 +22,9 @@ test('every way a name enters the graph capitalises it', () => {
   assert.equal(store.meet({ id: 'p9', displayName: 'wen', mii: 1 }).displayName, 'Wen');
   assert.equal(store.accept(store.invite()).displayName, 'A friend');
 });
+
+test('a request naming "__proto__" is an unknown person, not a way to break the roster', () => {
+  const store = new FriendStore(mkdtempSync(resolve(tmpdir(), 'friends-proto-')));
+  for (const id of ['__proto__', 'constructor', 'toString']) assert.equal(store.has(id), false, id);
+  assert.ok(store.list().every(p => typeof p.id === 'string'));
+});

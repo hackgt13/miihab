@@ -64,7 +64,7 @@ const groups = new GroupStore(socialDir);
 // The second Mac as a person in a group (groups.ts `peerPresent`). The relay knows when it is streaming; asked
 // rather than told, like the relay asks this process about groups, so neither needs the other to start first.
 // A short grace keeps an AirPod taken out for a moment from walking them out of the room.
-const relayUrl = 'http://' + new URL(process.env.KINESTHETIC_MOTION_URL ?? 'ws://127.0.0.1:8767').host;   // the relay the motion comes from
+const relayUrl = 'http://' + new URL(process.env.KINESTHETIC_RAW_MOTION_URL ?? 'ws://127.0.0.1:8767/motion').host;   // the relay the motion comes from
 const peer = {id: PEER_ID, displayName: process.env.KINESTHETIC_PEER_NAME || 'Guest', mii: 1};
 let peerLiveAt = -Infinity;
 const peerLive = () => Date.now() - peerLiveAt < 10000;
@@ -191,7 +191,6 @@ const motionNow = () => lastMotionAt ? lastMotionAt.host + (Date.now() - lastMot
 const sensorState = () => assigner?.state ?? null;
 function sensorsChanged() { exerciseBroadcast({type:'exercise.sensors', payload: sensorState()}); }
 /** How many people this set is for: the activity's own count, or two whenever the patient is in a group session. */
-const peopleInSession = (activityId: string) => Math.max(requireActivity(activityId).subjects, groups.current(friends.me().id) ? 2 : 1);
 class SensorRuleError extends Error {}
 /** The set is over: no more assignment. The relay sockets stay up for the next set. */
 function releaseSensors() {
@@ -274,7 +273,7 @@ async function dashboard() {
 }
 
 /// A model line is a nicety on top of a card that already works, so it gets a budget rather than the card waiting on it.
-const within = <T,>(ms: number, work: Promise<T>) =>
+const within = <T,>(ms: number, work: Promise<T>): Promise<T | null> => !Number.isFinite(ms) ? work :
   Promise.race([work, new Promise<null>(done => setTimeout(() => done(null), ms).unref())]);
 
 /// Open introductions as the Meet card shows them. The warm line under the reason is written from what the two
@@ -320,30 +319,41 @@ async function progress(prescriptionId: string, pain?: PainReport[]) {
 }
 async function finishExercise() {
   if (!exercise) return null;
-  const measured = exercise.summary() as Record<string, any>;
-  const summary = {exerciseId, prescriptionId: exercisePrescriptionId, poseSessionId: exercisePoseSession, poseSource: exerciseSource,
+  // Everything this set needs is taken, and the running state cleared, before the first await. A second stop, or a
+  // start, arriving while the files are written then sees no set here — rather than recording this one twice, or
+  // (the older call finishing last) clearing the new set's session, sensors and log under it.
+  const ex = exercise, id = exerciseId, prescriptionId = exercisePrescriptionId, activityId = exerciseActivityId;
+  const practice = exercisePractice, startedAt = exerciseStartedAt, lean = headLean;
+  const measured = ex.summary() as Record<string, any>;
+  const summary = {exerciseId: id, prescriptionId, poseSessionId: exercisePoseSession, poseSource: exerciseSource,
     simulated: /synthetic|fixture|simulat/i.test(exerciseSource ?? ''), endedAt: new Date().toISOString(),
-    sensor: exercise.kind.requires.includes('imu') ? 'imu' : 'pose', sensors: assigner ? {imu: assigner.state.imu, ref: assigner.state.ref} : null,
-    practice: exercisePractice, ...measured, config: measured.params,
-    headLean: headLean?.summary() ?? {available: false, thresholdCm: 5}};
-  headLean = null;
-  await writeFile(resolve(recordings, `exercise-${exerciseId}.summary.json`), JSON.stringify(summary, null, 2));
-  const envelope = activitySummaryFromExercise({activitySessionId: exerciseId, activityId: exerciseActivityId,
-    venueId: requireActivity(exerciseActivityId).venue,
-    startedAt: exerciseStartedAt || summary.endedAt, endedAt: summary.endedAt, measured});
-  await writeFile(resolve(recordings, `session-${exerciseId}.json`), JSON.stringify(envelope, null, 2));
-  endCurlTrace();
-  exerciseBroadcast({type:'exercise.summary', payload:summary});
+    sensor: ex.kind.requires.includes('imu') ? 'imu' : 'pose', sensors: assigner ? {imu: assigner.state.imu, ref: assigner.state.ref} : null,
+    practice, ...measured, config: measured.params,
+    headLean: lean?.summary() ?? {available: false, thresholdCm: 5}};
+  exercise = null; headLean = null; releaseSensors(); endCurlTrace();
   exerciseLog?.end(); exerciseLog = null;
-  exercise = null; releaseSensors();
+
+  await writeFile(resolve(recordings, `exercise-${id}.summary.json`), JSON.stringify(summary, null, 2));
+  const envelope = activitySummaryFromExercise({activitySessionId: id, activityId,
+    venueId: requireActivity(activityId).venue,
+    startedAt: startedAt || summary.endedAt, endedAt: summary.endedAt, measured});
+  await writeFile(resolve(recordings, `session-${id}.json`), JSON.stringify(envelope, null, 2));
+  exerciseBroadcast({type:'exercise.summary', payload:summary});
   let progression = null;
-  if (exercisePractice) return {...summary, progression};
-  try { progression = await progress(exercisePrescriptionId); exerciseBroadcast({type:'exercise.progression', payload:progression}); }
+  if (practice) return {...summary, progression};
+  try { progression = await progress(prescriptionId); exerciseBroadcast({type:'exercise.progression', payload:progression}); }
   catch (error) { console.error('Progression failed:', (error as Error).message); }
   return {...summary, progression};
 }
 
+/// This server answers only on the Mac's loopback, but a web page can still reach it by DNS rebinding: a name the page
+/// controls re-pointed at 127.0.0.1, which the browser treats as same-origin and sends without an Origin header. The
+/// Host header gives it away — it names the attacker's domain — so anything but a loopback name is refused.
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+const loopbackHost = (host: string | undefined) => !host || LOOPBACK_HOSTS.has(host.replace(/:\d+$/, '').toLowerCase());
+
 const server = createServer(async (request, response) => {
+  if (!loopbackHost(request.headers.host)) { response.writeHead(403).end(); return; }
   const url = new URL(request.url ?? '/', 'http://localhost');
   if (request.method === 'POST' && url.pathname === '/capture/start') {
     if (request.headers.origin && !allowedOrigins.has(request.headers.origin)) { response.writeHead(403).end(); return; }
@@ -419,6 +429,7 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (request.method === 'POST' && url.pathname === '/activity/session') {
+    if (request.headers.origin && !allowedOrigins.has(request.headers.origin)) { response.writeHead(403).end(); return; }
     try {
       const envelope = parseActivitySummary(await readJson(request));
       // The id names the file, so it must be a plain id (the games send a GUID), never a path.
@@ -459,7 +470,7 @@ const server = createServer(async (request, response) => {
       // The motion relay's status (who is connected, how old each stream's last sample is) for the capture page,
       // which cannot read the relay directly across origins.
       if (request.method === 'GET' && url.pathname === '/api/motion-health') {
-        try { return json(200, await (await fetch('http://127.0.0.1:8767/', {signal: AbortSignal.timeout(1000)})).json()); }
+        try { return json(200, await (await fetch(relayUrl + '/', {signal: AbortSignal.timeout(1000)})).json()); }
         catch { return json(503, {ready: false}); }
       }
       // Which AirPod is which for the running set, and what to tell the patient (exercise/imu-assign.ts).
@@ -852,6 +863,7 @@ const server = createServer(async (request, response) => {
 });
 const sockets = new WebSocketServer({ noServer:true, maxPayload:128*1024 });
 server.on('upgrade', (request, socket, head) => {
+  if (!loopbackHost(request.headers.host)) { socket.destroy(); return; }
   const url = new URL(request.url ?? '/', 'http://localhost');
   const role = url.searchParams.get('role');
   if (url.pathname === '/exercise' && role === 'viewer' && !(request.headers.origin && !allowedOrigins.has(request.headers.origin))) {
@@ -917,7 +929,7 @@ for (const kind of ['peer', 'mentor'] as const) introductionCards(kind, Infinity
 // Shutdown must actually terminate (see golf-relay.ts): a peer that vanished without a closing handshake,
 // or the outgoing motion-relay socket, would otherwise keep the process alive.
 function shutdown() {
-  recording?.end(); exercise = null; for (const ws of Object.values(motion)) ws?.terminate();
+  recording?.end(); exercise = null; motion?.terminate(); head?.terminate();
   for (const ws of sockets.clients) ws.terminate(); sockets.close();
   server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 500).unref();
 }

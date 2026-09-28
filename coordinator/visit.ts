@@ -189,7 +189,7 @@ export class VisitStore {
    */
   addReply(input: { kind?: unknown; text?: unknown; planVersion?: unknown }, now = new Date()) {
     const kind = String(input.kind ?? 'message') as ReplyKind;
-    if (!(kind in ACKNOWLEDGEMENTS)) throw Error(`kind must be one of ${Object.keys(ACKNOWLEDGEMENTS).join(', ')}.`);
+    if (!Object.hasOwn(ACKNOWLEDGEMENTS, kind)) throw Error(`kind must be one of ${Object.keys(ACKNOWLEDGEMENTS).join(', ')}.`);
     const typed = String(input.text ?? '').trim().replace(/\s+/g, ' ');
     if (typed.length > REPLY_LIMIT) throw Error(`A message is at most ${REPLY_LIMIT} characters.`);
     if (kind === 'message' && !typed) throw Error('A message needs text.');

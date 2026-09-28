@@ -197,12 +197,22 @@ function warn(where: string, error: unknown) {
   console.warn(`social-ai: ${where} unavailable —`, error instanceof Error ? error.message : error);
 }
 
+/// Keys change with every new message (recaps and drafts are keyed on a thread's tail), so entries that are never
+/// asked for again would pile up for the life of the process. Expired ones are swept on each write, and the map is
+/// capped: the oldest entry goes first (a Map iterates in insertion order).
+const CACHE_LIMIT = 500;
 const cache = new Map<string, { at: number; value: unknown }>();
 function cached<T>(key: string): T | undefined {
   const hit = cache.get(key);
   if (!hit) return undefined;
   if (Date.now() - hit.at > TTL_MS) { cache.delete(key); return undefined; }
   return hit.value as T;
+}
+function remember(key: string, value: unknown) {
+  const now = Date.now();
+  for (const [k, v] of cache) if (now - v.at > TTL_MS) cache.delete(k);
+  cache.delete(key); cache.set(key, { at: now, value });
+  while (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value!);
 }
 
 /// Pull the one tool call out of a response, or null if the model refused,
@@ -274,7 +284,7 @@ export async function spotlight(people: Candidate[]): Promise<Spotlight | null> 
     if (!input) return null;
 
     const value = normaliseSpotlight(input, people);
-    cache.set(key, { at: Date.now(), value });
+    remember(key, value);
     return value;
   } catch (error) {
     warn('spotlight', error);
@@ -315,7 +325,7 @@ export async function recap(otherName: string, messages: RecapMessage[]): Promis
     if (!input || typeof input.recap !== 'string') return null;
 
     const value = input.recap.trim().slice(0, 160);
-    cache.set(key, { at: Date.now(), value });
+    remember(key, value);
     return value;
   } catch (error) {
     warn('recap', error);
@@ -373,7 +383,7 @@ export async function draft(otherName: string, messages: RecapMessage[], facts: 
     if (!input || typeof input.draft !== 'string') return null;
     const value = input.draft.trim().replace(/^["“]|["”]$/g, '').slice(0, 240);
     if (!value) return null;
-    cache.set(key, { at: Date.now(), value });
+    remember(key, value);
     return value;
   } catch (error) {
     warn('draft', error);
@@ -426,7 +436,7 @@ export async function introLine(facts: IntroFacts): Promise<string | null> {
     if (!input || typeof input.line !== 'string') return null;
     const value = input.line.trim().slice(0, 180);
     if (!value) return null;
-    cache.set(key, { at: Date.now(), value });
+    remember(key, value);
     return value;
   } catch (error) {
     warn('introduction', error);
@@ -469,7 +479,7 @@ export async function milestoneLine(facts: { milestone: string; goal: string | n
     if (!input || typeof input.line !== 'string') return null;
     const value = input.line.trim().replace(/^["“]|["”]$/g, '').slice(0, 200);
     if (!value) return null;
-    cache.set(key, { at: Date.now(), value });
+    remember(key, value);
     return value;
   } catch (error) {
     warn('milestone', error);

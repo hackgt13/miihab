@@ -78,3 +78,20 @@ test('a golf session reads only the patient\'s club motion inside the round, and
     assert.equal(await gameMovement({ activityId: 'rehab.studio', startedAt: '', endedAt: '' }, { golf, bowling }), null);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('the patient\'s motion is only the rows routed to the patient, from the pair that moved', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'gm-routing-'));
+  try {
+    const t0 = Date.now() - 60_000;   // files are only read if written after the window opens
+    const row = (extra: object, t: number, speed: number) => JSON.stringify({ quaternion: [0, 0, 0, 1], rotationRate: [0, 0, speed], receivedAt: t, ...extra });
+    // The second Mac's app says "patient", but in a group its rows went to the friend: none of them are the patient's.
+    writeFileSync(join(dir, `patient-${t0}.jsonl`), [row({ playerId: 'friend' }, t0 + 10, 9), row({ playerId: 'friend' }, t0 + 20, 9)].join('\n'));
+    // Solo, two pairs of the patient's in one folder: the one that moved is kept, the resting one is not mixed in.
+    writeFileSync(join(dir, `patient-${t0 + 1}.jsonl`), [
+      row({ type: 'motion.sample', mac: 'mac1' }, t0 + 30, 6), row({ type: 'motion.sample', mac: 'mac2' }, t0 + 31, 0.1),
+      row({ type: 'motion.sample', mac: 'mac1' }, t0 + 40, 7), row({ type: 'motion.sample', mac: 'mac2' }, t0 + 41, 0.1)].join('\n'));
+    const { readMotion } = await import('./game-movement.ts');
+    const rows = await readMotion(dir, 'patient', t0, t0 + 1000);
+    assert.deepEqual(rows.map(r => r.t), [t0 + 30, t0 + 40]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
