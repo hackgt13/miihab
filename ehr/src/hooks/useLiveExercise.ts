@@ -37,15 +37,18 @@ export function useLiveExercise(): LiveExercise {
         try {
           const r = await fetch('/exercise', { cache: 'no-store' })
           const d = await r.json()
-          if (!d.running || !d.summary) return
+          // No set now: a set that ended while this socket was down must not stay "Live" with stale numbers.
+          if (!d.running || !d.summary) { setState(s => ({ ...s, running: false, angleDeg: null })); return }
           const reps: { peakDeg?: number; valid?: boolean; compensationMaxDeg?: number }[] = d.summary.reps ?? []
           set.current = { attempted: Number(d.summary.attempted ?? reps.length), valid: Number(d.summary.valid ?? 0),
-            peaks: reps.map(x => Number(x.peakDeg)).filter(Number.isFinite), prescribed: Number(d.summary.prescribed ?? 0),
+            peaks: reps.filter(x => x.valid).map(x => Number(x.peakDeg)).filter(Number.isFinite), prescribed: Number(d.summary.prescribed ?? 0),
             trunk: Math.max(0, ...reps.map(x => Number(x.compensationMaxDeg)).filter(Number.isFinite)) }
           setState(s => ({ ...s, running: true, override: override() }))
         } catch { /* the stream alone still counts from the next rep */ }
       }
-      ws.onclose = () => { setState(s => ({ ...s, status: 'closed' })); if (!closed) retry = setTimeout(connect, 2000) }
+      // Not live while unheard: the page falls back to the last recorded session, and the reconnect's check above
+      // puts "Live" back if the set is still running.
+      ws.onclose = () => { setState(s => ({ ...s, status: 'closed', running: false, angleDeg: null })); if (!closed) retry = setTimeout(connect, 2000) }
       ws.onmessage = event => {
         let m: any; try { m = JSON.parse(String(event.data)) } catch { return }
         const p = m.payload ?? {}
@@ -59,7 +62,9 @@ export function useLiveExercise(): LiveExercise {
         } else if (m.type === 'exercise.event' && p.type === 'rep.completed') {
           const s = set.current
           s.attempted++; if (p.valid) s.valid++
-          if (Number.isFinite(p.peakDeg)) s.peaks.push(p.peakDeg)
+          // Peak ROM is the reach of reps that counted: a rep rejected for compensation (leaning into it) would
+          // otherwise inflate the number the physician compares against a baseline of valid reps.
+          if (p.valid && Number.isFinite(p.peakDeg)) s.peaks.push(p.peakDeg)
           if (Number.isFinite(p.compensationMaxDeg)) s.trunk = Math.max(s.trunk, p.compensationMaxDeg)
           const line = `Rep ${s.attempted} ${p.valid ? 'counted' : `not counted (${String(p.reason ?? '').replace(/_/g, ' ')})`}` +
             (Number.isFinite(p.peakDeg) ? ` · ${Math.round(p.peakDeg)}°` : '')
