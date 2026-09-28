@@ -76,8 +76,13 @@ namespace Kinesthetic.Rehab
         // and what to tell the patient, shown verbatim while it is sorting the pairs out.
         string sensorPhase, sensorInstruction;
         bool TwoImu => Modelled?.Requires.Contains("ref") == true;
-        bool MotionFresh => TwoImu ? club.Fresh && wrist.Fresh : club.Fresh || wrist.Fresh;
-        public bool ReadyToBegin => useCameraPose ? Fresh : TwoImu ? club.Still && wrist.Still : club.Still || wrist.Still;
+        // The relay sends one fused stream on both channels (golf-relay.ts), so the two channels are always equally
+        // fresh and cannot say whether one pair or two are streaming. Two-AirPod movements ask the relay's per-pair
+        // status instead (PollPairs); the channels still say whether motion is arriving and whether it is still.
+        bool BothPairsLive => mac1Live && mac2Live;
+        bool AnyMotionFresh => club.Fresh || wrist.Fresh;
+        bool MotionFresh => TwoImu ? AnyMotionFresh && BothPairsLive : AnyMotionFresh;
+        public bool ReadyToBegin => useCameraPose ? Fresh : TwoImu ? (club.Still || wrist.Still) && BothPairsLive : club.Still || wrist.Still;
         public bool Calibrated => calibrated;
         public Transform targetOrb, liveMarker;
         public LineRenderer targetBand, armGuide;
@@ -366,16 +371,18 @@ namespace Kinesthetic.Rehab
             sessionError = false;
             // Only this session's messages count from here: starting one closes any session still open on the
             // coordinator, and that one's summary must not be taken for ours.
+            JObject startedReply = null;
             try
             {
-                var reply = JObject.Parse(request.downloadHandler.text);
-                currentExerciseId = (string)reply["exerciseId"]; exerciseKind = (string)reply["exerciseKind"] ?? exerciseKind; shownAngle = 0;
+                startedReply = JObject.Parse(request.downloadHandler.text);
+                currentExerciseId = (string)startedReply["exerciseId"]; exerciseKind = (string)startedReply["exerciseKind"] ?? exerciseKind; shownAngle = 0;
             }
             catch (Exception) { currentExerciseId = null; }
             running = true; calibrated = false; attempted = valid = 0; liveAngle = null;
             liveQuality = null; streak = 0; bestHoldMs = 0; holdMetRep = 0;
             status = useCameraPose ? "Hold still with your arms relaxed · calibrating" : $"Keep your {AllPlacements} still · calibrating";
             start.text = "Finish set";
+            if (startedReply != null) OnStarted(startedReply);   // after the resets above, so they do not undo it
         }
 
         void ApplyPlan(JObject plan)
@@ -651,7 +658,7 @@ namespace Kinesthetic.Rehab
                 holdReadout.value = $"{(hold?["heldMs"]?.Value<float>() ?? 0) / 1000:0.0}";
             }
             if (!running && !startingSession && !sessionError)
-                statusLabel.text = Cue = summaryReceived ? "Your session is saved." : !fresh ? (TwoImu && club.Fresh != wrist.Fresh ? "Connect your other AirPod." : $"Connect the AirPod on your {SensorPlacement}.") : ReadyToBegin ? "Starting automatically…" : $"Keep your {AllPlacements} still. We’ll begin automatically.";
+                statusLabel.text = Cue = summaryReceived ? "Your session is saved." : !fresh ? (TwoImu && mac1Live != mac2Live ? "Connect your other AirPod." : $"Connect the AirPod on your {SensorPlacement}.") : ReadyToBegin ? "Starting automatically…" : $"Keep your {AllPlacements} still. We’ll begin automatically.";
             start.text = stoppingSession ? "Saving…" : running ? "Finish set" : startingSession ? "Starting…" : summaryReceived ? "Practice again" : sessionError ? "Retry connection" : "Connecting…";
             bool retry = sessionError || (!fresh || exercise?.connected != true) && Time.unscaledTime - enteredAt > 8;
             if (retry && !running && !IsBusy) start.text = "Retry connection";
@@ -697,6 +704,26 @@ namespace Kinesthetic.Rehab
             rig.ApplyMovement(Body, side == "left", live ? shownAngle : 0);
         }
 
+        /// A set has started: from the start request's reply (the same payload), or from the stream if it gets here
+        /// first. The coordinator broadcasts exercise.started before it answers, while this session is still filtering
+        /// on "pending", so the stream's copy used to be dropped — and with it the sensor instruction, the head
+        /// recentring and the coach's "[set] Starting" line. Once per set, whichever arrives first.
+        string startedHandledFor;
+        void OnStarted(JObject p)
+        {
+            var id = (string)p["exerciseId"];
+            if (id != null && id == startedHandledFor) return;
+            startedHandledFor = id;
+            exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0; ArrangeCompany();
+            if (p["sensors"] is JObject sensors) { sensorPhase = (string)sensors["phase"]; sensorInstruction = (string)sensors["instruction"]; }
+            UprightCount++;   // the patient is sitting still and upright: the headset zeroes its head here
+            Voice?.Context($"[set] Starting {movementLabel ?? exerciseKind}: {prescribedReps} reps, target {targetDeg:0}°, {side} side.");
+            // Which qualities this set is judged on, so a mechanic with nothing to answer to can hide.
+            if (p["qualities"] is JArray qualities)
+                qualityIds = new System.Collections.Generic.HashSet<string>(qualities.OfType<JObject>().Select(q => (string)q["id"]).Where(id2 => id2 != null));
+            UpdatePlanLabels();
+        }
+
         void ReadExercise()
         {
             while (exercise != null && exercise.Take(out var text))
@@ -706,15 +733,7 @@ namespace Kinesthetic.Rehab
                 if (currentExerciseId != null && (string)m["exerciseId"] != currentExerciseId) continue;   // an earlier session closing
                 switch ((string)m["type"])
                 {
-                    case "exercise.started":
-                        exerciseKind = (string)p["exerciseKind"] ?? exerciseKind; shownAngle = 0; ArrangeCompany();
-                        if (p["sensors"] is JObject sensors) { sensorPhase = (string)sensors["phase"]; sensorInstruction = (string)sensors["instruction"]; }
-                        UprightCount++;   // the patient is sitting still and upright: the headset zeroes its head here
-                        Voice?.Context($"[set] Starting {movementLabel ?? exerciseKind}: {prescribedReps} reps, target {targetDeg:0}°, {side} side.");
-                        // Which qualities this set is judged on, so a mechanic with nothing to answer to can hide.
-                        if (p["qualities"] is JArray qualities)
-                            qualityIds = new System.Collections.Generic.HashSet<string>(qualities.OfType<JObject>().Select(q => (string)q["id"]).Where(id => id != null));
-                        UpdatePlanLabels(); break;
+                    case "exercise.started": OnStarted(p); break;
                     case "exercise.sample":
                         phase = (string)p["phase"] ?? phase;
                         liveAngle = p["valid"]?.Value<bool>() == true && p["angleDeg"]?.Type is JTokenType.Float or JTokenType.Integer ? p["angleDeg"].Value<float>() : null;
