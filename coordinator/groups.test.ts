@@ -158,6 +158,19 @@ test('the second Mac comes into your room, and walks out of it when it goes quie
   assert.equal(room.messages.at(-1)!.event, 'left');
 });
 
+test('a full room makes a seat for the second Mac: a sample person stands down, never a real one', () => {
+  const store = new GroupStore(dir());
+  const mine = store.create(me, 'golf.adaptive', true);
+  while (mine.members.length < CAPACITY) store.inject(me.id);
+  const last = mine.members.at(-1)!.id;
+  store.peerPresent(peer, me.id);
+  const room = store.current(me.id)!;
+  assert.equal(room.members.length, CAPACITY);
+  assert.ok(room.members.some(m => m.id === peer.id), 'seated, as the relay plays them');
+  assert.ok(!room.members.some(m => m.id === last), 'the latest sample to arrive gave up the seat');
+  assert.ok(room.members.some(m => m.id === me.id));
+});
+
 test('with you in no room, the second Mac hosts an open one in the lobby you look at', () => {
   const store = new GroupStore(dir());
   store.setSamples(false);

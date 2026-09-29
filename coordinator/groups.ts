@@ -300,9 +300,16 @@ export class GroupStore {
 
   /// The second Mac is streaming: someone is sitting at it, so it is a real person (never a sample), and it comes
   /// into whatever room you are in. Called on every poll while the stream is live; writes only when it joins.
+  /// In a full room a sample person gives up their seat: the relay already plays the second Mac as the other
+  /// person in your group, so a room with no seat for them would show a game partner who is not in it.
   peerPresent(peer: Who, meId: string): void {
     const mine = this.current(meId);
-    if (!mine || mine.members.some(m => m.id === peer.id) || mine.members.length >= CAPACITY) return;
+    if (!mine || mine.members.some(m => m.id === peer.id)) return;
+    if (mine.members.length >= CAPACITY) {
+      const stand = mine.members.findLast(m => m.sample);
+      if (!stand) return;
+      this.leave(stand.id, false);
+    }
     this.leave(peer.id, false);   // out of the room you left, into the one you are in
     this.enter(mine, peer);
     this.save();
