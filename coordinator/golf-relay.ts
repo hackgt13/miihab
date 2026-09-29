@@ -283,7 +283,10 @@ sockets.on('connection',(ws,role,player,path,remote)=>{
           quaternion:p.quaternion,rotationRate:p.rotationRate,hostMonotonicMs:t};
         broadcast(rawViewers,raw);log.write(JSON.stringify({...raw,receivedAs:{path,player},receivedAt:Date.now()})+'\n');
         const out=fuse.push(mac,{quaternion:p.quaternion,rotationRate:p.rotationRate,sourceId:p.sourceId},Date.now());
+        // The fused stream has its own session id, so it carries whether the pair it follows is a simulator
+        // (sim-demo's sessions start `simulated-`): a round played on one must not count as the patient's.
         if(out)for(const ch of motions.values())broadcast(ch.viewers,{type:ch.type+'.motion',playerId:'patient',mac,
+          simulated:session.startsWith('simulated-'),
           sourceId:out.sourceId,sessionId:fusedSession,sequence:out.sequence,sensorTime:t/1000,
           quaternion:out.quaternion,rotationRate:out.rotationRate,hostMonotonicMs:t});
         return;

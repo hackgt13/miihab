@@ -336,7 +336,7 @@ async function finishExercise() {
   await writeFile(resolve(recordings, `exercise-${id}.summary.json`), JSON.stringify(summary, null, 2));
   const envelope = activitySummaryFromExercise({activitySessionId: id, activityId,
     venueId: requireActivity(activityId).venue,
-    startedAt: startedAt || summary.endedAt, endedAt: summary.endedAt, measured});
+    startedAt: startedAt || summary.endedAt, endedAt: summary.endedAt, measured: {...measured, simulated: summary.simulated}});
   await writeFile(resolve(recordings, `session-${id}.json`), JSON.stringify(envelope, null, 2));
   exerciseBroadcast({type:'exercise.summary', payload:summary});
   let progression = null;

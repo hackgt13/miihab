@@ -39,7 +39,7 @@ namespace Kinesthetic.Golf
         public bool IsBusy => postingRound;
         bool postingRound;
         DateTime roundStartedUtc = DateTime.UtcNow;
-        bool roundReported;
+        bool roundReported, roundSimulated;
         // Tracking loss in the round's record is the AirPod stream reconnecting: golf no longer uses the camera, whose
         // reconnects were counted here before, and the baseline is taken at the start of every round, the first too.
         int motionReconnectsAtRoundStart;
@@ -238,7 +238,7 @@ namespace Kinesthetic.Golf
         public void RestartRound()
         {
             Strokes=new int[2]; Finished=new bool[2]; Misses=new int[2]; lies[0]=lies[1]=tee.position;
-            roundStartedUtc=DateTime.UtcNow; roundReported=false;
+            roundStartedUtc=DateTime.UtcNow; roundReported=false; roundSimulated=false;
             motionReconnectsAtRoundStart=SensorHub.Instance?.MotionReconnects ?? 0;
             clubIndex=0; BeginTurn(0);
         }
@@ -265,7 +265,7 @@ namespace Kinesthetic.Golf
             StartCoroutine(ActivityRecorder.Send(bridge, ActivityId, id, roundStartedUtc, subjects,
                 TrackingLossEvents, "golf.round",
                 new {strokes=Strokes, misses=Misses, acceptedShots=AcceptedShots, club=clubNames[clubIndex]},
-                _=>postingRound=false, completed));
+                _=>postingRound=false, completed, roundSimulated));
         }
         /// <summary>Record a round left partway, then do not leave mid-POST or the round is lost.</summary>
         public IEnumerator RequestExit(Action<bool> succeeded)
@@ -354,6 +354,7 @@ namespace Kinesthetic.Golf
                     var rate=new Vector3(p.rotationRate[0],p.rotationRate[1],p.rotationRate[2]);
                     if(rate.magnitude<.15f) {if(stationarySince<0)stationarySince=Time.unscaledTime;}else stationarySince=-1;
                     latest=p;imuSequence=p.sequence;imuTicks=ticks;lastAttitude=q.normalized;
+                    if(p.simulated && activePlayer==0)roundSimulated=true;
                     // Strike samples and the rendered club use the same corrected grip.
                     if(strikeZone.Calibrated)clubPresentation[activePlayer].Present(strikeZone.Rotation(lastAttitude));
                     if(Phase=="Address" && swing.Sample(lastAttitude,rate,p.sessionId,p.sensorTime,out var speed))

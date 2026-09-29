@@ -114,7 +114,7 @@ test('two pairs are Mac 1 and Mac 2 whatever they arrive on, and every game foll
     let n=0;
     const tick=async(localRad:number,secondRad:number)=>{n++;
       local.send(JSON.stringify({type:'club.motion',playerId:'patient',sourceId:'Right',sessionId:'mac1-fixture',sequence:n,sensorTime:n*.04,quaternion:[0,0,0,1],rotationRate:[0,0,localRad]}));
-      second.send(JSON.stringify({type:'club.motion',playerId:'friend',sourceId:'Left',sessionId:'mac2-fixture',sequence:n,sensorTime:n*.04,quaternion:[0,0,0,1],rotationRate:[0,0,secondRad]}));
+      second.send(JSON.stringify({type:'club.motion',playerId:'friend',sourceId:'Left',sessionId:'simulated-mac2',sequence:n,sensorTime:n*.04,quaternion:[0,0,0,1],rotationRate:[0,0,secondRad]}));
       await settle(40);};
     for(let i=0;i<6;i++)await tick(0.02,0.02);      // both resting: the first to speak leads
     for(let i=0;i<12;i++)await tick(0.02,9);        // the second Mac's wrist throws
@@ -122,6 +122,8 @@ test('two pairs are Mac 1 and Mac 2 whatever they arrive on, and every game foll
     assert.ok(club.every(p=>p.type!=='club.motion'||p.playerId==='patient'),'nobody is a friend');
     assert.equal(club.filter(p=>p.type==='club.motion').at(-1).mac,'mac2');
     assert.equal(wrist.filter(p=>p.type==='bowling.motion').at(-1).mac,'mac2','bowling reads the same one stream');
+    // The second pair is sim-demo's: the games are told, so its rounds stay off the patient's record.
+    assert.ok(club.filter(p=>p.type==='club.motion').every(p=>p.simulated===(p.mac==='mac2')),'the fused stream says which pair was simulated');
     assert.deepEqual([...new Set(raw.filter(p=>p.type==='motion.sample').map(p=>p.mac))].sort(),['mac1','mac2']);
 
     const health=await (await fetch('http://127.0.0.1:18791/')).json();

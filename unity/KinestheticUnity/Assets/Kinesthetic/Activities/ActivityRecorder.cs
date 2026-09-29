@@ -45,12 +45,13 @@ namespace Kinesthetic.Activities
 
         /// <summary>
         /// Post one session: finished, or (completed false) left partway, which still carries what was done. The caller owns the session id so it can raise Completed with it
-        /// immediately, without waiting on the network.
+        /// immediately, without waiting on the network. Simulated: any of the patient's motion came from a simulator.
         /// </summary>
         public static IEnumerator Send(
             string bridge, string activityId, string sessionId, DateTime startedUtc,
             IReadOnlyList<ActivitySubject> subjects, int lossEvents,
-            string payloadKind, object payloadData, Action<bool> finished = null, bool completed = true)
+            string payloadKind, object payloadData, Action<bool> finished = null, bool completed = true,
+            bool simulated = false)
         {
             var entry = ActivityCatalog.ById(activityId);
             if (entry == null)
@@ -90,7 +91,7 @@ namespace Kinesthetic.Activities
                 completed,
                 subjects = rows,
                 trackingQuality = new { validFrameRatio = (double?)null, lossEvents },
-                flags = Flags(lossEvents, completed),
+                flags = Flags(lossEvents, completed, simulated),
                 payload = new { kind = payloadKind, schemaVersion = "1", data = payloadData },
             };
 
@@ -108,11 +109,12 @@ namespace Kinesthetic.Activities
             finished?.Invoke(ok);
         }
 
-        static string[] Flags(int lossEvents, bool completed)
+        static string[] Flags(int lossEvents, bool completed, bool simulated)
         {
             var flags = new List<string>();
             if (lossEvents > 0) flags.Add("tracking_lost");
             if (!completed) flags.Add("not_completed");   // left before the round or game ended
+            if (simulated) flags.Add("simulated");        // played on sim-demo's motion: never the patient's session
             return flags.ToArray();
         }
     }

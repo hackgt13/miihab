@@ -39,6 +39,14 @@ test('with no real sessions the board is not measured, but today is the real pre
   assert.equal(d.programDay, 21);
 });
 
+test('a game played on simulated motion is not the patient\'s session', () => {
+  const sim = { activitySessionId: 'golf-sim', activityId: 'golf.adaptive', endedAt: at(0, 12), completed: true, flags: ['simulated'] };
+  const d = build([], [sim]);
+  assert.equal(d.streakDays, 0); assert.equal(d.weekSessionsDone, 0);
+  assert.equal(d.calendar.at(-1)!.level, 0);
+  assert.equal(build([], [{ ...sim, flags: ['tracking_lost'] }]).streakDays, 1, 'other flags still count');
+});
+
 test('streaks count consecutive days, stay alive until today ends, and remember the best run', () => {
   // Best run: 10, 9, 8 days ago. Current: 3, 2, 1 days ago (nothing yet today).
   const d = build([10, 9, 8, 3, 2, 1].map(x => rehab(x)));

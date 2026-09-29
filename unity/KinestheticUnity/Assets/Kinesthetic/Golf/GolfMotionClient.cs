@@ -15,6 +15,8 @@ namespace Kinesthetic.Golf
         /// Which of the patient's two pairs the relay's fused stream is following ("mac1"/"mac2"); empty from a
         /// single app. A change of pair is not a change of club: the relay re-bases orientation at the handover.
         public string mac;
+        /// The pair it follows is a simulator (sim-demo), so a round played on it is not the patient's.
+        public bool simulated;
         public long sequence;
         public double sensorTime;
         public float[] quaternion, rotationRate;

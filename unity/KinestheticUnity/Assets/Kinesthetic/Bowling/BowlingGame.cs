@@ -46,7 +46,7 @@ namespace Kinesthetic.Bowling
             succeeded?.Invoke(true);
         }
         DateTime gameStartedUtc = DateTime.UtcNow;
-        bool gameReported, postingGame;
+        bool gameReported, postingGame, gameSimulated;
         int rolls, reconnectsAtStart;
         public string Cue => Paused ? "Paused" : Phase == "Rolling" ? "Nice and easy." : Phase == "Result" || Phase == "Complete" ? Result : !MotionReady ? Connection : Swing.Cue;
         GolfMotionClient client => SensorHub.Instance?.MotionFor(motionUrl);
@@ -157,6 +157,7 @@ namespace Kinesthetic.Bowling
                 source = nextSource; mac = nextMac;
                 if (seq <= sequence || time <= sensorTime) return;
                 sequence = seq; sensorTime = time; lastArrival = arrival; Connection = "AirPod connected";
+                if ((bool?)p["simulated"] == true) gameSimulated = true;   // sim-demo's motion: not the patient's game
                 if (Paused) return;
                 if (Swing.Sample(attitude, rate, time, Phase == "Ready", out float aim, out float power)) Launch(aim, power);
                 else if (Phase == "Ready" && !Swing.Calibrated) { Phase = "Setup"; readySince = -1; }
@@ -221,13 +222,13 @@ namespace Kinesthetic.Bowling
             postingGame = true;
             StartCoroutine(ActivityRecorder.Send(bridge, ActivityId, id, gameStartedUtc, subjects,
                 lost, "bowling.game", new { total = Score.Total, rolls, frames = marks },
-                _ => postingGame = false, completed));
+                _ => postingGame = false, completed, gameSimulated));
         }
         public void RestartRound()
         {
             if (renderOnly || pinPositions == null) return;
             Time.timeScale = 1; Paused = false; Score = new BowlingScore(); LastAim = LastPower = 0; Result = "";
-            gameStartedUtc = DateTime.UtcNow; gameReported = false; rolls = 0;
+            gameStartedUtc = DateTime.UtcNow; gameReported = false; gameSimulated = false; rolls = 0;
             reconnectsAtStart = SensorHub.Instance?.MotionReconnectsFor(motionUrl) ?? 0;
             Swing.Reset(); readySince = -1; PrepareBall(true);
         }

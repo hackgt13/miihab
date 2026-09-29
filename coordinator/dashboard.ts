@@ -35,7 +35,8 @@ export function buildDashboard(args: { plans: Plan[]; summaries: any[]; envelope
   // Exercise sessions that are the patient's own work; every activity record is checked against them.
   const excluded = new Set(args.summaries.filter(s => s.simulated || s.calibrated === false || !(s.attempted > 0)).map(s => String(s.exerciseId)));
   const summaries = args.summaries.filter(s => !excluded.has(String(s.exerciseId)));
-  const envelopes = args.envelopes.filter(e => !excluded.has(String(e.activitySessionId)) && Date.parse(e.endedAt) <= now.getTime());
+  const envelopes = args.envelopes.filter(e => !excluded.has(String(e.activitySessionId)) && !e.flags?.includes('simulated')
+    && Date.parse(e.endedAt) <= now.getTime());
 
   // Consistency: how many sessions ended on each local day.
   const perDay = new Map<string, number>();

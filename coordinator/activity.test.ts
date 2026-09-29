@@ -62,6 +62,16 @@ test('an unmet prescription is flagged incomplete', () => {
   assert.deepEqual(e.flags, ['not_completed']);
 });
 
+test('a set on simulated motion carries the simulated flag, and a game may send it', () => {
+  const e = activitySummaryFromExercise({
+    activitySessionId: 'ex-3', activityId: 'rehab.studio',
+    startedAt: '2026-09-26T10:00:00.000Z', endedAt: '2026-09-26T10:02:00.000Z',
+    measured: {exerciseKind: 'shoulder-raise.v1', attempted: 8, valid: 8, prescribed: 8, simulated: true},
+  });
+  assert.deepEqual(e.flags, ['simulated']);
+  assert.deepEqual(parseActivitySummary(golfRound({flags: ['simulated']})).flags, ['simulated']);
+});
+
 test('live: an activity posts its own session record and it appears alongside exercise sessions', {timeout:40000}, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'kinesthetic-activity-'));
   const port = 18783;   // every suite has its own ports (18766-18782 are taken); keep every test isolated

@@ -14,8 +14,11 @@ import { activityById, requireActivity } from './activities.ts';
 
 export const ACTIVITY_SUMMARY_SCHEMA = 'kinesthetic.activity.v1';
 
-/** Failure modes that mean the same thing for every activity. Exercise-specific reasons stay in payload. */
-export const SHARED_FLAGS = ['tracking_lost', 'interrupted', 'out_of_view', 'not_completed'] as const;
+/**
+ * Failure modes that mean the same thing for every activity. Exercise-specific reasons stay in payload.
+ * `simulated`: the motion came from a simulator, not a person, so the session is never the patient's work.
+ */
+export const SHARED_FLAGS = ['tracking_lost', 'interrupted', 'out_of_view', 'not_completed', 'simulated'] as const;
 export type SharedFlag = typeof SHARED_FLAGS[number];
 
 export interface Dose { prescribed: number | null; attempted: number; valid: number }
@@ -151,6 +154,7 @@ export function activitySummaryFromExercise(args: {
   const flags: SharedFlag[] = [];
   if (m.trackingLossEvents > 0) flags.push('tracking_lost');
   if (m.prescribed != null && m.valid < m.prescribed) flags.push('not_completed');
+  if (m.simulated) flags.push('simulated');
   return parseActivitySummary({
     schema: ACTIVITY_SUMMARY_SCHEMA,
     activitySessionId: args.activitySessionId,
