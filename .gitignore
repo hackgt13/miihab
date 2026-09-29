@@ -55,16 +55,14 @@ artifacts/pose-tests/
 artifacts/*.png
 artifacts/docs-trusted-read-20260925/
 
-# Editable art sources and archived evaluation checkout
-art/mii/
-art/course-reference/
-third_party/cbush201-golf-original/FirstTest/Assets/ImportedAssets/
-third_party/cbush201-golf-original/FirstTest/Assets/TextMesh Pro/
-third_party/cbush201-golf-original/FirstTest/Assets/Screenshots/
-third_party/cbush201-golf-original/FirstTest/Packages/
-third_party/cbush201-golf-original/FirstTest/Logs/
-third_party/cbush201-golf-original/FirstTest/UserSettings/
-third_party/cbush201-golf-original/
+# Removed 3D models, textures, and source art
+art/
+third_party/
+unity/KinestheticUnity/Assets/Kinesthetic/Art/
+unity/KinestheticUnity/Assets/Kinesthetic/Bowling/Art/
+unity/KinestheticUnity/Assets/Kinesthetic/Menu/Art/
+unity/KinestheticUnity/Assets/Kinesthetic/Golf/Resources/GolfHUD/
+unity/KinestheticUnity/Assets/Kinesthetic/Rehab/Studio/OakGrain.png
 
 # agent working notes (local only)
 agents/
@@ -72,8 +70,6 @@ agents/
 # Large local datasets and reference footage (coach motions are extracted into Coach/Resources)
 research/ui-prmd/
 research/wii-sports-video/
-# Raw coach art; the imported copy lives in Assets/Kinesthetic/Art/Coach
-art/coach/src/
 
 # Local speech-model experiments: large model files and a virtualenv (a 310 MB .onnx would be refused by GitHub)
 coach/models/
